@@ -31,9 +31,11 @@ object VectraBlock {
     private const val VERSION = 1
     private const val HEADER_BYTES = 64
     private const val CRC_OFFSET = 32
-    private const val PRE6_FACTOR = 0x9E3779B97F4A7C15uL.toLong()
+    private const val PRE6_FACTOR = 0x9E3779B97F4A7C15uL.toLong() // 64-bit golden ratio mix
+    private const val STRIPE_CFG_DEFAULT = 0x01020304
+    private const val ID_PREFIX_DEFAULT = 0x5645435452414cL // "VECTRAL"
 
-    fun createHeader(index: Long, payloadLen: Int, seed: Int, stripeCfg: Int = 0x01020304, idPrefix: Long = 0x5645435452414cL): ByteArray {
+    fun createHeader(index: Long, payloadLen: Int, seed: Int, stripeCfg: Int = STRIPE_CFG_DEFAULT, idPrefix: Long = ID_PREFIX_DEFAULT): ByteArray {
         val buffer = ByteBuffer.allocate(HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN)
         buffer.putLong(MAGIC)
         buffer.putInt(VERSION)
@@ -53,12 +55,14 @@ object VectraBlock {
 }
 
 object CRC32C {
+    // Castagnoli polynomial
+    private const val CRC32C_POLY = 0x82F63B78.toInt()
     private val table: IntArray by lazy { IntArray(256) { i -> calcEntry(i) } }
 
     private fun calcEntry(i: Int): Int {
         var crc = i
         repeat(8) {
-            crc = if ((crc and 1) != 0) (crc ushr 1) xor 0x82F63B78.toInt() else crc ushr 1
+            crc = if ((crc and 1) != 0) (crc ushr 1) xor CRC32C_POLY else crc ushr 1
         }
         return crc
     }
@@ -175,7 +179,7 @@ object VectraCore {
      * DELTA stage: branchless select between two ints using a mask.
      */
     fun deltaBranchless(a: Int, b: Int, mask: Int): Int {
-        val res = (a and mask) or (b and mask.inv())
+        val res = (a and mask.inv()) or (b and mask)
         state.stageCounters[3]++
         return res
     }
