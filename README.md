@@ -10,6 +10,8 @@
 # Vectras VM
 [![Ceasefire Now](https://badge.techforpalestine.org/default)](https://techforpalestine.org/learn-more)
 
+> **Note**: This project includes an experimental **Vectra Core MVP** - a deterministic event processing framework with integrity verification. See [VECTRA_CORE.md](VECTRA_CORE.md) for details.
+
 ![GitHub Repo stars](https://img.shields.io/github/stars/xoureldeen/Vectras-VM-Android)
 ![GitHub watchers](https://img.shields.io/github/watchers/xoureldeen/Vectras-VM-Android)
 ![GitHub forks](https://img.shields.io/github/forks/xoureldeen/Vectras-VM-Android)

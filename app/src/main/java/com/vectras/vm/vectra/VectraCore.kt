@@ -3,14 +3,24 @@ package com.vectras.vm.vectra
 import android.content.Context
 import android.util.Log
 import com.vectras.vm.BuildConfig
+import java.io.File
+import java.io.RandomAccessFile
 import java.nio.ByteBuffer
 import java.nio.ByteOrder
 import java.util.ArrayDeque
+import java.util.PriorityQueue
+import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.locks.ReentrantLock
+import kotlin.concurrent.withLock
 
 private const val TAG = "VectraCore"
 
+/**
+ * VectraState: Holds 1024-bit flags (state depth/stack flags).
+ * Uses BitSet-like structure with LongArray for efficient bit operations.
+ */
 data class VectraState(
-    val bitset: LongArray = LongArray(16), // 1024 states
+    val bitset: LongArray = LongArray(16), // 1024 states = 16 * 64 bits
     val stageCounters: LongArray = LongArray(6),
     var crc32c: Int = 0,
     var entropyHint: Int = 0,
@@ -24,8 +34,34 @@ data class VectraState(
         val branchless = if (enabled) -1L else 0L
         bitset[word] = (bitset[word] and mask.inv()) or (branchless and mask)
     }
+
+    fun getFlag(index: Int): Boolean {
+        if (index !in 0 until 1024) return false
+        val word = index ushr 6
+        val mask = 1L shl (index and 63)
+        return (bitset[word] and mask) != 0L
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as VectraState
+        if (!bitset.contentEquals(other.bitset)) return false
+        if (!stageCounters.contentEquals(other.stageCounters)) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = bitset.contentHashCode()
+        result = 31 * result + stageCounters.contentHashCode()
+        return result
+    }
 }
 
+/**
+ * VectraBlock: Represents one 4x4 block = 16 bits + parity8 + crc32c + metadata.
+ * Base cell: 4x4 = 16 (area); "8" is parity (4 row + 4 col).
+ */
 object VectraBlock {
     private const val MAGIC = 0x5645435452413031L // "VECTRA01"
     private const val VERSION = 1
@@ -34,6 +70,35 @@ object VectraBlock {
     private val PRE6_FACTOR = 0x9E3779B97F4A7C15uL.toLong() // 64-bit golden ratio mix
     private const val STRIPE_CFG_DEFAULT = 0x01020304
     private const val ID_PREFIX_DEFAULT = 0x5645435452414C4CL // "VECTRAL"
+
+    /**
+     * Creates a 4x4 block with 16 bits of data.
+     * Returns packed data: upper 16 bits = data, lower 8 bits = parity8
+     */
+    fun create4x4Block(data16: Int): Int {
+        val parity8 = Parity.parity2D8(data16)
+        return (data16 shl 8) or (parity8 and 0xFF)
+    }
+
+    /**
+     * Extracts 16-bit data from packed block
+     */
+    fun extractData(packed: Int): Int = (packed ushr 8) and 0xFFFF
+
+    /**
+     * Extracts 8-bit parity from packed block
+     */
+    fun extractParity(packed: Int): Int = packed and 0xFF
+
+    /**
+     * Verifies block integrity by recomputing parity
+     */
+    fun verify4x4Block(packed: Int): Boolean {
+        val data = extractData(packed)
+        val storedParity = extractParity(packed)
+        val computedParity = Parity.parity2D8(data)
+        return storedParity == computedParity
+    }
 
     fun createHeader(index: Long, payloadLen: Int, seed: Int, stripeCfg: Int = STRIPE_CFG_DEFAULT, idPrefix: Long = ID_PREFIX_DEFAULT): ByteArray {
         val buffer = ByteBuffer.allocate(HEADER_BYTES).order(ByteOrder.LITTLE_ENDIAN)
@@ -54,6 +119,10 @@ object VectraBlock {
     }
 }
 
+/**
+ * CRC32C: Castagnoli polynomial for data integrity.
+ * Software implementation (no native required for MVP).
+ */
 object CRC32C {
     // Castagnoli polynomial
     private const val CRC32C_POLY = 0x82F63B78.toInt()
@@ -79,7 +148,53 @@ object CRC32C {
     }
 }
 
+/**
+ * Parity: Helper for 2D parity computation on 4x4 blocks.
+ * 4 row parity + 4 col parity => 8 bits total.
+ * idx mapping: idx=(y<<2)|x for 4x4 grid
+ */
 object Parity {
+    /**
+     * Computes 2D parity for a 4x4 block (16 bits).
+     * Returns 8 bits: [row3, row2, row1, row0, col3, col2, col1, col0]
+     */
+    fun parity2D8(data16: Int): Int {
+        var parity = 0
+        // Compute row parities (bits 4-7)
+        for (row in 0..3) {
+            var rowParity = 0
+            for (col in 0..3) {
+                val idx = (row shl 2) or col
+                val bit = (data16 ushr idx) and 1
+                rowParity = rowParity xor bit
+            }
+            parity = parity or (rowParity shl (row + 4))
+        }
+        // Compute column parities (bits 0-3)
+        for (col in 0..3) {
+            var colParity = 0
+            for (row in 0..3) {
+                val idx = (row shl 2) or col
+                val bit = (data16 ushr idx) and 1
+                colParity = colParity xor bit
+            }
+            parity = parity or (colParity shl col)
+        }
+        return parity
+    }
+
+    /**
+     * Computes syndrome (difference) between stored and computed parity.
+     * Returns popcount of XOR difference.
+     */
+    fun syndrome(storedParity8: Int, computedParity8: Int): Int {
+        val diff = storedParity8 xor computedParity8
+        return Integer.bitCount(diff)
+    }
+
+    /**
+     * Stripe parity across multiple chunks (for redundancy).
+     */
     fun stripe(vararg chunks: ByteArray): ByteArray {
         if (chunks.isEmpty()) return ByteArray(0)
         val maxLen = chunks.maxOf { it.size }
@@ -97,7 +212,11 @@ object Parity {
     }
 }
 
-class VectraMempool(private val chunkSize: Int, poolSize: Int) {
+/**
+ * VectraMemPool: Fixed-size memory pool to avoid GC churn.
+ * Manages reusable byte buffers.
+ */
+class VectraMemPool(private val chunkSize: Int, poolSize: Int) {
     companion object {
         private const val MAX_POOL_SIZE = 32
     }
@@ -123,40 +242,437 @@ class VectraMempool(private val chunkSize: Int, poolSize: Int) {
     }
 }
 
+/**
+ * VectraEvent: Represents an IRQ-like priority event.
+ * "Finger" = IRQ-like priority request (4G/radio is major source).
+ */
+data class VectraEvent(
+    val type: EventType,
+    val priority: Int, // Higher = more urgent
+    val timestamp: Long = System.nanoTime(),
+    val payload: ByteArray? = null
+) : Comparable<VectraEvent> {
+    enum class EventType {
+        TIMER_TICK,
+        NETWORK_CHANGE,
+        RADIO_EVENT,
+        USER_INPUT,
+        SYSTEM_EVENT
+    }
+
+    override fun compareTo(other: VectraEvent): Int {
+        // Higher priority first, then older timestamp first
+        val priorityDiff = other.priority - this.priority
+        return if (priorityDiff != 0) priorityDiff else (timestamp - other.timestamp).toInt()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        if (this === other) return true
+        if (javaClass != other?.javaClass) return false
+        other as VectraEvent
+        if (type != other.type) return false
+        if (priority != other.priority) return false
+        if (timestamp != other.timestamp) return false
+        if (payload != null) {
+            if (other.payload == null) return false
+            if (!payload.contentEquals(other.payload)) return false
+        } else if (other.payload != null) return false
+        return true
+    }
+
+    override fun hashCode(): Int {
+        var result = type.hashCode()
+        result = 31 * result + priority
+        result = 31 * result + timestamp.hashCode()
+        result = 31 * result + (payload?.contentHashCode() ?: 0)
+        return result
+    }
+}
+
+/**
+ * VectraEventBus: Priority queue for IRQ-like events.
+ * Thread-safe event bus with priority handling.
+ */
+class VectraEventBus {
+    private val queue = PriorityQueue<VectraEvent>()
+    private val lock = ReentrantLock()
+
+    fun post(event: VectraEvent) {
+        lock.withLock {
+            queue.add(event)
+        }
+    }
+
+    fun poll(): VectraEvent? {
+        lock.withLock {
+            return queue.poll()
+        }
+    }
+
+    fun size(): Int {
+        lock.withLock {
+            return queue.size
+        }
+    }
+
+    fun clear() {
+        lock.withLock {
+            queue.clear()
+        }
+    }
+}
+
+/**
+ * VectraCycle: Implements 4-phase loop (Input → Process → Output → Next).
+ * Deterministic cycle for event processing.
+ */
+class VectraCycle(
+    private val eventBus: VectraEventBus,
+    private val state: VectraState,
+    private val logger: VectraBitStackLog?
+) {
+    private val running = AtomicBoolean(false)
+    private var cycleThread: Thread? = null
+    private var cycleCount = 0L
+
+    fun start() {
+        if (running.getAndSet(true)) return
+        cycleThread = Thread {
+            Log.d(TAG, "VectraCycle started")
+            while (running.get()) {
+                try {
+                    executeCycle()
+                    Thread.sleep(100) // 10 Hz cycle rate
+                } catch (e: InterruptedException) {
+                    break
+                } catch (e: Exception) {
+                    Log.e(TAG, "Cycle error", e)
+                }
+            }
+            Log.d(TAG, "VectraCycle stopped")
+        }.apply {
+            name = "VectraCycle"
+            isDaemon = true
+            start()
+        }
+    }
+
+    fun stop() {
+        running.set(false)
+        cycleThread?.interrupt()
+        cycleThread = null
+    }
+
+    /**
+     * 4-phase cycle:
+     * 1. Input: Poll event from bus
+     * 2. Process: Update state based on event
+     * 3. Output: Log state change
+     * 4. Next: Prepare for next cycle
+     */
+    private fun executeCycle() {
+        // Phase 1: Input
+        val event = eventBus.poll()
+
+        // Phase 2: Process
+        if (event != null) {
+            processEvent(event)
+        }
+
+        // Phase 3: Output
+        logger?.let {
+            val payload = event?.payload ?: ByteArray(0)
+            val meta = (event?.type?.ordinal ?: 0) or ((event?.priority ?: 0) shl 8)
+            it.append(payload, meta)
+        }
+
+        // Phase 4: Next
+        cycleCount++
+        state.stageCounters[5] = cycleCount // Track total cycles
+    }
+
+    private fun processEvent(event: VectraEvent) {
+        // Update entropy hint based on event type
+        val weight = when (event.type) {
+            VectraEvent.EventType.RADIO_EVENT -> 10 // Radio events add more rho
+            VectraEvent.EventType.NETWORK_CHANGE -> 5
+            VectraEvent.EventType.TIMER_TICK -> 1
+            else -> 2
+        }
+        
+        if (event.payload != null) {
+            val entropy = CRC32C.update(state.entropyHint, event.payload)
+            state.entropyHint = entropy + weight
+        }
+
+        // Update flag to indicate event processed
+        val flagIndex = event.type.ordinal
+        state.setFlag(flagIndex, true)
+    }
+}
+
+/**
+ * VectraTriad: CPU/RAM/DISK states with 2-of-3 consensus.
+ * Physical model for detecting which component is "out".
+ */
+data class VectraTriad(
+    var cpuState: Int = 0,
+    var ramState: Int = 0,
+    var diskState: Int = 0
+) {
+    enum class Component {
+        CPU, RAM, DISK, NONE
+    }
+
+    /**
+     * 2-of-3 consensus: If two agree, the third is "out".
+     * Returns which component is out-of-sync.
+     */
+    fun whoOut(): Component {
+        return when {
+            cpuState == ramState && cpuState != diskState -> Component.DISK
+            cpuState == diskState && cpuState != ramState -> Component.RAM
+            ramState == diskState && ramState != cpuState -> Component.CPU
+            else -> Component.NONE // All agree or all differ
+        }
+    }
+
+    /**
+     * Updates one component and returns if consensus changed.
+     */
+    fun update(component: Component, newState: Int): Boolean {
+        val oldOut = whoOut()
+        when (component) {
+            Component.CPU -> cpuState = newState
+            Component.RAM -> ramState = newState
+            Component.DISK -> diskState = newState
+            Component.NONE -> {}
+        }
+        val newOut = whoOut()
+        return oldOut != newOut
+    }
+}
+
+/**
+ * VectraBitStackLog: Append-only file logger with binary format.
+ * Deterministic evidence log (BitStack style) using CRC32C.
+ */
+class VectraBitStackLog(logFile: File) {
+    companion object {
+        private const val MAGIC = 0x56454354L // "VECT"
+        private const val VERSION = 1
+        private const val RECORD_HEADER_SIZE = 16 // magic(4) + len(4) + meta(4) + crc(4)
+        private const val MAX_LOG_SIZE = 10 * 1024 * 1024 // 10 MB
+    }
+
+    private val file: RandomAccessFile = RandomAccessFile(logFile, "rw")
+    private val lock = ReentrantLock()
+    private var recordCount = 0L
+
+    init {
+        if (file.length() == 0L) {
+            writeHeader()
+        }
+    }
+
+    private fun writeHeader() {
+        lock.withLock {
+            val header = ByteBuffer.allocate(16).order(ByteOrder.LITTLE_ENDIAN)
+            header.putInt(MAGIC.toInt())
+            header.putInt(VERSION)
+            header.putLong(System.currentTimeMillis())
+            file.write(header.array())
+            file.channel.force(true)
+        }
+    }
+
+    /**
+     * Appends a record: [u32 magic, u32 len, u32 meta, u32 crc, payload]
+     */
+    fun append(payload: ByteArray, meta: Int = 0) {
+        lock.withLock {
+            if (file.length() >= MAX_LOG_SIZE) {
+                Log.w(TAG, "Log size exceeded, skipping append")
+                return
+            }
+
+            val recordHeader = ByteBuffer.allocate(RECORD_HEADER_SIZE).order(ByteOrder.LITTLE_ENDIAN)
+            recordHeader.putInt(MAGIC.toInt())
+            recordHeader.putInt(payload.size)
+            recordHeader.putInt(meta)
+            
+            // Compute CRC over header (except CRC field) + payload
+            val crcData = ByteArray(12 + payload.size)
+            System.arraycopy(recordHeader.array(), 0, crcData, 0, 12)
+            System.arraycopy(payload, 0, crcData, 12, payload.size)
+            val crc = CRC32C.update(0, crcData)
+            recordHeader.putInt(crc)
+
+            file.write(recordHeader.array())
+            file.write(payload)
+            file.channel.force(true)
+            recordCount++
+        }
+    }
+
+    fun close() {
+        lock.withLock {
+            file.close()
+        }
+    }
+
+    fun getRecordCount(): Long = recordCount
+    fun getFileSize(): Long = file.length()
+}
+
+/**
+ * VectraCore: Main initialization and coordination.
+ * Gated behind BuildConfig.VECTRA_CORE_ENABLED.
+ */
 object VectraCore {
     private const val DEFAULT_CHUNK_BYTES = 64 * 1024
     private const val DEFAULT_POOL_SIZE = 4
     private val state = VectraState()
-    private val mempool = VectraMempool(DEFAULT_CHUNK_BYTES, DEFAULT_POOL_SIZE)
+    private val triad = VectraTriad()
+    private val mempool = VectraMemPool(DEFAULT_CHUNK_BYTES, DEFAULT_POOL_SIZE)
+    private var eventBus: VectraEventBus? = null
+    private var cycle: VectraCycle? = null
+    private var logger: VectraBitStackLog? = null
+    private val initialized = AtomicBoolean(false)
 
     @JvmStatic
     fun init(context: Context) {
-        if (!BuildConfig.VECTRA_CORE_ENABLED) return
+        if (!BuildConfig.VECTRA_CORE_ENABLED) {
+            Log.d(TAG, "VectraCore disabled by BuildConfig")
+            return
+        }
+
+        if (initialized.getAndSet(true)) {
+            Log.d(TAG, "VectraCore already initialized")
+            return
+        }
+
         state.seed = (System.nanoTime() and 0x7FFFFFFF).toInt()
         val header = VectraBlock.createHeader(index = 0, payloadLen = 0, seed = state.seed)
         state.crc32c = CRC32C.update(0, header)
         state.entropyHint = state.crc32c xor state.seed
         state.stageCounters[0] = 1
+
+        // Initialize logger
+        val logFile = File(context.filesDir, "vectra_core.log")
+        logger = VectraBitStackLog(logFile)
+
+        // Initialize event bus and cycle
+        eventBus = VectraEventBus()
+        cycle = VectraCycle(eventBus!!, state, logger)
+        cycle?.start()
+
+        // Run self-test
         selfTest(header)
-        Log.d(TAG, "init seed=${state.seed} crc=${state.crc32c} entropy=${state.entropyHint}")
+
+        // Start timer tick events
+        startTimerTicks()
+
+        Log.d(TAG, "init seed=${state.seed} crc=${state.crc32c} entropy=${state.entropyHint} logPath=${logFile.absolutePath}")
     }
 
+    /**
+     * Self-test: Creates a block, mutates a copy, detects changes.
+     * Validates CRC and parity detection (1-bit-safe ethos).
+     */
     private fun selfTest(header: ByteArray) {
+        Log.d(TAG, "Running self-test...")
+        
+        // Test 1: Header CRC verification
         val scratch = mempool.borrow(header.size)
         System.arraycopy(header, 0, scratch, 0, header.size)
-        val parity = Parity.stripe(header, scratch)
         val crcAgain = CRC32C.update(0, scratch)
+        val headerOk = crcAgain == state.crc32c
+        
+        // Test 2: Bit flip detection
         scratch[0] = (scratch[0].toInt() xor 0xFF).toByte()
         val crcMutated = CRC32C.update(0, scratch)
         val detectsChange = crcMutated != state.crc32c
-        val ok = crcAgain == state.crc32c && parity.isNotEmpty() && detectsChange
-        state.setFlag(0, ok)
+        
+        // Test 3: 4x4 block parity
+        val testData = 0b1010101010101010 // Alternating pattern
+        val packed = VectraBlock.create4x4Block(testData)
+        val parityOk = VectraBlock.verify4x4Block(packed)
+        
+        // Test 4: Bit flip in 4x4 block
+        val flippedData = testData xor 1 // Flip one bit
+        val flippedPacked = (flippedData shl 8) or VectraBlock.extractParity(packed)
+        val detectsBitFlip = !VectraBlock.verify4x4Block(flippedPacked)
+        
+        // Test 5: Parity syndrome
+        val storedParity = Parity.parity2D8(testData)
+        val computedParity = Parity.parity2D8(flippedData)
+        val syndrome = Parity.syndrome(storedParity, computedParity)
+        val syndromeOk = syndrome > 0
+        
         mempool.release(scratch)
-        Log.d(TAG, "selftest_ok=$ok parity_len=${parity.size} crc_mutated=$crcMutated")
+        
+        val allOk = headerOk && detectsChange && parityOk && detectsBitFlip && syndromeOk
+        state.setFlag(0, allOk)
+        
+        // Log self-test results
+        val result = ByteBuffer.allocate(20)
+        result.put(if (headerOk) 1.toByte() else 0.toByte())
+        result.put(if (detectsChange) 1.toByte() else 0.toByte())
+        result.put(if (parityOk) 1.toByte() else 0.toByte())
+        result.put(if (detectsBitFlip) 1.toByte() else 0.toByte())
+        result.put(if (syndromeOk) 1.toByte() else 0.toByte())
+        result.putInt(crcMutated)
+        result.putInt(syndrome)
+        result.putInt(packed)
+        logger?.append(result.array(), 0xFFFF) // meta=0xFFFF for self-test
+        
+        Log.d(TAG, "selftest_ok=$allOk headerOk=$headerOk detectsChange=$detectsChange parityOk=$parityOk detectsBitFlip=$detectsBitFlip syndromeOk=$syndromeOk syndrome=$syndrome")
+    }
+
+    /**
+     * Starts a background thread that posts timer tick events.
+     */
+    private fun startTimerTicks() {
+        Thread {
+            while (initialized.get()) {
+                try {
+                    eventBus?.post(
+                        VectraEvent(
+                            type = VectraEvent.EventType.TIMER_TICK,
+                            priority = 1,
+                            payload = ByteBuffer.allocate(8).putLong(System.currentTimeMillis()).array()
+                        )
+                    )
+                    Thread.sleep(1000) // 1 Hz tick
+                } catch (e: InterruptedException) {
+                    break
+                } catch (e: Exception) {
+                    Log.e(TAG, "Timer tick error", e)
+                }
+            }
+        }.apply {
+            name = "VectraTimerTick"
+            isDaemon = true
+            start()
+        }
+    }
+
+    /**
+     * Shutdown hook for cleanup.
+     */
+    @JvmStatic
+    fun shutdown() {
+        if (!initialized.getAndSet(false)) return
+        cycle?.stop()
+        logger?.close()
+        eventBus?.clear()
+        Log.d(TAG, "VectraCore shutdown complete")
     }
 
     /**
      * PSI stage: fold payload into CRC and advance stage counter (deterministic ingest).
+     * Noise is data (ρ = information not decoded yet).
      */
     fun psi(payload: ByteArray): Int {
         val crc = CRC32C.update(state.crc32c, payload)
@@ -166,11 +682,12 @@ object VectraCore {
     }
 
     /**
-     * RHO stage: treat noise as data to update entropy hint (no discard of leak/variance).
+     * RHO stage: treat noise as data to update entropy hint.
+     * Do not treat noise as simple bug - it's information not decoded yet.
      */
-    fun rho(noise: ByteArray): Int {
+    fun rho(noise: ByteArray, eventWeight: Int = 1): Int {
         val entropy = CRC32C.update(state.entropyHint, noise)
-        state.entropyHint = entropy
+        state.entropyHint = entropy + eventWeight
         state.stageCounters[1]++
         return entropy
     }
@@ -199,5 +716,22 @@ object VectraCore {
     fun omegaFinalize(): Int {
         state.stageCounters[4]++
         return state.crc32c xor state.entropyHint
+    }
+
+    /**
+     * Get current triad state.
+     */
+    fun getTriad(): VectraTriad = triad
+
+    /**
+     * Get current state.
+     */
+    fun getState(): VectraState = state
+
+    /**
+     * Post an event to the event bus.
+     */
+    fun postEvent(event: VectraEvent) {
+        eventBus?.post(event)
     }
 }

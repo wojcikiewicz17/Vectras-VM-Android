@@ -76,6 +76,13 @@ public class VectrasApp extends Application {
         FirebaseAnalytics.getInstance(this);
 	}
 
+	@Override
+	public void onTerminate() {
+		super.onTerminate();
+		// Cleanup VectraCore resources
+		VectraCore.shutdown();
+	}
+
 	private void setupTheme() {
         UIUtils.setDarkOrLight(MainSettingsManager.getTheme(this));
 
