@@ -28,6 +28,20 @@ If you need help, check out [our documentation](https://vectras.vercel.app/how.h
 
 Seguimos a mesma ideia aplicada nos forks de Termux, UserLAnd e androidx_rmr: aproveitar cada possibilidade sem alterar a missão original do projeto e mantendo o fluxo de compilação intacto sempre que possível.
 
+### Perfis técnicos dos repositórios relacionados
+
+| Repositório | Stack predominante | Perfil técnico / finalidade | Observação (fork/original) |
+| --- | --- | --- | --- |
+| UserLAnd | C, ASM, Kotlin/Java, Python, Shell | Base userland Android, mistura baixo nível com app | Fork/origem não especificado |
+| Rafaelia_Private | Python + C (Shell/Make) | Núcleo híbrido, engine/tooling | Fork/origem não especificado |
+| Magisk_Rafaelia | Python, Rust, Kotlin, C++, Shell | Mod/root Android, orquestra app + nativo | Fork/origem não especificado |
+| ZIPRAF_OMEGA_FULL | Python + Shell | Automação/pipelines | Fork/origem não especificado |
+| termux-app-rafacodephi | Java, C, Shell | App Android (fork Termux) | Fork de Termux |
+| Tegmark | (não informado) | Possível pesquisa/conteúdo | Fork/origem não especificado |
+| Unify_Teory_of_mission_holly_espiritual_ciencias_ | Python | Pesquisa 100% Python | Fork/origem não especificado |
+| relativity-living-light | Jupyter Notebook | Pesquisa/experimental | Fork/origem não especificado |
+| llamaRafaelia | C/C++, CUDA/Metal, Python, Svelte | Inferência LLM de alta performance | Fork/origem não especificado |
+
 ## Device Compatibility
 
 Works fine on devices manufactured in 2021 or later and devices equipped with Snapdragon 855 CPU or better. You can try running Vectras VM on unsupported devices, but we cannot guarantee stability or support. Here are the devices tested:
