@@ -19,15 +19,18 @@ public class MainService extends Service {
     public static String CHANNEL_ID = "Vectras VM Service";
     private static final int NOTIFICATION_ID = 1;
     private static final String MACHINE_NAME = "Vectras VM";
-    public static String env = null;
+    public static volatile String env = null;
     private String TAG = "MainService";
-    public static MainService service;
-    public static Context activityContext;
+    public static volatile MainService service;
+    public static volatile Context activityContext;
+    private static final Object LOCK = new Object();
 
     @Override
     public void onCreate() {
         super.onCreate();
-        service = this;
+        synchronized (LOCK) {
+            service = this;
+        }
         createNotificationChannel();
 
         Intent stopSelf = new Intent(this, MainService.class);
@@ -45,11 +48,17 @@ public class MainService extends Service {
 
         startForeground(NOTIFICATION_ID, notification);
 
-        if (env != null) {
-            if (service != null) {
-                Terminal vterm = new Terminal(activityContext);
-                vterm.executeShellCommand2(env, true, activityContext);
-            }
+        String command;
+        Context ctx;
+        synchronized (LOCK) {
+            command = env;
+            ctx = activityContext;
+        }
+
+        if (command != null) {
+            Context targetContext = ctx != null ? ctx : getApplicationContext();
+            Terminal vterm = new Terminal(targetContext);
+            vterm.executeShellCommand2(command, true, targetContext);
         } else {
             Log.e(TAG, "env is null");
         }
@@ -57,10 +66,15 @@ public class MainService extends Service {
 
     public static void stopService() {
         Thread t = new Thread(() -> {
-            if (service != null) {
-                service.stopForeground(true);
-                service.stopSelf();
-                VMManager.killallqemuprocesses(activityContext);
+            MainService currentService;
+            synchronized (LOCK) {
+                currentService = service;
+            }
+            if (currentService != null) {
+                currentService.stopForeground(true);
+                currentService.stopSelf();
+                cleanup(currentService.getApplicationContext());
+                clearReferences();
             }
 
         });
@@ -73,11 +87,8 @@ public class MainService extends Service {
         if (intent != null && "STOP".equals(intent.getAction())) {
             stopForeground(true);
             stopSelf();
-
-            //TODO: Not Work
-            //Terminal.killQemuProcess();
-            VMManager.killallqemuprocesses(this);
-
+            cleanup(this);
+            clearReferences();
             return START_NOT_STICKY;
         }
         return START_NOT_STICKY;
@@ -86,6 +97,13 @@ public class MainService extends Service {
     @Override
     public IBinder onBind(Intent intent) {
         return null;
+    }
+
+    @Override
+    public void onDestroy() {
+        cleanup(null);
+        clearReferences();
+        super.onDestroy();
     }
 
     private void createNotificationChannel() {
@@ -103,5 +121,26 @@ public class MainService extends Service {
     public static void startCommand(String _env, Context _context) {
         Terminal vterm = new Terminal(_context);
         vterm.executeShellCommand2(_env, true, _context);
+    }
+
+    private static void cleanup(Context fallbackContext) {
+        synchronized (LOCK) {
+            MainService currentService = service;
+            Context ctx = fallbackContext;
+            if (ctx == null && currentService != null) {
+                ctx = currentService.getApplicationContext();
+            }
+            if (ctx != null) {
+                VMManager.killallqemuprocesses(ctx);
+            }
+        }
+    }
+
+    private static void clearReferences() {
+        synchronized (LOCK) {
+            activityContext = null;
+            env = null;
+            service = null;
+        }
     }
 }
