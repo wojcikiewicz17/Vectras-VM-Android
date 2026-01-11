@@ -16,6 +16,10 @@
         android:icon="@drawable/show_chart_24px"
         android:title="@string/benchmark"/>
     <item
+        android:id="@+id/navigation_item_professional_tools"
+        android:icon="@drawable/science_24px"
+        android:title="@string/professional_tools"/>
+    <item
         android:id="@+id/navigation_item_settings"
         android:icon="@drawable/settings_24px"
         android:title="@string/settings"/>
