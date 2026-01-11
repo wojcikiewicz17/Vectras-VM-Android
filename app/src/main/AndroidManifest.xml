@@ -123,6 +123,10 @@
             android:exported="false"
             android:label="@string/benchmark" />
         <activity
+            android:name=".tools.ProfessionalToolsActivity"
+            android:exported="false"
+            android:label="@string/professional_tools" />
+        <activity
             android:name=".RomInfo"
             android:configChanges="orientation|screenSize|keyboardHidden|smallestScreenSize|screenLayout"
             android:exported="false"

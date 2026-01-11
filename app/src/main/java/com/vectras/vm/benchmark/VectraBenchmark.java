@@ -151,9 +151,9 @@ public class VectraBenchmark {
     static final int EMU_TRIAD_CONSENSUS = 78;
     
     // ========== Results Storage ==========
-    record BenchmarkResult(int metricId, String name, long value, long baseline, String unit) {
-        double ratio() { return baseline > 0 ? (double) value / baseline : 0.0; }
-        int score() { return (int) (ratio() * 100); }
+    public record BenchmarkResult(int metricId, String name, long value, long baseline, String unit) {
+        public double ratio() { return baseline > 0 ? (double) value / baseline : 0.0; }
+        public int score() { return (int) (ratio() * 100); }
     }
     
     // ========== BitStack Logger (append-only) ==========
