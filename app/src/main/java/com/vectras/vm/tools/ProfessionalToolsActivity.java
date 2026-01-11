@@ -626,8 +626,8 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
         messageView.setText(fullReport);
         messageView.setTextIsSelectable(true);
         messageView.setTypeface(android.graphics.Typeface.MONOSPACE);
-        // Use 9sp for smaller font to fit more content
-        messageView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 9);
+        // Use 10sp for readability on various devices
+        messageView.setTextSize(android.util.TypedValue.COMPLEX_UNIT_SP, 10);
         messageView.setPadding(16, 16, 16, 16);
         
         android.widget.ScrollView scrollView = new android.widget.ScrollView(this);

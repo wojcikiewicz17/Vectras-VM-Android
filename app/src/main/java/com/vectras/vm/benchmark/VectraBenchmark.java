@@ -730,7 +730,7 @@ public class VectraBenchmark {
         } else if (nanoseconds >= 1_000L) {
             return String.format(java.util.Locale.US, "%.3f μs", nanoseconds / 1_000.0);
         } else {
-            return String.format(java.util.Locale.US, "%d ns", nanoseconds);
+            return String.format(java.util.Locale.US, "%.0f ns", (double) nanoseconds);
         }
     }
     
@@ -794,6 +794,10 @@ public class VectraBenchmark {
      * - Throughput: ops/s, Kops/s, Mops/s, Gops/s
      * - Bandwidth: B/s, KB/s, MB/s, GB/s
      * - Latency: ns/op, μs/op, ms/op
+     * 
+     * Note: Some metrics may use approximate benchmark methods for simplicity.
+     * For example, CPU_FLOAT_MUL uses the same benchmark as CPU_FLOAT_ADD.
+     * Future improvements could add dedicated benchmark methods for each metric.
      */
     public static BenchmarkResult[] runAllBenchmarks() throws Exception {
         BenchmarkResult[] results = new BenchmarkResult[METRIC_COUNT];

@@ -261,7 +261,7 @@ public class VectraBenchmarkTest {
     
     @Test
     public void formatTimeProducesCorrectUnits() {
-        // Test nanoseconds
+        // Test nanoseconds (now uses floating point format)
         assertEquals("500 ns", VectraBenchmark.formatTime(500));
         // Test microseconds
         assertEquals("1.500 μs", VectraBenchmark.formatTime(1500));
