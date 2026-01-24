@@ -187,6 +187,10 @@ public class BenchmarkManager {
     private final Context context;
     private final AtomicInteger progressMetric = new AtomicInteger(0);
     private final AtomicReference<ProgressCallback> callback = new AtomicReference<>();
+    private final ThreadLocal<ArrayList<String>> warningBuffer =
+        ThreadLocal.withInitial(() -> new ArrayList<>(64));
+    private final ThreadLocal<ArrayList<DiagnosticMetric>> diagnosticsBuffer =
+        ThreadLocal.withInitial(() -> new ArrayList<>(16));
     
     public BenchmarkManager(Context context) {
         this.context = context.getApplicationContext();
@@ -263,7 +267,8 @@ public class BenchmarkManager {
      * Perform 30+ pre-flight checks for interference detection.
      */
     private PreflightReport performPreflightChecks(EnvironmentSnapshot env) {
-        List<String> warnings = new ArrayList<>();
+        ArrayList<String> warnings = warningBuffer.get();
+        warnings.clear();
         
         // Check 1-5: Thermal state
         if (env.cpuTempC > MAX_CPU_TEMP_C) {
@@ -337,64 +342,55 @@ public class BenchmarkManager {
                 
                 // Warn if variance exceeds threshold
                 if (freqVariance > warnThreshold) {
-                    warnings.add(String.format(java.util.Locale.US,
-                        "High CPU frequency variance detected (%.1f%%, min: %d kHz, max: %d kHz, arch: %s)",
-                        freqVariance * 100, minFreq, maxFreq, 
-                        isHeterogeneous ? "heterogeneous" : "homogeneous"));
+                    StringBuilder message = new StringBuilder(128);
+                    message.append("High CPU frequency variance detected (")
+                        .append(formatOneDecimal(freqVariance * 100))
+                        .append("%, min: ")
+                        .append(minFreq)
+                        .append(" kHz, max: ")
+                        .append(maxFreq)
+                        .append(" kHz, arch: ")
+                        .append(isHeterogeneous ? "heterogeneous" : "homogeneous")
+                        .append(")");
+                    warnings.add(message.toString());
                 }
             }
         }
 
         // Check 31-35: Device fingerprint consistency (emulator/hardware spoofing)
-        if (isLikelyEmulator(env)) {
+        boolean emulatorLikely = isLikelyEmulator(env);
+        if (emulatorLikely) {
             warnings.add("Potential emulator or spoofed fingerprint detected");
         }
 
-        if (isAbiCpuMismatch(env.cpuAbi, env.cpuInfoModel, env.cpuInfoHardware)) {
-            warnings.add("CPU/ABI mismatch detected (possible hardware spoofing)");
-        }
-
-        if (env.timeSourceDriftPercent > MAX_TIME_DRIFT_PERCENT) {
-            warnings.add(String.format(java.util.Locale.US,
-                "Timer drift detected: %.1f%% difference between clocks",
-                env.timeSourceDriftPercent));
-        }
-
-        if (env.timerJitterPercent > MAX_TIMER_JITTER_PERCENT) {
-            warnings.add(String.format(java.util.Locale.US,
-                "High timer jitter detected: %.1f%%",
-                env.timerJitterPercent));
-        }
-
-        double stabilityVariance = measureCpuStabilityVariance();
-        if (stabilityVariance > MAX_STABILITY_VARIANCE_PERCENT) {
-            warnings.add(String.format(java.util.Locale.US,
-                "CPU stability variance high: %.1f%% (possible throttling or background load)",
-                stabilityVariance));
-        }
-        
         boolean abiMismatch = isAbiCpuMismatch(env.cpuAbi, env.cpuInfoModel, env.cpuInfoHardware);
         if (abiMismatch) {
             warnings.add("CPU/ABI mismatch detected (possible hardware spoofing)");
         }
 
         if (env.timeSourceDriftPercent > MAX_TIME_DRIFT_PERCENT) {
-            warnings.add(String.format(java.util.Locale.US,
-                "Timer drift detected: %.1f%% difference between clocks",
-                env.timeSourceDriftPercent));
+            warnings.add(new StringBuilder(96)
+                .append("Timer drift detected: ")
+                .append(formatOneDecimal(env.timeSourceDriftPercent))
+                .append("% difference between clocks")
+                .toString());
         }
 
         if (env.timerJitterPercent > MAX_TIMER_JITTER_PERCENT) {
-            warnings.add(String.format(java.util.Locale.US,
-                "High timer jitter detected: %.1f%%",
-                env.timerJitterPercent));
+            warnings.add(new StringBuilder(64)
+                .append("High timer jitter detected: ")
+                .append(formatOneDecimal(env.timerJitterPercent))
+                .append("%")
+                .toString());
         }
 
         double stabilityVariance = measureCpuStabilityVariance();
         if (stabilityVariance > MAX_STABILITY_VARIANCE_PERCENT) {
-            warnings.add(String.format(java.util.Locale.US,
-                "CPU stability variance high: %.1f%% (possible throttling or background load)",
-                stabilityVariance));
+            warnings.add(new StringBuilder(128)
+                .append("CPU stability variance high: ")
+                .append(formatOneDecimal(stabilityVariance))
+                .append("% (possible throttling or background load)")
+                .toString());
         }
         
         return new PreflightReport(warnings, stabilityVariance, emulatorLikely, abiMismatch);
@@ -453,20 +449,21 @@ public class BenchmarkManager {
     }
 
     private List<DiagnosticMetric> buildDiagnostics(EnvironmentSnapshot env, PreflightReport preflight) {
-        List<DiagnosticMetric> diagnostics = new ArrayList<>();
+        ArrayList<DiagnosticMetric> diagnostics = diagnosticsBuffer.get();
+        diagnostics.clear();
         diagnostics.add(new DiagnosticMetric(
             "Timer Drift",
-            String.format(java.util.Locale.US, "%.2f", env.timeSourceDriftPercent),
+            formatTwoDecimals(env.timeSourceDriftPercent),
             "%",
             "Difference between nanoTime and elapsedRealtime clocks"));
         diagnostics.add(new DiagnosticMetric(
             "Timer Jitter",
-            String.format(java.util.Locale.US, "%.2f", env.timerJitterPercent),
+            formatTwoDecimals(env.timerJitterPercent),
             "%",
             "Max deviation across nanoTime samples"));
         diagnostics.add(new DiagnosticMetric(
             "CPU Stability Variance",
-            String.format(java.util.Locale.US, "%.2f", preflight.cpuStabilityVariance),
+            formatTwoDecimals(preflight.cpuStabilityVariance),
             "%",
             "Variance across repeated integer add microbenchmarks"));
         diagnostics.add(new DiagnosticMetric(
@@ -916,5 +913,15 @@ public class BenchmarkManager {
     private static String truncate(String s, int maxLen) {
         if (s == null) return "";
         return s.length() <= maxLen ? s : s.substring(0, maxLen - 3) + "...";
+    }
+
+    private static String formatOneDecimal(double value) {
+        double rounded = Math.round(value * 10.0) / 10.0;
+        return Double.toString(rounded);
+    }
+
+    private static String formatTwoDecimals(double value) {
+        double rounded = Math.round(value * 100.0) / 100.0;
+        return Double.toString(rounded);
     }
 }
