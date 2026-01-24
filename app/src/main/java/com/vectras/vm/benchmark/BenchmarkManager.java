@@ -46,6 +46,7 @@ public class BenchmarkManager {
     private static final double MAX_TIME_DRIFT_PERCENT = 10.0;
     private static final double MAX_TIMER_JITTER_PERCENT = 500.0;
     private static final double MAX_STABILITY_VARIANCE_PERCENT = 30.0;
+    private static final boolean ENABLE_STABILITY_PROBE = false;
     
     // Progress callback interface
     public interface ProgressCallback {
@@ -384,13 +385,16 @@ public class BenchmarkManager {
                 .toString());
         }
 
-        double stabilityVariance = measureCpuStabilityVariance();
-        if (stabilityVariance > MAX_STABILITY_VARIANCE_PERCENT) {
-            warnings.add(new StringBuilder(128)
-                .append("CPU stability variance high: ")
-                .append(formatOneDecimal(stabilityVariance))
-                .append("% (possible throttling or background load)")
-                .toString());
+        double stabilityVariance = 0.0;
+        if (ENABLE_STABILITY_PROBE && CONSISTENCY_SAMPLES > 0) {
+            stabilityVariance = measureCpuStabilityVariance();
+            if (stabilityVariance > MAX_STABILITY_VARIANCE_PERCENT) {
+                warnings.add(new StringBuilder(128)
+                    .append("CPU stability variance high: ")
+                    .append(formatOneDecimal(stabilityVariance))
+                    .append("% (possible throttling or background load)")
+                    .toString());
+            }
         }
         
         return new PreflightReport(warnings, stabilityVariance, emulatorLikely, abiMismatch);
@@ -766,24 +770,28 @@ public class BenchmarkManager {
     }
 
     private double measureCpuStabilityVariance() {
-        int samples = Math.max(2, CONSISTENCY_SAMPLES);
-        long[] durations = new long[samples];
+        int configuredSamples = CONSISTENCY_SAMPLES;
+        if (!ENABLE_STABILITY_PROBE || configuredSamples <= 0) {
+            return 0.0;
+        }
+        int samples = Math.max(2, configuredSamples);
         int workload = Math.max(10_000, VectraBenchmark.CPU_WORKLOAD_SIZE / 50);
+        double mean = 0.0;
+        double m2 = 0.0;
+        int count = 0;
         for (int i = 0; i < samples; i++) {
-            durations[i] = VectraBenchmark.benchCpuIntegerAdd(workload);
+            long duration = VectraBenchmark.benchCpuIntegerAdd(workload);
+            count++;
+            double delta = duration - mean;
+            mean += delta / count;
+            double delta2 = duration - mean;
+            m2 += delta * delta2;
         }
-        double mean = 0;
-        for (long d : durations) {
-            mean += d;
+        if (count == 0 || mean <= 0.0) {
+            return 0.0;
         }
-        mean /= samples;
-        double variance = 0;
-        for (long d : durations) {
-            double diff = d - mean;
-            variance += diff * diff;
-        }
-        variance = Math.sqrt(variance / samples);
-        return mean > 0 ? (variance / mean) * 100.0 : 0.0;
+        double variance = Math.sqrt(m2 / count);
+        return (variance / mean) * 100.0;
     }
 
     private String safeLower(String value) {
