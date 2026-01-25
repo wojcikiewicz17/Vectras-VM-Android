@@ -375,12 +375,13 @@ public class BenchmarkActivity extends AppCompatActivity {
                         fullReport.append("\n\n");
                     }
 
-                    if (lastBenchmarkResult != null && lastBenchmarkResult.diagnostics != null
-                        && lastBenchmarkResult.diagnostics.size() > 0) {
+                    if (lastBenchmarkResult != null
+                        && lastBenchmarkResult.getDiagnosticsView() != null
+                        && lastBenchmarkResult.getDiagnosticsView().size() > 0) {
                         writeLine(writer, DIAGNOSTICS_HEADER);
                         writeLine(writer, SECTION_DIVIDER);
                         BenchmarkManager.DiagnosticMetricsView diagnostics =
-                            lastBenchmarkResult.diagnostics;
+                            lastBenchmarkResult.getDiagnosticsView();
                         for (int i = 0; i < diagnostics.size(); i++) {
                             String unit = diagnostics.getUnit(i);
                             String unitLabel = unit == null || unit.isEmpty()
@@ -460,10 +461,12 @@ public class BenchmarkActivity extends AppCompatActivity {
             shareText.append("\n");
         }
 
-        if (lastBenchmarkResult != null && lastBenchmarkResult.diagnostics != null
-            && lastBenchmarkResult.diagnostics.size() > 0) {
+        if (lastBenchmarkResult != null
+            && lastBenchmarkResult.getDiagnosticsView() != null
+            && lastBenchmarkResult.getDiagnosticsView().size() > 0) {
             shareText.append("Diagnostics:\n");
-            BenchmarkManager.DiagnosticMetricsView diagnostics = lastBenchmarkResult.diagnostics;
+            BenchmarkManager.DiagnosticMetricsView diagnostics =
+                lastBenchmarkResult.getDiagnosticsView();
             for (int i = 0; i < diagnostics.size(); i++) {
                 String unit = diagnostics.getUnit(i);
                 String unitLabel = unit == null || unit.isEmpty()
@@ -475,19 +478,6 @@ public class BenchmarkActivity extends AppCompatActivity {
                     .append(diagnostics.getFormattedValue(i))
                     .append(unitLabel)
                     .append("\n");
-            }
-            shareText.append("\n");
-        }
-
-        if (lastBenchmarkResult != null && lastBenchmarkResult.diagnostics != null
-            && !lastBenchmarkResult.diagnostics.isEmpty()) {
-            shareText.append("Diagnostics:\n");
-            for (BenchmarkManager.DiagnosticMetric metric : lastBenchmarkResult.diagnostics) {
-                String unit = metric.unit == null || metric.unit.isEmpty()
-                    ? ""
-                    : " " + metric.unit;
-                shareText.append(String.format("  - %s: %s%s\n",
-                    metric.name, metric.value, unit));
             }
             shareText.append("\n");
         }

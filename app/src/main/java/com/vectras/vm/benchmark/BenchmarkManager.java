@@ -98,16 +98,14 @@ public class BenchmarkManager {
         public final VectraBenchmark.BenchmarkResult[] metrics;
         public final ValidationReport validation;
         public final EnvironmentSnapshot environment;
-        public final List<DiagnosticMetric> diagnostics;
-        public final DiagnosticMetricsView diagnostics;
+        private final DiagnosticMetrics diagnostics;
         public final long durationMs;
         public final boolean isValid;
         
         public BenchmarkResult(VectraBenchmark.BenchmarkResult[] metrics,
                              ValidationReport validation,
                              EnvironmentSnapshot environment,
-                             List<DiagnosticMetric> diagnostics,
-                             DiagnosticMetricsView diagnostics,
+                             DiagnosticMetrics diagnostics,
                              long durationMs,
                              boolean isValid) {
             this.metrics = metrics;
@@ -117,61 +115,113 @@ public class BenchmarkManager {
             this.durationMs = durationMs;
             this.isValid = isValid;
         }
+
+        public DiagnosticMetricsView getDiagnosticsView() {
+            return diagnostics == null ? null : diagnostics.view();
+        }
     }
 
-    public static class DiagnosticMetric {
-        public final String name;
-        public final String value;
-        public final String unit;
-        public final String description;
+    public interface DiagnosticMetricsView {
+        int size();
+        String getName(int index);
+        double getValue(int index);
+        String getUnit(int index);
+        String getDescription(int index);
+        String getFormattedValue(int index);
+    }
 
-        public DiagnosticMetric(String name, String value, String unit, String description) {
-            this.name = name;
-            this.value = value;
-            this.unit = unit;
-            this.description = description;
-    public static final class DiagnosticMetricsView {
+    private static final class DiagnosticMetrics implements DiagnosticMetricsView {
         private final String[] names;
         private final double[] values;
         private final String[] units;
         private final String[] descriptions;
+        private final DiagnosticMetricsView view;
 
-        private DiagnosticMetricsView(String[] names,
-                                      double[] values,
-                                      String[] units,
-                                      String[] descriptions) {
+        private DiagnosticMetrics(String[] names,
+                                  double[] values,
+                                  String[] units,
+                                  String[] descriptions) {
             this.names = names;
             this.values = values;
             this.units = units;
             this.descriptions = descriptions;
+            this.view = new ReadOnlyView(this);
         }
 
+        private DiagnosticMetricsView view() {
+            return view;
+        }
+
+        @Override
         public int size() {
             return values.length;
         }
 
+        @Override
         public String getName(int index) {
             return names[index];
         }
 
+        @Override
         public double getValue(int index) {
             return values[index];
         }
 
+        @Override
         public String getUnit(int index) {
             return units[index];
         }
 
+        @Override
         public String getDescription(int index) {
             return descriptions[index];
         }
 
+        @Override
         public String getFormattedValue(int index) {
             if (index == DIAGNOSTIC_INDEX_EMULATOR_SIGNALS
                 || index == DIAGNOSTIC_INDEX_ABI_CPU_MISMATCH) {
                 return values[index] > 0.5 ? "DETECTED" : "NOT DETECTED";
             }
             return formatTwoDecimals(values[index]);
+        }
+    }
+
+    private static final class ReadOnlyView implements DiagnosticMetricsView {
+        private final DiagnosticMetrics metrics;
+
+        private ReadOnlyView(DiagnosticMetrics metrics) {
+            this.metrics = metrics;
+        }
+
+        @Override
+        public int size() {
+            return metrics.size();
+        }
+
+        @Override
+        public String getName(int index) {
+            return metrics.getName(index);
+        }
+
+        @Override
+        public double getValue(int index) {
+            return metrics.getValue(index);
+        }
+
+        @Override
+        public String getUnit(int index) {
+            return metrics.getUnit(index);
+        }
+
+        @Override
+        public String getDescription(int index) {
+            return metrics.getDescription(index);
+        }
+
+        @Override
+        public String getFormattedValue(int index) {
+            return metrics.getFormattedValue(index);
         }
     }
 
@@ -274,8 +324,8 @@ public class BenchmarkManager {
     private final StringBuilder scratchBuilder = new StringBuilder(128);
     private final ThreadLocal<ArrayList<String>> warningBuffer =
         ThreadLocal.withInitial(() -> new ArrayList<>(64));
-    private final ThreadLocal<DiagnosticMetricsView> diagnosticsView =
-        ThreadLocal.withInitial(() -> new DiagnosticMetricsView(
+    private final ThreadLocal<DiagnosticMetrics> diagnosticsStore =
+        ThreadLocal.withInitial(() -> new DiagnosticMetrics(
             DIAGNOSTIC_NAMES,
             new double[DIAGNOSTIC_COUNT],
             DIAGNOSTIC_UNITS,
@@ -324,8 +374,7 @@ public class BenchmarkManager {
             boolean isValid = validation.errors.isEmpty() && 
                             validation.confidenceScore >= MIN_CONFIDENCE_THRESHOLD;
 
-            List<DiagnosticMetric> diagnostics = buildDiagnostics(envBefore, preflight);
-            DiagnosticMetricsView diagnostics = buildDiagnostics(envBefore, preflight);
+            DiagnosticMetrics diagnostics = buildDiagnostics(envBefore, preflight);
             BenchmarkResult result = new BenchmarkResult(
                 results, validation, envAfter, diagnostics, duration, isValid);
             
@@ -571,36 +620,8 @@ public class BenchmarkManager {
                                      timeSourceDrift, timerJitter);
     }
 
-    private List<DiagnosticMetric> buildDiagnostics(EnvironmentSnapshot env, PreflightReport preflight) {
-        diagnosticsBuffer.clear();
-        diagnosticsBuffer.add(new DiagnosticMetric(
-            "Timer Drift",
-            formatPercent(env.timeSourceDriftPercent, DIAGNOSTIC_DECIMALS),
-            "%",
-            "Difference between nanoTime and elapsedRealtime clocks"));
-        diagnosticsBuffer.add(new DiagnosticMetric(
-            "Timer Jitter",
-            formatPercent(env.timerJitterPercent, DIAGNOSTIC_DECIMALS),
-            "%",
-            "Max deviation across nanoTime samples"));
-        diagnosticsBuffer.add(new DiagnosticMetric(
-            "CPU Stability Variance",
-            formatPercent(preflight.cpuStabilityVariance, DIAGNOSTIC_DECIMALS),
-            "%",
-            "Variance across repeated integer add microbenchmarks"));
-        diagnosticsBuffer.add(new DiagnosticMetric(
-            "Emulator Signals",
-            preflight.emulatorLikely ? "DETECTED" : "NOT DETECTED",
-            "",
-            "Fingerprint and CPU info inspection"));
-        diagnosticsBuffer.add(new DiagnosticMetric(
-            "ABI/CPU Mismatch",
-            preflight.abiMismatch ? "DETECTED" : "NOT DETECTED",
-            "",
-            "ABI and cpuinfo consistency check"));
-        return new ArrayList<>(diagnosticsBuffer);
-    private DiagnosticMetricsView buildDiagnostics(EnvironmentSnapshot env, PreflightReport preflight) {
-        DiagnosticMetricsView diagnostics = diagnosticsView.get();
+    private DiagnosticMetrics buildDiagnostics(EnvironmentSnapshot env, PreflightReport preflight) {
+        DiagnosticMetrics diagnostics = diagnosticsStore.get();
         double[] values = diagnostics.values;
         values[DIAGNOSTIC_INDEX_TIMER_DRIFT] = env.timeSourceDriftPercent;
         values[DIAGNOSTIC_INDEX_TIMER_JITTER] = env.timerJitterPercent;
