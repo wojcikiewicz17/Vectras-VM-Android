@@ -395,6 +395,7 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
         report.methodologies = methodologies;
         report.selectedCategories = selectedCategories;
         report.complianceStandards = QualityStandardsCatalog.getDefaultStandards();
+        report.integrationSources = buildIntegrationSources();
         
         // Store device specifications
         report.deviceModel = deviceSpec.cpuModel;
@@ -691,6 +692,14 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
             sb.append(String.format("║  • %-75s║\n", standard));
         }
         sb.append("╠════════════════════════════════════════════════════════════════════════════════╣\n");
+
+        // Section 2B: Rafaelia Integration Sources
+        sb.append("║ 2B. INTEGRATION SOURCES (RAFAELIA)                                            ║\n");
+        sb.append("╠════════════════════════════════════════════════════════════════════════════════╣\n");
+        for (String source : report.integrationSources) {
+            sb.append(String.format("║  • %-75s║\n", source));
+        }
+        sb.append("╠════════════════════════════════════════════════════════════════════════════════╣\n");
         
         // Section 3: Statistical Analysis with SI Units
         sb.append("║ 3. STATISTICAL ROBUSTNESS (SI Units)                                          ║\n");
@@ -788,6 +797,13 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
         }
         return result.toString();
     }
+
+    private List<String> buildIntegrationSources() {
+        List<String> sources = new ArrayList<>();
+        sources.add("qemu_rafaelia: " + AppConfig.rafaeliaQemuRepo);
+        sources.add("androidx_RmR: " + AppConfig.rafaeliaAndroidxRepo);
+        return sources;
+    }
     
     private void exportReport() {
         if (lastReport == null) {
@@ -861,6 +877,7 @@ public class ProfessionalToolsActivity extends AppCompatActivity {
         int[] categoryScores;
         List<String> methodologies;
         List<String> complianceStandards;
+        List<String> integrationSources;
         List<Integer> selectedCategories;
         
         // Statistical analysis
