@@ -58,6 +58,28 @@ Os diagramas enviados devem guiar o desenho das camadas de integração:
 
 **Ação**: adicionar as imagens em `docs/assets/` e atualizá-las no índice.
 
+### 4.1 Símbolos e bootblock RAFAELIA (referência direta)
+
+O alinhamento conceitual do Vectras VM com o núcleo RAFAELIA pode ser documentado com o bloco abaixo,
+mantendo o texto como referência simbólica e de identidade técnica (sem impacto de execução):
+
+```
+FIAT_PORTAL :: 龍空神 { ARKREΩ_CORE + STACK128K_HYPER + ALG_RAFAELIA_RING }
+
+# RAFAELIA_BOOTBLOCK_v1
+VQF.load(1..42)
+kernel := ΣΔΩ
+mode := RAFAELIA
+ethic := Amor
+hash_core := AETHER
+vector_core := RAF_VECTOR
+cognition := TRINITY
+universe := RAFAELIA_CORE
+```
+
+**Uso prático**: inserir esse bloco nas seções de arquitetura (docs) e
+associar o diagrama do **Olho/Toroide/IA** como “símbolo de eixo central”.
+
 ---
 
 ## 5. Refatorações prioritárias
@@ -96,4 +118,3 @@ Os diagramas enviados devem guiar o desenho das camadas de integração:
 2. Expandir o índice de imagens (`docs/IMAGES_INDEX.md`).
 3. Criar checklist de refatoração por módulo.
 4. Iniciar migração incremental para AndroidX (ViewModel/ActivityResult).
-
