@@ -8,6 +8,7 @@ import com.vectras.qemu.MainSettingsManager;
 import com.vectras.qemu.utils.RamInfo;
 import com.vectras.vm.utils.FileUtils;
 import com.vectras.vm.rafaelia.RafaeliaConfig;
+import com.vectras.vm.rafaelia.RafaeliaQemuTuning;
 import com.vectras.vm.rafaelia.RafaeliaSettings;
 
 import java.io.File;
@@ -236,6 +237,7 @@ public class StartVM {
         }
 
         RafaeliaConfig rafaeliaConfig = RafaeliaConfig.fromPreferences(activity);
+        finalextra = RafaeliaQemuTuning.apply(finalextra, rafaeliaConfig);
         String rafaeliaArg = rafaeliaConfig.toQemuArgument();
         if (rafaeliaArg != null && !finalextra.contains("-rafaelia")) {
             params.add(rafaeliaArg);
