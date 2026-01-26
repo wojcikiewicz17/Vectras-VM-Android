@@ -17,8 +17,6 @@ import com.termux.app.TermuxService;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.LinkedList;
 
 /**
  * A document provider for the Storage Access Framework which exposes the files in the
@@ -90,8 +88,11 @@ public class TermuxDocumentsProvider extends DocumentsProvider {
     public Cursor queryChildDocuments(String parentDocumentId, String[] projection, String sortOrder) throws FileNotFoundException {
         final MatrixCursor result = new MatrixCursor(projection != null ? projection : DEFAULT_DOCUMENT_PROJECTION);
         final File parent = getFileForDocId(parentDocumentId);
-        for (File file : parent.listFiles()) {
-            includeFile(result, null, file);
+        final File[] children = parent.listFiles();
+        if (children != null) {
+            for (int i = 0; i < children.length; i++) {
+                includeFile(result, null, children[i]);
+            }
         }
         return result;
     }
@@ -161,12 +162,13 @@ public class TermuxDocumentsProvider extends DocumentsProvider {
         // results, so we can stop as soon as we find a sufficient number of matches.  Other
         // implementations might rank results and use other data about files, rather than the file
         // name, to produce a match.
-        final LinkedList<File> pending = new LinkedList<>();
-        pending.add(parent);
+        File[] pending = new File[32];
+        int pendingSize = 0;
+        pending[pendingSize++] = parent;
 
         final int MAX_SEARCH_RESULTS = 50;
-        while (!pending.isEmpty() && result.getCount() < MAX_SEARCH_RESULTS) {
-            final File file = pending.removeFirst();
+        while (pendingSize > 0 && result.getCount() < MAX_SEARCH_RESULTS) {
+            final File file = pending[--pendingSize];
             // Avoid folders outside the $HOME folders linked in to symlinks (to avoid e.g. search
             // through the whole SD card).
             boolean isInsideHome;
@@ -177,7 +179,24 @@ public class TermuxDocumentsProvider extends DocumentsProvider {
             }
             if (isInsideHome) {
                 if (file.isDirectory()) {
-                    Collections.addAll(pending, file.listFiles());
+                    final File[] children = file.listFiles();
+                    if (children != null) {
+                        final int neededSize = pendingSize + children.length;
+                        if (neededSize > pending.length) {
+                            int newCapacity = pending.length * 2;
+                            while (newCapacity < neededSize) {
+                                newCapacity *= 2;
+                            }
+                            final File[] expanded = new File[newCapacity];
+                            for (int i = 0; i < pendingSize; i++) {
+                                expanded[i] = pending[i];
+                            }
+                            pending = expanded;
+                        }
+                        for (int i = 0; i < children.length; i++) {
+                            pending[pendingSize++] = children[i];
+                        }
+                    }
                 } else {
                     if (file.getName().toLowerCase().contains(query)) {
                         includeFile(result, null, file);
