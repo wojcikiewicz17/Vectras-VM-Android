@@ -32,4 +32,26 @@ public final class RafaeliaQemuProfile {
                     "-M pc -cpu core2duo,+popcnt -smp 4 -vga std -netdev user,id=usernet -device e1000,netdev=usernet -usb -device usb-tablet";
         };
     }
+
+    public enum PresetKind {
+        BALANCED,
+        PERFORMANCE,
+        COMPATIBILITY
+    }
+
+    public static String presetParams(boolean is64bit, String arch, PresetKind presetKind) {
+        String base = defaultParams(is64bit, arch);
+        return switch (presetKind) {
+            case PERFORMANCE -> updateSmp(base, is64bit ? 6 : 4);
+            case COMPATIBILITY -> updateSmp(base, 2);
+            case BALANCED -> base;
+        };
+    }
+
+    private static String updateSmp(String params, int smp) {
+        if (params.contains("-smp")) {
+            return params.replaceAll("-smp\\s+\\d+", "-smp " + smp);
+        }
+        return params + " -smp " + smp;
+    }
 }

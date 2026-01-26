@@ -71,6 +71,10 @@
     <string name="rom_name">VM name</string>
     <string name="rom_drive_qcow2_img_etc">Drive (qcow2, img, etc…)</string>
     <string name="qemu_params">QEMU params</string>
+    <string name="qemu_preset">QEMU preset</string>
+    <string name="qemu_preset_balanced">Balanced (Rafaelia)</string>
+    <string name="qemu_preset_performance">Performance (Rafaelia)</string>
+    <string name="qemu_preset_compatibility">Compatibility (Rafaelia)</string>
     <string name="add">ADD</string>
     <string name="import_iso">Import ISO</string>
     <string name="importRom">Import ROM</string>
