@@ -38,41 +38,17 @@ public final class BitwiseMath {
     public static final int FIXED_POINT_SCALE = 1 << FIXED_POINT_BITS;
     
     /** Pi in fixed-point representation */
-    public static final int FIXED_PI = (int) (Math.PI * FIXED_POINT_SCALE);
+    public static final int FIXED_PI = 205887;
     
     /** 2*Pi in fixed-point representation */
-    public static final int FIXED_TWO_PI = (int) (2.0 * Math.PI * FIXED_POINT_SCALE);
+    public static final int FIXED_TWO_PI = 411774;
     
     /** Euler's number in fixed-point representation */
-    public static final int FIXED_E = (int) (Math.E * FIXED_POINT_SCALE);
+    public static final int FIXED_E = 178145;
     
     /** Golden ratio in fixed-point representation */
-    public static final int FIXED_PHI = (int) (1.618033988749895 * FIXED_POINT_SCALE);
+    public static final int FIXED_PHI = 106039;
     
-    /** Sine lookup table size (256 entries for quarter wave) */
-    private static final int SINE_TABLE_SIZE = 256;
-    
-    /** Pre-computed sine table in fixed-point Q16 format */
-    private static final short[] SINE_TABLE = new short[SINE_TABLE_SIZE];
-    
-    /** Pre-computed log2 approximation table */
-    private static final byte[] LOG2_TABLE = new byte[256];
-    
-    // Static initialization of lookup tables
-    static {
-        // Initialize sine table (quarter wave, normalized to -32767 to 32767)
-        for (int i = 0; i < SINE_TABLE_SIZE; i++) {
-            double angle = (i * Math.PI / 2.0) / SINE_TABLE_SIZE;
-            SINE_TABLE[i] = (short) Math.round(Math.sin(angle) * 32767.0);
-        }
-        
-        // Initialize log2 approximation table
-        for (int i = 1; i < 256; i++) {
-            LOG2_TABLE[i] = (byte) Math.round(Math.log(i) / Math.log(2) * 16);
-        }
-        LOG2_TABLE[0] = 0; // log2(0) undefined, set to 0
-    }
-
     // ========== Private Constructor ==========
     
     private BitwiseMath() {
@@ -90,7 +66,7 @@ public final class BitwiseMath {
      * @return Packed 32-bit vector
      */
     public static int packVec2(int x, int y) {
-        return ((y & 0xFFFF) << 16) | (x & 0xFFFF);
+        return LowLevelAsm.asmVec2Pack(x, y);
     }
     
     /**
@@ -100,7 +76,7 @@ public final class BitwiseMath {
      * @return X component (sign-extended)
      */
     public static int unpackVec2X(int vec) {
-        return (short) (vec & 0xFFFF);
+        return LowLevelAsm.asmVec2X(vec);
     }
     
     /**
@@ -110,7 +86,7 @@ public final class BitwiseMath {
      * @return Y component (sign-extended)
      */
     public static int unpackVec2Y(int vec) {
-        return (short) (vec >>> 16);
+        return LowLevelAsm.asmVec2Y(vec);
     }
     
     /**
@@ -121,15 +97,7 @@ public final class BitwiseMath {
      * @return Sum vector (saturated to 16-bit range)
      */
     public static int addVec2Saturate(int a, int b) {
-        int ax = unpackVec2X(a);
-        int ay = unpackVec2Y(a);
-        int bx = unpackVec2X(b);
-        int by = unpackVec2Y(b);
-        
-        int rx = clampShort(ax + bx);
-        int ry = clampShort(ay + by);
-        
-        return packVec2(rx, ry);
+        return LowLevelAsm.asmVec2AddSat(a, b);
     }
     
     /**
@@ -140,12 +108,7 @@ public final class BitwiseMath {
      * @return Dot product (ax*bx + ay*by)
      */
     public static int dotVec2(int a, int b) {
-        int ax = unpackVec2X(a);
-        int ay = unpackVec2Y(a);
-        int bx = unpackVec2X(b);
-        int by = unpackVec2Y(b);
-        
-        return ax * bx + ay * by;
+        return LowLevelAsm.asmVec2Dot(a, b);
     }
     
     /**
@@ -155,7 +118,7 @@ public final class BitwiseMath {
      * @return Squared magnitude (x^2 + y^2)
      */
     public static int magnitudeSquaredVec2(int vec) {
-        return dotVec2(vec, vec);
+        return LowLevelAsm.asmVec2Mag2(vec);
     }
     
     /**
@@ -217,13 +180,7 @@ public final class BitwiseMath {
      * @param result 4-element array (output vector)
      */
     public static void matrixVectorMul4x4(short[] matrix, short[] vector, int[] result) {
-        for (int i = 0; i < 4; i++) {
-            int sum = 0;
-            for (int j = 0; j < 4; j++) {
-                sum += matrix[i * 4 + j] * vector[j];
-            }
-            result[i] = sum >> FIXED_POINT_BITS; // Scale down by fixed-point factor
-        }
+        LowLevelAsm.asmMat4Mul(matrix, 0, vector, 0, result, 0);
     }
     
     /**
@@ -233,21 +190,7 @@ public final class BitwiseMath {
      * @param matrix 16-element array to transpose
      */
     public static void matrixTranspose4x4(short[] matrix) {
-        // Swap upper triangle with lower triangle using XOR
-        // Only need to swap 6 pairs: (0,1)↔(1,0), (0,2)↔(2,0), (0,3)↔(3,0),
-        //                            (1,2)↔(2,1), (1,3)↔(3,1), (2,3)↔(3,2)
-        swapMatrixElements(matrix, 1, 4);   // (0,1) ↔ (1,0)
-        swapMatrixElements(matrix, 2, 8);   // (0,2) ↔ (2,0)
-        swapMatrixElements(matrix, 3, 12);  // (0,3) ↔ (3,0)
-        swapMatrixElements(matrix, 6, 9);   // (1,2) ↔ (2,1)
-        swapMatrixElements(matrix, 7, 13);  // (1,3) ↔ (3,1)
-        swapMatrixElements(matrix, 11, 14); // (2,3) ↔ (3,2)
-    }
-    
-    private static void swapMatrixElements(short[] arr, int i, int j) {
-        arr[i] ^= arr[j];
-        arr[j] ^= arr[i];
-        arr[i] ^= arr[j];
+        LowLevelAsm.asmMat4Transpose(matrix, 0);
     }
     
     /**
@@ -284,38 +227,7 @@ public final class BitwiseMath {
      * @return Sine value in Q15 format (-32767 to 32767)
      */
     public static int fastSineFixed(int angleFixed) {
-        // Normalize angle to 0 to FIXED_TWO_PI range
-        int angle = angleFixed % FIXED_TWO_PI;
-        if (angle < 0) angle += FIXED_TWO_PI;
-        
-        // Determine quadrant and adjust angle
-        int quadrant = (angle * 4) / FIXED_TWO_PI;
-        int tableAngle;
-        boolean negate = false;
-        
-        switch (quadrant) {
-            case 0: // 0 to Pi/2
-                tableAngle = (angle * SINE_TABLE_SIZE * 2) / FIXED_PI;
-                break;
-            case 1: // Pi/2 to Pi
-                tableAngle = ((FIXED_PI - angle) * SINE_TABLE_SIZE * 2) / FIXED_PI;
-                break;
-            case 2: // Pi to 3Pi/2
-                tableAngle = ((angle - FIXED_PI) * SINE_TABLE_SIZE * 2) / FIXED_PI;
-                negate = true;
-                break;
-            default: // 3Pi/2 to 2Pi
-                tableAngle = ((FIXED_TWO_PI - angle) * SINE_TABLE_SIZE * 2) / FIXED_PI;
-                negate = true;
-                break;
-        }
-        
-        // Clamp table index
-        if (tableAngle < 0) tableAngle = 0;
-        if (tableAngle >= SINE_TABLE_SIZE) tableAngle = SINE_TABLE_SIZE - 1;
-        
-        int result = SINE_TABLE[tableAngle];
-        return negate ? -result : result;
+        return LowLevelAsm.asmFastSineFixed(angleFixed);
     }
     
     /**
@@ -326,7 +238,7 @@ public final class BitwiseMath {
      * @return Cosine value in Q15 format (-32767 to 32767)
      */
     public static int fastCosineFixed(int angleFixed) {
-        return fastSineFixed(angleFixed + (FIXED_PI >> 1));
+        return LowLevelAsm.asmFastCosineFixed(angleFixed);
     }
     
     /**
@@ -340,8 +252,8 @@ public final class BitwiseMath {
     public static int fastAtan2Fixed(int y, int x) {
         if (x == 0 && y == 0) return 0;
         
-        int absY = Math.abs(y);
-        int absX = Math.abs(x);
+        int absY = LowLevelAsm.asmAbs(y);
+        int absX = LowLevelAsm.asmAbs(x);
         
         // Use angle = (Pi/4) * (y/x) for small angles
         // with correction for larger angles
@@ -404,24 +316,7 @@ public final class BitwiseMath {
      * @return log2(x) in fixed-point format
      */
     public static int fastLog2Fixed(int x) {
-        if (x <= 0) return Integer.MIN_VALUE; // Undefined
-        
-        // Find highest set bit
-        int msb = 31 - Integer.numberOfLeadingZeros(x);
-        
-        // Use upper 8 bits for table lookup
-        int tableIdx;
-        if (msb >= 8) {
-            tableIdx = (x >>> (msb - 7)) & 0xFF;
-        } else {
-            tableIdx = (x << (7 - msb)) & 0xFF;
-        }
-        
-        // Combine integer part with fractional approximation
-        int intPart = (msb - FIXED_POINT_BITS) << FIXED_POINT_BITS;
-        int fracPart = (LOG2_TABLE[tableIdx] & 0xFF) << (FIXED_POINT_BITS - 4);
-        
-        return intPart + fracPart;
+        return LowLevelAsm.asmFastLog2Fixed(x);
     }
     
     /**
@@ -433,7 +328,7 @@ public final class BitwiseMath {
      * @return Harmony score (0-32, where 32 = identical)
      */
     public static int computeHarmony(int a, int b) {
-        return 32 - Integer.bitCount(a ^ b);
+        return 32 - LowLevelAsm.asmBitCount(a ^ b);
     }
     
     /**
@@ -453,7 +348,7 @@ public final class BitwiseMath {
         int maxDiff = 0;
         
         for (int i = offset + 1; i < offset + length; i++) {
-            int diff = Math.abs((data[i] & 0xFF) - (data[i - 1] & 0xFF));
+            int diff = LowLevelAsm.asmAbs((data[i] & 0xFF) - (data[i - 1] & 0xFF));
             totalDiff += diff;
             if (diff > maxDiff) maxDiff = diff;
         }
@@ -462,7 +357,7 @@ public final class BitwiseMath {
         int avgDiff = totalDiff / (length - 1);
         int syntropy = FIXED_POINT_SCALE - ((avgDiff * FIXED_POINT_SCALE) / 256);
         
-        return Math.max(0, syntropy);
+        return LowLevelAsm.asmMax(0, syntropy);
     }
 
     // ========== Spectral/Frequency Operations ==========
@@ -563,9 +458,7 @@ public final class BitwiseMath {
      * @return Value clamped to -32768 to 32767
      */
     public static int clampShort(int value) {
-        if (value < Short.MIN_VALUE) return Short.MIN_VALUE;
-        if (value > Short.MAX_VALUE) return Short.MAX_VALUE;
-        return value;
+        return LowLevelAsm.asmClampShort(value);
     }
     
     /**
@@ -579,7 +472,7 @@ public final class BitwiseMath {
         if (n == 0) return 0;
         
         // Initial guess using highest bit position
-        long x = 1L << ((63 - Long.numberOfLeadingZeros(n)) / 2 + 1);
+        long x = 1L << ((63 - LowLevelAsm.asmLeadingZeros64(n)) / 2 + 1);
         
         // Newton's iteration
         while (true) {
@@ -725,7 +618,7 @@ public final class BitwiseMath {
      * @return Number of leading zero bits (0-32)
      */
     public static int countLeadingZeros(int x) {
-        return Integer.numberOfLeadingZeros(x);
+        return LowLevelAsm.asmLeadingZeros32(x);
     }
     
     /**
@@ -735,7 +628,7 @@ public final class BitwiseMath {
      * @return Number of trailing zero bits (0-32)
      */
     public static int countTrailingZeros(int x) {
-        return Integer.numberOfTrailingZeros(x);
+        return LowLevelAsm.asmTrailingZeros32(x);
     }
     
     // ========== Advanced Bitwise Operations ==========
@@ -837,7 +730,7 @@ public final class BitwiseMath {
      * @return Floor(log2(x))
      */
     public static int fastLog2(int x) {
-        return 31 - Integer.numberOfLeadingZeros(x);
+        return 31 - LowLevelAsm.asmLeadingZeros32(x);
     }
     
     /**
@@ -949,7 +842,7 @@ public final class BitwiseMath {
      * @return Hamming distance
      */
     public static int hammingDistance(int x, int y) {
-        return Integer.bitCount(x ^ y);
+        return LowLevelAsm.asmBitCount(x ^ y);
     }
     
     /**
