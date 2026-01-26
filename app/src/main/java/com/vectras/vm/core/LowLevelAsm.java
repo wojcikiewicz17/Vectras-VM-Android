@@ -157,9 +157,9 @@ public final class LowLevelAsm {
     }
 
     public static int asmFastLog2Fixed(int x) {
-        if (x <= 0) return Integer.MIN_VALUE;
+        if (x <= 0) return 0x80000000;
 
-        int msb = 31 - Integer.numberOfLeadingZeros(x);
+        int msb = 31 - asmLeadingZeros32(x);
         int tableIdx;
         if (msb >= 8) {
             tableIdx = (x >>> (msb - 7)) & 0xFF;
@@ -178,5 +178,62 @@ public final class LowLevelAsm {
         if (value < Short.MIN_VALUE) return Short.MIN_VALUE;
         if (value > Short.MAX_VALUE) return Short.MAX_VALUE;
         return value;
+    }
+
+    public static int asmAbs(int x) {
+        int mask = x >> 31;
+        return (x + mask) ^ mask;
+    }
+
+    public static int asmMax(int a, int b) {
+        int diff = a - b;
+        return a - (diff & (diff >> 31));
+    }
+
+    public static int asmMin(int a, int b) {
+        int diff = a - b;
+        return b + (diff & (diff >> 31));
+    }
+
+    public static int asmBitCount(int x) {
+        x = x - ((x >>> 1) & 0x55555555);
+        x = (x & 0x33333333) + ((x >>> 2) & 0x33333333);
+        x = (x + (x >>> 4)) & 0x0F0F0F0F;
+        x = x + (x >>> 8);
+        x = x + (x >>> 16);
+        return x & 0x3F;
+    }
+
+    public static int asmLeadingZeros32(int x) {
+        if (x == 0) return 32;
+        int n = 0;
+        int v = x;
+        while ((v & 0x80000000) == 0) {
+            n++;
+            v <<= 1;
+        }
+        return n;
+    }
+
+    public static int asmTrailingZeros32(int x) {
+        if (x == 0) return 32;
+        int n = 0;
+        int v = x;
+        while ((v & 1) == 0) {
+            n++;
+            v >>>= 1;
+        }
+        return n;
+    }
+
+    public static int asmLeadingZeros64(long x) {
+        if (x == 0L) return 64;
+        int n = 0;
+        long v = x;
+        while ((v & 0x8000000000000000L) == 0) {
+            n++;
+            v <<= 1;
+        }
+        return n;
     }
 }

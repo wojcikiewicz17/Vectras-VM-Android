@@ -252,8 +252,8 @@ public final class BitwiseMath {
     public static int fastAtan2Fixed(int y, int x) {
         if (x == 0 && y == 0) return 0;
         
-        int absY = Math.abs(y);
-        int absX = Math.abs(x);
+        int absY = LowLevelAsm.asmAbs(y);
+        int absX = LowLevelAsm.asmAbs(x);
         
         // Use angle = (Pi/4) * (y/x) for small angles
         // with correction for larger angles
@@ -328,7 +328,7 @@ public final class BitwiseMath {
      * @return Harmony score (0-32, where 32 = identical)
      */
     public static int computeHarmony(int a, int b) {
-        return 32 - Integer.bitCount(a ^ b);
+        return 32 - LowLevelAsm.asmBitCount(a ^ b);
     }
     
     /**
@@ -348,7 +348,7 @@ public final class BitwiseMath {
         int maxDiff = 0;
         
         for (int i = offset + 1; i < offset + length; i++) {
-            int diff = Math.abs((data[i] & 0xFF) - (data[i - 1] & 0xFF));
+            int diff = LowLevelAsm.asmAbs((data[i] & 0xFF) - (data[i - 1] & 0xFF));
             totalDiff += diff;
             if (diff > maxDiff) maxDiff = diff;
         }
@@ -357,7 +357,7 @@ public final class BitwiseMath {
         int avgDiff = totalDiff / (length - 1);
         int syntropy = FIXED_POINT_SCALE - ((avgDiff * FIXED_POINT_SCALE) / 256);
         
-        return Math.max(0, syntropy);
+        return LowLevelAsm.asmMax(0, syntropy);
     }
 
     // ========== Spectral/Frequency Operations ==========
@@ -472,7 +472,7 @@ public final class BitwiseMath {
         if (n == 0) return 0;
         
         // Initial guess using highest bit position
-        long x = 1L << ((63 - Long.numberOfLeadingZeros(n)) / 2 + 1);
+        long x = 1L << ((63 - LowLevelAsm.asmLeadingZeros64(n)) / 2 + 1);
         
         // Newton's iteration
         while (true) {
@@ -618,7 +618,7 @@ public final class BitwiseMath {
      * @return Number of leading zero bits (0-32)
      */
     public static int countLeadingZeros(int x) {
-        return Integer.numberOfLeadingZeros(x);
+        return LowLevelAsm.asmLeadingZeros32(x);
     }
     
     /**
@@ -628,7 +628,7 @@ public final class BitwiseMath {
      * @return Number of trailing zero bits (0-32)
      */
     public static int countTrailingZeros(int x) {
-        return Integer.numberOfTrailingZeros(x);
+        return LowLevelAsm.asmTrailingZeros32(x);
     }
     
     // ========== Advanced Bitwise Operations ==========
@@ -730,7 +730,7 @@ public final class BitwiseMath {
      * @return Floor(log2(x))
      */
     public static int fastLog2(int x) {
-        return 31 - Integer.numberOfLeadingZeros(x);
+        return 31 - LowLevelAsm.asmLeadingZeros32(x);
     }
     
     /**
@@ -842,7 +842,7 @@ public final class BitwiseMath {
      * @return Hamming distance
      */
     public static int hammingDistance(int x, int y) {
-        return Integer.bitCount(x ^ y);
+        return LowLevelAsm.asmBitCount(x ^ y);
     }
     
     /**
