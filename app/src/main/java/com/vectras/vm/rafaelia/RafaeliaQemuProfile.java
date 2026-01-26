@@ -14,12 +14,12 @@ public final class RafaeliaQemuProfile {
         if (is64bit) {
             return switch (arch) {
                 case "ARM64" ->
-                        "-M virt,virtualization=true -cpu cortex-a76 -accel tcg,thread=multi -net nic,model=e1000 -net user -device nec-usb-xhci -device usb-kbd -device usb-mouse -device VGA";
-                case "PPC" -> "-M mac99 -cpu g4 -accel tcg,thread=multi -smp 1";
+                        "-M virt,virtualization=true -cpu cortex-a76 -accel tcg,thread=multi,tb-size=2048 -net nic,model=e1000 -net user -device nec-usb-xhci -device usb-kbd -device usb-mouse -device VGA";
+                case "PPC" -> "-M mac99 -cpu g4 -accel tcg,thread=multi,tb-size=2048 -smp 1";
                 case "I386" ->
-                        "-M pc -cpu coreduo,+popcnt -accel tcg,thread=multi -smp 4 -vga std -netdev user,id=usernet -device e1000,netdev=usernet  -usb -device usb-tablet";
+                        "-M pc -cpu coreduo,+popcnt -accel tcg,thread=multi,tb-size=2048 -smp 4 -vga std -netdev user,id=usernet -device e1000,netdev=usernet  -usb -device usb-tablet";
                 default ->
-                        "-M pc -cpu core2duo,+popcnt -accel tcg,thread=multi -smp 4 -vga std -netdev user,id=usernet -device e1000,netdev=usernet  -usb -device usb-tablet";
+                        "-M pc -cpu core2duo,+popcnt -accel tcg,thread=multi,tb-size=2048 -smp 4 -vga std -netdev user,id=usernet -device e1000,netdev=usernet  -usb -device usb-tablet";
             };
         }
         return switch (arch) {
