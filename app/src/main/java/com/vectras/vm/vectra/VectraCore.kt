@@ -489,11 +489,15 @@ class VectraBitStackLog(logFile: File) {
         private const val VERSION = 1
         private const val RECORD_HEADER_SIZE = 16 // magic(4) + len(4) + meta(4) + crc(4)
         private const val MAX_LOG_SIZE = 10 * 1024 * 1024 // 10 MB
+        private const val FLUSH_INTERVAL_MS = 1000L
+        private const val FLUSH_RECORDS = 32
     }
 
     private val file: RandomAccessFile = RandomAccessFile(logFile, "rw")
     private val lock = ReentrantLock()
     private var recordCount = 0L
+    private var recordsSinceFlush = 0
+    private var lastFlushAtMs = System.currentTimeMillis()
 
     init {
         if (file.length() == 0L) {
@@ -534,13 +538,27 @@ class VectraBitStackLog(logFile: File) {
 
             file.write(recordHeader.array())
             file.write(payload)
-            file.channel.force(true)
+            recordsSinceFlush++
+            maybeFlush()
             recordCount++
+        }
+    }
+
+    private fun maybeFlush() {
+        val now = System.currentTimeMillis()
+        if (recordsSinceFlush >= FLUSH_RECORDS || now - lastFlushAtMs >= FLUSH_INTERVAL_MS) {
+            file.channel.force(false)
+            recordsSinceFlush = 0
+            lastFlushAtMs = now
         }
     }
 
     fun close() {
         lock.withLock {
+            if (recordsSinceFlush > 0) {
+                file.channel.force(false)
+                recordsSinceFlush = 0
+            }
             file.close()
         }
     }

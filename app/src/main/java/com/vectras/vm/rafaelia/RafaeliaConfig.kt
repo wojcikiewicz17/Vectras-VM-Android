@@ -12,7 +12,8 @@ data class RafaeliaConfig(
     val tickMs: Int,
     val debug: Boolean,
     val autotuneEnabled: Boolean,
-    val tcgTbSize: Int
+    val tcgTbSize: Int,
+    val totalMemoryBytes: Long
 ) {
     fun isValid(): Boolean {
         return mode.id in 0..RafaeliaMode.maxId() && tickMs > 0
@@ -25,6 +26,12 @@ data class RafaeliaConfig(
         return copy(mode = safeMode, tickMs = safeTick, tcgTbSize = safeTbSize)
     }
 
+    @JvmOverloads
+    fun clampTcgTbSize(requested: Int = tcgTbSize): Int {
+        val base = if (requested >= MIN_TB_SIZE) requested else MIN_TB_SIZE
+        return clampByRam(base, totalMemoryBytes)
+    }
+
     fun toQemuArgument(): String? {
         if (!enabled) return null
         val safe = sanitized()
@@ -33,7 +40,8 @@ data class RafaeliaConfig(
 
     companion object {
         private const val DEFAULT_TICK_MS = 10
-        private const val MIN_TB_SIZE = 256
+        private const val DEFAULT_TB_SIZE = 128
+        private const val MIN_TB_SIZE = 64
 
         @JvmStatic
         fun fromPreferences(context: Context): RafaeliaConfig {
@@ -44,9 +52,17 @@ data class RafaeliaConfig(
                 ?.toIntOrNull() ?: DEFAULT_TICK_MS
             val debug = prefs.getBoolean(RafaeliaSettings.KEY_RAFAELIA_DEBUG, false)
             val autotuneEnabled = prefs.getBoolean(RafaeliaSettings.KEY_RAFAELIA_AUTOTUNE, true)
-            val tbSize = prefs.getString(RafaeliaSettings.KEY_RAFAELIA_TCG_TB_SIZE, "2048")
-                ?.toIntOrNull() ?: 2048
-            return RafaeliaConfig(enabled, RafaeliaMode.fromId(modeId), tickMs, debug, autotuneEnabled, tbSize)
+            val tbSize = prefs.getString(RafaeliaSettings.KEY_RAFAELIA_TCG_TB_SIZE, DEFAULT_TB_SIZE.toString())
+                ?.toIntOrNull() ?: DEFAULT_TB_SIZE
+            val totalMemoryBytes = com.vectras.vm.utils.DeviceUtils.totalMemoryCapacity(context).toLong()
+            return RafaeliaConfig(enabled, RafaeliaMode.fromId(modeId), tickMs, debug, autotuneEnabled, tbSize, totalMemoryBytes)
+        }
+
+        private fun clampByRam(tbSize: Int, totalMemoryBytes: Long): Int {
+            if (totalMemoryBytes <= 0L) return tbSize
+            val totalMiB = (totalMemoryBytes / (1024 * 1024)).toInt()
+            val maxByRam = (totalMiB / 16).coerceAtLeast(MIN_TB_SIZE)
+            return tbSize.coerceAtMost(maxByRam)
         }
     }
 }

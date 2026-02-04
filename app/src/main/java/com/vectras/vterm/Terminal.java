@@ -12,6 +12,7 @@ import androidx.appcompat.app.AlertDialog;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.termux.app.TermuxService;
+import com.vectras.vm.BuildConfig;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
@@ -136,8 +137,10 @@ public class Terminal {
     public void executeShellCommand2(String userCommand, boolean showResultDialog, Context dialogActivity) {
         AtomicReference<StringBuilder> output = new AtomicReference<>(new StringBuilder());
         StringBuilder errors = new StringBuilder();
-        Log.d(TAG, userCommand);
-        com.vectras.vm.logger.VectrasStatus.logError("<font color='#4db6ac'>VTERM: >" + userCommand + "</font>");
+        if (BuildConfig.DEBUG) {
+            Log.d(TAG, userCommand);
+            com.vectras.vm.logger.VectrasStatus.logError("<font color='#4db6ac'>VTERM: >" + userCommand + "</font>");
+        }
         new Thread(() -> {
             try {
                 // Set up the qemuProcess builder to start PRoot with environmental variables and commands
@@ -160,7 +163,8 @@ public class Terminal {
                 processBuilder.environment().put("SHELL", "/bin/sh");
                 processBuilder.environment().put("DISPLAY", DISPLAY);
                 processBuilder.environment().put("PULSE_SERVER", "127.0.0.1");
-                processBuilder.environment().put("XDG_RUNTIME_DIR", "${TMPDIR}");
+                String tmpDirPath = processBuilder.environment().get("TMPDIR");
+                processBuilder.environment().put("XDG_RUNTIME_DIR", tmpDirPath != null ? tmpDirPath : "/tmp");
                 processBuilder.environment().put("SDL_VIDEODRIVER", "x11");
 
                 String[] prootCommand = {

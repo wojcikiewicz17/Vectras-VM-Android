@@ -4,7 +4,8 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public final class RafaeliaQemuTuning {
-    private static final int DEFAULT_TB_SIZE = 2048;
+    private static final int DEFAULT_TB_SIZE = 128;
+    private static final int MIN_TB_SIZE = 64;
     private static final Pattern ACCEL_TCG_PATTERN = Pattern.compile("(?<!\\S)-accel\\s+tcg[^\\s]*");
 
     private RafaeliaQemuTuning() {
@@ -21,6 +22,10 @@ public final class RafaeliaQemuTuning {
             return extras;
         }
         int tbSize = config.getTcgTbSize() > 0 ? config.getTcgTbSize() : DEFAULT_TB_SIZE;
+        if (tbSize < MIN_TB_SIZE) {
+            tbSize = MIN_TB_SIZE;
+        }
+        tbSize = config.clampTcgTbSize(tbSize);
         return ensureTcgTbSize(extras, tbSize);
     }
 
