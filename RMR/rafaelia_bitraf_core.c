@@ -9,6 +9,7 @@ typedef unsigned char      u8;
 typedef unsigned short     u16;
 typedef unsigned int       u32;
 typedef unsigned long long u64;
+typedef signed int         s32;
 
 #ifndef NULL
 #define NULL ((void*)0)
@@ -44,6 +45,144 @@ static void rmr_memset(void *dst, u8 v, u32 n){
 static void rmr_memcpy(void *dst, const void *src, u32 n){
   u8 *d=(u8*)dst; const u8*s=(const u8*)src;
   while(n--) *d++=*s++;
+}
+
+/* ==== CPU/arquitetura (compile-time) ==== */
+typedef enum {
+  RMR_ARCH_UNKNOWN = 0,
+  RMR_ARCH_X86     = 1,
+  RMR_ARCH_X64     = 2,
+  RMR_ARCH_ARM32   = 3,
+  RMR_ARCH_ARM64   = 4,
+  RMR_ARCH_RISCV   = 5,
+  RMR_ARCH_MIPS    = 6
+} rmr_arch_t;
+
+static rmr_arch_t rmr_detect_arch(void){
+#if defined(__x86_64__) || defined(_M_X64)
+  return RMR_ARCH_X64;
+#elif defined(__i386__) || defined(_M_IX86)
+  return RMR_ARCH_X86;
+#elif defined(__aarch64__)
+  return RMR_ARCH_ARM64;
+#elif defined(__arm__) || defined(_M_ARM)
+  return RMR_ARCH_ARM32;
+#elif defined(__riscv)
+  return RMR_ARCH_RISCV;
+#elif defined(__mips__)
+  return RMR_ARCH_MIPS;
+#else
+  return RMR_ARCH_UNKNOWN;
+#endif
+}
+
+static u8 rmr_is_little_endian(void){
+  u16 v = 0x0102u;
+  return (*((u8*)&v) == 0x02u) ? 1u : 0u;
+}
+
+/* ==== Util numérico sem libc ==== */
+static u32 rmr_isqrt_u32(u32 x){
+  u32 res = 0;
+  u32 bit = 1u << 30;
+  while(bit > x) bit >>= 2;
+  while(bit != 0){
+    u32 tmp = res + bit;
+    if(x >= tmp){
+      x -= tmp;
+      res = (tmp + bit);
+    }
+    res >>= 1;
+    bit >>= 2;
+  }
+  return res;
+}
+
+/* ==== Imagem: análise low-level em 23 pontos ==== */
+typedef struct {
+  u32 width;
+  u32 height;
+  u32 stride;   /* bytes por linha */
+  u8  channels; /* 1..4 */
+  u8  bpp;      /* bits por pixel (total) */
+  u8  format;   /* 0=grayscale,1=rgb,2=rgba,3=bgr,4=bgra */
+} rmr_image_info_t;
+
+typedef struct {
+  u32 x;
+  u32 y;
+  u32 value;      /* intensidade 0..255 (média de canais) */
+  u8  sector8;    /* setor polar 0..7 */
+  u32 vec_len;    /* comprimento do vetor (fixo) */
+} rmr_point23_t;
+
+static u32 rmr_image_pixel_offset(const rmr_image_info_t *info, u32 x, u32 y){
+  return (y * info->stride) + (x * (info->bpp >> 3));
+}
+
+static u32 rmr_image_sample_value(
+  const rmr_image_info_t *info,
+  const u8 *buf,
+  u32 buf_len,
+  u32 x,
+  u32 y
+){
+  if(!info || !buf) return 0;
+  if(x >= info->width || y >= info->height) return 0;
+  u32 offset = rmr_image_pixel_offset(info, x, y);
+  u32 bytes = (u32)(info->bpp >> 3);
+  if(offset + bytes > buf_len) return 0;
+
+  if(info->channels <= 1u){
+    return (u32)buf[offset];
+  }
+
+  u32 sum = 0;
+  for(u32 i=0;i<info->channels;i++){
+    sum += (u32)buf[offset + i];
+  }
+  return (sum / (u32)info->channels);
+}
+
+static u8 rmr_sector8(u32 cx, u32 cy, u32 x, u32 y){
+  s32 dx = (s32)x - (s32)cx;
+  s32 dy = (s32)y - (s32)cy;
+  u8 sx = (dx >= 0) ? 1u : 0u;
+  u8 sy = (dy >= 0) ? 1u : 0u;
+  u32 adx = (dx >= 0) ? (u32)dx : (u32)(-dx);
+  u32 ady = (dy >= 0) ? (u32)dy : (u32)(-dy);
+  if(adx >= (ady << 1)) return (u8)(sy ? 0u : 4u); /* leste/oeste */
+  if(ady >= (adx << 1)) return (u8)(sx ? 2u : 6u); /* norte/sul */
+  return (u8)((sy << 2) | (sx << 1) | 1u);         /* diagonais */
+}
+
+static void rmr_image_points23(
+  const rmr_image_info_t *info,
+  const u8 *buf,
+  u32 buf_len,
+  rmr_point23_t out_pts[23]
+){
+  if(!info || !out_pts) return;
+  static const u8 nx[23] = {2,5,8,1,3,5,7,9,2,4,6,8,1,3,5,7,9,2,4,6,8,5,5};
+  static const u8 ny[23] = {2,2,2,4,4,4,4,4,6,6,6,6,8,8,8,8,8,9,9,9,9,5,1};
+  static const u8 den = 10;
+  u32 cx = info->width >> 1;
+  u32 cy = info->height >> 1;
+
+  for(u32 i=0;i<23;i++){
+    u32 x = (info->width  * (u32)nx[i]) / (u32)den;
+    u32 y = (info->height * (u32)ny[i]) / (u32)den;
+    u32 val = rmr_image_sample_value(info, buf, buf_len, x, y);
+    u32 dx = (x >= cx) ? (x - cx) : (cx - x);
+    u32 dy = (y >= cy) ? (y - cy) : (cy - y);
+    u32 vec_len = rmr_isqrt_u32((dx * dx) + (dy * dy));
+
+    out_pts[i].x = x;
+    out_pts[i].y = y;
+    out_pts[i].value = val;
+    out_pts[i].sector8 = rmr_sector8(cx, cy, x, y);
+    out_pts[i].vec_len = vec_len;
+  }
 }
 
 /* ==== BITRAF: estados ==== */
