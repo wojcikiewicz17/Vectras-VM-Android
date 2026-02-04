@@ -18,10 +18,15 @@ android {
         versionCode 69
         versionName "3.6.5"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
-        multiDexEnabled true
+        multiDexEnabled false
 
         resValue "string", "app_version", versionName
         resValue "integer", "app_version_code", versionCode.toString()
+        manifestPlaceholders = [
+                firebaseAnalyticsCollectionEnabled: "true",
+                firebaseCrashlyticsCollectionEnabled: "true",
+                firebaseMessagingAutoInitEnabled: "true"
+        ]
     }
 
     signingConfigs {
@@ -42,7 +47,8 @@ android {
     buildTypes {
         release {
             signingConfig signingConfigs.release
-            minifyEnabled false
+            minifyEnabled true
+            shrinkResources true
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             buildConfigField "boolean", "VECTRA_CORE_ENABLED", "false"
         }
@@ -51,6 +57,15 @@ android {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
             buildConfigField "boolean", "VECTRA_CORE_ENABLED", "true"
+        }
+        perfRelease {
+            initWith release
+            matchingFallbacks = ['release']
+            manifestPlaceholders = [
+                    firebaseAnalyticsCollectionEnabled: "false",
+                    firebaseCrashlyticsCollectionEnabled: "false",
+                    firebaseMessagingAutoInitEnabled: "false"
+            ]
         }
     }
 
