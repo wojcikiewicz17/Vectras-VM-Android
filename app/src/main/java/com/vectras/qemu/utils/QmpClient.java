@@ -83,6 +83,8 @@ public class QmpClient {
 					in.close();
 				if (pingSocket != null)
 					pingSocket.close();
+				if (localSocket != null)
+					localSocket.close();
 			} catch (IOException e) {
 				Log.e(TAG, "Error closing QMP connection", e);
 			}

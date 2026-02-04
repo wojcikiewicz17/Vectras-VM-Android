@@ -460,6 +460,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                     vncPassword = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
                     MainSettingsManager.setVncExternalPassword(this, vncPassword);
                 }
+                String escapedVncPassword = vncPassword.replace("'", "'\\''");
 
                 String cmd = selectedMirrorCommand + ";" +
                         " set -e;" +
@@ -489,7 +490,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                         " echo export TMPDIR=/tmp >> /etc/profile;" +
                         " mkdir -p $TMPDIR/pulse;" +
                         " echo export PULSE_SERVER=127.0.0.1 >> /etc/profile;" +
-                        " mkdir -p ~/.vnc && echo -e \"" + vncPassword + "\\n" + vncPassword + "\" | vncpasswd -f > ~/.vnc/passwd && chmod 0600 ~/.vnc/passwd;" +
+                        " mkdir -p ~/.vnc && printf '%s\n' '" + escapedVncPassword + "' '" + escapedVncPassword + "' | vncpasswd -f > ~/.vnc/passwd && chmod 0600 ~/.vnc/passwd;" +
                         " echo \"Installation successful! xssFjnj58Id\"";
 
                 executeShellCommand(cmd);

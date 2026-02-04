@@ -1428,7 +1428,7 @@ public class VncCanvas extends AppCompatImageView {
 		// Source Coordinates
 		int leftSrc = rfb.copyRectSrcX;
 		int topSrc = rfb.copyRectSrcY;
-		int rightSrc = topSrc + w;
+		int rightSrc = leftSrc + w;
 		int bottomSrc = topSrc + h;
 
 		// Change
