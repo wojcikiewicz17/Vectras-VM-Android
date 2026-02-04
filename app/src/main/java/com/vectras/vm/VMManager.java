@@ -85,12 +85,16 @@ public class VMManager {
         for (int _repeat = 0; _repeat < vmList.size(); _repeat++) {
             if (vmList.get(_repeat).containsKey("vmID")
                     && Objects.requireNonNull(vmList.get(_repeat).get("vmID")).toString().equals(vmId)) {
-                Log.i(TAG, "isVMExist: " + vmId + " - YES.");
+                if (BuildConfig.DEBUG) {
+                    Log.i(TAG, "isVMExist: " + vmId + " - YES.");
+                }
                 return true;
             }
         }
 
-        Log.i(TAG, "isVMExist: " + vmId + " - NO.");
+        if (BuildConfig.DEBUG) {
+            Log.i(TAG, "isVMExist: " + vmId + " - NO.");
+        }
         return false;
     }
 
@@ -368,7 +372,9 @@ public class VMManager {
         if (vmList.get(position).containsKey("vmID")) {
             vmId = Objects.requireNonNull(vmList.get(position).get("vmID")).toString();
             FileUtils.deleteDirectory(Config.getCacheDir() + "/" + vmId);
-            Log.i("VMManager", "deleteVM: ID obtained: " + vmId);
+            if (BuildConfig.DEBUG) {
+                Log.i("VMManager", "deleteVM: ID obtained: " + vmId);
+            }
         } else {
             Log.e("VMManager", "deleteVM: Cannot get ID.");
             return;
@@ -527,7 +533,9 @@ public class VMManager {
                                     }
                                     restoredVMs++;
                                 } else {
-                                    Log.i("CqcmActivity", FileUtils.readAFile(AppConfig.maindirpath + "/roms-data.json").replaceAll("]", _resulttemp + "]"));
+                                    if (BuildConfig.DEBUG) {
+                                        Log.i("CqcmActivity", FileUtils.readAFile(AppConfig.maindirpath + "/roms-data.json").replaceAll("]", _resulttemp + "]"));
+                                    }
                                 }
                             }
                         }
@@ -849,7 +857,9 @@ public class VMManager {
     }
 
     public static boolean isthiscommandsafe(@NonNull String _command, Context _context) {
-        Log.d("VMManager.isthiscommandsafe", _command);
+        if (BuildConfig.DEBUG) {
+            Log.d("VMManager.isthiscommandsafe", _command);
+        }
 
         if (_command.startsWith("qemu")) {
             if (!_command.contains("&")) {
@@ -913,10 +923,14 @@ public class VMManager {
     public static boolean isVMRunning(Context context, String vmID) {
         String result = Terminal.executeShellCommandWithResult("ps -e", context);
         if (result.contains(Config.getCacheDir() + "/" + vmID + "/qmpsocket")) {
-            Log.d("VMManager.isThisVMRunning", "Yes");
+            if (BuildConfig.DEBUG) {
+                Log.d("VMManager.isThisVMRunning", "Yes");
+            }
             return true;
         } else {
-            Log.d("VMManager.isThisVMRunning", "No");
+            if (BuildConfig.DEBUG) {
+                Log.d("VMManager.isThisVMRunning", "No");
+            }
             return false;
         }
     }
@@ -925,10 +939,14 @@ public class VMManager {
         Terminal vterm = new Terminal(activity);
         vterm.executeShellCommand2("ps -e", false, activity);
         if (AppConfig.temporaryLastedTerminalOutput.contains("qemu-system")) {
-            Log.d("VMManager.isQemuRunning", "Yes");
+            if (BuildConfig.DEBUG) {
+                Log.d("VMManager.isQemuRunning", "Yes");
+            }
             return true;
         } else {
-            Log.d("VMManager.isQemuRunning", "No");
+            if (BuildConfig.DEBUG) {
+                Log.d("VMManager.isQemuRunning", "No");
+            }
             return false;
         }
     }
@@ -1402,7 +1420,9 @@ public class VMManager {
                 Thread.sleep(50);
                 keyUp(key);
             } catch (InterruptedException e) {
-                Log.d(TAG, "pressAKey: " + e.getMessage());
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "pressAKey: " + e.getMessage());
+                }
             }
         }).start();
     }
@@ -1438,7 +1458,9 @@ public class VMManager {
                 Thread.sleep(1000);
                 setVNCPassword(_password);
             } catch (InterruptedException e) {
-                Log.d(TAG, "setVNCPasswordWithDelay: " + e.getMessage());
+                if (BuildConfig.DEBUG) {
+                    Log.d(TAG, "setVNCPasswordWithDelay: " + e.getMessage());
+                }
             }
         }).start();
     }
@@ -1446,9 +1468,13 @@ public class VMManager {
     public static void setVNCPassword(String _password) {
         String _result = QmpClient.sendCommand(changeVNCPasswordQMPCommand(_password));
         if (isQMPCommandSuccess(_result)) {
-            Log.d(TAG, "setVNCPassword: Success");
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "setVNCPassword: Success");
+            }
         } else {
-            Log.d(TAG, "setVNCPassword: Failed");
+            if (BuildConfig.DEBUG) {
+                Log.d(TAG, "setVNCPassword: Failed");
+            }
         }
     }
 
@@ -1483,7 +1509,9 @@ public class VMManager {
     public static boolean isQMPCommandSuccess(String _result) {
         if (_result == null) return false;
 
-        Log.d("VMManager", "isQMPCommandSuccess: " + _result);
+        if (BuildConfig.DEBUG) {
+            Log.d("VMManager", "isQMPCommandSuccess: " + _result);
+        }
         return _result.contains("\"return\": {}");
     }
 

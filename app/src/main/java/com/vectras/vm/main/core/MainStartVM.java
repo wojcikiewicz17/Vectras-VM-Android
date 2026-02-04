@@ -23,6 +23,7 @@ import com.vectras.qemu.Config;
 import com.vectras.qemu.MainSettingsManager;
 import com.vectras.qemu.MainVNCActivity;
 import com.vectras.vm.AppConfig;
+import com.vectras.vm.BuildConfig;
 import com.vectras.vm.MainService;
 import com.vectras.vm.R;
 import com.vectras.vm.VMManager;
@@ -182,7 +183,7 @@ public class MainStartVM {
         }
 
         if (MainSettingsManager.getVncExternal(context) &&
-                NetworkUtils.isPortOpen("localhost", Config.defaultVNCPort + Config.defaultVNCPort, 500)) {
+                NetworkUtils.isPortOpen("localhost", Config.defaultVNCPort, 500)) {
             DialogUtils.twoDialog(context, context.getString(R.string.problem_has_been_detected),
                     context.getString(R.string.the_vnc_server_port_you_set_is_currently_in_use_by_other),
                     context.getString(R.string.go_to_settings),
@@ -204,7 +205,9 @@ public class MainStartVM {
             finalCommand = "export DISPLAY=:0 && " + finalCommand;
             DisplaySystem.startDesktop(context);
         }
-        Log.i(TAG, finalCommand);
+        if (BuildConfig.DEBUG) {
+            Log.i(TAG, finalCommand);
+        }
 
         RafaeliaConfig rafaeliaConfig = RafaeliaConfig.fromPreferences(context);
         if (rafaeliaConfig.getEnabled() && RafaeliaSettings.isLogCaptureEnabled(context)) {
