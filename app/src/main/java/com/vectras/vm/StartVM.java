@@ -142,6 +142,16 @@ public class StartVM {
                 params.add(hdd1);
             }
 
+            if (MainSettingsManager.get3dfxEnabled(activity)
+                    && (MainSettingsManager.getArch(activity).equals("X86_64")
+                    || MainSettingsManager.getArch(activity).equals("I386"))) {
+                String wrapperPath = get3dfxWrapperPath(activity);
+                if (wrapperPath != null && !finalextra.contains(wrapperPath)) {
+                    String wrapperCdrom = "-drive index=4,media=cdrom,file='" + wrapperPath + "'";
+                    params.add(wrapperCdrom);
+                }
+            }
+
             if (MainSettingsManager.getSharedFolder(activity) && !MainSettingsManager.getArch(activity).equals("I386")) {
                 String driveParams = "-drive ";
                 if (ifType.isEmpty()) {
@@ -300,6 +310,30 @@ public class StartVM {
         //params.add("-full-screen");
 
         return String.join(" ", params);
+    }
+
+    private static String get3dfxWrapperPath(Activity activity) {
+        String wrapperValue = MainSettingsManager.get3dfxWrapperVersion(activity);
+        if (wrapperValue == null) {
+            return null;
+        }
+        String trimmedValue = wrapperValue.trim();
+        if (trimmedValue.isEmpty()) {
+            return null;
+        }
+        File wrapperFile = new File(trimmedValue);
+        if (!wrapperFile.isAbsolute()) {
+            File downloadsFile = new File(AppConfig.downloadsFolder, trimmedValue);
+            if (downloadsFile.exists()) {
+                return downloadsFile.getPath();
+            }
+            File altDir = new File(AppConfig.maindirpath, "3dfx");
+            File altFile = new File(altDir, trimmedValue);
+            if (altFile.exists()) {
+                return altFile.getPath();
+            }
+        }
+        return wrapperFile.exists() ? wrapperFile.getPath() : null;
     }
 
 }

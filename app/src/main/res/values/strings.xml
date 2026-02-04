@@ -573,6 +573,9 @@
     <string name="cpu_support_3dfx_content">Your device\'s CPU supports acceleration for 3dfx. But it may be unstable or not working.</string>
     <string name="cpu_not_support_3dfx_content">Your device\'s CPU does not support acceleration for 3dfx.</string>
     <string name="threedfx_is_not_available">3dfx is not available.</string>
+    <string name="enable_3dfx">Enable 3dfx wrappers</string>
+    <string name="enable_3dfx_note">Mount the selected 3dfx wrapper ISO from Downloads (x86/x86_64 only).</string>
+    <string name="threedfx_wrapper_version">3dfx wrapper version</string>
     <string name="refresh">Refresh</string>
     <string name="last_crash_note">We are very sorry about an incident that occurred and app crashed earlier.</string>
     <string name="show_virtual_mouse">Show virtual mouse</string>

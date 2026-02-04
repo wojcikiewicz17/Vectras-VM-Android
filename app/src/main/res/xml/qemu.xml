@@ -127,6 +127,32 @@
     <PreferenceCategory
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
+        android:title="@string/threedfx"
+        app:icon="@drawable/round_settings_24">
+
+        <SwitchPreferenceCompat
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:defaultValue="false"
+            android:key="enable3dfx"
+            android:title="@string/enable_3dfx"
+            android:summary="@string/enable_3dfx_note"
+            app:icon="@drawable/round_settings_24" />
+
+        <ListPreference
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:defaultValue="3dfx-wrappers-3.5.0.iso"
+            android:entries="@array/threedfxWrapperLabels"
+            android:entryValues="@array/threedfxWrapperValues"
+            android:key="threedfxWrapperVersion"
+            android:title="@string/threedfx_wrapper_version"
+            app:icon="@drawable/round_info_24"
+            app:useSimpleSummaryProvider="true" />
+    </PreferenceCategory>
+    <PreferenceCategory
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
         android:title="@string/rafaelia_runtime"
         app:icon="@drawable/round_terminal_24">
 

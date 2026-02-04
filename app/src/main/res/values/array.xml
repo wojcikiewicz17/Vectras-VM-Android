@@ -58,6 +58,18 @@
         <item>adlib</item>
         <item>pcspk</item>
     </string-array>
+    <string-array name="threedfxWrapperLabels">
+        <item>3dfx Wrappers 3.5.0 (QEMU 9.2.x)</item>
+        <item>3dfx Wrappers 3.4.7</item>
+        <item>3dfx Wrappers 3.0.0</item>
+        <item>3dfx Wrappers 2.9.5 (QEMU 8.2.0)</item>
+    </string-array>
+    <string-array name="threedfxWrapperValues">
+        <item>3dfx-wrappers-3.5.0.iso</item>
+        <item>3dfx-wrappers-3.4.7.iso</item>
+        <item>3dfx-wrappers-3.0.0.iso</item>
+        <item>3dfx-wrappers-2.9.5.iso</item>
+    </string-array>
 
     <string-array name="touchscreenInputModesEntries">
         <item>Trackpad</item>
