@@ -133,7 +133,7 @@ public class ExportRomActivity extends AppCompatActivity {
             } else {
                 diskfile = Objects.requireNonNull(listmapForGetData.get(pendingPosition).get("imgPath")).toString();
             }
-            mapForGetData.put("drive", Objects.requireNonNull(listmapForGetData.get(pendingPosition).get("imgPath")).toString().replaceAll(getRomPath, ""));
+            mapForGetData.put("drive", Objects.requireNonNull(listmapForGetData.get(pendingPosition).get("imgPath")).toString().replace(getRomPath, ""));
         } else {
             diskfile = VMManager.quickScanDiskFileInFolder(getRomPath);
             mapForGetData.put("drive", "");
@@ -144,13 +144,13 @@ public class ExportRomActivity extends AppCompatActivity {
             } else {
                 cdromfile = Objects.requireNonNull(listmapForGetData.get(pendingPosition).get("imgCdrom")).toString();
             }
-            mapForGetData.put("cdrom", Objects.requireNonNull(listmapForGetData.get(pendingPosition).get("imgCdrom")).toString().replaceAll(getRomPath, ""));
+            mapForGetData.put("cdrom", Objects.requireNonNull(listmapForGetData.get(pendingPosition).get("imgCdrom")).toString().replace(getRomPath, ""));
         } else {
             cdromfile = VMManager.quickScanISOFileInFolder(getRomPath);
             mapForGetData.put("cdrom", "");
         }
         if (listmapForGetData.get(pendingPosition).containsKey("imgExtra")) {
-            mapForGetData.put("qemu", Objects.requireNonNull(listmapForGetData.get(pendingPosition).get("imgExtra")).toString().replaceAll(getRomPath, "OhnoIjustrealizeditsmidnightandIstillhavetodothis"));
+            mapForGetData.put("qemu", Objects.requireNonNull(listmapForGetData.get(pendingPosition).get("imgExtra")).toString().replace(getRomPath, "OhnoIjustrealizeditsmidnightandIstillhavetodothis"));
         } else {
             mapForGetData.put("qemu", "");
         }
