@@ -353,7 +353,12 @@ public class LogsAdapter extends RecyclerView.Adapter<LogsAdapter.logViewHolder>
 	}
 	
 	public void setLogLevel(int level) {
+		if (mLogLevel == level) {
+			return;
+		}
 		mLogLevel = level;
+		initCurrentMessages();
+		notifyDataSetChanged();
 	}
 	
 	/**
