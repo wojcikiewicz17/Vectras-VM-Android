@@ -1,117 +1,24 @@
-# Professional Benchmark Manager Documentation
+# BenchmarkManager — documentação técnica baseada no código-fonte
 
-## Overview
+## Objetivo
 
-The `BenchmarkManager` class provides professional-grade benchmarking with comprehensive interference detection, validation, and reporting. This is a significant enhancement over the basic `VectraBenchmark` class, adding 30+ interference checks and statistical validation.
+Este documento descreve o comportamento real do `BenchmarkManager` com base no código em `app/src/main/java/com/vectras/vm/benchmark/BenchmarkManager.java`, evitando suposições não implementadas.
 
-## Key Features
+## Escopo funcional (implementado)
 
-### 1. Interference Detection (30+ Checks)
+O `BenchmarkManager` é um orquestrador de execução e validação para o `VectraBenchmark`.
 
-The BenchmarkManager monitors and reports on various factors that can affect benchmark accuracy:
+Ele entrega cinco blocos principais:
 
-#### Thermal Checks (5 checks)
-- CPU temperature monitoring
-- Thermal throttling detection
-- Temperature delta during benchmark
-- Per-core frequency monitoring
-- Thermal zone validation
+1. **Pré-checagens ambientais** com avisos (`warnings`) antes do benchmark.
+2. **Perfil de execução** (`ExecutionProfile`) e perfil de tuning derivado (`TuningProfile`).
+3. **Execução instrumentada** dos 79 métricas do `VectraBenchmark` com callback de progresso.
+4. **Validação estatística** de consistência com score de confiança.
+5. **Relatório de diagnósticos** (drift de clock, jitter, estabilidade, sinais de emulador, ABI mismatch).
 
-#### Memory Checks (5 checks)
-- Free memory availability
-- Memory pressure detection
-- Memory usage percentage
-- GC activity detection
-- Memory allocation patterns
+## APIs públicas relevantes
 
-#### System Load Checks (5 checks)
-- Running process count
-- CPU governor state
-- Background task detection
-- System service load
-- Process priority management
-
-#### Power Checks (5 checks)
-- Battery level monitoring
-- Power save mode detection
-- Charging state
-- Low battery warnings
-- Performance mode validation
-
-#### CPU Frequency Checks (5 checks)
-- Per-core frequency monitoring
-- Frequency variance detection
-- Governor policy validation
-- Frequency scaling detection
-- Performance core identification
-
-#### Result Validation Checks (5+ checks)
-- Result variance analysis
-- Null result detection
-- Outlier identification
-- Cross-metric consistency
-- Confidence score calculation
-
-### 2. Environmental Snapshot
-
-Captures complete system state before and after benchmarking:
-
-```java
-public static class EnvironmentSnapshot {
-    public final long timestampMs;           // When snapshot was taken
-    public final double cpuTempC;            // CPU temperature in Celsius
-    public final long freeMemoryMb;          // Available RAM in MB
-    public final int runningProcesses;       // Number of active processes
-    public final boolean thermalThrottling;  // Is thermal throttling active
-    public final boolean lowBattery;         // Battery level low
-    public final boolean powerSaveMode;      // Power save mode enabled
-    public final String cpuGovernor;         // CPU frequency governor
-    public final long[] cpuFrequencies;      // Per-core frequencies in kHz
-}
-```
-
-### 3. Validation Report
-
-Comprehensive analysis of benchmark quality:
-
-```java
-public static class ValidationReport {
-    public final List<String> warnings;      // Non-fatal issues detected
-    public final List<String> errors;        // Fatal issues detected
-    public final double confidenceScore;     // 0.0 - 1.0 quality score
-    public final boolean gcDetected;         // Garbage collection occurred
-    public final boolean thermalDetected;    // Thermal issues detected
-    public final boolean memoryPressure;     // Memory pressure detected
-    public final double resultVariance;      // Result consistency (%)
-    public final int interferenceCount;      // Total interference events
-}
-```
-
-#### Confidence Score Calculation
-
-The confidence score (0.0 - 1.0) is calculated based on:
-
-- **Result Variance**: Lower variance = higher confidence
-- **Interference Count**: Fewer interferences = higher confidence
-- **Environmental Stability**: Stable conditions = higher confidence
-
-```
-confidenceScore = 1.0
-confidenceScore -= (variance / 100.0) * 0.3  // Variance impact (30% weight)
-confidenceScore -= interferenceCount * 0.1   // Each interference -10%
-confidenceScore = clamp(confidenceScore, 0.0, 1.0)
-```
-
-#### Confidence Levels
-
-- **≥ 0.9**: EXCELLENT ✓ - Professional grade results
-- **≥ 0.7**: GOOD ✓ - Acceptable for most uses
-- **≥ 0.5**: FAIR ⚠ - Some interference detected
-- **< 0.5**: POOR ✗ - Results may be unreliable
-
-### 4. Progress Callbacks
-
-Real-time updates during benchmark execution:
+### 1) Callback de progresso
 
 ```java
 public interface ProgressCallback {
@@ -122,309 +29,84 @@ public interface ProgressCallback {
 }
 ```
 
-### 5. Environment Optimization
-
-Automatic optimizations before benchmarking:
-
-- **Process Priority**: Sets thread priority to URGENT_DISPLAY
-- **GC Trigger**: Forces garbage collection before tests
-- **Memory Stabilization**: Waits for memory to stabilize
-- **Background Mitigation**: Detects interfering processes
-
-## Usage
-
-### Basic Usage
+### 2) Modos de execução
 
 ```java
-BenchmarkManager manager = new BenchmarkManager(context);
-
-BenchmarkManager.BenchmarkResult result = manager.runBenchmark(
-    new BenchmarkManager.ProgressCallback() {
-        @Override
-        public void onProgress(int current, int total, String metric) {
-            // Update UI with progress
-            updateProgress(current, total, metric);
-        }
-        
-        @Override
-        public void onWarning(String warning) {
-            // Show non-fatal warnings
-            showWarning(warning);
-        }
-        
-        @Override
-        public void onComplete(BenchmarkManager.BenchmarkResult result) {
-            // Handle completion
-            if (result.isValid) {
-                displayResults(result);
-            } else {
-                showValidationIssues(result.validation);
-            }
-        }
-        
-        @Override
-        public void onError(String error) {
-            // Handle fatal errors
-            showError(error);
-        }
-    });
-```
-
-### Accessing Results
-
-```java
-// Check if results are valid
-if (result.isValid) {
-    // Get individual metrics
-    VectraBenchmark.BenchmarkResult[] metrics = result.metrics;
-    
-    // Get validation information
-    BenchmarkManager.ValidationReport validation = result.validation;
-    System.out.println("Confidence: " + (validation.confidenceScore * 100) + "%");
-    System.out.println("Variance: " + validation.resultVariance + "%");
-    
-    // Get environmental data
-    BenchmarkManager.EnvironmentSnapshot env = result.environment;
-    System.out.println("CPU Temp: " + env.cpuTempC + "°C");
-    System.out.println("Free Memory: " + env.freeMemoryMb + " MB");
-    
-    // Get duration
-    System.out.println("Duration: " + result.durationMs + " ms");
+public enum ExecutionProfile {
+    AUTO_ADAPTIVE,
+    DETERMINISTIC,
+    THROUGHPUT,
+    LOW_LATENCY
 }
 ```
 
-### Formatting Validation Report
+### 3) Perfil de tuning efetivo
+
+`TuningProfile` materializa as decisões de runtime:
+
+- `mode`: perfil lógico solicitado.
+- `copyStripeBytes`: tamanho de faixa para cópia em hotpaths.
+- `threadPriority`: prioridade de thread aplicada com `Process.setThreadPriority(...)`.
+- `warmupDelayMs`: janela de estabilização antes de medir.
+- `label`: rótulo legível de diagnóstico.
+
+### 4) Execução principal
 
 ```java
-String report = BenchmarkManager.formatValidationReport(validation);
-System.out.println(report);
+public BenchmarkResult runBenchmark(ProgressCallback callback)
+public BenchmarkResult runBenchmark(ProgressCallback callback, ExecutionProfile mode)
 ```
 
-Output example:
-```
-╔════════════════════════════════════════════════════════════╗
-║           BENCHMARK VALIDATION REPORT                      ║
-╠════════════════════════════════════════════════════════════╣
-║ Confidence Score: 85.0% ✓ GOOD               ║
-║ Result Variance: 12.5%                              ║
-║ Interference Count: 2                                ║
-╠════════════════════════════════════════════════════════════╣
-║ Detected Conditions:                                       ║
-╠════════════════════════════════════════════════════════════╣
-║  GC Activity: YES ⚠                                        ║
-║  Thermal Throttling: NO ✓                                  ║
-║  Memory Pressure: NO ✓                                     ║
-╠════════════════════════════════════════════════════════════╣
-║ Warnings:                                                  ║
-╠════════════════════════════════════════════════════════════╣
-║  • GC activity detected during benchmark                   ║
-║  • CPU temperature increased by 5°C                        ║
-╚════════════════════════════════════════════════════════════╝
-```
+## Fluxo de execução (fonte de verdade)
 
-## Pre-flight Checks
+1. **Captura de ambiente inicial** (`captureEnvironment`).
+2. **Pré-flight checks** (`performPreflightChecks`) e emissão de `warnings`.
+3. **Resolução de tuning profile** (`resolveTuningProfile`).
+4. **Otimização local** (`optimizeEnvironment`): prioridade de thread + `System.gc()` + warmup.
+5. **Execução de benchmark** em `VectraBenchmark` com callbacks.
+6. **Captura de ambiente final**.
+7. **Validação de resultados** (`ValidationReport`).
+8. **Montagem de diagnóstico estruturado** (`DiagnosticMetrics`).
 
-Before running benchmarks, the manager performs 30+ pre-flight checks:
+## Interferências e validação
 
-1. **Thermal State** (5 checks)
-   - Current CPU temperature
-   - Thermal throttling status
-   - Temperature history
-   - Thermal zones availability
-   - Cooling state
+O `ValidationReport` agrega:
 
-2. **Memory State** (5 checks)
-   - Available free memory
-   - Memory usage percentage
-   - Swap usage (if available)
-   - Memory pressure indicators
-   - Available heap space
+- `warnings` e `errors`;
+- `confidenceScore` (0.0 a 1.0);
+- flags de interferência (`gcDetected`, `thermalDetected`, `memoryPressure`);
+- `resultVariance`;
+- `interferenceCount`.
 
-3. **System Load** (5 checks)
-   - Running process count
-   - System uptime
-   - Load average (if available)
-   - Recent CPU usage
-   - I/O wait state
+A confiança é degradada por variância e eventos de interferência, com clamp para faixa válida.
 
-4. **Power State** (5 checks)
-   - Battery level
-   - Charging status
-   - Power save mode
-   - Performance mode
-   - Battery health
+## Diagnósticos expostos
 
-5. **CPU Configuration** (5 checks)
-   - CPU governor
-   - Current frequencies
-   - Frequency scaling policy
-   - Core online status
-   - Big.LITTLE configuration
+O objeto `BenchmarkResult` fornece `getDiagnosticsView()` com métricas nomeadas:
 
-6. **Additional Checks** (5+ checks)
-   - Screen brightness
-   - Network activity
-   - Recent app updates
-   - Storage space
-   - Time since boot
+- `Timer Drift` (%),
+- `Timer Jitter` (%),
+- `CPU Stability Variance` (%),
+- `Emulator Signals` (DETECTED/NOT DETECTED),
+- `ABI/CPU Mismatch` (DETECTED/NOT DETECTED).
 
-## Low-Level System Access
+## Integração com camadas de performance
 
-The BenchmarkManager uses direct system file access for accurate readings:
+O manager integra sinais de hardware e fast-paths sem quebrar fallback:
 
-### CPU Temperature
-```java
-// Reads from: /sys/class/thermal/thermal_zone*/temp
-double temp = getCpuTemperature();
-```
+- usa `BareMetalProfile` para inferência de características do host;
+- registra disponibilidade JNI por `NativeFastPath.isNativeAvailable()` no rótulo do perfil;
+- ajusta `copyStripeBytes` conforme temperatura, memória livre e carga observada.
 
-### CPU Governor
-```java
-// Reads from: /sys/devices/system/cpu/cpu0/cpufreq/scaling_governor
-String governor = getCpuGovernor();
-```
+## Limitações conhecidas (estado atual)
 
-### CPU Frequencies
-```java
-// Reads from: /sys/devices/system/cpu/cpu*/cpufreq/scaling_cur_freq
-long[] freqs = getCpuFrequencies();
-```
+1. O comportamento depende de permissões/disponibilidade de arquivos `sysfs` no dispositivo.
+2. Em ambientes sem Android SDK configurado (ex.: CI/container sem `ANDROID_HOME`), testes unitários Android não executam.
+3. A classe prioriza robustez e observabilidade; não substitui perfilagem nativa com ferramentas externas (Perfetto/simpleperf).
 
-### Memory Information
-```java
-// Uses: ActivityManager.getMemoryInfo()
-long freeMb = getFreeMemoryMb();
-```
+## Diretrizes de uso profissional
 
-## Best Practices
-
-### 1. Run in Optimal Conditions
-
-```java
-// Check pre-flight warnings
-manager.runBenchmark(new ProgressCallback() {
-    @Override
-    public void onWarning(String warning) {
-        // Consider stopping if too many warnings
-        if (warningCount++ > 5) {
-            // Advise user to close apps, cool device, etc.
-        }
-    }
-    // ... other methods
-});
-```
-
-### 2. Validate Results
-
-```java
-if (!result.isValid) {
-    // Show validation report to user
-    String report = BenchmarkManager.formatValidationReport(result.validation);
-    showDialog(report);
-    
-    // Offer to retry
-    offerRetry();
-}
-```
-
-### 3. Export Complete Data
-
-```java
-// Include all validation and environment data in exports
-StringBuilder export = new StringBuilder();
-export.append("Benchmark Results\n");
-export.append("=================\n\n");
-export.append(BenchmarkManager.formatValidationReport(result.validation));
-export.append("\n\n");
-export.append("Environment:\n");
-export.append("CPU Temp: ").append(result.environment.cpuTempC).append("°C\n");
-export.append("Free Memory: ").append(result.environment.freeMemoryMb).append(" MB\n");
-// ... add metric results
-```
-
-### 4. Monitor During Execution
-
-```java
-manager.runBenchmark(new ProgressCallback() {
-    @Override
-    public void onProgress(int current, int total, String metric) {
-        // Update UI
-        progressBar.setProgress((current * 100) / total);
-        statusText.setText(metric);
-        
-        // Log progress
-        Log.d(TAG, "Progress: " + current + "/" + total + " - " + metric);
-    }
-    // ... other methods
-});
-```
-
-## Integration with BenchmarkActivity
-
-The BenchmarkActivity automatically uses BenchmarkManager with full UI integration:
-
-- Real-time progress updates
-- Automatic validation warnings
-- Professional validation dialogs
-- Enhanced export with environment data
-- Comprehensive share functionality
-
-## Performance Impact
-
-The BenchmarkManager adds minimal overhead:
-
-- **Pre-flight checks**: ~50-100ms
-- **Environment capture**: ~10-20ms per snapshot
-- **Validation**: ~20-50ms
-- **Total overhead**: <200ms (negligible for benchmarks lasting seconds)
-
-## Thread Safety
-
-All methods are thread-safe:
-
-- Progress callbacks are marshalled to main thread
-- Atomic references for thread-safe state
-- No shared mutable state
-- Safe for concurrent benchmark runs (though not recommended)
-
-## Error Handling
-
-Robust error handling at all levels:
-
-```java
-try {
-    BenchmarkManager.BenchmarkResult result = manager.runBenchmark(callback);
-    // Use results
-} catch (RuntimeException e) {
-    // Handle catastrophic failures
-    Log.e(TAG, "Benchmark failed catastrophically", e);
-}
-```
-
-Errors are also reported via the callback:
-
-```java
-@Override
-public void onError(String error) {
-    // Show user-friendly error message
-    Toast.makeText(context, "Benchmark failed: " + error, Toast.LENGTH_LONG).show();
-}
-```
-
-## Future Enhancements
-
-Planned improvements:
-
-1. **Native JNI Methods**: Critical timing sections in native code
-2. **Hardware PMU Access**: Performance monitoring unit counters
-3. **CPU Affinity Control**: Pin threads to specific cores
-4. **Real-time Priority**: Elevate to SCHED_FIFO when possible
-5. **Historical Tracking**: Compare results across runs
-6. **Machine Learning**: Anomaly detection using ML models
-
-## References
-
-- **AnTuTu Methodology**: Professional benchmark design
-- **Linux /proc and /sys**: Low-level system information
-- **Android PowerManager**: Power state detection
-- **Statistical Analysis**: Confidence intervals and variance
+- Rodar benchmark com bateria adequada, sem economia de energia e sem carga intensa em background.
+- Comparar runs com o **mesmo** `ExecutionProfile`.
+- Usar `ValidationReport` + `DiagnosticMetricsView` como critério de aceitação de resultados.
+- Considerar inválidos resultados com baixa confiança persistente ou alta variância recorrente.

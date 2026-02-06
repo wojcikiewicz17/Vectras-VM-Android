@@ -33,6 +33,7 @@
 - **🧭 Padrões de documentação**: [docs/DOCUMENTATION_STANDARDS.md](DOCUMENTATION_STANDARDS.md)
 - **🤝 Contribuição**: [docs/CONTRIBUTING.md](CONTRIBUTING.md)
 - **🗺️ Roadmap formal**: [docs/ROADMAP.md](ROADMAP.md)
+- **🧾 Inventário código⇄docs**: [docs/SOURCE_TRACEABILITY_MATRIX.md](SOURCE_TRACEABILITY_MATRIX.md)
 
 ### 🎯 Audience-Specific Navigation / Navegação por Audiência
 
@@ -68,6 +69,8 @@
 | [INTEGRACAO_RM_QEMU_ANDROIDX.md](INTEGRACAO_RM_QEMU_ANDROIDX.md) | Plano de integração RM (QEMU + AndroidX) |
 | [ESFERAS_METODOLOGICAS_RAFAELIA.md](ESFERAS_METODOLOGICAS_RAFAELIA.md) | Esferas metodológicas RAFAELIA (documento formal em 5 esferas) |
 | [PERFORMANCE_INTEGRITY.md](PERFORMANCE_INTEGRITY.md) | Performance measurement and integrity validation guide |
+| [BENCHMARK_MANAGER.md](BENCHMARK_MANAGER.md) | Source-aligned BenchmarkManager behavior, diagnostics, and tuning flow |
+| [SOURCE_TRACEABILITY_MATRIX.md](SOURCE_TRACEABILITY_MATRIX.md) | Consolidated source inventory with documentation traceability and navigation map |
 | [VECTRA_CORE.md](../VECTRA_CORE.md) | Vectra Core MVP - Information-theoretic runtime framework |
 | [IMPLEMENTATION_SUMMARY.md](../IMPLEMENTATION_SUMMARY.md) | Implementation summary and deliverables |
 | [FIREBASE.md](../app/FIREBASE.md) | Firebase configuration and setup guide |
@@ -157,6 +160,8 @@ Vectras-VM-Android/
 │   ├── INTEGRACAO_RM_QEMU_ANDROIDX.md # Plano de integração RM (QEMU + AndroidX)
 │   ├── ESFERAS_METODOLOGICAS_RAFAELIA.md # Esferas metodológicas RAFAELIA (5 esferas)
 │   ├── PERFORMANCE_INTEGRITY.md   # Performance and integrity validation guide
+│   ├── BENCHMARK_MANAGER.md     # Source-aligned BenchmarkManager documentation
+│   ├── SOURCE_TRACEABILITY_MATRIX.md # Source inventory and docs traceability matrix
 │   ├── BIBLIOGRAPHY.md            # Academic references
 │   ├── GLOSSARY.md                # Technical glossary
 │   ├── CONTRIBUTING.md            # Contribution guidelines

@@ -53,6 +53,19 @@ Para garantir visão completa, os documentos foram organizados por dimensão. A 
 
 ## 🔄 Atualizações Recentes / Recent Updates
 
+### 🧾 Inventário Consolidado e Rastreabilidade
+
+Foi incluído o documento `SOURCE_TRACEABILITY_MATRIX.md` para consolidar:
+
+- mapeamento por camadas (launch QEMU, benchmark, core low-level, JNI, testes);
+- matriz documentação ⇄ código para revisão formal;
+- checklist de coerência editorial para manutenção contínua;
+- trilha de navegação profissional com ordem recomendada de leitura.
+
+Esse reforço reduz divergência entre texto e implementação e melhora auditoria técnica em revisões de PR.
+
+---
+
 1. **Refatoração orientada à totalidade**: consolidou o mapa de cobertura para evidenciar onde cada tema é tratado e evitar lacunas de documentação.
 2. **Melhoria de rastreabilidade**: alinhou documentos centrais com objetivos e público-alvo para facilitar manutenção contínua.
 

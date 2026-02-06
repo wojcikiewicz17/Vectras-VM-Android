@@ -140,6 +140,7 @@ For technical implementation details, refer to the core documentation:
 | [ARCHITECTURE.md](../ARCHITECTURE.md) | System architecture and design | Developers, architects |
 | [VECTRA_CORE.md](../../VECTRA_CORE.md) | Integrity verification framework | Security engineers, researchers |
 | [BENCHMARK_MANAGER.md](../BENCHMARK_MANAGER.md) | Benchmarking system details | Performance engineers |
+| [SOURCE_TRACEABILITY_MATRIX.md](../SOURCE_TRACEABILITY_MATRIX.md) | Code-to-doc inventory and traceability matrix | Maintainers, reviewers, auditors |
 | [PERFORMANCE_INTEGRITY.md](../PERFORMANCE_INTEGRITY.md) | Performance measurement guide | QA engineers, testers |
 | [CONTRIBUTING.md](../CONTRIBUTING.md) | Contribution guidelines | Open source contributors |
 | [GLOSSARY.md](../GLOSSARY.md) | Technical terminology | All audiences |
@@ -167,6 +168,7 @@ Vectras-VM-Android/
 │   ├── ARCHITECTURE.md                # Technical architecture
 │   ├── PERFORMANCE_INTEGRITY.md       # Performance guide
 │   ├── BENCHMARK_MANAGER.md           # Benchmark system
+│   ├── SOURCE_TRACEABILITY_MATRIX.md  # Source traceability matrix
 │   ├── GLOSSARY.md                    # Terminology
 │   ├── BIBLIOGRAPHY.md                # References
 │   └── CONTRIBUTING.md                # Contribution guide
@@ -203,6 +205,9 @@ Vectras-VM-Android/
 
 8. **Are you interested in the integrity framework?**  
    → Read [VECTRA_CORE.md](../../VECTRA_CORE.md)
+
+9. **Do you need audited traceability between code and docs?**  
+   → Read [SOURCE_TRACEABILITY_MATRIX.md](../SOURCE_TRACEABILITY_MATRIX.md)
 
 ---
 
