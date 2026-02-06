@@ -68,6 +68,7 @@
 | [INTEGRACAO_RM_QEMU_ANDROIDX.md](INTEGRACAO_RM_QEMU_ANDROIDX.md) | Plano de integração RM (QEMU + AndroidX) |
 | [ESFERAS_METODOLOGICAS_RAFAELIA.md](ESFERAS_METODOLOGICAS_RAFAELIA.md) | Esferas metodológicas RAFAELIA (documento formal em 5 esferas) |
 | [PERFORMANCE_INTEGRITY.md](PERFORMANCE_INTEGRITY.md) | Performance measurement and integrity validation guide |
+| [BENCHMARK_MANAGER.md](BENCHMARK_MANAGER.md) | Source-aligned BenchmarkManager behavior, diagnostics, and tuning flow |
 | [VECTRA_CORE.md](../VECTRA_CORE.md) | Vectra Core MVP - Information-theoretic runtime framework |
 | [IMPLEMENTATION_SUMMARY.md](../IMPLEMENTATION_SUMMARY.md) | Implementation summary and deliverables |
 | [FIREBASE.md](../app/FIREBASE.md) | Firebase configuration and setup guide |
@@ -157,6 +158,7 @@ Vectras-VM-Android/
 │   ├── INTEGRACAO_RM_QEMU_ANDROIDX.md # Plano de integração RM (QEMU + AndroidX)
 │   ├── ESFERAS_METODOLOGICAS_RAFAELIA.md # Esferas metodológicas RAFAELIA (5 esferas)
 │   ├── PERFORMANCE_INTEGRITY.md   # Performance and integrity validation guide
+│   ├── BENCHMARK_MANAGER.md     # Source-aligned BenchmarkManager documentation
 │   ├── BIBLIOGRAPHY.md            # Academic references
 │   ├── GLOSSARY.md                # Technical glossary
 │   ├── CONTRIBUTING.md            # Contribution guidelines

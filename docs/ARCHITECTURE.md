@@ -682,6 +682,50 @@ The architecture is designed to evolve through:
 
 ---
 
+## 11. Source-Validated Runtime Addendum (2026)
+
+This addendum synchronizes architecture documentation with the currently implemented runtime paths in the Android source tree.
+
+### 11.1 QEMU launch orchestration
+
+- `QemuArgsBuilder` centralizes host binary selection by architecture and applies profile-driven launch flags.
+- `applyVirtioStorageHints(...)` only injects virtio-scsi/iothread hints when no equivalent flags were already supplied in user extras, reducing duplicate/conflicting CLI args.
+- `applyAcceleration(...)` executes `KvmProbe.probe()` and records `KVM=ON` or `KVM=OFF(<reason>)` in QEMU process naming for post-mortem traceability.
+
+### 11.2 Deterministic KVM readiness
+
+`KvmProbe` currently requires all checks below to enable KVM:
+
+1. `/dev/kvm` exists;
+2. `/sys/module/kvm` exists;
+3. read/write permission on `/dev/kvm`;
+4. host ABI compatible with `arm64` or `x86_64`.
+
+Any failed check yields a deterministic disabled state with explicit reason string.
+
+### 11.3 Native fast-path boundary
+
+`NativeFastPath` defines JNI-optional acceleration boundaries for:
+
+- `copyBytes(...)`
+- `xorChecksum(...)`
+- `popcount32(...)`
+
+The design guarantees Java fallback when JNI is unavailable, preserving portability and deterministic behavior on devices without native library loading.
+
+### 11.4 Benchmark observability path
+
+`BenchmarkManager` integrates:
+
+- preflight interference checks,
+- environment snapshots,
+- deterministic diagnostics (timer drift/jitter, emulator signals, ABI mismatch),
+- adaptive tuning profile resolution with visibility in warnings/progress callbacks.
+
+This makes benchmark runs auditable at runtime without requiring external telemetry infrastructure.
+
+---
+
 ## References / Referências
 
 [1] D. Garlan and M. Shaw, "An Introduction to Software Architecture," *Advances in Software Engineering and Knowledge Engineering*, vol. 1, pp. 1-39, 1994.
