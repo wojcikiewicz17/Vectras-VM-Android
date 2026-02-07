@@ -4,6 +4,7 @@ import org.junit.Test;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class NativeFastPathTest {
 
@@ -38,6 +39,34 @@ public class NativeFastPathTest {
         assertEquals(32, NativeFastPath.popcount32(-1));
         assertEquals(16, NativeFastPath.popcount32(0xF0F0F0F0));
         assertEquals(13, NativeFastPath.popcount32(0x12345678));
+    }
+
+
+
+    @Test
+    public void platformSignatureHasKnownBitLayout() {
+        int signature = NativeFastPath.getPlatformSignature();
+        int arch = signature & 0xFF00;
+        int os = signature & 0x00F0;
+
+        assertEquals(signature, arch | os);
+        assertTrue(
+                arch == NativeFastPath.ARCH_UNKNOWN
+                        || arch == NativeFastPath.ARCH_ARM64
+                        || arch == NativeFastPath.ARCH_ARM32
+                        || arch == NativeFastPath.ARCH_X64
+                        || arch == NativeFastPath.ARCH_X86
+                        || arch == NativeFastPath.ARCH_RISCV64
+                        || arch == NativeFastPath.ARCH_RISCV32);
+        assertTrue(
+                os == NativeFastPath.OS_UNKNOWN
+                        || os == NativeFastPath.OS_ANDROID
+                        || os == NativeFastPath.OS_LINUX);
+    }
+
+    @Test
+    public void featureMaskAlwaysNonNegative() {
+        assertTrue(NativeFastPath.getFeatureMask() >= 0);
     }
 
     @Test

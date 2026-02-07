@@ -1,5 +1,7 @@
 package com.vectras.vm.core;
 
+import java.util.Locale;
+
 /**
  * NativeFastPath: optional JNI acceleration hooks with deterministic Java fallback.
  *
@@ -10,6 +12,25 @@ public final class NativeFastPath {
 
     private static final int NATIVE_OK_MAGIC = 0x56414343;
     private static final boolean NATIVE_AVAILABLE;
+
+    public static final int ARCH_UNKNOWN = 0x0000;
+    public static final int ARCH_ARM64 = 0x0100;
+    public static final int ARCH_ARM32 = 0x0200;
+    public static final int ARCH_X64 = 0x0300;
+    public static final int ARCH_X86 = 0x0400;
+    public static final int ARCH_RISCV64 = 0x0500;
+    public static final int ARCH_RISCV32 = 0x0600;
+
+    public static final int OS_UNKNOWN = 0x0000;
+    public static final int OS_ANDROID = 0x0010;
+    public static final int OS_LINUX = 0x0020;
+
+    public static final int FEATURE_NEON = 1 << 0;
+    public static final int FEATURE_AES = 1 << 1;
+    public static final int FEATURE_CRC32 = 1 << 2;
+    public static final int FEATURE_POPCNT = 1 << 3;
+    public static final int FEATURE_SSE42 = 1 << 4;
+    public static final int FEATURE_AVX2 = 1 << 5;
 
     static {
         boolean loaded;
@@ -28,6 +49,57 @@ public final class NativeFastPath {
 
     public static boolean isNativeAvailable() {
         return NATIVE_AVAILABLE;
+    }
+
+    public static int getPlatformSignature() {
+        if (NATIVE_AVAILABLE) {
+            return nativePlatformSignature();
+        }
+
+        int arch = ARCH_UNKNOWN;
+        String abi = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
+        if (abi.contains("aarch64") || abi.contains("arm64")) {
+            arch = ARCH_ARM64;
+        } else if (abi.startsWith("arm")) {
+            arch = ARCH_ARM32;
+        } else if (abi.contains("x86_64") || abi.contains("amd64")) {
+            arch = ARCH_X64;
+        } else if (abi.contains("x86")) {
+            arch = ARCH_X86;
+        } else if (abi.contains("riscv64")) {
+            arch = ARCH_RISCV64;
+        } else if (abi.contains("riscv32")) {
+            arch = ARCH_RISCV32;
+        }
+
+        int os = OS_UNKNOWN;
+        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
+        if (osName.contains("android")) {
+            os = OS_ANDROID;
+        } else if (osName.contains("linux")) {
+            os = OS_LINUX;
+        }
+
+        return arch | os;
+    }
+
+    public static int getFeatureMask() {
+        if (NATIVE_AVAILABLE) {
+            return nativeFeatureMask();
+        }
+
+        int features = 0;
+        int signature = getPlatformSignature();
+        int arch = signature & 0xFF00;
+
+        if (arch == ARCH_ARM64 || arch == ARCH_ARM32) {
+            features |= FEATURE_NEON;
+            features |= FEATURE_POPCNT;
+        } else if (arch == ARCH_X64 || arch == ARCH_X86) {
+            features |= FEATURE_POPCNT;
+        }
+
+        return features;
     }
 
     public static void copyBytes(byte[] src, int srcOffset, byte[] dst, int dstOffset, int length) {
@@ -126,4 +198,8 @@ public final class NativeFastPath {
     private static native int nativeXorChecksum(byte[] data, int offset, int length);
 
     private static native int nativePopcount32(int value);
+
+    private static native int nativePlatformSignature();
+
+    private static native int nativeFeatureMask();
 }
