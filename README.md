@@ -59,7 +59,7 @@
 | **Multi-Architecture** | ✅ ARM64, ARM32, x86_64, x86 | ⚠️ Limited |
 | **No Root Required** | ✅ PRoot-based | ⚠️ Often requires root |
 | **Integrity Framework** | ✅ Vectra Core with CRC32C | ❌ Not available |
-| **Low-Level Benchmark** | ✅ 79 metrics (AnTuTu-style) | ❌ Not available |
+| **Low-Level Benchmark** | ✅ 79 metrics (code-defined) | ❌ Not available |
 
 **Key Differentiators:**
 - 🔧 **Low-Level Performance**: Built with direct bit operations, mmap, and CRC32C - no unnecessary abstractions
@@ -78,7 +78,7 @@
 | **Multi-Arquitetura** | ✅ ARM64, ARM32, x86_64, x86 | ⚠️ Limitado |
 | **Sem Root** | ✅ Baseado em PRoot | ⚠️ Frequentemente requer root |
 | **Framework de Integridade** | ✅ Vectra Core com CRC32C | ❌ Não disponível |
-| **Benchmark Low-Level** | ✅ 79 métricas (estilo AnTuTu) | ❌ Não disponível |
+| **Benchmark Low-Level** | ✅ 79 métricas (definidas no código) | ❌ Não disponível |
 
 **Principais Diferenciais:**
 - 🔧 **Performance Low-Level**: Construído com operações de bits diretas, mmap e CRC32C - sem abstrações desnecessárias
@@ -90,7 +90,7 @@
 
 ## 📊 Benchmark Module / Módulo de Benchmark
 
-Vectras VM includes a comprehensive **low-level benchmark module** inspired by [AnTuTu](https://www.antutu.com/) methodology, providing **79 metrics** across 6 categories:
+Vectras VM includes a comprehensive **low-level benchmark module** with **79 metrics** across 6 categories (as implemented in `VectraBenchmark.METRIC_COUNT`):
 
 ### Benchmark Categories / Categorias de Benchmark
 
@@ -103,16 +103,9 @@ Vectras VM includes a comprehensive **low-level benchmark module** inspired by [
 | **Integrity** | 10 | CRC32C, 2D parity, syndrome, XOR stripe, hash mix |
 | **Emulation** | 9 | Context switch, timer precision, triad consensus |
 
-### Approximate Benchmark Scores / Pontuações Aproximadas
+### Benchmark Results Publication / Publicação de Resultados
 
-> **Note**: These are approximate reference values. Actual scores vary by device.
-
-| Device Class | CPU Score | Memory Score | Total Score |
-|--------------|-----------|--------------|-------------|
-| High-End (SD8 Gen 3) | ~2500 | ~1800 | ~8000+ |
-| Mid-Range (SD 7 Gen 1) | ~1800 | ~1400 | ~5500 |
-| Entry (SD 6 Gen 1) | ~1200 | ~1000 | ~3500 |
-| Reference Device | 100 | 100 | 600 |
+Benchmark scores must be published with reproducible artifacts (device, build variant, commit SHA, and raw report).
 
 ### Usage / Uso
 
@@ -122,7 +115,7 @@ The benchmark module is available at `com.vectras.vm.benchmark.VectraBenchmark`:
 // Run all 79 benchmarks
 BenchmarkResult[] results = VectraBenchmark.runAllBenchmarks();
 
-// Get total score (AnTuTu-style)
+// Get total benchmark score
 int totalScore = VectraBenchmark.calculateTotalScore(results);
 
 // Get category scores
@@ -137,7 +130,7 @@ String report = VectraBenchmark.formatReport(results);
 - **Low-Level**: Direct bit operations, no unnecessary abstractions
 - **Non-Intrusive**: No impact on user experience during benchmarks
 - **Deterministic**: Reproducible results across runs
-- **AnTuTu-Compatible**: Scoring methodology inspired by AnTuTu v10.x
+- **Code-Defined Scoring**: scoring and categories implemented in `VectraBenchmark`
 
 ---
 
@@ -329,7 +322,7 @@ Comprehensive technical and academic documentation is available in the [`docs/`]
 |----------|-------------|----------|
 | [📖 Documentation Index](docs/README.md) | Main documentation index and navigation | EN/PT-BR |
 | [📜 Preface](docs/PREFACE.md) | Project context, motivation, and acknowledgments | EN/PT-BR |
-| [📋 Abstract](docs/ABSTRACT.md) | Technical abstract (PhD-level) | English |
+| [📋 Abstract](docs/ABSTRACT.md) | Technical abstract | English |
 | [📋 Resumo](docs/RESUMO.md) | Resumo técnico acadêmico | Português |
 | [🏗️ Architecture](docs/ARCHITECTURE.md) | System architecture and design patterns | English |
 | [📚 Bibliography](docs/BIBLIOGRAPHY.md) | Academic references (IEEE, ACM, ABNT) | EN/PT-BR |
