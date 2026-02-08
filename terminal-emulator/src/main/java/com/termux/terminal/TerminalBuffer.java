@@ -142,15 +142,17 @@ public final class TerminalBuffer {
     }
 
     public void setLineWrap(int row) {
-        mLines[externalToInternalRow(row)].mLineWrap = true;
+        allocateFullLineIfNecessary(externalToInternalRow(row)).mLineWrap = true;
     }
 
     public boolean getLineWrap(int row) {
-        return mLines[externalToInternalRow(row)].mLineWrap;
+        final TerminalRow line = mLines[externalToInternalRow(row)];
+        return line != null && line.mLineWrap;
     }
 
     public void clearLineWrap(int row) {
-        mLines[externalToInternalRow(row)].mLineWrap = false;
+        final TerminalRow line = mLines[externalToInternalRow(row)];
+        if (line != null) line.mLineWrap = false;
     }
 
     /**
