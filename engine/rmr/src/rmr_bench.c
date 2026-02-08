@@ -79,7 +79,7 @@ static u32 RmR_Bench_Matrix(u8 n, u8 shift){
       c[(u32)i * (u32)n + (u32)j] = 0u;
     }
   }
-  u32 checksum = 0;
+  u32 checksum = 0u;
   u64 start = RmR_ReadCycles();
   for(u8 i=0;i<n;i++){
     for(u8 j=0;j<n;j++){
@@ -87,8 +87,10 @@ static u32 RmR_Bench_Matrix(u8 n, u8 shift){
       for(u8 k=0;k<n;k++){
         sum += a[(u32)i * (u32)n + (u32)k] * b[(u32)k * (u32)n + (u32)j];
       }
-      c[(u32)i * (u32)n + (u32)j] = sum;
+      u32 idx = (u32)i * (u32)n + (u32)j;
+      c[idx] = sum;
       checksum ^= (sum + (u32)i + (u32)j);
+      checksum ^= (c[idx] >> ((u32)j & 7u));
     }
   }
   u64 end = RmR_ReadCycles();

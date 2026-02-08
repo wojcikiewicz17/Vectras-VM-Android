@@ -5,7 +5,7 @@ u64 RmR_ReadCycles(void){
 #if defined(__x86_64__) || defined(__i386__)
   unsigned int lo = 0;
   unsigned int hi = 0;
-  __asm__ __volatile__("rdtsc" : "=a"(lo), "=d"(hi));
+  __asm__ __volatile__("lfence\nrdtsc" : "=a"(lo), "=d"(hi) :: "memory");
   return ((u64)hi << 32) | (u64)lo;
 #elif defined(__aarch64__)
   u64 v = 0;
