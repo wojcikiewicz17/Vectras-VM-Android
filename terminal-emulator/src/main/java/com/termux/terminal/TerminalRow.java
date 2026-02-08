@@ -116,7 +116,7 @@ public final class TerminalRow {
     }
 
     public void clear(long style) {
-        Arrays.fill(mText, ' ');
+        Arrays.fill(mText, 0, mColumns, ' ');
         Arrays.fill(mStyle, style);
         mSpaceUsed = (short) mColumns;
         mHasNonOneWidthOrSurrogateChars = false;
@@ -235,7 +235,7 @@ public final class TerminalRow {
     }
 
     boolean isBlank() {
-        for (int charIndex = 0, charLen = getSpaceUsed(); charIndex < charLen; charIndex++)
+        for (int charIndex = 0, charLen = mSpaceUsed; charIndex < charLen; charIndex++)
             if (mText[charIndex] != ' ') return false;
         return true;
     }

@@ -60,9 +60,11 @@ public final class TerminalBuffer {
     public String getSelectedText(int selX1, int selY1, int selX2, int selY2, boolean joinBackLines, boolean joinFullLines) {
         final StringBuilder builder = new StringBuilder();
         final int columns = mColumns;
+        final int activeTranscriptRows = getActiveTranscriptRows();
+        final int screenLastRow = mScreenRows - 1;
 
-        if (selY1 < -getActiveTranscriptRows()) selY1 = -getActiveTranscriptRows();
-        if (selY2 >= mScreenRows) selY2 = mScreenRows - 1;
+        if (selY1 < -activeTranscriptRows) selY1 = -activeTranscriptRows;
+        if (selY2 > screenLastRow) selY2 = screenLastRow;
 
         for (int row = selY1; row <= selY2; row++) {
             int x1 = (row == selY1) ? selX1 : 0;
@@ -83,7 +85,7 @@ public final class TerminalBuffer {
             char[] line = lineObject.mText;
             int lastPrintingCharIndex = -1;
             int i;
-            boolean rowLineWrap = getLineWrap(row);
+            final boolean rowLineWrap = row < screenLastRow && getLineWrap(row);
             if (rowLineWrap && x2 == columns) {
                 // If the line was wrapped, we shouldn't lose trailing space:
                 lastPrintingCharIndex = x2Index - 1;
@@ -97,7 +99,7 @@ public final class TerminalBuffer {
                 builder.append(line, x1Index, lastPrintingCharIndex - x1Index + 1);
             boolean lineFillsWidth = lastPrintingCharIndex == x2Index - 1;
             if ((!joinBackLines || !rowLineWrap) && (!joinFullLines || !lineFillsWidth)
-                && row < selY2 && row < mScreenRows - 1) builder.append('\n');
+                && row < selY2 && row < screenLastRow) builder.append('\n');
         }
         return builder.toString();
     }
