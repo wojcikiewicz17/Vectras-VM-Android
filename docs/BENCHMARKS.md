@@ -30,3 +30,13 @@ Saídas:
 - `variance`: dispersão interna por teste
 - `error_margin`: margem estimada
 - `total_score`, `total_error`: agregados da suite (50 métricas)
+
+
+## Gate baremetal (autodetect + integridade de árvore)
+```bash
+make run-baremetal-gate
+```
+
+Artefatos:
+- `reports/baremetal/hw_caps.env`
+- `reports/baremetal/dir_integrity_matrix.json`

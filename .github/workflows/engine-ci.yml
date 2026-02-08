@@ -44,3 +44,10 @@ jobs:
           name: bench-summary
           path: bench/results/summary.json
           if-no-files-found: error
+
+      - name: Upload baremetal reports artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: baremetal-reports
+          path: reports/baremetal/*
+          if-no-files-found: error

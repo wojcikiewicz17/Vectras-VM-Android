@@ -59,10 +59,14 @@ run-selftest: $(SELFTEST_BIN)
 run-bench: $(BENCH_BIN)
 	./$(BENCH_BIN) bench/results/latest.csv bench/results/latest.json
 
-run-release-gate: run-selftest run-bench
+run-baremetal-gate:
+	tools/baremetal/hw_caps_detect.sh reports/baremetal/hw_caps.env
+	tools/baremetal/dir_integrity_matrix.sh reports/baremetal/dir_integrity_matrix.json
+
+run-release-gate: run-selftest run-bench run-baremetal-gate
 	bench/scripts/run_bench.sh 7 bench/results
 
 clean:
 	rm -rf build
 
-.PHONY: all clean run-demo run-selftest run-bench run-release-gate
+.PHONY: all clean run-demo run-selftest run-bench run-baremetal-gate run-release-gate
