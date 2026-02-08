@@ -392,11 +392,14 @@ public final class TerminalBuffer {
         if (w == 0) return;
         if (sx < 0 || sx + w > mColumns || sy < 0 || sy + h > mScreenRows || dx < 0 || dx + w > mColumns || dy < 0 || dy + h > mScreenRows)
             throw new IllegalArgumentException();
-        boolean copyingUp = sy > dy;
+        final boolean copyingUp = sy > dy;
+        final int sourceStart = sx;
+        final int sourceEnd = sx + w;
         for (int y = 0; y < h; y++) {
-            int y2 = copyingUp ? y : (h - (y + 1));
-            TerminalRow sourceRow = allocateFullLineIfNecessary(externalToInternalRow(sy + y2));
-            allocateFullLineIfNecessary(externalToInternalRow(dy + y2)).copyInterval(sourceRow, sx, sx + w, dx);
+            final int yOffset = copyingUp ? y : (h - (y + 1));
+            final TerminalRow sourceRow = allocateFullLineIfNecessary(externalToInternalRow(sy + yOffset));
+            final TerminalRow destinationRow = allocateFullLineIfNecessary(externalToInternalRow(dy + yOffset));
+            destinationRow.copyInterval(sourceRow, sourceStart, sourceEnd, dx);
         }
     }
 
@@ -410,9 +413,20 @@ public final class TerminalBuffer {
             throw new IllegalArgumentException(
                 "Illegal arguments! blockSet(" + sx + ", " + sy + ", " + w + ", " + h + ", " + val + ", " + mColumns + ", " + mScreenRows + ")");
         }
-        for (int y = 0; y < h; y++)
-            for (int x = 0; x < w; x++)
-                setChar(sx + x, sy + y, val, style);
+
+        if (w == mColumns && sx == 0 && val == ' ') {
+            for (int y = 0; y < h; y++) {
+                allocateFullLineIfNecessary(externalToInternalRow(sy + y)).clear(style);
+            }
+            return;
+        }
+
+        for (int y = 0; y < h; y++) {
+            final TerminalRow row = allocateFullLineIfNecessary(externalToInternalRow(sy + y));
+            for (int x = 0; x < w; x++) {
+                row.setChar(sx + x, val, style);
+            }
+        }
     }
 
     public TerminalRow allocateFullLineIfNecessary(int row) {
