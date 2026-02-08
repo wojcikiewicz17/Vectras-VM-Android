@@ -15,6 +15,12 @@ typedef signed int         s32;
 #define NULL ((void*)0)
 #endif
 
+#if defined(__GNUC__) || defined(__clang__)
+#define RAF_UNUSED __attribute__((unused))
+#else
+#define RAF_UNUSED
+#endif
+
 /* ==== Bench/Cycles externos (opcionais, low-level) ==== */
 typedef struct {
   u32 alu;
@@ -76,7 +82,7 @@ static void rmr_memset(void *dst, u8 v, u32 n){
   u8 *d=(u8*)dst;
   while(n--) *d++=v;
 }
-static void rmr_memcpy(void *dst, const void *src, u32 n){
+static RAF_UNUSED void rmr_memcpy(void *dst, const void *src, u32 n){
   u8 *d=(u8*)dst; const u8*s=(const u8*)src;
   while(n--) *d++=*s++;
 }
@@ -224,7 +230,7 @@ static u8 rmr_sector8(u32 cx, u32 cy, u32 x, u32 y){
   return (u8)((sy << 2) | (sx << 1) | 1u);         /* diagonais */
 }
 
-static void rmr_image_points23(
+static RAF_UNUSED void rmr_image_points23(
   const rmr_image_info_t *info,
   const u8 *buf,
   u32 buf_len,
@@ -451,7 +457,7 @@ static u32 rmr_matrix_mul_accum(const u32 *a, const u32 *b, u32 *c, u8 n){
   return checksum;
 }
 
-static u32 rmr_bench_matrix_score(u8 n, u8 bench_shift){
+static RAF_UNUSED u32 rmr_bench_matrix_score(u8 n, u8 bench_shift){
   u32 a[RMR_BENCH_MAX * RMR_BENCH_MAX];
   u32 b[RMR_BENCH_MAX * RMR_BENCH_MAX];
   u32 c[RMR_BENCH_MAX * RMR_BENCH_MAX];
@@ -534,7 +540,7 @@ static u8 raf_base20(u32 v){ return (u8)(v % 20u); }
 static u8 raf_slot10(u32 v){ return (u8)(v % 10u); }
 
 /* ==== Atrator 42 (estado âncora) ==== */
-static u8 raf_is_attractor42(const raf_point_t *p){
+static RAF_UNUSED u8 raf_is_attractor42(const raf_point_t *p){
   /* “42” como fechamento: combinações coerentes e repetíveis.
      Aqui: digital-root(state+slot10+sym20+paridades+noise) == 6 e (slot10+sym20)%? = 2
      Você pode trocar a regra sem quebrar o store (é só função). */
@@ -699,7 +705,7 @@ static raf_state_t raf_next_state(raf_state_t cur, u8 p0, u8 p1){
   }
 }
 
-static void raf_step(raf_store_t *st, raf_machine_t *m, u64 payload64, u16 noise_hint){
+static RAF_UNUSED void raf_step(raf_store_t *st, raf_machine_t *m, u64 payload64, u16 noise_hint){
   if(!st || !m) rmr_panic("raf_step NULL");
 
   /* fase = 4 ciclos absorvente (input/process/output/semântica) */

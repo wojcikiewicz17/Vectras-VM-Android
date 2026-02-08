@@ -35,14 +35,8 @@ jobs:
           cmake -S . -B build-cmake
           cmake --build build-cmake -j
 
-      - name: Run Bitraf API selftest
-        run: make run-selftest
-
-      - name: Run bench via Make
-        run: make run-bench
-
-      - name: Generate benchmark summary
-        run: bench/scripts/run_bench.sh 7 bench/results
+      - name: Run release gate (selftest + bench + summary)
+        run: make run-release-gate
 
       - name: Upload bench summary artifact
         uses: actions/upload-artifact@v4
