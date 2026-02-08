@@ -76,8 +76,10 @@ static u32 RmR_Bench_Matrix(u32 n){
     for(u32 j=0;j<nn;j++){
       u32 sum = 0u;
       for(u32 k=0;k<nn;k++) sum += a[i*nn+k] * b[k*nn+j];
-      c[i*nn+j] = sum;
+      u32 idx = i*nn+j;
+      c[idx] = sum;
       chk ^= (sum + i + j);
+      chk ^= (c[idx] >> (j & 7u));
     }
   }
   return chk;
