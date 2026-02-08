@@ -26,5 +26,11 @@ Recursos do módulo:
 - plano determinístico de build `:app:assembleRelease`.
 - modo Termux/Android (arm64) com `TERMUX_BUILD=1` e `GRADLE_USER_HOME=.gradle`.
 - autotuning low-level via `RmR_HW_Detect` (cacheline/page + ABI host) para orquestração.
+- fingerprint estável separado de diagnóstico variável.
+- invariantes do fingerprint: ABI, page size, cacheline, compile/min/target sdk, versão de build-tools e major do NDK.
 - validação de assinatura legítima (sem alias de debug).
 - flags de pipeline ético/compliance (`IEEE/NIST/W3C/RFC/GDPR/LGPD`).
+
+## Orquestrador ponta-a-ponta
+- Script: `tools/apk/rmr_termux_release_orchestrator.sh`
+- Executa checklist de ambiente (java/gradle/sdkmanager), build release, métricas de artefato, verificação de assinatura (`apksigner`/`jarsigner`) e salva rastros em `build/reports/rmr/`.

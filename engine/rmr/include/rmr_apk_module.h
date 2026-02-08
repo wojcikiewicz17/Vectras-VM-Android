@@ -18,6 +18,20 @@ typedef struct {
   u32 hw_page_bytes;
 } RmR_ApkProfile;
 
+typedef struct {
+  u32 abi_mask;
+  u32 host_abi_mask;
+  u32 hw_cacheline_bytes;
+  u32 hw_page_bytes;
+  u32 compile_sdk;
+  u32 min_sdk;
+  u32 target_sdk;
+  u32 ndk_major;
+  u32 build_tools_major;
+  u32 build_tools_minor;
+  u32 build_tools_patch;
+} RmR_ApkStableIdentity;
+
 /* ABI bits: 0=armeabi-v7a, 1=arm64-v8a, 2=x86, 3=x86_64 */
 #define RMR_APK_ABI_ARMEABI_V7A (1u << 0)
 #define RMR_APK_ABI_ARM64_V8A   (1u << 1)
@@ -27,11 +41,19 @@ typedef struct {
 
 void RmR_ApkModule_InitProfile(RmR_ApkProfile *out);
 void RmR_ApkModule_AutotuneProfile(RmR_ApkProfile *out);
+void RmR_ApkModule_FillStableIdentity(const RmR_ApkProfile *profile,
+                                      u32 compile_sdk,
+                                      u32 ndk_major,
+                                      u32 build_tools_major,
+                                      u32 build_tools_minor,
+                                      u32 build_tools_patch,
+                                      RmR_ApkStableIdentity *out);
 u32 RmR_ApkModule_DetectHostAbiMask(void);
 u32 RmR_ApkModule_DetectTermuxLike(const char *termux_prefix,
-                                    const char *home_path,
-                                    const char *shell_path);
+                                   const char *home_path,
+                                   const char *shell_path);
 u64 RmR_ApkModule_DeterministicFingerprint(const u8 *data, u32 len, u64 seed);
+u64 RmR_ApkModule_StableFingerprint(const RmR_ApkStableIdentity *stable, u64 seed);
 int RmR_ApkModule_ValidateSigningInputs(const char *keystore,
                                         const char *store_password,
                                         const char *key_alias,

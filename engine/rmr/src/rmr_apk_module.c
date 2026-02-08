@@ -56,6 +56,15 @@ static u32 rmr_append_hex32(char *out, u32 cap, u32 pos, u32 v){
   return pos;
 }
 
+static u64 rmr_mix64(u64 x){
+  x ^= x >> 33;
+  x *= 0xFF51AFD7ED558CCDULL;
+  x ^= x >> 33;
+  x *= 0xC4CEB9FE1A85EC53ULL;
+  x ^= x >> 33;
+  return x;
+}
+
 void RmR_ApkModule_InitProfile(RmR_ApkProfile *out){
   if(!out) return;
   out->abi_mask = RMR_APK_ABI_UNIVERSAL;
@@ -84,8 +93,8 @@ u32 RmR_ApkModule_DetectHostAbiMask(void){
 }
 
 u32 RmR_ApkModule_DetectTermuxLike(const char *termux_prefix,
-                                    const char *home_path,
-                                    const char *shell_path){
+                                   const char *home_path,
+                                   const char *shell_path){
   if(rmr_contains(termux_prefix, "com.termux")) return 1u;
   if(rmr_contains(home_path, "/data/data/com.termux")) return 1u;
   if(rmr_contains(shell_path, "/com.termux/")) return 1u;
@@ -99,6 +108,27 @@ void RmR_ApkModule_AutotuneProfile(RmR_ApkProfile *out){
   out->host_abi_mask = RmR_ApkModule_DetectHostAbiMask();
   out->hw_cacheline_bytes = hw.cacheline_bytes;
   out->hw_page_bytes = hw.page_bytes;
+}
+
+void RmR_ApkModule_FillStableIdentity(const RmR_ApkProfile *profile,
+                                      u32 compile_sdk,
+                                      u32 ndk_major,
+                                      u32 build_tools_major,
+                                      u32 build_tools_minor,
+                                      u32 build_tools_patch,
+                                      RmR_ApkStableIdentity *out){
+  if(!profile || !out) return;
+  out->abi_mask = profile->abi_mask;
+  out->host_abi_mask = profile->host_abi_mask ? profile->host_abi_mask : RmR_ApkModule_DetectHostAbiMask();
+  out->hw_cacheline_bytes = profile->hw_cacheline_bytes;
+  out->hw_page_bytes = profile->hw_page_bytes;
+  out->compile_sdk = compile_sdk;
+  out->min_sdk = profile->min_sdk;
+  out->target_sdk = profile->target_sdk;
+  out->ndk_major = ndk_major;
+  out->build_tools_major = build_tools_major;
+  out->build_tools_minor = build_tools_minor;
+  out->build_tools_patch = build_tools_patch;
 }
 
 u64 RmR_ApkModule_DeterministicFingerprint(const u8 *data, u32 len, u64 seed){
@@ -121,12 +151,19 @@ u64 RmR_ApkModule_DeterministicFingerprint(const u8 *data, u32 len, u64 seed){
     m11 += state ^ 0x94D049BB133111EBULL;
   }
 
-  state ^= (state >> 33);
-  state *= 0xFF51AFD7ED558CCDULL;
-  state ^= (state >> 33);
-  state *= 0xC4CEB9FE1A85EC53ULL;
-  state ^= (state >> 33);
-  return state;
+  return rmr_mix64(state ^ (u64)len);
+}
+
+u64 RmR_ApkModule_StableFingerprint(const RmR_ApkStableIdentity *stable, u64 seed){
+  u64 h;
+  if(!stable) return 0ULL;
+  h = seed ^ 0x243F6A8885A308D3ULL;
+  h ^= rmr_mix64((u64)stable->abi_mask | ((u64)stable->host_abi_mask << 32));
+  h ^= rmr_mix64((u64)stable->hw_page_bytes | ((u64)stable->hw_cacheline_bytes << 32));
+  h ^= rmr_mix64((u64)stable->compile_sdk | ((u64)stable->min_sdk << 16) | ((u64)stable->target_sdk << 32));
+  h ^= rmr_mix64((u64)stable->ndk_major | ((u64)stable->build_tools_major << 16)
+      | ((u64)stable->build_tools_minor << 32) | ((u64)stable->build_tools_patch << 48));
+  return rmr_mix64(h ^ 0x9E3779B97F4A7C15ULL);
 }
 
 int RmR_ApkModule_ValidateSigningInputs(const char *keystore,
@@ -137,9 +174,7 @@ int RmR_ApkModule_ValidateSigningInputs(const char *keystore,
   if(rmr_strlen(store_password) == 0u) return 0;
   if(rmr_strlen(key_alias) == 0u) return 0;
   if(rmr_strlen(key_password) == 0u) return 0;
-
   if(rmr_streq(key_alias, "androiddebugkey")) return 0;
-
   return 1;
 }
 
