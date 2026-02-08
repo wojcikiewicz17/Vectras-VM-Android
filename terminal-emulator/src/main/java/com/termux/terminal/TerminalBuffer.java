@@ -164,10 +164,12 @@ public final class TerminalBuffer {
         // newRows > mTotalRows should not normally happen since mTotalRows is TRANSCRIPT_ROWS (10000):
         if (newColumns == mColumns && newRows <= mTotalRows) {
             // Fast resize where just the rows changed.
-            int shiftDownOfTopRow = mScreenRows - newRows;
-            if (shiftDownOfTopRow > 0 && shiftDownOfTopRow < mScreenRows) {
+            final int screenRows = mScreenRows;
+            final int totalRows = mTotalRows;
+            int shiftDownOfTopRow = screenRows - newRows;
+            if (shiftDownOfTopRow > 0 && shiftDownOfTopRow < screenRows) {
                 // Shrinking. Check if we can skip blank rows at bottom below cursor.
-                for (int i = mScreenRows - 1; i > 0; i--) {
+                for (int i = screenRows - 1; i > 0; i--) {
                     if (cursor[1] >= i) break;
                     int r = externalToInternalRow(i);
                     if (mLines[r] == null || mLines[r].isBlank()) {
@@ -180,12 +182,12 @@ public final class TerminalBuffer {
                 if (shiftDownOfTopRow != actualShift) {
                     // The new lines revealed by the resizing are not all from the transcript. Blank the below ones.
                     for (int i = 0; i < actualShift - shiftDownOfTopRow; i++)
-                        allocateFullLineIfNecessary((mScreenFirstRow + mScreenRows + i) % mTotalRows).clear(currentStyle);
+                        allocateFullLineIfNecessary((mScreenFirstRow + screenRows + i) % totalRows).clear(currentStyle);
                     shiftDownOfTopRow = actualShift;
                 }
             }
             mScreenFirstRow += shiftDownOfTopRow;
-            mScreenFirstRow = (mScreenFirstRow < 0) ? (mScreenFirstRow + mTotalRows) : (mScreenFirstRow % mTotalRows);
+            mScreenFirstRow = (mScreenFirstRow < 0) ? (mScreenFirstRow + totalRows) : (mScreenFirstRow % totalRows);
             mTotalRows = newTotalRows;
             mActiveTranscriptRows = altScreen ? 0 : Math.max(0, mActiveTranscriptRows + shiftDownOfTopRow);
             cursor[1] -= shiftDownOfTopRow;
@@ -205,6 +207,8 @@ public final class TerminalBuffer {
             mScreenRows = newRows;
             mActiveTranscriptRows = mScreenFirstRow = 0;
             mColumns = newColumns;
+            final int screenLastRow = mScreenRows - 1;
+            final int columns = mColumns;
 
             int newCursorRow = -1;
             int newCursorColumn = -1;
@@ -251,7 +255,8 @@ public final class TerminalBuffer {
                     if (cursorAtThisRow) justToCursor = true;
                 } else {
                     int currentOldCol = 0;
-                    for (int i = 0; i < oldLine.getSpaceUsed(); i++) {
+                    final int oldLineSpaceUsed = oldLine.getSpaceUsed();
+                    for (int i = 0; i < oldLineSpaceUsed; i++) {
                         char c = oldLine.mText[i];
                         int codePoint = (Character.isHighSurrogate(c)) ? Character.toCodePoint(c, oldLine.mText[++i]) : c;
                         int displayWidth = WcWidth.width(codePoint);
@@ -278,9 +283,9 @@ public final class TerminalBuffer {
                     if (displayWidth > 0) styleAtCol = oldLine.getStyle(currentOldCol);
 
                     // Line wrap as necessary:
-                    if (currentOutputExternalColumn + displayWidth > mColumns) {
+                    if (currentOutputExternalColumn + displayWidth > columns) {
                         setLineWrap(currentOutputExternalRow);
-                        if (currentOutputExternalRow == mScreenRows - 1) {
+                        if (currentOutputExternalRow == screenLastRow) {
                             if (newCursorPlaced) newCursorRow--;
                             scrollDownOneLine(0, mScreenRows, currentStyle);
                         } else {
@@ -306,7 +311,7 @@ public final class TerminalBuffer {
                 }
                 // Old row has been copied. Check if we need to insert newline if old line was not wrapping:
                 if (externalOldRow != (oldScreenRows - 1) && !oldLine.mLineWrap) {
-                    if (currentOutputExternalRow == mScreenRows - 1) {
+                    if (currentOutputExternalRow == screenLastRow) {
                         if (newCursorPlaced) newCursorRow--;
                         scrollDownOneLine(0, mScreenRows, currentStyle);
                     } else {
