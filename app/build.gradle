@@ -56,13 +56,13 @@ android {
             signingConfig = signingConfigs.release
             minifyEnabled = true
             shrinkResources = true
-            proguardFiles = [getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro']
+            proguardFiles(getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro')
             buildConfigField "boolean", "VECTRA_CORE_ENABLED", "false"
         }
         debug {
             signingConfig = signingConfigs.debug
             minifyEnabled = false
-            proguardFiles = [getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro']
+            proguardFiles(getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro')
             buildConfigField "boolean", "VECTRA_CORE_ENABLED", "true"
         }
         perfRelease {

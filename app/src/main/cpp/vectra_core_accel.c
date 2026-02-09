@@ -1,5 +1,6 @@
 #include <jni.h>
 #include <stdint.h>
+#include <unistd.h>
 
 #if defined(__ARM_NEON)
 #include <arm_neon.h>
@@ -75,6 +76,38 @@ static void vectra_cpuid(uint32_t leaf, uint32_t subleaf, uint32_t* eax, uint32_
 #endif
 }
 #endif
+
+
+static jint vectra_page_bytes(void) {
+#if defined(_SC_PAGESIZE)
+    long page = sysconf(_SC_PAGESIZE);
+    if (page >= 1024 && page <= 65536) {
+        return (jint)page;
+    }
+#endif
+    return 4096;
+}
+
+static jint vectra_cache_line_bytes(void) {
+#if defined(_SC_LEVEL1_DCACHE_LINESIZE)
+    long line = sysconf(_SC_LEVEL1_DCACHE_LINESIZE);
+    if (line >= 16 && line <= 512) {
+        return (jint)line;
+    }
+#endif
+#if defined(__i386__) || defined(__x86_64__)
+    uint32_t eax;
+    uint32_t ebx;
+    uint32_t ecx;
+    uint32_t edx;
+    vectra_cpuid(0x80000006u, 0u, &eax, &ebx, &ecx, &edx);
+    uint32_t cpuid_line = ecx & 0xFFu;
+    if (cpuid_line >= 16u && cpuid_line <= 512u) {
+        return (jint)cpuid_line;
+    }
+#endif
+    return 64;
+}
 
 static uint32_t vectra_feature_mask(void) {
     uint32_t mask = 0;
@@ -296,26 +329,14 @@ JNIEXPORT jint JNICALL
 Java_com_vectras_vm_core_NativeFastPath_nativeCacheLineBytes(JNIEnv* env, jclass clazz) {
     (void)env;
     (void)clazz;
-#if defined(__aarch64__) || defined(__arm__)
-    return 64;
-#elif defined(__x86_64__) || defined(__i386__)
-    return 64;
-#elif defined(__riscv)
-    return 64;
-#else
-    return 64;
-#endif
+    return vectra_cache_line_bytes();
 }
 
 JNIEXPORT jint JNICALL
 Java_com_vectras_vm_core_NativeFastPath_nativePageBytes(JNIEnv* env, jclass clazz) {
     (void)env;
     (void)clazz;
-#ifdef __ANDROID__
-    return 4096;
-#else
-    return 4096;
-#endif
+    return vectra_page_bytes();
 }
 
 JNIEXPORT jint JNICALL

@@ -34,85 +34,21 @@ public final class BareMetalProfile {
     private static final String CPUINFO_PATH = "/proc/cpuinfo";
     private static final String CPU_POSSIBLE_PATH = "/sys/devices/system/cpu/possible";
 
+    private static final int CACHED_ARCH = detectArchitectureInternal();
+    private static final int CACHED_CORES = detectCoreCountInternal();
+    private static final int CACHED_CAPABILITIES = detectCapabilitiesInternal(CACHED_ARCH, CACHED_CORES);
+
+
     private BareMetalProfile() {
         throw new AssertionError("BareMetalProfile is a utility class and cannot be instantiated");
     }
 
     public static int detectArchitecture() {
-        String arch = normalizedArch();
-        String cpuInfo = readCpuInfoLower();
-        if (arch.length() == 0) {
-            arch = cpuInfo;
-        }
-        if (contains(arch, "aarch64") || contains(arch, "arm64")) {
-            return ARCH_ARM64;
-        }
-        if (contains(arch, "arm") || contains(arch, "armeabi")) {
-            return ARCH_ARM32;
-        }
-        if (contains(arch, "x86_64") || contains(arch, "amd64")) {
-            return ARCH_X86_64;
-        }
-        if (contains(arch, "x86") || contains(arch, "i386") || contains(arch, "i686")) {
-            return ARCH_X86;
-        }
-        if (contains(arch, "riscv64")) {
-            return ARCH_RISCV64;
-        }
-        if (contains(cpuInfo, "aarch64") || contains(cpuInfo, "armv8") || contains(cpuInfo, "arm64")) {
-            return ARCH_ARM64;
-        }
-        if (contains(cpuInfo, "armv7") || contains(cpuInfo, "armv6")) {
-            return ARCH_ARM32;
-        }
-        if (contains(cpuInfo, "genuineintel") || contains(cpuInfo, "authenticamd") || contains(cpuInfo, "x86_64")) {
-            return ARCH_X86_64;
-        }
-        if (contains(cpuInfo, "i686") || contains(cpuInfo, "i386")) {
-            return ARCH_X86;
-        }
-        if (contains(cpuInfo, "riscv")) {
-            return ARCH_RISCV64;
-        }
-        return ARCH_UNKNOWN;
+        return CACHED_ARCH;
     }
 
     public static int detectCapabilities() {
-        int arch = detectArchitecture();
-        int flags = CAP_ATOMICS;
-
-        if (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
-            flags |= CAP_LITTLE_ENDIAN;
-        }
-        if (Runtime.getRuntime().availableProcessors() > 1) {
-            flags |= CAP_MULTI_CORE;
-        }
-
-        String cpuInfo = readCpuInfoLower();
-        if (contains(cpuInfo, " neon") || contains(cpuInfo, " asimd") || contains(cpuInfo, " sse") || contains(cpuInfo, " avx")) {
-            flags |= CAP_NEON_OR_SSE;
-        }
-        if (contains(cpuInfo, " aes")) {
-            flags |= CAP_AES;
-        }
-        if (contains(cpuInfo, " crc32") || contains(cpuInfo, " sse4_2")) {
-            flags |= CAP_CRC32;
-        }
-
-        if (arch == ARCH_ARM64 || arch == ARCH_X86_64 || arch == ARCH_RISCV64) {
-            flags |= CAP_64_BIT | CAP_VECTOR_INT | CAP_VECTOR_FP;
-        } else if (arch == ARCH_ARM32 || arch == ARCH_X86) {
-            flags |= CAP_VECTOR_INT;
-            if (arch == ARCH_ARM32) {
-                flags |= CAP_VECTOR_FP;
-            }
-        }
-
-        if (arch == ARCH_X86 || arch == ARCH_X86_64 || arch == ARCH_ARM64) {
-            flags |= CAP_UNALIGNED_FAST;
-        }
-
-        return flags;
+        return CACHED_CAPABILITIES;
     }
 
     public static int recommendedWorkBlockBytes() {
@@ -203,6 +139,81 @@ public final class BareMetalProfile {
     }
 
     private static int detectCoreCount() {
+        return CACHED_CORES;
+    }
+
+    private static int detectArchitectureInternal() {
+        String arch = normalizedArch();
+        String cpuInfo = readCpuInfoLower();
+        if (arch.length() == 0) {
+            arch = cpuInfo;
+        }
+
+        int nativeSignature = NativeFastPath.getPlatformSignature();
+        int nativeArch = nativeSignature & 0xFF00;
+        if (nativeArch == NativeFastPath.ARCH_ARM64) return ARCH_ARM64;
+        if (nativeArch == NativeFastPath.ARCH_ARM32) return ARCH_ARM32;
+        if (nativeArch == NativeFastPath.ARCH_X64) return ARCH_X86_64;
+        if (nativeArch == NativeFastPath.ARCH_X86) return ARCH_X86;
+        if (nativeArch == NativeFastPath.ARCH_RISCV64) return ARCH_RISCV64;
+
+        if (contains(arch, "aarch64") || contains(arch, "arm64")) return ARCH_ARM64;
+        if (contains(arch, "arm") || contains(arch, "armeabi")) return ARCH_ARM32;
+        if (contains(arch, "x86_64") || contains(arch, "amd64")) return ARCH_X86_64;
+        if (contains(arch, "x86") || contains(arch, "i386") || contains(arch, "i686")) return ARCH_X86;
+        if (contains(arch, "riscv64")) return ARCH_RISCV64;
+
+        if (contains(cpuInfo, "aarch64") || contains(cpuInfo, "armv8") || contains(cpuInfo, "arm64")) return ARCH_ARM64;
+        if (contains(cpuInfo, "armv7") || contains(cpuInfo, "armv6")) return ARCH_ARM32;
+        if (contains(cpuInfo, "genuineintel") || contains(cpuInfo, "authenticamd") || contains(cpuInfo, "x86_64")) return ARCH_X86_64;
+        if (contains(cpuInfo, "i686") || contains(cpuInfo, "i386")) return ARCH_X86;
+        if (contains(cpuInfo, "riscv")) return ARCH_RISCV64;
+        return ARCH_UNKNOWN;
+    }
+
+    private static int detectCapabilitiesInternal(int arch, int cores) {
+        int flags = CAP_ATOMICS;
+
+        if (ByteOrder.nativeOrder() == ByteOrder.LITTLE_ENDIAN) {
+            flags |= CAP_LITTLE_ENDIAN;
+        }
+        if (cores > 1) {
+            flags |= CAP_MULTI_CORE;
+        }
+
+        int nativeFeatures = NativeFastPath.getFeatureMask();
+        if ((nativeFeatures & NativeFastPath.FEATURE_NEON) != 0 || (nativeFeatures & NativeFastPath.FEATURE_SSE42) != 0 || (nativeFeatures & NativeFastPath.FEATURE_AVX2) != 0) {
+            flags |= CAP_NEON_OR_SSE;
+        }
+        if ((nativeFeatures & NativeFastPath.FEATURE_AES) != 0) {
+            flags |= CAP_AES;
+        }
+        if ((nativeFeatures & NativeFastPath.FEATURE_CRC32) != 0 || (nativeFeatures & NativeFastPath.FEATURE_SSE42) != 0) {
+            flags |= CAP_CRC32;
+        }
+
+        String cpuInfo = readCpuInfoLower();
+        if (contains(cpuInfo, " neon") || contains(cpuInfo, " asimd") || contains(cpuInfo, " sse") || contains(cpuInfo, " avx")) flags |= CAP_NEON_OR_SSE;
+        if (contains(cpuInfo, " aes")) flags |= CAP_AES;
+        if (contains(cpuInfo, " crc32") || contains(cpuInfo, " sse4_2")) flags |= CAP_CRC32;
+
+        if (arch == ARCH_ARM64 || arch == ARCH_X86_64 || arch == ARCH_RISCV64 || NativeFastPath.getPointerBits() == 64) {
+            flags |= CAP_64_BIT | CAP_VECTOR_INT | CAP_VECTOR_FP;
+        } else if (arch == ARCH_ARM32 || arch == ARCH_X86) {
+            flags |= CAP_VECTOR_INT;
+            if (arch == ARCH_ARM32) {
+                flags |= CAP_VECTOR_FP;
+            }
+        }
+
+        if (arch == ARCH_X86 || arch == ARCH_X86_64 || arch == ARCH_ARM64) {
+            flags |= CAP_UNALIGNED_FAST;
+        }
+
+        return flags;
+    }
+
+    private static int detectCoreCountInternal() {
         int runtimeCores = Runtime.getRuntime().availableProcessors();
         int sysfsCores = parseCpuRange(CPU_POSSIBLE_PATH);
         if (sysfsCores > runtimeCores) {
