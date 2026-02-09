@@ -35,3 +35,11 @@ ext {
     targetApi = properties.get('TARGET_API', 28)
     minApi = properties.get('MIN_API', 23)
 }
+
+
+tasks.register("verifyRepoFileDependencies", Exec) {
+    group = "verification"
+    description = "Verifica se dependências locais de arquivos/módulos existem no repositório"
+    workingDir rootDir
+    commandLine "python3", "tools/verify_repo_file_dependencies.py"
+}
