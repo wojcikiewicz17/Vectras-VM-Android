@@ -699,6 +699,7 @@ object VectraCore {
     private val triad = VectraTriad()
     private val mempool = VectraMemPool(DEFAULT_CHUNK_BYTES, DEFAULT_POOL_SIZE)
     private val flowOrchestrator = VectraDataOrchestrator(state)
+    private val deterministicContainer = VectraDeterministicContainer(state = state)
     private var eventBus: VectraEventBus? = null
     private var cycle: VectraCycle? = null
     private var logger: VectraBitStackLog? = null
@@ -929,5 +930,17 @@ object VectraCore {
             m10,
             m11
         )
+    }
+
+    fun putDeterministicPath(path: String, payload: ByteArray, preferredLayer: Int = 0): VectraContainerEntry {
+        return deterministicContainer.put(path, payload, preferredLayer)
+    }
+
+    fun readDeterministicPath(path: String): ByteArray? {
+        return deterministicContainer.read(path)
+    }
+
+    fun buildDeterministicManifest(): VectraContainerManifest {
+        return deterministicContainer.buildManifest()
     }
 }
