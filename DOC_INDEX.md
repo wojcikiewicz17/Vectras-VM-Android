@@ -1,42 +1,55 @@
 # Índice de Documentação do Repositório
 
-Este índice resume os documentos prioritários para manutenção e evolução do projeto.
+Este índice consolida a navegação entre documentação raiz, READMEs por diretório e documentos técnicos de profundidade.
 
-## 1) Documentos de entrada
+## 1) Ponto de entrada institucional
+- `README.md` — visão global, abstract, dissertação analítica e mapa profissional de diretórios.
+- `docs/README.md` — curadoria da documentação técnica especializada.
 
-- `README.md` — visão geral do projeto, estrutura de módulos e build local.
-- `docs/README.md` — índice principal da documentação técnica.
+## 2) READMEs de estrutura por diretório
+- `app/README.md`
+- `engine/README.md`
+- `terminal-emulator/README.md`
+- `terminal-view/README.md`
+- `shell-loader/README.md`
+- `bench/README.md`
+- `demo_cli/README.md`
+- `tools/README.md`
+- `reports/README.md`
+- `resources/README.md`
+- `runtime/README.md`
+- `web/README.md`
+- `archive/README.md`
+- `fastlane/README.md`
+- `gradle/README.md`
+- `3dfx/README.md`
 
-## 2) Arquitetura e estado técnico
+## 3) Arquitetura e estado técnico
+- `docs/ARCHITECTURE.md`
+- `docs/SOURCE_TRACEABILITY_MATRIX.md`
+- `PROJECT_STATE.md`
+- `VECTRA_CORE.md`
 
-- `docs/ARCHITECTURE.md` — arquitetura funcional e componentes.
-- `docs/SOURCE_TRACEABILITY_MATRIX.md` — mapeamento entre código e documentação.
-- `PROJECT_STATE.md` — estado atual do projeto.
-- `VECTRA_CORE.md` — documentação do módulo Vectra Core.
+## 4) Performance, benchmark e operação
+- `docs/PERFORMANCE_INTEGRITY.md`
+- `docs/BENCHMARKS.md`
+- `docs/BENCHMARK_MANAGER.md`
+- `BENCHMARK_REFACTORING_SUMMARY.md`
+- `ADVANCED_OPTIMIZATIONS.md`
+- `docs/OPERATIONS.md`
 
-## 3) Performance e benchmark
-
-- `docs/PERFORMANCE_INTEGRITY.md` — critérios de medição e integridade.
-- `docs/BENCHMARKS.md` — guia de benchmark reproduzível.
-- `docs/BENCHMARK_MANAGER.md` — comportamento do BenchmarkManager.
-- `BENCHMARK_REFACTORING_SUMMARY.md` — histórico de refatoração de benchmark.
-- `ADVANCED_OPTIMIZATIONS.md` — otimizações implementadas e direcionamentos.
-
-## 4) Implementação e entregáveis
-
+## 5) Implementação e entregáveis
 - `IMPLEMENTATION_COMPLETE.md`
 - `IMPLEMENTATION_SUMMARY.md`
-- `docs/DETERMINISTIC_VM_MUTATION_LAYER.md` — policy kernel C para mutação determinística auditável.
+- `docs/DETERMINISTIC_VM_MUTATION_LAYER.md`
 
-## 5) Licenças, terceiros e conformidade
-
+## 6) Licenças e conformidade
 - `LICENSE`
-- `docs/LEGAL_AND_LICENSES.md`
 - `THIRD_PARTY_NOTICES.md`
+- `docs/LEGAL_AND_LICENSES.md`
 - `docs/IP_MAP.md`
 
-## 6) Navegação orientada por público
-
+## 7) Navegação por perfis
 - `docs/navigation/INDEX.md`
 - `docs/navigation/ENTERPRISE_COMPANIES.md`
 - `docs/navigation/SCIENTISTS_RESEARCH.md`

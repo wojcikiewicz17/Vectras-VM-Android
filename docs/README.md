@@ -1,69 +1,62 @@
-# Documentação Técnica do Vectras VM Android
+# docs/
 
-Este diretório centraliza a documentação técnica, operacional e de governança do projeto.
+Repositório central da documentação técnica, operacional e de governança do Vectras VM Android.
 
-## Princípios desta documentação
+## Papel desta camada documental
+A documentação foi organizada para manter coerência entre:
+1. **Código-fonte ativo** (módulos e diretórios do repositório).
+2. **Racional técnico** (arquitetura, segurança, operação, benchmark).
+3. **Conformidade e rastreabilidade** (licenças, matriz de fonte e relatórios).
 
-1. Representar o estado real do código no repositório.
-2. Evitar conteúdo especulativo ou sem referência verificável.
-3. Manter linguagem formal, objetiva e auditável.
-4. Facilitar manutenção contínua conforme a evolução da base de código.
+## Fluxo de leitura recomendado
+1. `../README.md` — visão institucional, abstract e navegação global.
+2. `../DOC_INDEX.md` — índice rápido de documentos raiz e técnicos.
+3. `ARCHITECTURE.md` e `SOURCE_TRACEABILITY_MATRIX.md` — base de arquitetura e rastreabilidade.
+4. `OPERATIONS.md`, `PERFORMANCE_INTEGRITY.md`, `BENCHMARKS.md` — operação e validação.
+5. `LEGAL_AND_LICENSES.md` e `IP_MAP.md` — conformidade jurídica e propriedade intelectual.
 
-## Leitura recomendada por ordem
+## Estrutura temática
+### Fundamentos e visão
+- `ABSTRACT.md`
+- `RESUMO.md`
+- `PREFACE.md`
+- `WHITEPAPER.md`
 
-1. [DOC_INDEX.md](../DOC_INDEX.md) — visão rápida dos documentos principais.
-2. [ARCHITECTURE.md](ARCHITECTURE.md) — visão arquitetural e componentes.
-3. [SOURCE_TRACEABILITY_MATRIX.md](SOURCE_TRACEABILITY_MATRIX.md) — rastreabilidade entre código e documentação.
-4. [PERFORMANCE_INTEGRITY.md](PERFORMANCE_INTEGRITY.md) e [BENCHMARKS.md](BENCHMARKS.md) — desempenho e medição.
-5. [LEGAL_AND_LICENSES.md](LEGAL_AND_LICENSES.md) — licenças, conformidade e atribuição.
+### Arquitetura e engenharia
+- `ARCHITECTURE.md`
+- `API.md`
+- `INTEGRACAO_RM_QEMU_ANDROIDX.md`
+- `DETERMINISTIC_VM_MUTATION_LAYER.md`
 
-## Organização por assunto
+### Operação e desempenho
+- `OPERATIONS.md`
+- `PERFORMANCE_INTEGRITY.md`
+- `BENCHMARKS.md`
+- `BENCHMARK_MANAGER.md`
+- `RAFAELIA_PERF_OPS.md`
 
-### Arquitetura e implementação
+### Governança documental
+- `DOCUMENTATION_STANDARDS.md`
+- `DOCUMENTATION_SUMMARY.md`
+- `ROOT_FILES_CATALOG.md`
+- `REPO_XRAY.md`
 
-- [ARCHITECTURE.md](ARCHITECTURE.md)
-- [INTEGRACAO_RM_QEMU_ANDROIDX.md](INTEGRACAO_RM_QEMU_ANDROIDX.md)
-- [API.md](API.md)
-- [VECTRA_CORE.md](../VECTRA_CORE.md)
+### Conformidade
+- `SECURITY.md`
+- `LEGAL_AND_LICENSES.md`
+- `SOURCE_TRACEABILITY_MATRIX.md`
+- `IP_MAP.md`
 
-### Operação, desempenho e validação
+### Navegação por público
+- `navigation/INDEX.md`
+- `navigation/ENTERPRISE_COMPANIES.md`
+- `navigation/SCIENTISTS_RESEARCH.md`
+- `navigation/UNIVERSITIES_ACADEMIC.md`
+- `navigation/BENCHMARK_COMPARISONS.md`
+- `navigation/PERFORMANCE_OPERATIONS.md`
 
-- [PERFORMANCE_INTEGRITY.md](PERFORMANCE_INTEGRITY.md)
-- [BENCHMARKS.md](BENCHMARKS.md)
-- [BENCHMARK_MANAGER.md](BENCHMARK_MANAGER.md)
-- [navigation/PERFORMANCE_OPERATIONS.md](navigation/PERFORMANCE_OPERATIONS.md)
-
-### Governança documental e contribuição
-
-- [DOCUMENTATION_STANDARDS.md](DOCUMENTATION_STANDARDS.md)
-- [CONTRIBUTING.md](CONTRIBUTING.md)
-- [ROADMAP.md](ROADMAP.md)
-- [DOCUMENTATION_SUMMARY.md](DOCUMENTATION_SUMMARY.md)
-
-### Referências e base acadêmica
-
-- [ABSTRACT.md](ABSTRACT.md)
-- [RESUMO.md](RESUMO.md)
-- [PREFACE.md](PREFACE.md)
-- [BIBLIOGRAPHY.md](BIBLIOGRAPHY.md)
-- [GLOSSARY.md](GLOSSARY.md)
-
-### Compliance e propriedade intelectual
-
-- [LEGAL_AND_LICENSES.md](LEGAL_AND_LICENSES.md)
-- [IP_MAP.md](IP_MAP.md)
-- [SOURCE_TRACEABILITY_MATRIX.md](SOURCE_TRACEABILITY_MATRIX.md)
-
-## Navegação por perfil
-
-- [navigation/INDEX.md](navigation/INDEX.md)
-- [navigation/ENTERPRISE_COMPANIES.md](navigation/ENTERPRISE_COMPANIES.md)
-- [navigation/SCIENTISTS_RESEARCH.md](navigation/SCIENTISTS_RESEARCH.md)
-- [navigation/UNIVERSITIES_ACADEMIC.md](navigation/UNIVERSITIES_ACADEMIC.md)
-- [navigation/BENCHMARK_COMPARISONS.md](navigation/BENCHMARK_COMPARISONS.md)
-
-## Política de atualização
-
-- Sempre atualizar o documento técnico quando houver alteração estrutural em módulo, build ou fluxo operacional.
-- Registrar mudanças relevantes de documentação no histórico do Git junto ao código associado.
-- Priorizar consistência com arquivos fonte (`settings.gradle`, `build.gradle`, `app/build.gradle` e diretórios de módulo).
+## Princípio de manutenção
+Toda alteração estrutural em diretórios de primeiro nível deve refletir:
+- no `README.md` raiz (mapa institucional);
+- no README local do diretório afetado;
+- e, quando aplicável, em documentação técnica específica deste diretório `docs/`.
