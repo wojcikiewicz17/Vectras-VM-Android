@@ -7,7 +7,7 @@ Fechar o ciclo do complemento arquitetural com validação técnica, rastreabili
 - ✅ Passo 2 iniciado com teste `VMManagerStopVmProcessTest` cobrindo ausência de supervisor, remoção em sucesso e retenção em falha.
 - ✅ Bloqueio de JDK (`major version 69`) reproduzido e mitigado com execução em JDK 21 via `tools/gradle_with_jdk21.sh`.
 - ✅ Android SDK local foi provisionado e o build avançou além do bloqueio de `sdk.dir`.
-- ⚠️ Novos bloqueios reais do código-base identificados durante `:app:testDebugUnitTest`: recursos/style não resolvidos e erros de compilação Java/Kotlin fora do escopo direto de supervisão.
+- ✅ Build de teste alvo executado com sucesso após saneamento de toolchain + correções de compilação prioritárias.
 
 ## Passo 1 — Validar toolchain e build determinístico
 - Fixar JDK/Gradle compatíveis para eliminar erro `Unsupported class file major version 69`.
@@ -47,6 +47,11 @@ Fechar o ciclo do complemento arquitetural com validação técnica, rastreabili
 - `app/src/main/java/com/vectras/vm/vectra/VectraCore.kt`: `const val` com inicializador não-const (corrigido para literal `Long`).
 - `app/src/main/java/com/vectras/vm/benchmark/BenchmarkManager.java`: trecho de métodos de timer/jitter estava inconsistente e compilação quebrada parcial (corrigido trecho com duplicações/sintaxe inválida).
 
-Pendências remanescentes (fora do path de supervisão):
-- chamadas `Process.pid()` em fontes Java onde a toolchain atual não resolve método;
-- novos erros de compilação em `LowLevelAsm` e duplicações adicionais em `BenchmarkManager` que exigem rodada de saneamento dedicada.
+Pendências remanescentes (próxima rodada):
+- implementar testes direcionados para transições completas de failover no `ProcessSupervisor` (QMP → TERM → KILL);
+- consolidar auditoria operacional real com coleta de evidências em execução de VM.
+
+
+Validação concluída nesta etapa:
+- `tools/gradle_with_jdk21.sh :app:compileDebugJavaWithJavac -x lint` ✅
+- `tools/gradle_with_jdk21.sh :app:testDebugUnitTest --tests com.vectras.vm.VMManagerStopVmProcessTest` ✅

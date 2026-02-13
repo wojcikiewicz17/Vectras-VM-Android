@@ -954,21 +954,6 @@ public class BenchmarkManager {
     }
 
     private double measureCpuStabilityVariance() {
-        int samples = Math.max(2, CONSISTENCY_SAMPLES);
-        int workload = Math.max(10_000, VectraBenchmark.CPU_WORKLOAD_SIZE / 50);
-        double mean = 0;
-        double sumSquares = 0;
-        for (int i = 0; i < samples; i++) {
-            long duration = VectraBenchmark.benchCpuIntegerAdd(workload);
-            double delta = duration - mean;
-            mean += delta / (i + 1);
-            double delta2 = duration - mean;
-            sumSquares += delta * delta2;
-        }
-        if (mean <= 0) {
-            return 0.0;
-        }
-        double variance = Math.sqrt(sumSquares / samples);
         int configuredSamples = CONSISTENCY_SAMPLES;
         if (!ENABLE_STABILITY_PROBE || configuredSamples <= 0) {
             return 0.0;

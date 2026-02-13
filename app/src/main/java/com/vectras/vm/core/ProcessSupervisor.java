@@ -145,8 +145,10 @@ public class ProcessSupervisor {
     public long getPid() {
         if (process == null) return -1L;
         try {
-            return process.pid();
-        } catch (UnsupportedOperationException ex) {
+            java.lang.reflect.Method method = Process.class.getMethod("pid");
+            Object value = method.invoke(process);
+            return (value instanceof Long) ? ((Long) value) : -1L;
+        } catch (Exception ignored) {
             return -1L;
         }
     }

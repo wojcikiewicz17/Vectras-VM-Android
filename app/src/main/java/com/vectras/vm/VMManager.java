@@ -1025,6 +1025,17 @@ public class VMManager {
                 }, null, null);
     }
 
+
+    private static long safeProcessPid(Process process) {
+        if (process == null) return -1L;
+        try {
+            java.lang.reflect.Method method = Process.class.getMethod("pid");
+            Object value = method.invoke(process);
+            return (value instanceof Long) ? ((Long) value) : -1L;
+        } catch (Exception ignored) {
+            return -1L;
+        }
+    }
     public static void killcurrentqemuprocess(Activity activity) {
         Terminal.requestStopStreaming();
         boolean stopped = stopVmProcess(activity, com.vectras.vm.main.core.MainStartVM.lastVMID, true);
@@ -1045,7 +1056,7 @@ public class VMManager {
                     targetBinary = "qemu-system-x86_64";
                     break;
             }
-            long pid = Terminal.qemuProcess != null ? Terminal.qemuProcess.pid() : -1L;
+            long pid = safeProcessPid(Terminal.qemuProcess);
             if (pid > 0) {
                 vterm.executeShellCommand2("kill -15 " + pid + " || pkill -15 -f " + targetBinary, false, null);
             } else {
@@ -1062,7 +1073,7 @@ public class VMManager {
         SUPERVISORS.clear();
         Terminal vterm = new Terminal(context);
         if (Terminal.qemuProcess != null) {
-            long pid = Terminal.qemuProcess.pid();
+            long pid = safeProcessPid(Terminal.qemuProcess);
             if (pid > 0) {
                 vterm.executeShellCommand2("kill -15 " + pid, false, null);
             }
