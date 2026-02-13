@@ -5,13 +5,14 @@ Fechar o ciclo do complemento arquitetural com validação técnica, rastreabili
 
 ## Status de execução atual
 - ✅ Passo 2 iniciado com teste `VMManagerStopVmProcessTest` cobrindo ausência de supervisor, remoção em sucesso e retenção em falha.
-- ⚠️ Passo 1 ainda bloqueado por incompatibilidade de toolchain (`major version 69`) no ambiente atual.
+- ✅ Bloqueio de JDK (`major version 69`) reproduzido e mitigado com execução em JDK 21 via `tools/gradle_with_jdk21.sh`.
+- ⚠️ Build/testes ainda bloqueados por ausência de Android SDK (`sdk.dir`/`ANDROID_HOME`) no ambiente atual.
 
 ## Passo 1 — Validar toolchain e build determinístico
 - Fixar JDK/Gradle compatíveis para eliminar erro `Unsupported class file major version 69`.
 - Rodar:
   - `./gradlew --version`
-  - `./gradlew :app:compileDebugJavaWithJavac -x lint`
+  - `tools/gradle_with_jdk21.sh :app:compileDebugJavaWithJavac -x lint`
 
 ## Passo 2 — Cobrir `VMManager.stopVmProcess` com teste
 - Adicionar teste unitário para:
