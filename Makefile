@@ -91,7 +91,7 @@ $(QEMU_BRIDGE_SELFTEST_BIN): demo_cli/src/rmr_qemu_bridge_selftest.c $(LIB_STATI
 run-demo: $(DEMO_BIN)
 	./$(DEMO_BIN)
 
-run-selftest: $(SELFTEST_BIN) $(POLICY_SELFTEST_BIN)
+run-selftest: $(SELFTEST_BIN) $(POLICY_SELFTEST_BIN) $(QEMU_BRIDGE_SELFTEST_BIN)
 	./$(SELFTEST_BIN)
 	./$(POLICY_SELFTEST_BIN)
 	./$(QEMU_BRIDGE_SELFTEST_BIN)
