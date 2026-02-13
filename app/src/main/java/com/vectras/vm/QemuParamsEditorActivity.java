@@ -3,8 +3,11 @@ package com.vectras.vm;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.ArrayAdapter;
+
 
 import androidx.appcompat.app.AppCompatActivity;
 
@@ -39,6 +42,8 @@ public class QemuParamsEditorActivity extends AppCompatActivity {
         }
 
         setupPresetDropdown();
+        setupEditorTools();
+        updateParamsAnalysis(binding.edittext1.getText().toString());
 
         binding.done.setOnClickListener(v -> {
             result = binding.edittext1.getText().toString();
@@ -51,6 +56,71 @@ public class QemuParamsEditorActivity extends AppCompatActivity {
             InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
             imm.showSoftInput(binding.edittext1, InputMethodManager.SHOW_IMPLICIT);
         }, 200);
+    }
+
+
+    private void setupEditorTools() {
+        binding.btnNormalizeArgs.setOnClickListener(v -> {
+            String normalized = normalizeArgs(binding.edittext1.getText().toString());
+            binding.edittext1.setText(normalized);
+            binding.edittext1.setSelection(normalized.length());
+        });
+
+        binding.edittext1.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+
+            @Override
+            public void onTextChanged(CharSequence s, int start, int before, int count) {
+                updateParamsAnalysis(s == null ? "" : s.toString());
+            }
+
+            @Override
+            public void afterTextChanged(Editable s) { }
+        });
+    }
+
+    private void updateParamsAnalysis(String args) {
+        String safe = args == null ? "" : args.trim();
+        if (safe.isEmpty()) {
+            binding.tvParamAnalysis.setText(getString(R.string.qemu_params_analysis_empty));
+            return;
+        }
+
+        String[] tokens = safe.split("\\s+");
+        int tokenCount = 0;
+        int switches = 0;
+        for (String t : tokens) {
+            if (t == null || t.isEmpty()) continue;
+            tokenCount++;
+            if (t.startsWith("-")) switches++;
+        }
+
+        boolean hasQmp = safe.contains("-qmp") || safe.contains("qmpsocket");
+        boolean hasAccel = safe.contains("-accel") || safe.contains("kvm");
+        boolean hasCpu = safe.contains("-cpu");
+        boolean hasMem = safe.contains("-m ") || safe.startsWith("-m");
+        boolean hasSmp = safe.contains("-smp");
+        boolean hasDrive = safe.contains("-drive") || safe.contains("-hda") || safe.contains("-hdb");
+
+        String analysis = getString(R.string.qemu_params_analysis_template,
+                tokenCount,
+                switches,
+                safe.length(),
+                hasCpu ? "✓" : "—",
+                hasMem ? "✓" : "—",
+                hasSmp ? "✓" : "—",
+                hasDrive ? "✓" : "—",
+                hasQmp ? "✓" : "—",
+                hasAccel ? "✓" : "—");
+        binding.tvParamAnalysis.setText(analysis);
+    }
+
+    private String normalizeArgs(String args) {
+        if (args == null) return "";
+        String trimmed = args.trim();
+        if (trimmed.isEmpty()) return "";
+        return trimmed.replaceAll("\\s+", " ");
     }
 
     private void setupPresetDropdown() {

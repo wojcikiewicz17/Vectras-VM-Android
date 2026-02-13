@@ -17,6 +17,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 import com.vectras.vm.AppConfig;
 import com.vectras.vm.R;
 
@@ -75,6 +76,15 @@ public class BenchmarkActivity extends AppCompatActivity {
     private TextView tvTuningSummary;
     private TextView tvReliabilityLevel;
     private TextView tvReliabilityDescription;
+    private View cardFusion;
+    private TextView tvFusionScore;
+    private TextView tvFusionSummary;
+    private LinearProgressIndicator pbCpuSingle;
+    private LinearProgressIndicator pbCpuMulti;
+    private LinearProgressIndicator pbMemory;
+    private LinearProgressIndicator pbStorage;
+    private LinearProgressIndicator pbIntegrity;
+    private LinearProgressIndicator pbEmulation;
     
     // Data
     private VectraBenchmark.BenchmarkResult[] lastResults;
@@ -121,6 +131,15 @@ public class BenchmarkActivity extends AppCompatActivity {
         tvTuningSummary = findViewById(R.id.tvTuningSummary);
         tvReliabilityLevel = findViewById(R.id.tvReliabilityLevel);
         tvReliabilityDescription = findViewById(R.id.tvReliabilityDescription);
+        cardFusion = findViewById(R.id.cardFusion);
+        tvFusionScore = findViewById(R.id.tvFusionScore);
+        tvFusionSummary = findViewById(R.id.tvFusionSummary);
+        pbCpuSingle = findViewById(R.id.pbCpuSingle);
+        pbCpuMulti = findViewById(R.id.pbCpuMulti);
+        pbMemory = findViewById(R.id.pbMemory);
+        pbStorage = findViewById(R.id.pbStorage);
+        pbIntegrity = findViewById(R.id.pbIntegrity);
+        pbEmulation = findViewById(R.id.pbEmulation);
         updateTuningProfileViews();
     }
     
@@ -221,6 +240,7 @@ public class BenchmarkActivity extends AppCompatActivity {
                                 btnExportResults.setVisibility(View.VISIBLE);
                                 btnShareResults.setVisibility(View.VISIBLE);
                                 layoutCategoryScores.setVisibility(View.VISIBLE);
+                                cardFusion.setVisibility(View.VISIBLE);
                                 
                                 // Show validation dialog if there are warnings
                                 if (!benchResult.validation.warnings.isEmpty() || 
@@ -375,6 +395,7 @@ public class BenchmarkActivity extends AppCompatActivity {
         tvStorageScore.setText(storageSummary);
         tvIntegrityScore.setText(integritySummary);
         tvEmulationScore.setText(emulationSummary);
+        updateFusionDisplay(results);
     }
     
     /**
@@ -390,6 +411,46 @@ public class BenchmarkActivity extends AppCompatActivity {
         return "N/A";
     }
     
+
+    private void updateFusionDisplay(VectraBenchmark.BenchmarkResult[] results) {
+        int cpuSingle = categoryCompletion(results, "CPU Single-threaded");
+        int cpuMulti = categoryCompletion(results, "CPU Multi-threaded");
+        int memory = categoryCompletion(results, "Memory");
+        int storage = categoryCompletion(results, "Storage");
+        int integrity = categoryCompletion(results, "Integrity");
+        int emulation = categoryCompletion(results, "Emulation");
+
+        pbCpuSingle.setProgressCompat(cpuSingle, true);
+        pbCpuMulti.setProgressCompat(cpuMulti, true);
+        pbMemory.setProgressCompat(memory, true);
+        pbStorage.setProgressCompat(storage, true);
+        pbIntegrity.setProgressCompat(integrity, true);
+        pbEmulation.setProgressCompat(emulation, true);
+
+        int completeness = Math.round((cpuSingle + cpuMulti + memory + storage + integrity + emulation) / 6f);
+        int confidence = 70;
+        if (lastBenchmarkResult != null && lastBenchmarkResult.validation != null) {
+            confidence = (int) Math.round(lastBenchmarkResult.validation.confidenceScore * 100);
+        }
+        int fusion = Math.round((completeness * 0.65f) + (confidence * 0.35f));
+        tvFusionScore.setText(getString(R.string.benchmark_fusion_score_template, fusion));
+        tvFusionSummary.setText(getString(R.string.benchmark_fusion_summary_template,
+                completeness, confidence, cpuSingle, cpuMulti, memory, storage, integrity, emulation));
+    }
+
+    private int categoryCompletion(VectraBenchmark.BenchmarkResult[] results, String category) {
+        int total = 0;
+        int valid = 0;
+        for (VectraBenchmark.BenchmarkResult r : results) {
+            if (r == null || r.category() == null) continue;
+            if (!category.equals(r.category())) continue;
+            total++;
+            if (r.rawValue() > 0) valid++;
+        }
+        if (total == 0) return 0;
+        return Math.round((valid * 100f) / total);
+    }
+
     private void showValidationDialog(BenchmarkManager.ValidationReport validation) {
         String validationReport = BenchmarkManager.formatValidationReport(validation);
         

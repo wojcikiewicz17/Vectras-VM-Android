@@ -1002,4 +1002,18 @@
     <string name="pro_tools_grade_academic_justification">ACADEMIC-GRADE: 5+ categories measured with >85%% reproducibility and 3+ methodology standards. Suitable for research reports and university submissions.</string>
     <string name="pro_tools_grade_industry_justification">INDUSTRY-GRADE: 3+ categories measured with >70%% reproducibility and 2+ methodology standards. Suitable for engineering benchmarks and technical documentation.</string>
     <string name="pro_tools_grade_informal_justification">INFORMAL engineering-grade. Additional metrics, methodologies, or reproducibility improvements are recommended to achieve formal validation.</string>
+
+    <string name="qemu_command_line">QEMU command line</string>
+    <string name="normalize">Normalize</string>
+    <string name="qemu_params_analysis_placeholder">Analysis will appear as you edit the command.</string>
+    <string name="qemu_params_analysis_empty">Add parameters to preview structure and runtime coverage.</string>
+    <string name="qemu_params_analysis_template">Tokens: %1$d · Switches: %2$d · Chars: %3$d
+CPU %4$s · MEM %5$s · SMP %6$s · DRIVE %7$s · QMP %8$s · ACCEL %9$s</string>
+
+    <string name="benchmark_fusion_title">Fusion index and category coverage</string>
+    <string name="benchmark_fusion_score_template">%1$d/100</string>
+    <string name="benchmark_fusion_summary_placeholder">Run benchmark to compute fusion index.</string>
+    <string name="benchmark_fusion_summary_template">Coverage: %1$d%% · Confidence: %2$d%%
+CPU1 %3$d%% · CPUm %4$d%% · MEM %5$d%% · IO %6$d%% · INT %7$d%% · EMU %8$d%%</string>
+
 </resources>
