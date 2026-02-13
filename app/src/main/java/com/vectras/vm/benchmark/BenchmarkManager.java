@@ -66,6 +66,12 @@ public class BenchmarkManager {
     private static final int DIAGNOSTIC_INDEX_EMULATOR_SIGNALS = 3;
     private static final int DIAGNOSTIC_INDEX_ABI_CPU_MISMATCH = 4;
     private static final int DIAGNOSTIC_COUNT = 5;
+    private static final int PROGRESS_SCALE = 100;
+    private static final int STAGE_PREFLIGHT = 8;
+    private static final int STAGE_OPTIMIZE = 18;
+    private static final int STAGE_EXECUTION_START = 24;
+    private static final int STAGE_EXECUTION_END = 86;
+    private static final int STAGE_VALIDATION = 94;
     private static final String[] DIAGNOSTIC_NAMES = {
         "Timer Drift",
         "Timer Jitter",
@@ -374,7 +380,7 @@ public class BenchmarkManager {
 
         try {
             // Step 1: Pre-flight checks
-            notifyProgress(0, VectraBenchmark.METRIC_COUNT, "Performing pre-flight checks...");
+            notifyProgress(STAGE_PREFLIGHT, PROGRESS_SCALE, "Performing pre-flight checks...");
             EnvironmentSnapshot envBefore = captureEnvironment();
             PreflightReport preflight = performPreflightChecks(envBefore);
 
@@ -387,18 +393,18 @@ public class BenchmarkManager {
                 " | stripe=" + tuningProfile.copyStripeBytes + "B");
 
             // Step 2: Optimize environment
-            notifyProgress(0, VectraBenchmark.METRIC_COUNT, "Optimizing environment...");
+            notifyProgress(STAGE_OPTIMIZE, PROGRESS_SCALE, "Optimizing environment...");
             optimizeEnvironment(tuningProfile);
 
             // Step 3: Run benchmarks with progress tracking
-            notifyProgress(0, VectraBenchmark.METRIC_COUNT, "Running benchmarks...");
+            notifyProgress(STAGE_EXECUTION_START, PROGRESS_SCALE, "Running benchmarks...");
             VectraBenchmark.BenchmarkResult[] results = runBenchmarksWithProgress(tuningProfile);
             
             // Step 4: Capture post-benchmark environment
             EnvironmentSnapshot envAfter = captureEnvironment();
             
             // Step 5: Validate results
-            notifyProgress(VectraBenchmark.METRIC_COUNT, VectraBenchmark.METRIC_COUNT, 
+            notifyProgress(STAGE_VALIDATION, PROGRESS_SCALE,
                          "Validating results...");
             ValidationReport validation = validateResults(results, envBefore, envAfter);
             
@@ -410,6 +416,7 @@ public class BenchmarkManager {
             DiagnosticMetrics diagnostics = buildDiagnostics(envBefore, preflight);
             BenchmarkResult result = new BenchmarkResult(
                 results, validation, envAfter, diagnostics, duration, isValid);
+            notifyProgress(PROGRESS_SCALE, PROGRESS_SCALE, "Benchmark complete");
             
             notifyComplete(result);
             return result;
@@ -431,7 +438,9 @@ public class BenchmarkManager {
         // Note: Ideally we'd modify VectraBenchmark.runAllBenchmarks() to accept
         // a progress callback, but for minimal changes, we run it as-is
         VectraBenchmark.setCopyStripeBytes(profile.copyStripeBytes);
+        notifyProgress(STAGE_EXECUTION_START, PROGRESS_SCALE, "Executing metric suite...");
         VectraBenchmark.BenchmarkResult[] results = VectraBenchmark.runAllBenchmarks();
+        notifyProgress(STAGE_EXECUTION_END, PROGRESS_SCALE, "Collecting benchmark outputs...");
         
         return results;
     }
@@ -649,6 +658,12 @@ public class BenchmarkManager {
         List<String> warnings = new ArrayList<>();
         List<String> errors = new ArrayList<>();
         int interferenceCount = 0;
+
+        if (results == null || results.length == 0) {
+            errors.add("Benchmark returned no metrics");
+            return new ValidationReport(warnings, errors, 0.0,
+                false, false, false, 100.0, 1);
+        }
         
         // Check for thermal changes
         boolean thermalDetected = false;
@@ -671,7 +686,7 @@ public class BenchmarkManager {
         
         // Check for memory pressure
         boolean memoryPressure = false;
-        if (envAfter.freeMemoryMb < envBefore.freeMemoryMb * 0.7) {
+        if (envBefore.freeMemoryMb > 0 && envAfter.freeMemoryMb < envBefore.freeMemoryMb * 0.7) {
             warnings.add("Memory consumption increased during benchmark");
             memoryPressure = true;
             interferenceCount++;
