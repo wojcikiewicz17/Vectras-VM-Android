@@ -32,6 +32,12 @@ fn deterministic_pipeline_produces_identical_audit_log() {
         .apply(&mut apply_a_in, &mut apply_a_out, &cfg, triad)
         .expect("apply A");
 
+    let diff_a = kernel.diff(&planned_a, &applied_a).expect("diff A");
+    assert!(
+        diff_a.iter().all(|d| d.changed),
+        "PLAN must compare baseline chunks while APPLY compares mutated chunks"
+    );
+
     let mut verify_a_in = Cursor::new(apply_a_out.clone());
     kernel
         .verify(&mut verify_a_in, &applied_a, &cfg, triad)
@@ -47,6 +53,11 @@ fn deterministic_pipeline_produces_identical_audit_log() {
 
     let mut plan_b = Cursor::new(payload.clone());
     let planned_b = kernel.plan(&mut plan_b, &cfg, triad).expect("plan B");
+    let diff_b = kernel.diff(&planned_b, &applied_a).expect("diff B");
+    assert!(
+        diff_b.iter().all(|d| d.changed),
+        "every chunk should be marked changed when compared against APPLY output"
+    );
     let events_b: Vec<StageEvent> = planned_b
         .into_iter()
         .map(|chunk| StageEvent { stage: Stage::Plan, chunk })

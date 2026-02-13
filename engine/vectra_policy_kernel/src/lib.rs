@@ -191,7 +191,7 @@ impl PolicyKernel {
         triad_status: TriadStatus,
     ) -> Result<Vec<ChunkRecord>, KernelError> {
         self.ensure_stage_allowed(Stage::Plan)?;
-        stream_chunks(reader, config.chunk_size, triad_status, &self.route_table, false, config)
+        stream_chunks(reader, config.chunk_size, triad_status, &self.route_table, true, config)
     }
 
 
