@@ -1,5 +1,6 @@
 #include "rmr_qemu_bridge.h"
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -129,7 +130,14 @@ static int parse_u32_after_key(const char *s, const char *key, uint32_t *out) {
   uint32_t v = 0u;
   int found = 0;
   while (*p >= '0' && *p <= '9') {
-    v = (v * 10u) + (uint32_t)(*p - '0');
+    uint32_t digit = (uint32_t)(*p - '0');
+    if (v > (UINT32_MAX - digit) / 10u) {
+      v = UINT32_MAX;
+      found = 1;
+      while (*p >= '0' && *p <= '9') p++;
+      break;
+    }
+    v = (v * 10u) + digit;
     p++;
     found = 1;
   }
@@ -138,11 +146,22 @@ static int parse_u32_after_key(const char *s, const char *key, uint32_t *out) {
   return 0;
 }
 
+static int has_json_bool_true(const char *s, const char *key) {
+  const char *p = strstr(s, key);
+  if (!p) return 0;
+  p += strlen(key);
+  while (*p == ' ' || *p == '\t') p++;
+  if (*p != ':') return 0;
+  p++;
+  while (*p == ' ' || *p == '\t') p++;
+  return (strncmp(p, "true", 4) == 0) ? 1 : 0;
+}
+
 int RmR_QmpTelemetry_Parse(const char *qmp_json_line, RmR_QmpTelemetry *out) {
   if (!qmp_json_line || !out) return -1;
   memset(out, 0, sizeof(*out));
 
-  if (strstr(qmp_json_line, "\"status\":\"running\"")) {
+  if (strstr(qmp_json_line, "\"status\":\"running\"") || strstr(qmp_json_line, "\"status\" : \"running\"")) {
     out->running = 1u;
   }
 
@@ -153,10 +172,11 @@ int RmR_QmpTelemetry_Parse(const char *qmp_json_line, RmR_QmpTelemetry *out) {
       p += 11;
     }
     p = qmp_json_line;
-    while ((p = strstr(p, "\"halted\":true")) != NULL) {
-      out->halted_count++;
-      p += 13;
+    while ((p = strstr(p, "\"halted\"")) != NULL) {
+      if (has_json_bool_true(p, "\"halted\"")) out->halted_count++;
+      p += 8;
     }
+    if (out->halted_count > out->vcpu_count) out->halted_count = out->vcpu_count;
     if (out->vcpu_count >= out->halted_count) {
       out->running_count = out->vcpu_count - out->halted_count;
     }

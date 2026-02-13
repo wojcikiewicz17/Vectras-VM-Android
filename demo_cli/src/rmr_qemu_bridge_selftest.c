@@ -38,6 +38,14 @@ int main(void) {
   failed += expect(tele.vcpu_count == 2u, "vcpu count");
   failed += expect(tele.running_count == 1u, "running count");
 
+  failed += expect(RmR_QmpTelemetry_Parse("{\"return\":[{\"cpu-index\":0,\"halted\" : false},{\"cpu-index\":1,\"halted\" : true}]}", &tele) == 0, "parse cpus spaced halted");
+  failed += expect(tele.vcpu_count == 2u, "vcpu count spaced halted");
+  failed += expect(tele.halted_count == 1u, "halted count spaced halted");
+  failed += expect(tele.running_count == 1u, "running count spaced halted");
+
+  failed += expect(RmR_QmpTelemetry_Parse("{\"return\":{\"cpus\":999999999999}}", &tele) == 0, "parse cpus overflow clamp");
+  failed += expect(tele.vcpu_count == 0xFFFFFFFFu, "cpus overflow clamps to u32 max");
+
   if (failed != 0) {
     fprintf(stderr, "rmr_qemu_bridge_selftest FAILED (%d)\n", failed);
     return 1;
