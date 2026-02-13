@@ -455,6 +455,24 @@ public class BenchmarkActivity extends AppCompatActivity {
         return Math.round((valid * 100f) / total);
     }
 
+    private String buildMicrograph(int... values) {
+        final char[] bars = {'▁', '▂', '▃', '▄', '▅', '▆', '▇', '█'};
+        if (values == null || values.length == 0) {
+            return "";
+        }
+
+        StringBuilder graph = new StringBuilder(values.length * 2);
+        for (int i = 0; i < values.length; i++) {
+            int clamped = Math.max(0, Math.min(100, values[i]));
+            int index = Math.round((clamped / 100f) * (bars.length - 1));
+            graph.append(bars[index]);
+            if (i < values.length - 1) {
+                graph.append(' ');
+            }
+        }
+        return graph.toString();
+    }
+
     private void showValidationDialog(BenchmarkManager.ValidationReport validation) {
         String validationReport = BenchmarkManager.formatValidationReport(validation);
         

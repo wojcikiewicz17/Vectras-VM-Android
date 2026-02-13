@@ -120,6 +120,25 @@ public class QemuParamsEditorActivity extends AppCompatActivity {
         binding.tvParamAnalysis.setText(analysis);
     }
 
+
+    private void applyAssistantSnippet(String snippet) {
+        String current = normalizeArgs(binding.edittext1.getText().toString());
+        String addon = normalizeArgs(snippet);
+        if (addon.isEmpty()) return;
+
+        String updated;
+        if (current.isEmpty()) {
+            updated = addon;
+        } else if (current.contains(addon)) {
+            updated = current;
+        } else {
+            updated = current + " " + addon;
+        }
+
+        binding.edittext1.setText(updated);
+        binding.edittext1.setSelection(updated.length());
+    }
+
     private String normalizeArgs(String args) {
         if (args == null) return "";
         String trimmed = args.trim();
