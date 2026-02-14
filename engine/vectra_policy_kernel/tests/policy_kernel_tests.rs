@@ -2,8 +2,8 @@ use std::fs;
 use std::io::Cursor;
 
 use vectra_policy_kernel::{
-    canonize, commit_tick, crc32c, deterministic_mutate, exec_bucket, Event, Key, Op, Output,
-    PipelineConfig, PolicyKernel, Stage, StageEvent, TriadStatus,
+    canonize, commit_tick, crc32c, deterministic_mutate, exec_bucket, AnchorAddr, Event, Key, Op,
+    Output, PipelineConfig, PolicyKernel, SchedulerState, Stage, StageEvent, TriadStatus,
 };
 
 #[test]
@@ -52,6 +52,7 @@ fn deterministic_pipeline_produces_identical_audit_log() {
         .map(|chunk| StageEvent {
             stage: Stage::Plan,
             chunk,
+            anchor: None,
         })
         .collect();
     let log_a = "target/test_audit_a.log";
@@ -70,6 +71,7 @@ fn deterministic_pipeline_produces_identical_audit_log() {
         .map(|chunk| StageEvent {
             stage: Stage::Plan,
             chunk,
+            anchor: None,
         })
         .collect();
     let log_b = "target/test_audit_b.log";
@@ -115,33 +117,45 @@ fn deterministic_mutation_is_pure_function() {
 
 #[test]
 fn canonize_produces_stable_forms_per_operation() {
-    let trim = canonize(Op::TrimWs, &["  abc  ".to_string()]);
+    let trim = canonize(Op::TrimWs, &["  abc  ".to_string()], None);
     assert_eq!(
         trim,
         Key {
             op: Op::TrimWs,
-            args: vec!["abc".to_string()]
+            args: vec!["abc".to_string()],
+            anchor: None,
+            canon: "TrimWs|abc".to_string(),
         }
     );
 
-    let len = canonize(Op::Len, &["  abc  ".to_string()]);
+    let len = canonize(Op::Len, &["  abc  ".to_string()], None);
     assert_eq!(
         len,
         Key {
             op: Op::Len,
-            args: vec!["  abc  ".to_string()]
+            args: vec!["  abc  ".to_string()],
+            anchor: None,
+            canon: "Len|  abc  ".to_string(),
         }
     );
 
+    let anchor = AnchorAddr {
+        dev: 2,
+        block: 15,
+        page: 3,
+    };
     let replace = canonize(
         Op::ReplaceChar,
         &["aba".to_string(), "ab".to_string(), "xy".to_string()],
+        Some(anchor),
     );
     assert_eq!(
         replace,
         Key {
             op: Op::ReplaceChar,
-            args: vec!["aba".to_string(), "a".to_string(), "x".to_string()]
+            args: vec!["aba".to_string(), "a".to_string(), "x".to_string()],
+            anchor: Some(anchor),
+            canon: "ReplaceChar|aba|a|x|A[2:15:3]".to_string(),
         }
     );
 }
@@ -153,16 +167,19 @@ fn commit_tick_groups_sorts_and_fans_out_outputs() {
             id: 7,
             op: Op::Len,
             args: vec!["hello".to_string()],
+            anchor: None,
         },
         Event {
             id: 2,
             op: Op::TrimWs,
             args: vec!["  x  ".to_string()],
+            anchor: None,
         },
         Event {
             id: 3,
             op: Op::TrimWs,
             args: vec!["x".to_string()],
+            anchor: None,
         },
     ];
 
@@ -175,25 +192,50 @@ fn commit_tick_groups_sorts_and_fans_out_outputs() {
 
 #[test]
 fn exec_bucket_executes_once_and_reuses_output() {
+    let anchor = AnchorAddr {
+        dev: 7,
+        block: 99,
+        page: 1,
+    };
     let key = Key {
         op: Op::AnchorMark,
         args: vec!["anchor-1".to_string()],
+        anchor: Some(anchor),
+        canon: "AnchorMark|anchor-1|A[7:99:1]".to_string(),
     };
     let bucket = vec![
         Event {
             id: 10,
             op: Op::AnchorMark,
             args: vec!["anchor-1".to_string()],
+            anchor: Some(anchor),
         },
         Event {
             id: 11,
             op: Op::AnchorMark,
             args: vec!["anchor-1".to_string()],
+            anchor: Some(anchor),
         },
     ];
 
     let out = exec_bucket(&key, &bucket);
     assert_eq!(out.len(), 2);
-    assert_eq!(out[0], (10, Output::Anchor("anchor-1".to_string())));
-    assert_eq!(out[1], (11, Output::Anchor("anchor-1".to_string())));
+    assert_eq!(out[0], (10, Output::Anchor(anchor)));
+    assert_eq!(out[1], (11, Output::Anchor(anchor)));
+}
+
+#[test]
+fn scheduler_replay_materializes_anchor_trust() {
+    let anchor = AnchorAddr {
+        dev: 1,
+        block: 42,
+        page: 9,
+    };
+    let mut state = SchedulerState::default();
+    state.replay_log(vec![
+        (1, Output::Text("ignore".to_string())),
+        (2, Output::Anchor(anchor)),
+        (3, Output::Anchor(anchor)),
+    ]);
+    assert_eq!(state.anchors.get(&anchor), Some(&2u8));
 }
