@@ -1,6 +1,7 @@
 #include "rmr_policy_kernel.h"
 #include "rmr_hw_detect.h"
 #include "rmr_math_fabric.h"
+#include "rmr_ll_ops.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -168,7 +169,7 @@ static void build_math_signature(const RmR_MathFabricPlan *plan,
     uint32_t idx = (stride * p) + p;
     if (len == 0) idx = 0;
     else idx %= (uint32_t)len;
-    rolling = (rolling << 5) | (rolling >> 27);
+    rolling = RmR_LL_Rotl32(rolling, 5u);
     rolling ^= (len > 0) ? (uint32_t)buf[idx] : 0u;
     rolling ^= (m->crc32c >> ((p & 3u) * 8u));
     points[p] = rolling ^ (m->entropy_milli << (p & 7u));
