@@ -1,7 +1,5 @@
 package com.vectras.vm.core;
 
-import java.util.Arrays;
-
 /**
  * DeterministicRuntimeMatrix: commutative factor model for low-overhead runtime tuning.
  *
@@ -9,6 +7,8 @@ import java.util.Arrays;
  * order-independent knobs for IOPS, latency, IRQ cadence and copy quantum.</p>
  */
 public final class DeterministicRuntimeMatrix {
+
+    private static volatile Snapshot cachedSnapshot;
 
     public static final class Snapshot {
         public final int arch;
@@ -43,6 +43,11 @@ public final class DeterministicRuntimeMatrix {
     }
 
     public static Snapshot capture() {
+        Snapshot snapshot = cachedSnapshot;
+        if (snapshot != null) {
+            return snapshot;
+        }
+
         int signature = NativeFastPath.getPlatformSignature();
         int arch = signature & 0xFF00;
         int bits = NativeFastPath.getPointerBits();
@@ -51,26 +56,53 @@ public final class DeterministicRuntimeMatrix {
         int features = NativeFastPath.getFeatureMask();
         int cores = Math.max(1, Runtime.getRuntime().availableProcessors());
 
-        int[] factors = new int[] {
-                normalizeFactor(arch),
-                normalizeFactor(bits),
-                normalizeFactor(page),
-                normalizeFactor(line),
-                normalizeFactor(cores),
-                normalizeFactor(features)
-        };
-
-        Arrays.sort(factors);
-        long product = 1L;
-        for (int factor : factors) {
-            product = boundedMultiply(product, factor);
-        }
+        long product = deterministicProduct(arch, bits, page, line, cores, features);
 
         int ioQuantum = deriveIoQuantum(page, line, cores, features);
         int irqPeriod = deriveIrqPeriodMicros(line, cores, features);
         int workers = deriveParallelism(cores, features);
 
-        return new Snapshot(arch, cores, bits, page, line, features, ioQuantum, irqPeriod, workers, product);
+        Snapshot computed = new Snapshot(arch, cores, bits, page, line, features, ioQuantum, irqPeriod, workers, product);
+        cachedSnapshot = computed;
+        return computed;
+    }
+
+    public static void invalidateSnapshot() {
+        cachedSnapshot = null;
+    }
+
+    private static long deterministicProduct(int arch, int bits, int page, int line, int cores, int features) {
+        int f0 = normalizeFactor(arch);
+        int f1 = normalizeFactor(bits);
+        int f2 = normalizeFactor(page);
+        int f3 = normalizeFactor(line);
+        int f4 = normalizeFactor(cores);
+        int f5 = normalizeFactor(features);
+
+        if (f0 > f1) { int t = f0; f0 = f1; f1 = t; }
+        if (f2 > f3) { int t = f2; f2 = f3; f3 = t; }
+        if (f4 > f5) { int t = f4; f4 = f5; f5 = t; }
+        if (f0 > f2) { int t = f0; f0 = f2; f2 = t; }
+        if (f1 > f3) { int t = f1; f1 = f3; f3 = t; }
+        if (f2 > f4) { int t = f2; f2 = f4; f4 = t; }
+        if (f3 > f5) { int t = f3; f3 = f5; f5 = t; }
+        if (f1 > f2) { int t = f1; f1 = f2; f2 = t; }
+        if (f3 > f4) { int t = f3; f3 = f4; f4 = t; }
+        if (f0 > f1) { int t = f0; f0 = f1; f1 = t; }
+        if (f2 > f3) { int t = f2; f2 = f3; f3 = t; }
+        if (f4 > f5) { int t = f4; f4 = f5; f5 = t; }
+        if (f1 > f2) { int t = f1; f1 = f2; f2 = t; }
+        if (f3 > f4) { int t = f3; f3 = f4; f4 = t; }
+        if (f2 > f3) { int t = f2; f2 = f3; f3 = t; }
+
+        long product = 1L;
+        product = boundedMultiply(product, f0);
+        product = boundedMultiply(product, f1);
+        product = boundedMultiply(product, f2);
+        product = boundedMultiply(product, f3);
+        product = boundedMultiply(product, f4);
+        product = boundedMultiply(product, f5);
+        return product;
     }
 
     private static int deriveIoQuantum(int page, int line, int cores, int features) {
