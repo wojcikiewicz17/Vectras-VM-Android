@@ -68,8 +68,8 @@ static uint32_t crc32c_accel(const uint8_t *buf, size_t len) {
 static uint32_t popcount_ones(const uint8_t *buf, size_t len) {
   uint32_t ones = 0;
   size_t i = 0;
-  for (; i + 8 <= len; i += 8) { uint64_t v; memcpy(&v, buf + i, sizeof(v)); ones += (uint32_t)__builtin_popcountll(v); }
-  for (; i < len; ++i) ones += (uint32_t)__builtin_popcount((unsigned)buf[i]);
+  for (; i + 8 <= len; i += 8) { uint64_t v; memcpy(&v, buf + i, sizeof(v)); ones += RmR_LL_PopCount64(v); }
+  for (; i < len; ++i) ones += RmR_LL_PopCount32((uint32_t)buf[i]);
   return ones;
 }
 
