@@ -123,6 +123,13 @@ public class ProcessSupervisor {
             return;
         }
         if (this.process != null) {
+            long currentPid = ProcessRuntimeOps.safePid(this.process);
+            long incomingPid = ProcessRuntimeOps.safePid(process);
+            if (currentPid > 0L && incomingPid > 0L && currentPid == incomingPid && this.process.isAlive()) {
+                // Em algumas reentrâncias Android, o processo pode ser reenvelopado
+                // em outra instância Java para o mesmo PID; tratamos como idempotente.
+                return;
+            }
             throw new IllegalStateException("process already bound");
         }
 

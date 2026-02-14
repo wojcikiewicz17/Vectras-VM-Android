@@ -24,7 +24,7 @@ public class ProcessSupervisorFailoverTest {
     @Test
     public void stopGracefully_qmpSuccess_transitionsToStopWithoutTermKill() {
         RecordingTransitionSink sink = new RecordingTransitionSink();
-        FakeProcess process = new FakeProcess(true);
+        FakeProcess process = new FakeProcess(true, 1001L);
         ProcessSupervisor supervisor = new ProcessSupervisor(
                 null,
                 "vm-qmp",
@@ -198,12 +198,45 @@ public class ProcessSupervisorFailoverTest {
                 }
         );
 
-        FakeProcess process = new FakeProcess(true);
+        FakeProcess process = new FakeProcess(true, 1001L);
         supervisor.bindProcess(process);
         supervisor.bindProcess(process);
 
         Assert.assertEquals(ProcessSupervisor.State.RUN, supervisor.getState());
         Assert.assertTrue(supervisor.isBoundTo(process));
+        Assert.assertEquals(2, sink.size());
+    }
+
+
+    @Test
+    public void bindProcess_allowsIdempotentRebindForSamePidAlias() {
+        RecordingTransitionSink sink = new RecordingTransitionSink();
+        ProcessSupervisor supervisor = new ProcessSupervisor(
+                null,
+                "vm-bind-pid",
+                command -> "error:no_qmp",
+                sink,
+                new ProcessSupervisor.Clock() {
+                    @Override
+                    public long monoMs() {
+                        return 300L;
+                    }
+
+                    @Override
+                    public long wallMs() {
+                        return 400L;
+                    }
+                }
+        );
+
+        FakeProcess first = new FakeProcess(true, 4242L);
+        FakeProcess alias = new FakeProcess(true, 4242L);
+        supervisor.bindProcess(first);
+        supervisor.bindProcess(alias);
+
+        Assert.assertEquals(ProcessSupervisor.State.RUN, supervisor.getState());
+        Assert.assertTrue(supervisor.isBoundTo(first));
+        Assert.assertFalse(supervisor.isBoundTo(alias));
         Assert.assertEquals(2, sink.size());
     }
 
@@ -216,8 +249,8 @@ public class ProcessSupervisorFailoverTest {
     @Test(expected = IllegalStateException.class)
     public void bindProcess_rejectsSecondBind() {
         ProcessSupervisor supervisor = new ProcessSupervisor(null, "vm-bind");
-        supervisor.bindProcess(new FakeProcess(true));
-        supervisor.bindProcess(new FakeProcess(true));
+        supervisor.bindProcess(new FakeProcess(true, 1002L));
+        supervisor.bindProcess(new FakeProcess(true, 1003L));
     }
 
     private static final class RecordingTransitionSink implements ProcessSupervisor.TransitionSink {
@@ -262,12 +295,22 @@ public class ProcessSupervisorFailoverTest {
 
     private static final class FakeProcess extends Process {
         private final List<Boolean> waitResults;
+        private final long pid;
         private int waitIndex = 0;
         int destroyCount = 0;
         int destroyForciblyCount = 0;
 
         FakeProcess(Boolean... waitResults) {
+            this(1234L, waitResults);
+        }
+
+        FakeProcess(boolean waitResult, long pid) {
+            this(pid, waitResult);
+        }
+
+        FakeProcess(long pid, Boolean... waitResults) {
             this.waitResults = Arrays.asList(waitResults);
+            this.pid = pid;
         }
 
         @Override
@@ -312,6 +355,16 @@ public class ProcessSupervisorFailoverTest {
         public Process destroyForcibly() {
             destroyForciblyCount++;
             return this;
+        }
+
+        @Override
+        public boolean isAlive() {
+            return true;
+        }
+
+        @Override
+        public long pid() {
+            return pid;
         }
     }
 }

@@ -45,3 +45,23 @@ Cada diretório tem:
 - Operação: `docs/OPERATIONS.md`
 - Performance: `docs/PERFORMANCE_INTEGRITY.md`, `docs/BENCHMARKS.md`
 - Conformidade: `docs/LEGAL_AND_LICENSES.md`, `docs/IP_MAP.md`, `THIRD_PARTY_NOTICES.md`
+
+
+## Governança operacional (CI e segurança)
+- CI Android: [`.github/workflows/android.yml`](.github/workflows/android.yml).
+- CI Engine: [`.github/workflows/engine-ci.yml`](.github/workflows/engine-ci.yml).
+- Automação de dependências: [`.github/dependabot.yml`](.github/dependabot.yml).
+- Security allowlist de artefatos sensíveis: [`security/sensitive-artifacts-allowlist.txt`](security/sensitive-artifacts-allowlist.txt).
+- Verificador de artefatos sensíveis: [`tools/check_sensitive_artifacts.sh`](tools/check_sensitive_artifacts.sh).
+
+## Núcleo Engine RMR
+- Cabeçalhos low-level: [`engine/rmr/include/rmr_corelib.h`](engine/rmr/include/rmr_corelib.h), [`engine/rmr/include/rmr_ll_ops.h`](engine/rmr/include/rmr_ll_ops.h), [`engine/rmr/include/rmr_ll_tuning.h`](engine/rmr/include/rmr_ll_tuning.h), [`engine/rmr/include/rmr_math_fabric.h`](engine/rmr/include/rmr_math_fabric.h).
+- Implementações C: [`engine/rmr/src/rmr_corelib.c`](engine/rmr/src/rmr_corelib.c), [`engine/rmr/src/rmr_ll_ops.c`](engine/rmr/src/rmr_ll_ops.c), [`engine/rmr/src/rmr_ll_tuning.c`](engine/rmr/src/rmr_ll_tuning.c), [`engine/rmr/src/rmr_math_fabric.c`](engine/rmr/src/rmr_math_fabric.c).
+
+## Matriz de testes (app)
+- Suite unitária de VM/runtime: [`app/src/test/java/com/vectras/vm/`](app/src/test/java/com/vectras/vm/).
+- Suite unitária de terminal: [`app/src/test/java/com/vectras/vterm/`](app/src/test/java/com/vectras/vterm/).
+- Contratos utilitários/QMP: [`app/src/test/java/com/vectras/qemu/utils/`](app/src/test/java/com/vectras/qemu/utils/).
+
+## Relatórios e bugfix
+- Relatório consolidado de correções: [`docs/BUGFIX_REPORT.md`](docs/BUGFIX_REPORT.md).
