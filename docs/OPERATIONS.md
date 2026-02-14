@@ -23,3 +23,11 @@
 | VM não encerra | Validar failover TERM→KILL e `waitFor` |
 | Logs cortados | Esperado em flood (backpressure) |
 | Erro de pasta externa Android 11+ | Selecionar pasta via SAF |
+
+## Matriz de gates (auditoria de processo)
+| Gate | Objetivo | Execução/critério | Evidência gerada |
+|---|---|---|---|
+| Build Android (debug + release) | Garantir integridade de compilação dos módulos Android antes de distribuição | Workflow `Android CI` executa `./gradlew assembleDebug` e `./gradlew assembleRelease` com versão de SDK/NDK parametrizada. | APKs publicados como artefatos `android-debug-apk` e `android-release-apk` no Actions. |
+| Dependências de arquivos de repositório | Bloquear divergências entre documentação, mapeamentos e cadeia de arquivos essenciais | Etapa explícita `./gradlew verifyRepoFileDependencies` executada antes das etapas de build. | Log da etapa `Verify repository file dependencies` no job de CI. |
+| Documentação crítica (links locais markdown) | Detectar referências quebradas em `README.md` e `docs/**/*.md` | Etapa opcional `Validate local markdown links` em Python (com `continue-on-error`) verifica caminhos locais não-HTTP. | Relatório no log da etapa, com lista de links inválidos quando detectados. |
+| Artefatos de distribuição | Assegurar rastreabilidade de binários gerados na pipeline | Upload automatizado dos APKs de debug/release via `actions/upload-artifact@v4`. | Artefatos versionados por run no GitHub Actions + upload Telegram condicionado a segredo. |
