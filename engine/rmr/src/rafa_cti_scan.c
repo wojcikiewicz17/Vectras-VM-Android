@@ -7,6 +7,8 @@
 #include <string.h>
 #include <time.h>
 
+#include "rmr_ll_ops.h"
+
 #define TILE_BYTES 4096u
 #define HIST_SIZE 256u
 
@@ -65,8 +67,8 @@ static uint32_t crc32c_accel(const uint8_t *buf, size_t len) {
 static uint32_t popcount_ones(const uint8_t *buf, size_t len) {
   uint32_t ones = 0;
   size_t i = 0;
-  for (; i + 8 <= len; i += 8) { uint64_t v; memcpy(&v, buf + i, sizeof(v)); ones += (uint32_t)__builtin_popcountll(v); }
-  for (; i < len; ++i) ones += (uint32_t)__builtin_popcount((unsigned)buf[i]);
+  for (; i + 8 <= len; i += 8) { uint64_t v; memcpy(&v, buf + i, sizeof(v)); ones += RmR_LL_PopCount64(v); }
+  for (; i < len; ++i) ones += RmR_LL_PopCount32((uint32_t)buf[i]);
   return ones;
 }
 
@@ -242,7 +244,7 @@ int main(int argc, char **argv) {
     rec.entropy = entropy_estimate(tile, size);
     uint32_t delta = prev_crc ^ rec.crc;
     uint32_t entropy_term = (uint32_t)(rec.entropy * 256.0);
-    rec.miss_score = (uint32_t)(((uint64_t)__builtin_popcount(delta) * 17u + entropy_term + prev_miss) & 1023u);
+    rec.miss_score = (uint32_t)(((uint64_t)RmR_LL_PopCount32(delta) * 17u + entropy_term + prev_miss) & 1023u);
     rec.bad_event = (rec.size != TILE_BYTES) | (rec.entropy < 1.0) | (rec.miss_score > 950u);
 
     uint64_t x = cfg.w ? (idx % cfg.w) : 0;
