@@ -46,9 +46,10 @@ static pthread_once_t g_hw_contract_once = PTHREAD_ONCE_INIT;
 
 #define VECTRA_ARENA_CAPACITY_BYTES (64u * 1024u * 1024u)
 #define VECTRA_ARENA_MAX_SLOTS 4096u
-#define VECTRA_ARENA_HANDLE_INDEX_MASK 0x1FFFu
-#define VECTRA_ARENA_HANDLE_GEN_SHIFT 13u
-#define VECTRA_ARENA_HANDLE_GEN_MASK 0x0003FFFFu
+#define VECTRA_ARENA_HANDLE_INDEX_BITS 13u
+#define VECTRA_ARENA_HANDLE_INDEX_MASK ((1u << VECTRA_ARENA_HANDLE_INDEX_BITS) - 1u)
+#define VECTRA_ARENA_HANDLE_GEN_SHIFT VECTRA_ARENA_HANDLE_INDEX_BITS
+#define VECTRA_ARENA_HANDLE_GEN_MASK ((1u << (31u - VECTRA_ARENA_HANDLE_GEN_SHIFT)) - 1u)
 
 #define VECTRA_ARENA_OK 0
 #define VECTRA_ARENA_ERR_INVALID_ARG -1
@@ -97,12 +98,6 @@ static jint vectra_arena_make_handle(uint32_t slot_index, uint32_t generation) {
         safe_gen = 1u;
     }
     uint32_t raw = (safe_gen << VECTRA_ARENA_HANDLE_GEN_SHIFT) | (slot_index + 1u);
-    if ((raw & 0x80000000u) != 0u) {
-        raw &= 0x7FFFFFFFu;
-        if ((raw & VECTRA_ARENA_HANDLE_INDEX_MASK) == 0u) {
-            raw |= 1u;
-        }
-    }
     return (jint)raw;
 }
 
