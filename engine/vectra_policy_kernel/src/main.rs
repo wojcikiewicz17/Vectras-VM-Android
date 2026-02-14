@@ -40,11 +40,16 @@ fn main() {
     let kernel = PolicyKernel::new();
     let triad = TriadStatus::default();
 
-    let mut planner_input = BufReader::new(File::open(input_path).expect("failed to open input stream for PLAN"));
-    let planned = kernel.plan(&mut planner_input, &cfg, triad).expect("PLAN stage failed");
+    let mut planner_input =
+        BufReader::new(File::open(input_path).expect("failed to open input stream for PLAN"));
+    let planned = kernel
+        .plan(&mut planner_input, &cfg, triad)
+        .expect("PLAN stage failed");
 
-    let mut apply_input = BufReader::new(File::open(input_path).expect("failed to open input stream for APPLY"));
-    let mut apply_output = BufWriter::new(File::create(output_path).expect("failed to create output stream"));
+    let mut apply_input =
+        BufReader::new(File::open(input_path).expect("failed to open input stream for APPLY"));
+    let mut apply_output =
+        BufWriter::new(File::create(output_path).expect("failed to create output stream"));
     let applied = kernel
         .apply(&mut apply_input, &mut apply_output, &cfg, triad)
         .expect("APPLY stage failed");
@@ -52,14 +57,18 @@ fn main() {
 
     let diff = kernel.diff(&planned, &applied).expect("DIFF stage failed");
 
-    let mut verify_input = BufReader::new(File::open(output_path).expect("failed to open output stream for VERIFY"));
+    let mut verify_input =
+        BufReader::new(File::open(output_path).expect("failed to open output stream for VERIFY"));
     let verified = kernel
         .verify(&mut verify_input, &applied, &cfg, triad)
         .expect("VERIFY stage failed");
 
     let mut events = Vec::new();
     for chunk in planned {
-        events.push(StageEvent { stage: Stage::Plan, chunk });
+        events.push(StageEvent {
+            stage: Stage::Plan,
+            chunk,
+        });
     }
     for (idx, chunk) in applied.iter().enumerate() {
         let mut diff_chunk = chunk.clone();
@@ -67,11 +76,20 @@ fn main() {
             diff_chunk.flags.miss = !d.changed;
             diff_chunk.flags.bad_event = !d.changed;
         }
-        events.push(StageEvent { stage: Stage::Diff, chunk: diff_chunk });
-        events.push(StageEvent { stage: Stage::Apply, chunk: chunk.clone() });
+        events.push(StageEvent {
+            stage: Stage::Diff,
+            chunk: diff_chunk,
+        });
+        events.push(StageEvent {
+            stage: Stage::Apply,
+            chunk: chunk.clone(),
+        });
     }
     for chunk in verified {
-        events.push(StageEvent { stage: Stage::Verify, chunk });
+        events.push(StageEvent {
+            stage: Stage::Verify,
+            chunk,
+        });
     }
 
     kernel

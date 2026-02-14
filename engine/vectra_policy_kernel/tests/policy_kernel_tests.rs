@@ -2,14 +2,18 @@ use std::fs;
 use std::io::Cursor;
 
 use vectra_policy_kernel::{
-    crc32c, deterministic_mutate, PipelineConfig, PolicyKernel, Stage, StageEvent, TriadStatus,
+    canonize, commit_tick, crc32c, deterministic_mutate, exec_bucket, Event, Key, Op, Output,
+    PipelineConfig, PolicyKernel, Stage, StageEvent, TriadStatus,
 };
 
 #[test]
 fn golden_crc32c_vectors_are_stable() {
     assert_eq!(crc32c(b""), 0x00000000);
     assert_eq!(crc32c(b"123456789"), 0xE3069283);
-    assert_eq!(crc32c(b"The quick brown fox jumps over the lazy dog"), 0x22620404);
+    assert_eq!(
+        crc32c(b"The quick brown fox jumps over the lazy dog"),
+        0x22620404
+    );
 }
 
 #[test]
@@ -45,7 +49,10 @@ fn deterministic_pipeline_produces_identical_audit_log() {
 
     let events_a: Vec<StageEvent> = planned_a
         .into_iter()
-        .map(|chunk| StageEvent { stage: Stage::Plan, chunk })
+        .map(|chunk| StageEvent {
+            stage: Stage::Plan,
+            chunk,
+        })
         .collect();
     let log_a = "target/test_audit_a.log";
     let _ = fs::remove_file(log_a);
@@ -60,7 +67,10 @@ fn deterministic_pipeline_produces_identical_audit_log() {
     );
     let events_b: Vec<StageEvent> = planned_b
         .into_iter()
-        .map(|chunk| StageEvent { stage: Stage::Plan, chunk })
+        .map(|chunk| StageEvent {
+            stage: Stage::Plan,
+            chunk,
+        })
         .collect();
     let log_b = "target/test_audit_b.log";
     let _ = fs::remove_file(log_b);
@@ -87,7 +97,9 @@ fn bitflip_corruption_is_detected_by_verify() {
     out[17] ^= 0x01;
 
     let mut verify_in = Cursor::new(out);
-    let err = kernel.verify(&mut verify_in, &expected, &cfg, triad).unwrap_err();
+    let err = kernel
+        .verify(&mut verify_in, &expected, &cfg, triad)
+        .unwrap_err();
     let msg = err.to_string();
     assert!(msg.contains("verify_mismatch"), "unexpected error: {msg}");
 }
@@ -99,4 +111,89 @@ fn deterministic_mutation_is_pure_function() {
     deterministic_mutate(&mut data_a, 0xAA, 7);
     deterministic_mutate(&mut data_b, 0xAA, 7);
     assert_eq!(data_a, data_b);
+}
+
+#[test]
+fn canonize_produces_stable_forms_per_operation() {
+    let trim = canonize(Op::TrimWs, &["  abc  ".to_string()]);
+    assert_eq!(
+        trim,
+        Key {
+            op: Op::TrimWs,
+            args: vec!["abc".to_string()]
+        }
+    );
+
+    let len = canonize(Op::Len, &["  abc  ".to_string()]);
+    assert_eq!(
+        len,
+        Key {
+            op: Op::Len,
+            args: vec!["  abc  ".to_string()]
+        }
+    );
+
+    let replace = canonize(
+        Op::ReplaceChar,
+        &["aba".to_string(), "ab".to_string(), "xy".to_string()],
+    );
+    assert_eq!(
+        replace,
+        Key {
+            op: Op::ReplaceChar,
+            args: vec!["aba".to_string(), "a".to_string(), "x".to_string()]
+        }
+    );
+}
+
+#[test]
+fn commit_tick_groups_sorts_and_fans_out_outputs() {
+    let events = vec![
+        Event {
+            id: 7,
+            op: Op::Len,
+            args: vec!["hello".to_string()],
+        },
+        Event {
+            id: 2,
+            op: Op::TrimWs,
+            args: vec!["  x  ".to_string()],
+        },
+        Event {
+            id: 3,
+            op: Op::TrimWs,
+            args: vec!["x".to_string()],
+        },
+    ];
+
+    let committed = commit_tick(1, &events);
+    assert_eq!(committed.len(), 3);
+    assert_eq!(committed[0], (2, Output::Text("x".to_string())));
+    assert_eq!(committed[1], (3, Output::Text("x".to_string())));
+    assert_eq!(committed[2], (7, Output::Number(5)));
+}
+
+#[test]
+fn exec_bucket_executes_once_and_reuses_output() {
+    let key = Key {
+        op: Op::AnchorMark,
+        args: vec!["anchor-1".to_string()],
+    };
+    let bucket = vec![
+        Event {
+            id: 10,
+            op: Op::AnchorMark,
+            args: vec!["anchor-1".to_string()],
+        },
+        Event {
+            id: 11,
+            op: Op::AnchorMark,
+            args: vec!["anchor-1".to_string()],
+        },
+    ];
+
+    let out = exec_bucket(&key, &bucket);
+    assert_eq!(out.len(), 2);
+    assert_eq!(out[0], (10, Output::Anchor("anchor-1".to_string())));
+    assert_eq!(out[1], (11, Output::Anchor("anchor-1".to_string())));
 }

@@ -1,10 +1,138 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::{Display, Formatter};
 use std::fs::OpenOptions;
 use std::io::{self, BufWriter, Read, Write};
 use std::path::Path;
 
 pub const DEFAULT_CHUNK_SIZE: usize = 4096;
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub enum Op {
+    TrimWs,
+    Len,
+    ReplaceChar,
+    SetFocus,
+    AnchorMark,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Event {
+    pub id: u64,
+    pub op: Op,
+    pub args: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct Key {
+    pub op: Op,
+    pub args: Vec<String>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub enum Output {
+    Text(String),
+    Number(usize),
+    Focus(String),
+    Anchor(String),
+}
+
+pub fn canonize(op: Op, args: &[String]) -> Key {
+    let canonical_args = match op {
+        Op::TrimWs => vec![arg_or_empty(args, 0).trim().to_string()],
+        Op::Len => vec![arg_or_empty(args, 0).to_string()],
+        Op::ReplaceChar => {
+            let source = arg_or_empty(args, 0).to_string();
+            let from = first_char_or_nul(arg_or_empty(args, 1));
+            let to = first_char_or_nul(arg_or_empty(args, 2));
+            vec![source, from.to_string(), to.to_string()]
+        }
+        Op::SetFocus => vec![arg_or_empty(args, 0).trim().to_string()],
+        Op::AnchorMark => vec![arg_or_empty(args, 0).trim().to_string()],
+    };
+    Key {
+        op,
+        args: canonical_args,
+    }
+}
+
+pub fn commit_tick(tick: u64, events: &[Event]) -> Vec<(u64, Output)> {
+    let mut by_key: HashMap<Key, Vec<Event>> = HashMap::new();
+    for event in events {
+        let key = canonize(event.op, &event.args);
+        by_key.entry(key).or_default().push(event.clone());
+    }
+
+    let mut ordered: BTreeMap<Key, Vec<Event>> = BTreeMap::new();
+    for (key, mut bucket) in by_key {
+        bucket.sort_by(|a, b| {
+            let a_hash = deterministic_args_hash(&a.args);
+            let b_hash = deterministic_args_hash(&b.args);
+            a.id.cmp(&b.id).then_with(|| a_hash.cmp(&b_hash))
+        });
+        ordered.insert(key, bucket);
+    }
+
+    let mut committed = Vec::new();
+    for (key, bucket) in ordered {
+        let mut out = exec_bucket(&key, &bucket);
+        committed.append(&mut out);
+    }
+
+    committed.sort_by_key(|(event_id, _)| *event_id);
+    if tick == u64::MAX {
+        committed.reverse();
+    }
+    committed
+}
+
+pub fn exec_bucket(key: &Key, bucket: &[Event]) -> Vec<(u64, Output)> {
+    if bucket.is_empty() {
+        return Vec::new();
+    }
+
+    let result = execute_key_once(key);
+    let mut out = Vec::with_capacity(bucket.len());
+    for event in bucket {
+        out.push((event.id, result.clone()));
+    }
+    out
+}
+
+fn execute_key_once(key: &Key) -> Output {
+    match key.op {
+        Op::TrimWs => Output::Text(arg_or_empty(&key.args, 0).to_string()),
+        Op::Len => Output::Number(arg_or_empty(&key.args, 0).chars().count()),
+        Op::ReplaceChar => {
+            let source = arg_or_empty(&key.args, 0);
+            let from = first_char_or_nul(arg_or_empty(&key.args, 1));
+            let to = first_char_or_nul(arg_or_empty(&key.args, 2));
+            let transformed: String = source
+                .chars()
+                .map(|ch| if ch == from { to } else { ch })
+                .collect();
+            Output::Text(transformed)
+        }
+        Op::SetFocus => Output::Focus(arg_or_empty(&key.args, 0).to_string()),
+        Op::AnchorMark => Output::Anchor(arg_or_empty(&key.args, 0).to_string()),
+    }
+}
+
+fn deterministic_args_hash(args: &[String]) -> u64 {
+    let mut hash = 0xcbf29ce484222325u64;
+    for arg in args {
+        hash ^= fnv1a64(arg.as_bytes());
+        hash = hash.wrapping_mul(0x100000001b3);
+    }
+    hash
+}
+
+fn arg_or_empty(args: &[String], idx: usize) -> &str {
+    args.get(idx).map_or("", String::as_str)
+}
+
+fn first_char_or_nul(src: &str) -> char {
+    src.chars().next().unwrap_or('\0')
+}
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Stage {
@@ -48,7 +176,6 @@ pub struct StageEvent {
     pub stage: Stage,
     pub chunk: ChunkRecord,
 }
-
 
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct DiffRecord {
@@ -96,7 +223,11 @@ impl Default for PipelineConfig {
 pub enum KernelError {
     Io(io::Error),
     PolicyViolation(&'static str),
-    VerifyMismatch { sequence: u64, expected: u32, got: u32 },
+    VerifyMismatch {
+        sequence: u64,
+        expected: u32,
+        got: u32,
+    },
 }
 
 impl Display for KernelError {
@@ -104,8 +235,15 @@ impl Display for KernelError {
         match self {
             KernelError::Io(err) => write!(f, "io_error={err}"),
             KernelError::PolicyViolation(msg) => write!(f, "policy_violation={msg}"),
-            KernelError::VerifyMismatch { sequence, expected, got } => {
-                write!(f, "verify_mismatch seq={sequence} expected={expected:#010x} got={got:#010x}")
+            KernelError::VerifyMismatch {
+                sequence,
+                expected,
+                got,
+            } => {
+                write!(
+                    f,
+                    "verify_mismatch seq={sequence} expected={expected:#010x} got={got:#010x}"
+                )
             }
         }
     }
@@ -135,7 +273,10 @@ impl RouteTable {
     }
 
     pub fn resolve(&self, route_id: u16) -> RouteTarget {
-        self.routes.get(&route_id).copied().unwrap_or(RouteTarget::Fallback)
+        self.routes
+            .get(&route_id)
+            .copied()
+            .unwrap_or(RouteTarget::Fallback)
     }
 
     pub fn pick_route(&self, status: TriadStatus, sequence: u64) -> (u16, RouteTarget, ChunkFlags) {
@@ -172,7 +313,13 @@ impl PolicyKernel {
     pub fn new() -> Self {
         Self {
             route_table: RouteTable::new_default(),
-            allowed_stages: [Stage::Plan, Stage::Diff, Stage::Apply, Stage::Verify, Stage::Audit],
+            allowed_stages: [
+                Stage::Plan,
+                Stage::Diff,
+                Stage::Apply,
+                Stage::Verify,
+                Stage::Audit,
+            ],
         }
     }
 
@@ -191,11 +338,21 @@ impl PolicyKernel {
         triad_status: TriadStatus,
     ) -> Result<Vec<ChunkRecord>, KernelError> {
         self.ensure_stage_allowed(Stage::Plan)?;
-        stream_chunks(reader, config.chunk_size, triad_status, &self.route_table, true, config)
+        stream_chunks(
+            reader,
+            config.chunk_size,
+            triad_status,
+            &self.route_table,
+            true,
+            config,
+        )
     }
 
-
-    pub fn diff(&self, before: &[ChunkRecord], after: &[ChunkRecord]) -> Result<Vec<DiffRecord>, KernelError> {
+    pub fn diff(
+        &self,
+        before: &[ChunkRecord],
+        after: &[ChunkRecord],
+    ) -> Result<Vec<DiffRecord>, KernelError> {
         self.ensure_stage_allowed(Stage::Diff)?;
         if before.len() != after.len() {
             return Err(KernelError::PolicyViolation("diff chunk length mismatch"));
@@ -235,7 +392,8 @@ impl PolicyKernel {
             deterministic_mutate(&mut chunk, config.mutation_xor, config.mutation_stride);
             writer.write_all(&chunk)?;
 
-            let (route_id, route_target, route_flags) = self.route_table.pick_route(triad_status, sequence);
+            let (route_id, route_target, route_flags) =
+                self.route_table.pick_route(triad_status, sequence);
             let flags = ChunkFlags {
                 bad_event: route_flags.bad_event,
                 miss: route_flags.miss,
@@ -269,7 +427,14 @@ impl PolicyKernel {
         triad_status: TriadStatus,
     ) -> Result<Vec<ChunkRecord>, KernelError> {
         self.ensure_stage_allowed(Stage::Verify)?;
-        let observed = stream_chunks(reader, config.chunk_size, triad_status, &self.route_table, true, config)?;
+        let observed = stream_chunks(
+            reader,
+            config.chunk_size,
+            triad_status,
+            &self.route_table,
+            true,
+            config,
+        )?;
         for (exp, got) in expected.iter().zip(observed.iter()) {
             if exp.crc32c != got.crc32c {
                 return Err(KernelError::VerifyMismatch {
@@ -285,7 +450,11 @@ impl PolicyKernel {
         Ok(observed)
     }
 
-    pub fn write_audit_log<P: AsRef<Path>>(&self, path: P, events: &[StageEvent]) -> Result<(), KernelError> {
+    pub fn write_audit_log<P: AsRef<Path>>(
+        &self,
+        path: P,
+        events: &[StageEvent],
+    ) -> Result<(), KernelError> {
         self.ensure_stage_allowed(Stage::Audit)?;
         let file = OpenOptions::new().create(true).append(true).open(path)?;
         let mut writer = BufWriter::new(file);
