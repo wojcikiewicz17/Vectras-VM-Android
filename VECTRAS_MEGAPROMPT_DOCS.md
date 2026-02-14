@@ -1164,7 +1164,7 @@ Maintainability: Good  ✅
 
 ### Day 1: Setup
 1. Clone repository
-2. Read VECTRAS_ANALYSIS_COMPLETE.md (this file's companion)
+2. Read archive/root-history/VECTRAS_ANALYSIS_COMPLETE.md (this file's companion)
 3. Setup documentation environment (PlantUML, etc.)
 4. Review existing docs/
 

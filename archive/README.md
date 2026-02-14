@@ -5,7 +5,7 @@ Material experimental/histórico fora do fluxo primário de build.
 
 ## Camada 2 — Estrutura (até 3 níveis)
 - Nível 1: `archive/`
-- Nível 2: `experimental/`
+- Nível 2: `experimental/`, `root-history/`
 - Nível 3: detalhamento por arquivo em [`FILES_MAP.md`](FILES_MAP.md).
 
 ## Camada 3 — Arquivos e vínculos
