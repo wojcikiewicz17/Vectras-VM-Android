@@ -72,7 +72,7 @@ Os documentos abaixo compõem o corpo principal necessário para auditoria técn
 - Conformidade legal e padrões (`docs/LEGAL_AND_LICENSES.md`, `docs/DOCUMENTATION_STANDARDS.md`).
 
 ### Implementação e Integrações
-- Sumário de implementação do Vectra Core (`IMPLEMENTATION_SUMMARY.md`).
+- Sumário de implementação do Vectra Core (`archive/root-history/IMPLEMENTATION_SUMMARY.md`).
 - Documento do Vectra Core (`VECTRA_CORE.md`).
 - Guia de Firebase (`app/FIREBASE.md`).
 

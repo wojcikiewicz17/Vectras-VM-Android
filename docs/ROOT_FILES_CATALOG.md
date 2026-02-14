@@ -26,17 +26,17 @@ Este catálogo documenta **todos os arquivos soltos no diretório raiz** do repo
 
 ---
 
-## 3) `ADVANCED_OPTIMIZATIONS.md`
+## 3) `archive/root-history/ADVANCED_OPTIMIZATIONS.md`
 
 **Papel**: Documentação das otimizações avançadas introduzidas no pacote `com.vectras.vm.core`, incluindo algoritmos de análise, estratégias de otimização e melhorias de operações bitwise.  
 **Conexões**:
 - Complementa as classes Java criadas para otimização e análise (ex.: `AdvancedAlgorithms`, `AlgorithmAnalyzer`, `OptimizationStrategies`).  
-- Relaciona-se com as descrições de conclusão em `IMPLEMENTATION_COMPLETE.md`, que detalha o que foi implementado.  
+- Relaciona-se com as descrições de conclusão em `archive/root-history/IMPLEMENTATION_COMPLETE.md`, que detalha o que foi implementado.  
 **Evidência**: contém a visão geral e exemplos de uso dos módulos avançados.  
 
 ---
 
-## 4) `BENCHMARK_REFACTORING_SUMMARY.md`
+## 4) `archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md`
 
 **Papel**: Sumário formal da refatoração profissional do módulo de benchmarks, detalhando requisitos, validações, monitoramento ambiental e testes.  
 **Conexões**:
@@ -46,7 +46,7 @@ Este catálogo documenta **todos os arquivos soltos no diretório raiz** do repo
 
 ---
 
-## 5) `IMPLEMENTATION_SUMMARY.md`
+## 5) `archive/root-history/IMPLEMENTATION_SUMMARY.md`
 
 **Papel**: Sumário de implementação do Vectra Core MVP, com histórico, lista de arquivos criados/modificados e justificativas técnicas.  
 **Conexões**:
@@ -56,11 +56,11 @@ Este catálogo documenta **todos os arquivos soltos no diretório raiz** do repo
 
 ---
 
-## 6) `IMPLEMENTATION_COMPLETE.md`
+## 6) `archive/root-history/IMPLEMENTATION_COMPLETE.md`
 
 **Papel**: Relatório de conclusão das “Advanced Optimization Modules”, com escopo de implementação, métodos adicionados, testes e QA.  
 **Conexões**:
-- Complementa `ADVANCED_OPTIMIZATIONS.md` com status e métricas de implementação.  
+- Complementa `archive/root-history/ADVANCED_OPTIMIZATIONS.md` com status e métricas de implementação.  
 - Indica módulos de teste associados, reforçando rastreabilidade técnica.  
 **Evidência**: detalha módulos, métodos, testes e status de compilação.  
 
@@ -158,7 +158,7 @@ Este catálogo documenta **todos os arquivos soltos no diretório raiz** do repo
 ## Relação Consolidada (Visão de Encadeamento)
 
 1. **Entrada institucional e licenciamento**: `README.md` ↔ `LICENSE` garantem atribuição e base legal.  
-2. **Documentação técnica**: `README.md` aponta para `VECTRA_CORE.md` e `docs/`, enquanto `ADVANCED_OPTIMIZATIONS.md`, `IMPLEMENTATION_SUMMARY.md`, `IMPLEMENTATION_COMPLETE.md` e `BENCHMARK_REFACTORING_SUMMARY.md` formam o conjunto de documentação especializada e status de implementação.  
+2. **Documentação técnica**: `README.md` aponta para `VECTRA_CORE.md` e `docs/`, enquanto `archive/root-history/ADVANCED_OPTIMIZATIONS.md`, `archive/root-history/IMPLEMENTATION_SUMMARY.md`, `archive/root-history/IMPLEMENTATION_COMPLETE.md` e `archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md` formam o conjunto de documentação especializada e status de implementação.  
 3. **Build e módulos**: `settings.gradle` lista módulos; `build.gradle` define plugins e versões; `gradle.properties` controla flags globais; `gradlew/gradlew.bat` garantem execução consistente.  
 4. **Integrações externas**: `.firebaserc` define o projeto Firebase; `.gitignore` evita versionamento de `google-services.json`.  
 5. **Assinatura**: `vectras.jks` é o artefato de signing referenciado por `app/build.gradle`.  

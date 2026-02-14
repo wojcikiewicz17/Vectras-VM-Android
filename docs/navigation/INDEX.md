@@ -16,8 +16,8 @@ Navegação por audiência para documentos técnicos e operacionais alinhados ao
 - `../BENCHMARK_MANAGER.md`
 - `../PERFORMANCE_INTEGRITY.md`
 - `../SOURCE_TRACEABILITY_MATRIX.md`
-- `../../IMPLEMENTATION_SUMMARY.md`
-- `../../IMPLEMENTATION_COMPLETE.md`
+- `../../archive/root-history/IMPLEMENTATION_SUMMARY.md`
+- `../../archive/root-history/IMPLEMENTATION_COMPLETE.md`
 
 ## Metadados
 - Versão: 1.1

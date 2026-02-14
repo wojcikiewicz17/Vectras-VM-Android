@@ -16,9 +16,9 @@ Manter um estado único e explícito do ciclo de vida do projeto, evitando ambig
 - Ajustes de pipeline e automação quando necessário.
 
 ## Documentos canônicos
-- `IMPLEMENTATION_COMPLETE.md`
-- `IMPLEMENTATION_SUMMARY.md`
-- `BENCHMARK_REFACTORING_SUMMARY.md`
-- `ADVANCED_OPTIMIZATIONS.md`
+- `archive/root-history/IMPLEMENTATION_COMPLETE.md`
+- `archive/root-history/IMPLEMENTATION_SUMMARY.md`
+- `archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md`
+- `archive/root-history/ADVANCED_OPTIMIZATIONS.md`
 
 > Atualize este arquivo sempre que o estado do projeto mudar.

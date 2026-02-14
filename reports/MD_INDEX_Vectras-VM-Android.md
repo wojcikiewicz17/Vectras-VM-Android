@@ -1,10 +1,10 @@
 # Markdown Index — Vectras-VM-Android
 
 ## Paths (sorted)
-- ADVANCED_OPTIMIZATIONS.md
-- BENCHMARK_REFACTORING_SUMMARY.md
-- IMPLEMENTATION_COMPLETE.md
-- IMPLEMENTATION_SUMMARY.md
+- archive/root-history/ADVANCED_OPTIMIZATIONS.md
+- archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md
+- archive/root-history/IMPLEMENTATION_COMPLETE.md
+- archive/root-history/IMPLEMENTATION_SUMMARY.md
 - README.md
 - VECTRA_CORE.md
 - app/FIREBASE.md
@@ -30,7 +30,7 @@
 - seguranda/segurancaMilitarnasuditorias.md
 
 ## Cluster summary
-- **Root-level engineering notes:** Implementation/optimization/architecture context and project overview (e.g., `README.md`, `IMPLEMENTATION_SUMMARY.md`, `VECTRA_CORE.md`).
+- **Root-level engineering notes:** Implementation/optimization/architecture context and project overview (e.g., `README.md`, `archive/root-history/IMPLEMENTATION_SUMMARY.md`, `VECTRA_CORE.md`).
 - **App integration docs:** Firebase setup guidance for the Android app (`app/FIREBASE.md`).
 - **Core documentation set:** Architecture, benchmarks, glossary, integrity/performance, and general documentation summaries under `docs/`.
 - **Navigation/positioning docs:** Audience-specific and benchmarking navigation pages under `docs/navigation/`.

@@ -12,20 +12,20 @@ Cada item abaixo segue reflexão técnica em três linhas: papel, ligação e co
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
 - **Inspeção**: `sed -n "1,120p" .gitignore` (texto) ou `file .gitignore` (binário).
 
-## `1.md`
+## `archive/root-history/1.md`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
-- **Inspeção**: `sed -n "1,120p" 1.md` (texto) ou `file 1.md` (binário).
+- **Inspeção**: `sed -n "1,120p" archive/root-history/1.md` (texto) ou `file archive/root-history/1.md` (binário).
 
-## `ADVANCED_OPTIMIZATIONS.md`
+## `archive/root-history/ADVANCED_OPTIMIZATIONS.md`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
-- **Inspeção**: `sed -n "1,120p" ADVANCED_OPTIMIZATIONS.md` (texto) ou `file ADVANCED_OPTIMIZATIONS.md` (binário).
+- **Inspeção**: `sed -n "1,120p" archive/root-history/ADVANCED_OPTIMIZATIONS.md` (texto) ou `file archive/root-history/ADVANCED_OPTIMIZATIONS.md` (binário).
 
-## `BENCHMARK_REFACTORING_SUMMARY.md`
+## `archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
-- **Inspeção**: `sed -n "1,120p" BENCHMARK_REFACTORING_SUMMARY.md` (texto) ou `file BENCHMARK_REFACTORING_SUMMARY.md` (binário).
+- **Inspeção**: `sed -n "1,120p" archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md` (texto) ou `file archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md` (binário).
 
 ## `CHANGELOG.md`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
@@ -42,15 +42,15 @@ Cada item abaixo segue reflexão técnica em três linhas: papel, ligação e co
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
 - **Inspeção**: `sed -n "1,120p" DOC_INDEX.md` (texto) ou `file DOC_INDEX.md` (binário).
 
-## `IMPLEMENTATION_COMPLETE.md`
+## `archive/root-history/IMPLEMENTATION_COMPLETE.md`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
-- **Inspeção**: `sed -n "1,120p" IMPLEMENTATION_COMPLETE.md` (texto) ou `file IMPLEMENTATION_COMPLETE.md` (binário).
+- **Inspeção**: `sed -n "1,120p" archive/root-history/IMPLEMENTATION_COMPLETE.md` (texto) ou `file archive/root-history/IMPLEMENTATION_COMPLETE.md` (binário).
 
-## `IMPLEMENTATION_SUMMARY.md`
+## `archive/root-history/IMPLEMENTATION_SUMMARY.md`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
-- **Inspeção**: `sed -n "1,120p" IMPLEMENTATION_SUMMARY.md` (texto) ou `file IMPLEMENTATION_SUMMARY.md` (binário).
+- **Inspeção**: `sed -n "1,120p" archive/root-history/IMPLEMENTATION_SUMMARY.md` (texto) ou `file archive/root-history/IMPLEMENTATION_SUMMARY.md` (binário).
 
 ## `LICENSE`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
