@@ -19,6 +19,7 @@ add_library(rmr STATIC
   engine/rmr/src/rmr_isorf.c
   engine/rmr/src/rmr_apk_module.c
   engine/rmr/src/rmr_policy_kernel.c
+  engine/rmr/src/rmr_qemu_bridge.c
   engine/rmr/src/rmr_math_fabric.c
 )
 
