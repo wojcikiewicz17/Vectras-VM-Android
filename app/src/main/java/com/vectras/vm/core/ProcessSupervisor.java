@@ -5,7 +5,13 @@ import com.vectras.qemu.utils.QmpClient;
 import com.vectras.vm.audit.AuditEvent;
 import com.vectras.vm.audit.AuditLedger;
 
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * Supervisiona o processo principal da VM com uma máquina de estados determinística.
@@ -35,7 +41,15 @@ public class ProcessSupervisor {
 
 
     private static final QmpTransport DEFAULT_QMP_TRANSPORT =
-            () -> QmpClient.sendCommand("{ \"execute\": \"system_powerdown\" }");
+            () -> QmpClient.sendCommandForStopPath("{ \"execute\": \"system_powerdown\" }");
+
+    private static final long QMP_GRACE_TIMEOUT_MS = 1_200L;
+
+    private static final ExecutorService QMP_EXECUTOR = Executors.newCachedThreadPool(r -> {
+        Thread thread = new Thread(r, "process-supervisor-qmp");
+        thread.setDaemon(true);
+        return thread;
+    });
 
     private static final TransitionSink NOOP_TRANSITION_SINK =
             (from, to, cause, action, stallMs, droppedLogs, bytes) -> {
@@ -151,16 +165,18 @@ public class ProcessSupervisor {
         try {
             long stallMs = Math.max(0L, clock.monoMs() - startMonoMs);
             boolean qmpRequested = false;
+            boolean qmpTimedOut = false;
             if (tryQmp) {
                 qmpRequested = true;
-                String result = qmpTransport.sendPowerdown();
+                String result = sendPowerdownWithTimeout(QMP_GRACE_TIMEOUT_MS);
+                qmpTimedOut = result == null;
                 if (ProcessRuntimeOps.isQmpAck(result) && awaitExit(running, 3_000)) {
                     transition(state, State.STOP, "qmp_shutdown", 0, 0, stallMs, "qmp");
                     return true;
                 }
             }
 
-            transition(state, State.FAILOVER, qmpRequested ? "qmp_timeout" : "no_qmp", 0, 0, stallMs, "term_kill");
+            transition(state, State.FAILOVER, qmpRequested ? (qmpTimedOut ? "qmp_timeout" : "qmp_reject") : "no_qmp", 0, 0, stallMs, "term_kill");
             running.destroy();
             if (awaitExit(running, 3_000)) {
                 transition(State.FAILOVER, State.STOP, "term_success", 0, 0, stallMs, "term");
@@ -173,6 +189,27 @@ public class ProcessSupervisor {
             return killed;
         } finally {
             this.process = null;
+        }
+    }
+
+    private String sendPowerdownWithTimeout(long timeoutMs) {
+        Future<String> future = QMP_EXECUTOR.submit(new Callable<String>() {
+            @Override
+            public String call() {
+                return qmpTransport.sendPowerdown();
+            }
+        });
+        try {
+            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+        } catch (TimeoutException e) {
+            future.cancel(true);
+            return null;
+        } catch (ExecutionException e) {
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            future.cancel(true);
+            return null;
         }
     }
 

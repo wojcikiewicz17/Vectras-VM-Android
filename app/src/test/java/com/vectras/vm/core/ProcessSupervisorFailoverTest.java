@@ -94,6 +94,52 @@ public class ProcessSupervisorFailoverTest {
         Assert.assertTrue(sink.hasNonNegativeStall("FAILOVER->STOP:term_success:term"));
     }
 
+
+    @Test
+    public void stopGracefully_qmpHang_timesOutAndFallsBackToTermKill() {
+        RecordingTransitionSink sink = new RecordingTransitionSink();
+        FakeProcess process = new FakeProcess(false, true);
+        ProcessSupervisor supervisor = new ProcessSupervisor(
+                null,
+                "vm-qmp-hang",
+                () -> {
+                    try {
+                        Thread.sleep(5_000L);
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                    }
+                    return "{\"return\": {}}";
+                },
+                sink,
+                new ProcessSupervisor.Clock() {
+                    private long mono = 1000L;
+                    private long wall = 1_700_000_000_000L;
+
+                    @Override
+                    public long monoMs() {
+                        return mono++;
+                    }
+
+                    @Override
+                    public long wallMs() {
+                        return wall++;
+                    }
+                }
+        );
+
+        supervisor.bindProcess(process);
+        long startNs = System.nanoTime();
+        boolean stopped = supervisor.stopGracefully(true);
+        long elapsedMs = TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNs);
+
+        Assert.assertTrue(stopped);
+        Assert.assertEquals(ProcessSupervisor.State.STOP, supervisor.getState());
+        Assert.assertEquals(1, process.destroyCount);
+        Assert.assertEquals(0, process.destroyForciblyCount);
+        Assert.assertTrue(sink.containsPrefix("RUN->FAILOVER:qmp_timeout:term_kill"));
+        Assert.assertTrue(sink.containsPrefix("FAILOVER->STOP:term_success:term"));
+        Assert.assertTrue("stop should failover quickly when QMP hangs", elapsedMs < 3_500L);
+    }
     @Test
     public void stopGracefully_termTimeout_thenKill() {
         RecordingTransitionSink sink = new RecordingTransitionSink();

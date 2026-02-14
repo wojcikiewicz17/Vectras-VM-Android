@@ -20,9 +20,21 @@ public class QmpClient {
 	private static final String TAG = "QmpClient";
 	private static String requestCommandMode = "{ \"execute\": \"qmp_capabilities\" }";
 	private static final int MAX_RESPONSE_LINES = 128;
+	private static final int DEFAULT_RETRIES = 10;
+	private static final int DEFAULT_RETRY_DELAY_MS = 1000;
+	private static final int STOP_RETRIES = 1;
+	private static final int STOP_RETRY_DELAY_MS = 150;
 	public static boolean allow_external = false;
 
 	public synchronized static String sendCommand(String command) {
+		return sendCommand(command, DEFAULT_RETRIES, DEFAULT_RETRY_DELAY_MS);
+	}
+
+	public synchronized static String sendCommandForStopPath(String command) {
+		return sendCommand(command, STOP_RETRIES, STOP_RETRY_DELAY_MS);
+	}
+
+	public synchronized static String sendCommand(String command, int maxRetries, int retryDelayMs) {
 		String response = null;
 		int trial=0;
 		Socket pingSocket = null;
@@ -48,23 +60,23 @@ public class QmpClient {
 
 
 			sendRequest(out, QmpClient.requestCommandMode);
-			while (trial < 10) {
+			while (trial < maxRetries) {
 				response = getResponse(in);
 				if (response != null && !response.isEmpty()) {
 					break;
 				}
-				Thread.sleep(1000);
+				Thread.sleep(retryDelayMs);
 				trial++;
 			}
 
 			sendRequest(out, command);
 			trial=0;
-			while (trial < 10) {
+			while (trial < maxRetries) {
 				response = getResponse(in);
 				if (response != null && !response.isEmpty()) {
 					break;
 				}
-				Thread.sleep(1000);
+				Thread.sleep(retryDelayMs);
 				trial++;
 			}
 		} catch (java.net.ConnectException e) {
