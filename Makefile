@@ -77,7 +77,7 @@ $(MATH_FABRIC_SELFTEST_BIN): demo_cli/src/math_fabric_selftest.c $(LIB_STATIC) v
 
 verify-librmr-symbols: $(LIB_STATIC)
 	@for sym in $(RMR_REQUIRED_SYMBOLS); do \
-		if ! nm -g --defined-only $(LIB_STATIC) | awk '{print $$3}' | rg -x "$$sym" >/dev/null; then \
+		if ! nm -g --defined-only $(LIB_STATIC) | awk '{if ($$3 == "'"$$sym"'") found=1} END {exit(found ? 0 : 1)}'; then \
 			echo "[link-contract] missing symbol in $(LIB_STATIC): $$sym" >&2; \
 			exit 1; \
 		fi; \
