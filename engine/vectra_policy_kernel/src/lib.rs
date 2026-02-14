@@ -6,6 +6,9 @@ use std::path::Path;
 
 pub const DEFAULT_CHUNK_SIZE: usize = 4096;
 
+mod ops;
+use ops::{ANCHOR_OP, FOCUS_OP, LEN_OP, REPLACE_CHAR_OP, TRIM_WS_OP};
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Op {
     TrimWs,
@@ -46,23 +49,45 @@ pub enum Output {
     Anchor(AnchorAddr),
 }
 
-pub fn canonize(op: Op, args: &[String], anchor: Option<AnchorAddr>) -> Key {
-    let canonical_args = match op {
-        Op::TrimWs => vec![arg_or_empty(args, 0).trim().to_string()],
-        Op::Len => vec![arg_or_empty(args, 0).to_string()],
-        Op::ReplaceChar => {
-            let source = arg_or_empty(args, 0).to_string();
-            let from = first_char_or_nul(arg_or_empty(args, 1));
-            let to = first_char_or_nul(arg_or_empty(args, 2));
-            vec![source, from.to_string(), to.to_string()]
-        }
-        Op::SetFocus => vec![arg_or_empty(args, 0).trim().to_string()],
-        Op::AnchorMark => vec![arg_or_empty(args, 0).trim().to_string()],
-    };
-    let mut canon = format!("{:?}|{}", op, canonical_args.join("|"));
-    if let Some(addr) = anchor {
-        canon.push_str(&format!("|A[{}:{}:{}]", addr.dev, addr.block, addr.page));
+pub trait DeterministicOp: Sync {
+    fn canonize(&self, args: &[String]) -> Vec<String>;
+    fn execute(&self, key_args: &[String]) -> Output;
+    fn op_code(&self) -> &'static str;
+}
+
+static OP_REGISTRY: [&dyn DeterministicOp; 5] = [
+    &ANCHOR_OP,
+    &FOCUS_OP,
+    &LEN_OP,
+    &REPLACE_CHAR_OP,
+    &TRIM_WS_OP,
+];
+
+fn op_code_for(op: Op) -> &'static str {
+    match op {
+        Op::TrimWs => "trim_ws",
+        Op::Len => "len",
+        Op::ReplaceChar => "replace_char",
+        Op::SetFocus => "focus",
+        Op::AnchorMark => "anchor",
     }
+}
+
+pub fn resolve_op_by_code(op_code: &str) -> Option<&'static dyn DeterministicOp> {
+    OP_REGISTRY
+        .iter()
+        .copied()
+        .find(|plugin| plugin.op_code() == op_code)
+}
+
+fn resolve_op(op: Op) -> &'static dyn DeterministicOp {
+    let op_code = op_code_for(op);
+    resolve_op_by_code(op_code).unwrap_or_else(|| panic!("op_not_registered={op_code}"))
+}
+
+pub fn canonize(op: Op, args: &[String]) -> Key {
+    let plugin = resolve_op(op);
+    let canonical_args = plugin.canonize(args);
     Key {
         op,
         args: canonical_args,
@@ -78,15 +103,21 @@ pub fn commit_tick(tick: u64, events: &[Event]) -> Vec<(u64, Output)> {
         by_key.entry(key).or_default().push(event.clone());
     }
 
-    let mut ordered: BTreeMap<Key, Vec<Event>> = BTreeMap::new();
-    for (key, mut bucket) in by_key {
+    let mut ordered: Vec<(Key, Vec<Event>)> = by_key.into_iter().collect();
+    for (_, bucket) in &mut ordered {
         bucket.sort_by(|a, b| {
             let a_hash = deterministic_args_hash(&a.args);
             let b_hash = deterministic_args_hash(&b.args);
             a.id.cmp(&b.id).then_with(|| a_hash.cmp(&b_hash))
         });
-        ordered.insert(key, bucket);
     }
+    ordered.sort_by(|(a_key, _), (b_key, _)| {
+        resolve_op(a_key.op)
+            .op_code()
+            .cmp(resolve_op(b_key.op).op_code())
+            .then_with(|| a_key.args.cmp(&b_key.args))
+            .then_with(|| a_key.op.cmp(&b_key.op))
+    });
 
     let mut committed = Vec::new();
     for (key, bucket) in ordered {
@@ -115,45 +146,8 @@ pub fn exec_bucket(key: &Key, bucket: &[Event]) -> Vec<(u64, Output)> {
 }
 
 fn execute_key_once(key: &Key) -> Output {
-    match key.op {
-        Op::TrimWs => Output::Text(arg_or_empty(&key.args, 0).to_string()),
-        Op::Len => Output::Number(arg_or_empty(&key.args, 0).chars().count()),
-        Op::ReplaceChar => {
-            let source = arg_or_empty(&key.args, 0);
-            let from = first_char_or_nul(arg_or_empty(&key.args, 1));
-            let to = first_char_or_nul(arg_or_empty(&key.args, 2));
-            let transformed: String = source
-                .chars()
-                .map(|ch| if ch == from { to } else { ch })
-                .collect();
-            Output::Text(transformed)
-        }
-        Op::SetFocus => Output::Focus(arg_or_empty(&key.args, 0).to_string()),
-        Op::AnchorMark => Output::Anchor(key.anchor.unwrap_or(AnchorAddr {
-            dev: 0,
-            block: 0,
-            page: 0,
-        })),
-    }
-}
-
-#[derive(Clone, Debug, Default, Eq, PartialEq)]
-pub struct SchedulerState {
-    pub anchors: BTreeMap<AnchorAddr, u8>,
-}
-
-impl SchedulerState {
-    pub fn replay_log<I>(&mut self, committed: I)
-    where
-        I: IntoIterator<Item = (u64, Output)>,
-    {
-        for (_, output) in committed {
-            if let Output::Anchor(addr) = output {
-                let trust = self.anchors.entry(addr).or_insert(0);
-                *trust = trust.saturating_add(1);
-            }
-        }
-    }
+    let plugin = resolve_op(key.op);
+    plugin.execute(&key.args)
 }
 
 fn deterministic_args_hash(args: &[String]) -> u64 {
@@ -165,11 +159,11 @@ fn deterministic_args_hash(args: &[String]) -> u64 {
     hash
 }
 
-fn arg_or_empty(args: &[String], idx: usize) -> &str {
+pub(crate) fn arg_or_empty(args: &[String], idx: usize) -> &str {
     args.get(idx).map_or("", String::as_str)
 }
 
-fn first_char_or_nul(src: &str) -> char {
+pub(crate) fn first_char_or_nul(src: &str) -> char {
     src.chars().next().unwrap_or('\0')
 }
 

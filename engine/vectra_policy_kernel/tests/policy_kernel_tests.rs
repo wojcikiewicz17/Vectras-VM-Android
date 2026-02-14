@@ -2,9 +2,8 @@ use std::fs;
 use std::io::Cursor;
 
 use vectra_policy_kernel::{
-    canonize, commit_tick, crc32c, deterministic_mutate, entropy_hint, entropy_milli, exec_bucket,
-    Event, Key, Op, Output,
-    PipelineConfig, PolicyKernel, Stage, StageEvent, TriadStatus,
+    canonize, commit_tick, crc32c, deterministic_mutate, exec_bucket, resolve_op_by_code, Event,
+    Key, Op, Output, PipelineConfig, PolicyKernel, Stage, StageEvent, TriadStatus,
 };
 
 #[test]
@@ -394,4 +393,55 @@ fn seq_stays_consistent_through_checkpoint_and_rollback() {
     assert!(seq_err
         .to_string()
         .contains("policy_violation=log sequence mismatch"));
+}
+
+#[test]
+fn plugin_registry_is_deterministic_for_same_input() {
+    let plugins = ["trim_ws", "len", "replace_char", "focus", "anchor"];
+    let args = vec!["  alpha  ".to_string(), "a".to_string(), "z".to_string()];
+
+    for op_code in plugins {
+        let plugin = resolve_op_by_code(op_code).expect("plugin must exist");
+        let key_a = plugin.canonize(&args);
+        let key_b = plugin.canonize(&args);
+        assert_eq!(key_a, key_b, "canonize must be deterministic for {op_code}");
+
+        let out_a = plugin.execute(&key_a);
+        let out_b = plugin.execute(&key_b);
+        assert_eq!(out_a, out_b, "execute must be deterministic for {op_code}");
+        assert_eq!(plugin.op_code(), op_code, "registry op_code must be stable");
+    }
+}
+
+#[test]
+fn commit_tick_uses_total_stable_ordering_by_op_code() {
+    let events = vec![
+        Event {
+            id: 40,
+            op: Op::TrimWs,
+            args: vec!["  z  ".to_string()],
+        },
+        Event {
+            id: 10,
+            op: Op::AnchorMark,
+            args: vec!["z".to_string()],
+        },
+        Event {
+            id: 20,
+            op: Op::Len,
+            args: vec!["z".to_string()],
+        },
+        Event {
+            id: 30,
+            op: Op::SetFocus,
+            args: vec!["  z  ".to_string()],
+        },
+    ];
+
+    let committed = commit_tick(1, &events);
+    assert_eq!(committed.len(), 4);
+    assert_eq!(committed[0], (10, Output::Anchor("z".to_string())));
+    assert_eq!(committed[1], (20, Output::Number(1)));
+    assert_eq!(committed[2], (30, Output::Focus("z".to_string())));
+    assert_eq!(committed[3], (40, Output::Text("z".to_string())));
 }
