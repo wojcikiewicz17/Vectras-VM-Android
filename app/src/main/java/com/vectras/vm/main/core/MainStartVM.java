@@ -62,7 +62,16 @@ public class MainStartVM {
     public static String pendingVMID = "";
     public static String pendingThumbnailFile = "";
     public static boolean isLaunchFromPending = false;
-    public static String runCommandFormat = "export TMPDIR=/tmp && mkdir -p $TMPDIR/pulse && export XDG_RUNTIME_DIR=/tmp && chmod -R 775 $TMPDIR/pulse && pulseaudio --start --exit-idle-time=-1 > /dev/null 2>&1 && %s";
+    public static final String BASE_RUN_COMMAND_FORMAT = "export TMPDIR=/tmp && mkdir -p $TMPDIR/pulse && export XDG_RUNTIME_DIR=/tmp && chmod -R 775 $TMPDIR/pulse && pulseaudio --start --exit-idle-time=-1 > /dev/null 2>&1 && %s";
+
+    static String resolveRunCommandFormat(boolean isX11Ui, boolean isVmRunning, boolean useXterm) {
+        if (!isX11Ui || isVmRunning) {
+            return BASE_RUN_COMMAND_FORMAT;
+        }
+
+        String runWrapperFormat = useXterm ? "xterm -e bash -c \"%s\"" : "bash -c \"%s\"";
+        return String.format(BASE_RUN_COMMAND_FORMAT, runWrapperFormat);
+    }
 
     public static void startNow(
             Context context,
@@ -71,6 +80,13 @@ public class MainStartVM {
             String vmID,
             String thumbnailFile
     ) {
+
+        boolean isX11Ui = MainSettingsManager.getVmUi(context).equals("X11");
+        String runCommandFormat = resolveRunCommandFormat(
+                isX11Ui,
+                VMManager.isVMRunning(context, vmID),
+                MainSettingsManager.getRunQemuWithXterm(context)
+        );
 
         if (isLaunchFromPending) {
             isLaunchFromPending = false;
@@ -82,13 +98,7 @@ public class MainStartVM {
             lastVMID = vmID;
             lastThumbnailFile = thumbnailFile;
 
-            if (MainSettingsManager.getVmUi(context).equals("X11") && !VMManager.isVMRunning(context, vmID)) {
-                if (MainSettingsManager.getRunQemuWithXterm(context)) {
-                    runCommandFormat = String.format(runCommandFormat, "xterm -e bash -c \"%s\"");
-                } else {
-                    runCommandFormat = String.format(runCommandFormat, "bash -c \"%s\"");
-                }
-
+            if (isX11Ui && !VMManager.isVMRunning(context, vmID)) {
                 if (DisplaySystem.isUseBuiltInX11()) {
                     pendingVMName = vmName;
                     pendingEnv = env;
@@ -316,7 +326,6 @@ public class MainStartVM {
             Log.d("HomeStartVM", i + ": " + params[i]);
         }
 
-        setDefault();
     }
 
     public static void startTryAgain(Context context) {
@@ -327,7 +336,6 @@ public class MainStartVM {
     public static void startPending(Context context) {
         isLaunchFromPending = true;
         startNow(context, pendingVMName, pendingEnv, pendingVMID, pendingThumbnailFile);
-        setDefault();
     }
 
     public static void showProgressDialog(Context context, String _content, String thumbnailFile) {
@@ -368,6 +376,6 @@ public class MainStartVM {
     }
 
     public static void setDefault() {
-        runCommandFormat = "export TMPDIR=/tmp && mkdir -p $TMPDIR/pulse && export XDG_RUNTIME_DIR=/tmp && chmod -R 775 $TMPDIR/pulse && pulseaudio --start --exit-idle-time=-1 > /dev/null 2>&1 && %s";
+        // Compatibility no-op: command format is now immutable and derived locally in startNow(...).
     }
 }
