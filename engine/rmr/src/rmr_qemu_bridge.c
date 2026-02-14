@@ -1,5 +1,5 @@
 #include "rmr_qemu_bridge.h"
-#include "rmr_ll_tuning.h"
+#include "rmr_corelib.h"
 
 #include <limits.h>
 #include <stdio.h>
@@ -13,7 +13,7 @@ static uint32_t clamp_u32(uint32_t v, uint32_t lo, uint32_t hi) {
 
 void RmR_QemuPlan_Default(RmR_QemuPlan *plan) {
   if (!plan) return;
-  memset(plan, 0, sizeof(*plan));
+  rmr_mem_set(plan, 0, sizeof(*plan));
   plan->preset = RMR_QEMU_PRESET_BALANCED;
   plan->arch = RMR_GUEST_ARCH_X86_64;
   plan->host_cores = 2;
@@ -130,7 +130,7 @@ int RmR_QemuPlan_BuildArgs(const RmR_QemuPlan *plan, char *out, size_t out_len) 
 static int parse_u32_after_key(const char *s, const char *key, uint32_t *out) {
   const char *p = strstr(s, key);
   if (!p) return -1;
-  p += strlen(key);
+  p += rmr_len_u8((const uint8_t *)key);
   while (*p == ' ' || *p == ':' || *p == '"') p++;
   uint32_t v = 0u;
   int found = 0;
@@ -154,17 +154,17 @@ static int parse_u32_after_key(const char *s, const char *key, uint32_t *out) {
 static int has_json_bool_true(const char *s, const char *key) {
   const char *p = strstr(s, key);
   if (!p) return 0;
-  p += strlen(key);
+  p += rmr_len_u8((const uint8_t *)key);
   while (*p == ' ' || *p == '\t') p++;
   if (*p != ':') return 0;
   p++;
   while (*p == ' ' || *p == '\t') p++;
-  return (strncmp(p, "true", 4) == 0) ? 1 : 0;
+  return rmr_mem_eq(p, "true", 4u) ? 1 : 0;
 }
 
 int RmR_QmpTelemetry_Parse(const char *qmp_json_line, RmR_QmpTelemetry *out) {
   if (!qmp_json_line || !out) return -1;
-  memset(out, 0, sizeof(*out));
+  rmr_mem_set(out, 0, sizeof(*out));
 
   if (strstr(qmp_json_line, "\"status\":\"running\"") || strstr(qmp_json_line, "\"status\" : \"running\"")) {
     out->running = 1u;

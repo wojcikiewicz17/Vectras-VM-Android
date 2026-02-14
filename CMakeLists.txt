@@ -21,7 +21,7 @@ add_library(rmr STATIC
   engine/rmr/src/rmr_policy_kernel.c
   engine/rmr/src/rmr_qemu_bridge.c
   engine/rmr/src/rmr_math_fabric.c
-  engine/rmr/src/rmr_ll_tuning.c
+  engine/rmr/src/rmr_corelib.c
 )
 
 target_include_directories(rmr PUBLIC engine/rmr/include)
