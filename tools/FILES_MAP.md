@@ -7,15 +7,20 @@ Mapa arquivo-a-arquivo em três linhas por item: papel, ligação e comando de i
 - **Liga com**: ver [`tools/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
 - **Inspeção**: `file "tools/README.md"` e, quando texto, `sed -n "1,80p" "tools/README.md"`.
 
+## `tools/apk/README.md`
+- **Papel**: documentação operacional dos scripts de build e validação de APK assinado.
+- **Liga com**: ver [`tools/apk/build_release_signed_local.sh`](apk/build_release_signed_local.sh) para execução ponta-a-ponta.
+- **Inspeção**: `file "tools/apk/README.md"` e, quando texto, `sed -n "1,140p" "tools/apk/README.md"`.
+
 ## `tools/apk/rmr_termux_release_orchestrator.sh`
 - **Papel**: código-fonte ou automação executável.
 - **Liga com**: ver [`tools/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
 - **Inspeção**: `file "tools/apk/rmr_termux_release_orchestrator.sh"` e, quando texto, `sed -n "1,80p" "tools/apk/rmr_termux_release_orchestrator.sh"`.
 
 ## `tools/apk/build_release_signed_local.sh`
-- **Papel**: build local de release assinado com verificação de assinatura e checksum SHA-256 do artefato.
-- **Liga com**: usa `vectras.jks`, Gradle wrapper do projeto e `apksigner` do Android SDK.
-- **Inspeção**: `file "tools/apk/build_release_signed_local.sh"` e, quando texto, `sed -n "1,160p" "tools/apk/build_release_signed_local.sh"`.
+- **Papel**: gera release assinado, coleta logs de build e valida assinatura/checksum do artefato final.
+- **Liga com**: usa `vectras.jks`, Gradle wrapper, `local.properties` e `apksigner` disponível no Android SDK.
+- **Inspeção**: `file "tools/apk/build_release_signed_local.sh"` e, quando texto, `sed -n "1,240p" "tools/apk/build_release_signed_local.sh"`.
 
 ## `tools/baremetal/dir_integrity_matrix.sh`
 - **Papel**: código-fonte ou automação executável.

@@ -10,6 +10,7 @@ Automação de verificação e utilitários operacionais.
 
 ## Camada 3 — Arquivos e vínculos
 - Catálogo completo: [`FILES_MAP.md`](FILES_MAP.md)
+- Fluxo de APK assinado local: [`tools/apk/README.md`](apk/README.md)
 - Contexto global de camadas: [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md)
 
 ## Cadeia de comando (lógica de inspeção)
