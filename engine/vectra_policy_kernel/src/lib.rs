@@ -20,12 +20,22 @@ pub struct Event {
     pub id: u64,
     pub op: Op,
     pub args: Vec<String>,
+    pub anchor: Option<AnchorAddr>,
+}
+
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
+pub struct AnchorAddr {
+    pub dev: u16,
+    pub block: u64,
+    pub page: u16,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct Key {
     pub op: Op,
     pub args: Vec<String>,
+    pub anchor: Option<AnchorAddr>,
+    pub canon: String,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -33,10 +43,10 @@ pub enum Output {
     Text(String),
     Number(usize),
     Focus(String),
-    Anchor(String),
+    Anchor(AnchorAddr),
 }
 
-pub fn canonize(op: Op, args: &[String]) -> Key {
+pub fn canonize(op: Op, args: &[String], anchor: Option<AnchorAddr>) -> Key {
     let canonical_args = match op {
         Op::TrimWs => vec![arg_or_empty(args, 0).trim().to_string()],
         Op::Len => vec![arg_or_empty(args, 0).to_string()],
@@ -49,16 +59,22 @@ pub fn canonize(op: Op, args: &[String]) -> Key {
         Op::SetFocus => vec![arg_or_empty(args, 0).trim().to_string()],
         Op::AnchorMark => vec![arg_or_empty(args, 0).trim().to_string()],
     };
+    let mut canon = format!("{:?}|{}", op, canonical_args.join("|"));
+    if let Some(addr) = anchor {
+        canon.push_str(&format!("|A[{}:{}:{}]", addr.dev, addr.block, addr.page));
+    }
     Key {
         op,
         args: canonical_args,
+        anchor,
+        canon,
     }
 }
 
 pub fn commit_tick(tick: u64, events: &[Event]) -> Vec<(u64, Output)> {
     let mut by_key: HashMap<Key, Vec<Event>> = HashMap::new();
     for event in events {
-        let key = canonize(event.op, &event.args);
+        let key = canonize(event.op, &event.args, event.anchor);
         by_key.entry(key).or_default().push(event.clone());
     }
 
@@ -113,7 +129,30 @@ fn execute_key_once(key: &Key) -> Output {
             Output::Text(transformed)
         }
         Op::SetFocus => Output::Focus(arg_or_empty(&key.args, 0).to_string()),
-        Op::AnchorMark => Output::Anchor(arg_or_empty(&key.args, 0).to_string()),
+        Op::AnchorMark => Output::Anchor(key.anchor.unwrap_or(AnchorAddr {
+            dev: 0,
+            block: 0,
+            page: 0,
+        })),
+    }
+}
+
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct SchedulerState {
+    pub anchors: BTreeMap<AnchorAddr, u8>,
+}
+
+impl SchedulerState {
+    pub fn replay_log<I>(&mut self, committed: I)
+    where
+        I: IntoIterator<Item = (u64, Output)>,
+    {
+        for (_, output) in committed {
+            if let Output::Anchor(addr) = output {
+                let trust = self.anchors.entry(addr).or_insert(0);
+                *trust = trust.saturating_add(1);
+            }
+        }
     }
 }
 
@@ -175,6 +214,7 @@ pub struct ChunkRecord {
 pub struct StageEvent {
     pub stage: Stage,
     pub chunk: ChunkRecord,
+    pub anchor: Option<AnchorAddr>,
 }
 
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -307,6 +347,19 @@ impl RouteTable {
 pub struct PolicyKernel {
     route_table: RouteTable,
     allowed_stages: [Stage; 5],
+    focused: Option<String>,
+    anchors: Vec<String>,
+    log: Vec<LogEntry>,
+    seq: u64,
+    checkpoints: Vec<usize>,
+}
+
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct LogEntry {
+    pub seq: u64,
+    pub op: Op,
+    pub args: Vec<String>,
+    pub output: Output,
 }
 
 impl PolicyKernel {
@@ -320,7 +373,90 @@ impl PolicyKernel {
                 Stage::Verify,
                 Stage::Audit,
             ],
+            focused: None,
+            anchors: Vec::new(),
+            log: Vec::new(),
+            seq: 0,
+            checkpoints: Vec::new(),
         }
+    }
+
+    pub fn checkpoint(&mut self) -> usize {
+        let marker = self.log.len();
+        self.checkpoints.push(marker);
+        marker
+    }
+
+    pub fn rollback(&mut self) -> bool {
+        let Some(checkpoint) = self.checkpoints.pop() else {
+            return false;
+        };
+        self.log.truncate(checkpoint);
+        self.rebuild_from_log();
+        true
+    }
+
+    pub fn apply_log_entry(&mut self, entry: LogEntry) -> Result<(), KernelError> {
+        self.apply_log_entry_internal(entry, true, true)
+    }
+
+    pub fn focused(&self) -> Option<&str> {
+        self.focused.as_deref()
+    }
+
+    pub fn anchors(&self) -> &[String] {
+        &self.anchors
+    }
+
+    pub fn log(&self) -> &[LogEntry] {
+        &self.log
+    }
+
+    pub fn seq(&self) -> u64 {
+        self.seq
+    }
+
+    fn rebuild_from_log(&mut self) {
+        self.focused = None;
+        self.anchors.clear();
+        self.seq = 0;
+
+        let retained_log = self.log.clone();
+        for entry in retained_log {
+            let _ = self.apply_log_entry_internal(entry, false, false);
+        }
+    }
+
+    fn apply_log_entry_internal(
+        &mut self,
+        entry: LogEntry,
+        persist: bool,
+        strict_seq: bool,
+    ) -> Result<(), KernelError> {
+        if strict_seq && entry.seq != self.seq {
+            return Err(KernelError::PolicyViolation("log sequence mismatch"));
+        }
+
+        let expected_output = execute_key_once(&canonize(entry.op, &entry.args));
+        if entry.output != expected_output {
+            return Err(KernelError::PolicyViolation("log replay mismatch"));
+        }
+
+        match &entry.output {
+            Output::Focus(target) => {
+                self.focused = Some(target.clone());
+            }
+            Output::Anchor(anchor) => {
+                self.anchors.push(anchor.clone());
+            }
+            Output::Text(_) | Output::Number(_) => {}
+        }
+
+        self.seq = entry.seq.saturating_add(1);
+        if persist {
+            self.log.push(entry);
+        }
+        Ok(())
     }
 
     fn ensure_stage_allowed(&self, stage: Stage) -> Result<(), KernelError> {
@@ -527,8 +663,8 @@ pub fn deterministic_mutate(data: &mut [u8], mask: u8, stride: usize) {
 }
 
 pub fn serialize_event(event: &StageEvent) -> String {
-    format!(
-        "{{\"stage\":\"{}\",\"seq\":{},\"off\":{},\"len\":{},\"crc32c\":\"{:08x}\",\"hash64\":\"{:016x}\",\"entropy_milli\":{},\"flags\":{{\"bad_event\":{},\"miss\":{},\"temp_hint\":{}}},\"route_id\":{},\"route_target\":\"{}\"}}",
+    let mut out = format!(
+        "{{\"stage\":\"{}\",\"seq\":{},\"off\":{},\"len\":{},\"crc32c\":\"{:08x}\",\"hash64\":\"{:016x}\",\"entropy_milli\":{},\"flags\":{{\"bad_event\":{},\"miss\":{},\"temp_hint\":{}}}",
         stage_label(event.stage),
         event.chunk.sequence,
         event.chunk.offset,
@@ -539,9 +675,19 @@ pub fn serialize_event(event: &StageEvent) -> String {
         event.chunk.flags.bad_event,
         event.chunk.flags.miss,
         event.chunk.flags.temp_hint,
+    );
+    if let Some(anchor) = event.anchor {
+        out.push_str(&format!(
+            ",\"anchor\":{{\"dev\":{},\"block\":{},\"page\":{}}}",
+            anchor.dev, anchor.block, anchor.page
+        ));
+    }
+    out.push_str(&format!(
+        ",\"route_id\":{},\"route_target\":\"{}\"}}",
         event.chunk.route_id,
         route_label(event.chunk.route_target)
-    )
+    ));
+    out
 }
 
 fn stage_label(stage: Stage) -> &'static str {

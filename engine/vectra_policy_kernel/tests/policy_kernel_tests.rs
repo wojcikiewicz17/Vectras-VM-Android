@@ -71,6 +71,7 @@ fn deterministic_pipeline_produces_identical_audit_log() {
         .map(|chunk| StageEvent {
             stage: Stage::Plan,
             chunk,
+            anchor: None,
         })
         .collect();
     let log_a = "target/test_audit_a.log";
@@ -89,6 +90,7 @@ fn deterministic_pipeline_produces_identical_audit_log() {
         .map(|chunk| StageEvent {
             stage: Stage::Plan,
             chunk,
+            anchor: None,
         })
         .collect();
     let log_b = "target/test_audit_b.log";
@@ -134,33 +136,45 @@ fn deterministic_mutation_is_pure_function() {
 
 #[test]
 fn canonize_produces_stable_forms_per_operation() {
-    let trim = canonize(Op::TrimWs, &["  abc  ".to_string()]);
+    let trim = canonize(Op::TrimWs, &["  abc  ".to_string()], None);
     assert_eq!(
         trim,
         Key {
             op: Op::TrimWs,
-            args: vec!["abc".to_string()]
+            args: vec!["abc".to_string()],
+            anchor: None,
+            canon: "TrimWs|abc".to_string(),
         }
     );
 
-    let len = canonize(Op::Len, &["  abc  ".to_string()]);
+    let len = canonize(Op::Len, &["  abc  ".to_string()], None);
     assert_eq!(
         len,
         Key {
             op: Op::Len,
-            args: vec!["  abc  ".to_string()]
+            args: vec!["  abc  ".to_string()],
+            anchor: None,
+            canon: "Len|  abc  ".to_string(),
         }
     );
 
+    let anchor = AnchorAddr {
+        dev: 2,
+        block: 15,
+        page: 3,
+    };
     let replace = canonize(
         Op::ReplaceChar,
         &["aba".to_string(), "ab".to_string(), "xy".to_string()],
+        Some(anchor),
     );
     assert_eq!(
         replace,
         Key {
             op: Op::ReplaceChar,
-            args: vec!["aba".to_string(), "a".to_string(), "x".to_string()]
+            args: vec!["aba".to_string(), "a".to_string(), "x".to_string()],
+            anchor: Some(anchor),
+            canon: "ReplaceChar|aba|a|x|A[2:15:3]".to_string(),
         }
     );
 }
@@ -172,16 +186,19 @@ fn commit_tick_groups_sorts_and_fans_out_outputs() {
             id: 7,
             op: Op::Len,
             args: vec!["hello".to_string()],
+            anchor: None,
         },
         Event {
             id: 2,
             op: Op::TrimWs,
             args: vec!["  x  ".to_string()],
+            anchor: None,
         },
         Event {
             id: 3,
             op: Op::TrimWs,
             args: vec!["x".to_string()],
+            anchor: None,
         },
     ];
 
@@ -194,25 +211,187 @@ fn commit_tick_groups_sorts_and_fans_out_outputs() {
 
 #[test]
 fn exec_bucket_executes_once_and_reuses_output() {
+    let anchor = AnchorAddr {
+        dev: 7,
+        block: 99,
+        page: 1,
+    };
     let key = Key {
         op: Op::AnchorMark,
         args: vec!["anchor-1".to_string()],
+        anchor: Some(anchor),
+        canon: "AnchorMark|anchor-1|A[7:99:1]".to_string(),
     };
     let bucket = vec![
         Event {
             id: 10,
             op: Op::AnchorMark,
             args: vec!["anchor-1".to_string()],
+            anchor: Some(anchor),
         },
         Event {
             id: 11,
             op: Op::AnchorMark,
             args: vec!["anchor-1".to_string()],
+            anchor: Some(anchor),
         },
     ];
 
     let out = exec_bucket(&key, &bucket);
     assert_eq!(out.len(), 2);
-    assert_eq!(out[0], (10, Output::Anchor("anchor-1".to_string())));
-    assert_eq!(out[1], (11, Output::Anchor("anchor-1".to_string())));
+    assert_eq!(out[0], (10, Output::Anchor(anchor)));
+    assert_eq!(out[1], (11, Output::Anchor(anchor)));
+}
+
+#[test]
+fn scheduler_replay_materializes_anchor_trust() {
+    let anchor = AnchorAddr {
+        dev: 1,
+        block: 42,
+        page: 9,
+    };
+    let mut state = SchedulerState::default();
+    state.replay_log(vec![
+        (1, Output::Text("ignore".to_string())),
+        (2, Output::Anchor(anchor)),
+        (3, Output::Anchor(anchor)),
+    ]);
+    assert_eq!(state.anchors.get(&anchor), Some(&2u8));
+}
+
+#[test]
+fn rollback_is_idempotent() {
+    let mut kernel = PolicyKernel::new();
+    assert_eq!(kernel.seq(), 0);
+
+    kernel.checkpoint();
+    kernel
+        .apply_log_entry(LogEntry {
+            seq: 0,
+            op: Op::SetFocus,
+            args: vec!["main".to_string()],
+            output: Output::Focus("main".to_string()),
+        })
+        .expect("focus entry");
+    kernel
+        .apply_log_entry(LogEntry {
+            seq: 1,
+            op: Op::AnchorMark,
+            args: vec!["A1".to_string()],
+            output: Output::Anchor("A1".to_string()),
+        })
+        .expect("anchor entry");
+
+    assert_eq!(kernel.focused(), Some("main"));
+    assert_eq!(kernel.anchors(), ["A1".to_string()]);
+    assert_eq!(kernel.seq(), 2);
+    assert_eq!(kernel.log().len(), 2);
+
+    assert!(kernel.rollback());
+    assert_eq!(kernel.focused(), None);
+    assert!(kernel.anchors().is_empty());
+    assert_eq!(kernel.seq(), 0);
+    assert!(kernel.log().is_empty());
+
+    assert!(!kernel.rollback());
+    assert_eq!(kernel.focused(), None);
+    assert!(kernel.anchors().is_empty());
+    assert_eq!(kernel.seq(), 0);
+    assert!(kernel.log().is_empty());
+}
+
+#[test]
+fn log_replay_is_reproducible() {
+    let mut kernel_a = PolicyKernel::new();
+    let entries = vec![
+        LogEntry {
+            seq: 0,
+            op: Op::SetFocus,
+            args: vec!["left".to_string()],
+            output: Output::Focus("left".to_string()),
+        },
+        LogEntry {
+            seq: 1,
+            op: Op::AnchorMark,
+            args: vec!["A".to_string()],
+            output: Output::Anchor("A".to_string()),
+        },
+        LogEntry {
+            seq: 2,
+            op: Op::AnchorMark,
+            args: vec!["B".to_string()],
+            output: Output::Anchor("B".to_string()),
+        },
+    ];
+
+    for entry in &entries {
+        kernel_a
+            .apply_log_entry(entry.clone())
+            .expect("append on kernel a");
+    }
+
+    let mut kernel_b = PolicyKernel::new();
+    for entry in kernel_a.log() {
+        kernel_b
+            .apply_log_entry(entry.clone())
+            .expect("replay on kernel b");
+    }
+
+    assert_eq!(kernel_b.focused(), kernel_a.focused());
+    assert_eq!(kernel_b.anchors(), kernel_a.anchors());
+    assert_eq!(kernel_b.seq(), kernel_a.seq());
+    assert_eq!(kernel_b.log(), kernel_a.log());
+}
+
+#[test]
+fn seq_stays_consistent_through_checkpoint_and_rollback() {
+    let mut kernel = PolicyKernel::new();
+
+    kernel
+        .apply_log_entry(LogEntry {
+            seq: 0,
+            op: Op::SetFocus,
+            args: vec!["root".to_string()],
+            output: Output::Focus("root".to_string()),
+        })
+        .expect("entry 0");
+    assert_eq!(kernel.seq(), 1);
+
+    kernel.checkpoint();
+    kernel
+        .apply_log_entry(LogEntry {
+            seq: 1,
+            op: Op::AnchorMark,
+            args: vec!["B1".to_string()],
+            output: Output::Anchor("B1".to_string()),
+        })
+        .expect("entry 1");
+    assert_eq!(kernel.seq(), 2);
+
+    assert!(kernel.rollback());
+    assert_eq!(kernel.seq(), 1);
+    assert_eq!(kernel.focused(), Some("root"));
+    assert!(kernel.anchors().is_empty());
+
+    kernel
+        .apply_log_entry(LogEntry {
+            seq: 1,
+            op: Op::AnchorMark,
+            args: vec!["B2".to_string()],
+            output: Output::Anchor("B2".to_string()),
+        })
+        .expect("entry 1 replayed after rollback");
+    assert_eq!(kernel.seq(), 2);
+
+    let seq_err = kernel
+        .apply_log_entry(LogEntry {
+            seq: 5,
+            op: Op::AnchorMark,
+            args: vec!["bad".to_string()],
+            output: Output::Anchor("bad".to_string()),
+        })
+        .expect_err("must reject unexpected seq");
+    assert!(seq_err
+        .to_string()
+        .contains("policy_violation=log sequence mismatch"));
 }

@@ -68,6 +68,7 @@ fn main() {
         events.push(StageEvent {
             stage: Stage::Plan,
             chunk,
+            anchor: None,
         });
     }
     for (idx, chunk) in applied.iter().enumerate() {
@@ -79,16 +80,19 @@ fn main() {
         events.push(StageEvent {
             stage: Stage::Diff,
             chunk: diff_chunk,
+            anchor: None,
         });
         events.push(StageEvent {
             stage: Stage::Apply,
             chunk: chunk.clone(),
+            anchor: None,
         });
     }
     for chunk in verified {
         events.push(StageEvent {
             stage: Stage::Verify,
             chunk,
+            anchor: None,
         });
     }
 
