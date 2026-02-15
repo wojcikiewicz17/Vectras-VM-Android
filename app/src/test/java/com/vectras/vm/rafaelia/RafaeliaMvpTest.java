@@ -1,6 +1,7 @@
 package com.vectras.vm.rafaelia;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotEquals;
 
 import java.io.File;
 import java.io.RandomAccessFile;
@@ -40,5 +41,27 @@ public class RafaeliaMvpTest {
     } finally {
       Files.deleteIfExists(tmp.toPath());
     }
+  }
+
+  @Test
+  public void deterministicRngSameSeedProducesSameSequence() {
+    RafaeliaMvp.DeterministicRng rngA = new RafaeliaMvp.SplittableDeterministicRng(0x1234ABCDL);
+    RafaeliaMvp.DeterministicRng rngB = new RafaeliaMvp.SplittableDeterministicRng(0x1234ABCDL);
+
+    for (int i = 0; i < 64; i++) {
+      assertEquals(rngA.nextInt(1024), rngB.nextInt(1024));
+      assertEquals(rngA.nextDouble(), rngB.nextDouble(), 0.0);
+    }
+  }
+
+  @Test
+  public void deterministicRngDifferentSeedProducesDifferentSequence() {
+    RafaeliaMvp.DeterministicRng rngA = new RafaeliaMvp.SplittableDeterministicRng(1L);
+    RafaeliaMvp.DeterministicRng rngB = new RafaeliaMvp.SplittableDeterministicRng(2L);
+
+    int a = rngA.nextInt(1 << 16);
+    int b = rngB.nextInt(1 << 16);
+
+    assertNotEquals(a, b);
   }
 }
