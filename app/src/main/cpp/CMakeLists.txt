@@ -25,6 +25,10 @@ add_library(vectra_core_accel SHARED
     vectra_core_accel.c)
 
 find_library(log-lib log)
+if(NOT log-lib)
+    message(WARNING "Android log library not found in host configure; proceeding without it")
+    set(log-lib "")
+endif()
 
 target_compile_options(rmr_core_static PRIVATE -O3 -ffast-math -fvisibility=hidden)
 if (RMR_ENABLE_POLICY_MODULE)
