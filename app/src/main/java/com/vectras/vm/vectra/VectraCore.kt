@@ -2,6 +2,7 @@ package com.vectras.vm.vectra
 
 import android.content.Context
 import android.os.Build
+import android.provider.Settings
 import android.util.Log
 import com.vectras.vm.BuildConfig
 import com.vectras.vm.core.NativeFastPath
@@ -270,13 +271,12 @@ class VectraMemPool(private val chunkSize: Int, poolSize: Int) {
  * VectraEvent: Represents an IRQ-like priority event.
  * "Finger" = IRQ-like priority request (4G/radio is major source).
  */
-class VectraEvent(
-    var type: EventType,
-    var priority: Int, // Higher = more urgent
-    var timestamp: Long = System.nanoTime(),
-    var payload: ByteArray? = null,
-    internal var payloadLength: Int = payload?.size ?: 0,
-    internal var slotIndex: Int = -1
+data class VectraEvent(
+    val type: EventType,
+    val priority: Int, // Higher = more urgent
+    val deterministicTick: Long = -1L,
+    val wallClockMs: Long = 0L,
+    val payload: ByteArray? = null
 ) : Comparable<VectraEvent> {
     companion object {
         private val deterministicCounter = AtomicLong(0)
@@ -295,7 +295,15 @@ class VectraEvent(
     override fun compareTo(other: VectraEvent): Int {
         // Higher priority first, then older deterministic tick first
         val priorityDiff = other.priority - this.priority
-        return if (priorityDiff != 0) priorityDiff else deterministicTick.compareTo(other.deterministicTick)
+        return if (priorityDiff != 0) {
+            priorityDiff
+        } else {
+            when {
+                deterministicTick < other.deterministicTick -> -1
+                deterministicTick > other.deterministicTick -> 1
+                else -> 0
+            }
+        }
     }
 
     override fun equals(other: Any?): Boolean {
@@ -315,8 +323,8 @@ class VectraEvent(
     override fun hashCode(): Int {
         var result = type.hashCode()
         result = 31 * result + priority
-        result = 31 * result + timestamp.hashCode()
-        result = 31 * result + payloadLength
+        result = 31 * result + deterministicTick.hashCode()
+        result = 31 * result + (payload?.contentHashCode() ?: 0)
         return result
     }
 }
@@ -522,65 +530,7 @@ class VectraEventBus {
     }
     private val nativeArenaHandle = NativeFastPath.allocArena(NATIVE_ARENA_BYTES + EVENT_PAYLOAD_CAPACITY)
     private val lock = ReentrantLock()
-    private var queueHead = 0
-    private var queueTail = 0
-    private var queueSize = 0
-    private var freeTop = EVENT_SLOT_COUNT
-
-    private fun acquireSlotLocked(): Int {
-        return if (freeTop == 0) -1 else freeSlots[--freeTop]
-    }
-
-    private fun releaseSlotLocked(slot: Int) {
-        if (slot !in 0 until EVENT_SLOT_COUNT || freeTop >= EVENT_SLOT_COUNT) return
-        freeSlots[freeTop++] = slot
-    }
-
-    private fun writePayloadToSlot(slot: Int, source: ByteArray?, sourceLength: Int) {
-        val slotBuffer = payloadArena[slot]
-        if (source == null || sourceLength <= 0) {
-            eventPool[slot].payloadLength = 0
-            return
-        }
-        val len = sourceLength.coerceAtMost(EVENT_PAYLOAD_CAPACITY).coerceAtMost(source.size)
-        System.arraycopy(source, 0, slotBuffer, 0, len)
-        eventPool[slot].payloadLength = len
-        if (nativeArenaHandle > 0) {
-            NativeFastPath.writeArena(
-                nativeArenaHandle,
-                slot * EVENT_PAYLOAD_CAPACITY,
-                slotBuffer,
-                0,
-                len
-            )
-        }
-    }
-
-    private fun writeTimerPayloadToSlot(slot: Int, timestampMillis: Long) {
-        val slotBuffer = payloadArena[slot]
-        slotBuffer[0] = (timestampMillis and 0xFF).toByte()
-        slotBuffer[1] = ((timestampMillis ushr 8) and 0xFF).toByte()
-        slotBuffer[2] = ((timestampMillis ushr 16) and 0xFF).toByte()
-        slotBuffer[3] = ((timestampMillis ushr 24) and 0xFF).toByte()
-        slotBuffer[4] = ((timestampMillis ushr 32) and 0xFF).toByte()
-        slotBuffer[5] = ((timestampMillis ushr 40) and 0xFF).toByte()
-        slotBuffer[6] = ((timestampMillis ushr 48) and 0xFF).toByte()
-        slotBuffer[7] = ((timestampMillis ushr 56) and 0xFF).toByte()
-        eventPool[slot].payloadLength = 8
-        if (nativeArenaHandle > 0) {
-            val wroteStaging = NativeFastPath.writeArena(nativeArenaHandle, NATIVE_TIMER_STAGING_OFFSET, slotBuffer, 0, 8)
-            val copied = wroteStaging && NativeFastPath.copyArena(
-                nativeArenaHandle,
-                NATIVE_TIMER_STAGING_OFFSET,
-                nativeArenaHandle,
-                slot * EVENT_PAYLOAD_CAPACITY,
-                8
-            )
-            if (!copied) {
-                NativeFastPath.writeArena(nativeArenaHandle, slot * EVENT_PAYLOAD_CAPACITY, slotBuffer, 0, 8)
-            }
-        }
-    }
+    private val deterministicTickCounter = AtomicLong(0L)
 
     fun post(event: VectraEvent) {
         val payload = event.payload
@@ -624,17 +574,23 @@ class VectraEventBus {
 
     fun postTimerTick(timestampMillis: Long) {
         lock.withLock {
-            if (queueSize >= EVENT_RING_CAPACITY) return
-            val slot = acquireSlotLocked()
-            if (slot < 0) return
-            val pooledEvent = eventPool[slot]
-            pooledEvent.type = VectraEvent.EventType.TIMER_TICK
-            pooledEvent.priority = 1
-            pooledEvent.timestamp = System.nanoTime()
-            writeTimerPayloadToSlot(slot, timestampMillis)
-            queueRing[queueTail] = slot
-            queueTail = (queueTail + 1) and (EVENT_RING_CAPACITY - 1)
-            queueSize++
+            val tick = if (event.deterministicTick >= 0L) {
+                while (true) {
+                    val current = deterministicTickCounter.get()
+                    if (current >= event.deterministicTick || deterministicTickCounter.compareAndSet(current, event.deterministicTick)) {
+                        break
+                    }
+                }
+                event.deterministicTick
+            } else {
+                deterministicTickCounter.incrementAndGet()
+            }
+            val replayEvent = if (event.deterministicTick == tick) {
+                event
+            } else {
+                event.copy(deterministicTick = tick)
+            }
+            queue.add(replayEvent)
         }
     }
 
@@ -783,6 +739,10 @@ class VectraCycle(
         // Phase 2: Process
         if (event != null) {
             processEvent(event)
+            Log.d(
+                TAG,
+                "event_processed deterministic_tick=${event.deterministicTick} wall_clock_ms=${event.wallClockMs} type=${event.type} priority=${event.priority}"
+            )
         }
 
         // Phase 3: Output
@@ -1021,7 +981,9 @@ object VectraCore {
     private val initialized = AtomicBoolean(false)
     private val timerTickCounter = java.util.concurrent.atomic.AtomicLong(0L)
 
-    @JvmOverloads
+    private const val PREFS_NAME = "vectra_core"
+    private const val PREF_SEED_KEY = "seed"
+
     @JvmStatic
     fun init(context: Context, configuredSeed: Int? = null) {
         if (!BuildConfig.VECTRA_CORE_ENABLED) {
@@ -1034,7 +996,7 @@ object VectraCore {
             return
         }
 
-        state.seed = resolveConfiguredSeed(context)
+        state.seed = resolveDeterministicSeed(context)
         val header = VectraBlock.createHeader(index = 0, payloadLen = 0, seed = state.seed)
         state.crc32c = CRC32C.update(0, header)
         state.entropyHint = state.crc32c xor state.seed
@@ -1055,19 +1017,23 @@ object VectraCore {
         // Start timer tick events
         startTimerTicks()
 
-        logDebug("init seed=${state.seed} crc=${state.crc32c} entropy=${state.entropyHint} logPath=${logFile.absolutePath}")
+        Log.d(
+            TAG,
+            "init deterministic_tick=0 wall_clock_ms=${System.currentTimeMillis()} seed=${state.seed} crc=${state.crc32c} entropy=${state.entropyHint} logPath=${logFile.absolutePath}"
+        )
     }
 
-    private fun resolveConfiguredSeed(context: Context): Int {
-        val configuredSeed = BuildConfig.VECTRA_CORE_SEED
-        if (configuredSeed != 0) {
-            return configuredSeed and Int.MAX_VALUE
+    private fun resolveDeterministicSeed(context: Context): Int {
+        val configured = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE).getInt(PREF_SEED_KEY, Int.MIN_VALUE)
+        if (configured != Int.MIN_VALUE) {
+            return configured and Int.MAX_VALUE
         }
 
+        val androidId = Settings.Secure.getString(context.contentResolver, Settings.Secure.ANDROID_ID).orEmpty()
         val fingerprint = buildString {
             append(context.packageName)
             append('|')
-            append(BuildConfig.VERSION_NAME)
+            append(Build.BOARD)
             append('|')
             append(Build.BRAND)
             append('|')
@@ -1077,11 +1043,10 @@ object VectraCore {
             append('|')
             append(Build.FINGERPRINT)
             append('|')
-            append(Build.SUPPORTED_ABIS.joinToString(","))
+            append(androidId)
         }
         val bytes = fingerprint.toByteArray(Charsets.UTF_8)
-        val derived = CRC32C.update(VECTRA_DEFAULT_SEED, bytes) and Int.MAX_VALUE
-        return if (derived == 0) VECTRA_DEFAULT_SEED else derived
+        return CRC32C.update(0, bytes) and Int.MAX_VALUE
     }
 
     /**
@@ -1145,7 +1110,19 @@ object VectraCore {
         Thread {
             while (initialized.get()) {
                 try {
-                    eventBus?.postTimerTick(System.currentTimeMillis())
+                    timestampBuffer.clear()
+                    timestampBuffer.putLong(System.currentTimeMillis())
+                    val payload = timestampBuffer.array().copyOf() // Copy to avoid sharing mutable buffer
+                    val wallClockMs = System.currentTimeMillis()
+                    eventBus?.post(
+                        VectraEvent(
+                            type = VectraEvent.EventType.TIMER_TICK,
+                            priority = 1,
+                            wallClockMs = wallClockMs,
+                            payload = payload
+                        )
+                    )
+                    Log.d(TAG, "timer_tick_enqueued deterministic_tick=pending wall_clock_ms=$wallClockMs")
                     Thread.sleep(1000) // 1 Hz tick
                 } catch (e: InterruptedException) {
                     break

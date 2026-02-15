@@ -127,6 +127,51 @@ rmr_status_t rmr_kernel_autodetect(rmr_kernel_capabilities_t *out_capabilities);
 rmr_status_t rmr_kernel_get_capabilities(const rmr_kernel_t *kernel,
                                          rmr_kernel_capabilities_t *out_capabilities);
 
+/* C ABI facade used by JNI glue to keep policy out of platform bindings. */
+typedef RmR_UnifiedKernel rmr_kernel_state_t;
+
+typedef struct {
+  uint32_t signature;
+  uint32_t pointer_bits;
+  uint32_t cache_line_bytes;
+  uint32_t page_bytes;
+  uint32_t feature_mask;
+  uint32_t register_width_bits;
+  uint32_t pin_count_hint;
+  uint32_t feature_bits_hi;
+} rmr_kernel_capabilities_t;
+
+typedef struct {
+  uint64_t cpu_cycles;
+  uint64_t storage_read_bytes;
+  uint64_t storage_write_bytes;
+  uint64_t input_bytes;
+  uint64_t output_bytes;
+  int64_t m00;
+  int64_t m01;
+  int64_t m10;
+  int64_t m11;
+} rmr_kernel_route_input_t;
+
+typedef struct {
+  uint32_t route;
+  int64_t matrix_determinant;
+  uint32_t cpu_pressure;
+  uint32_t storage_pressure;
+  uint32_t io_pressure;
+  uint64_t route_tag;
+} rmr_kernel_route_output_t;
+
+int rmr_kernel_init(rmr_kernel_state_t *state, uint32_t seed);
+int rmr_kernel_shutdown(rmr_kernel_state_t *state);
+int rmr_kernel_get_capabilities(const rmr_kernel_state_t *state, rmr_kernel_capabilities_t *out_caps);
+int rmr_kernel_autodetect(rmr_kernel_capabilities_t *out_caps);
+int rmr_kernel_ingest(rmr_kernel_state_t *state, const uint8_t *data, uint32_t len, uint32_t *out_crc32c);
+int rmr_kernel_process(rmr_kernel_state_t *state, int32_t a, int32_t b, uint32_t mode, int32_t *out_value);
+int rmr_kernel_route(rmr_kernel_state_t *state, const rmr_kernel_route_input_t *in, rmr_kernel_route_output_t *out);
+int rmr_kernel_verify(rmr_kernel_state_t *state, const uint8_t *data, uint32_t len, uint32_t expected_crc32c, uint32_t *out_verify_ok);
+int rmr_kernel_audit(rmr_kernel_state_t *state, uint64_t *counters, uint32_t counter_count);
+
 #ifdef __cplusplus
 }
 #endif
