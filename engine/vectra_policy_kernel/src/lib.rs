@@ -85,25 +85,27 @@ fn resolve_op(op: Op) -> &'static dyn DeterministicOp {
     resolve_op_by_code(op_code).unwrap_or_else(|| panic!("op_not_registered={op_code}"))
 }
 
-fn anchor_canon(anchor: Option<AnchorAddr>) -> String {
+fn canon_anchor(anchor: Option<AnchorAddr>) -> String {
     match anchor {
         Some(anchor) => format!("{}:{}:{}", anchor.dev, anchor.block, anchor.page),
-        None => String::from("none"),
+        None => "none".to_string(),
     }
 }
 
-fn key_canon(op_code: &str, canonical_args: &[String], anchor: Option<AnchorAddr>) -> String {
+fn build_canon(op_code: &str, canonical_args: &[String], anchor: Option<AnchorAddr>) -> String {
     let mut canon = String::new();
     canon.push_str(op_code);
     canon.push('|');
+
     for arg in canonical_args {
         canon.push_str(&arg.len().to_string());
         canon.push(':');
         canon.push_str(arg);
         canon.push('|');
     }
+
     canon.push_str("anchor=");
-    canon.push_str(&anchor_canon(anchor));
+    canon.push_str(&canon_anchor(anchor));
     canon
 }
 
@@ -111,7 +113,7 @@ pub fn canonize(op: Op, args: &[String], anchor: Option<AnchorAddr>) -> Key {
     let plugin = resolve_op(op);
     let op_code = plugin.op_code();
     let canonical_args = plugin.canonize(args);
-    let canon = key_canon(op_code, &canonical_args, anchor);
+    let canon = build_canon(plugin.op_code(), &canonical_args, anchor);
     Key {
         op,
         args: canonical_args,
@@ -142,6 +144,8 @@ pub fn commit_tick(tick: u64, events: &[Event]) -> Vec<(u64, Output)> {
             .then_with(|| a_key.anchor.cmp(&b_key.anchor))
             .then_with(|| a_key.args.cmp(&b_key.args))
             .then_with(|| a_key.op.cmp(&b_key.op))
+            .then_with(|| a_key.anchor.cmp(&b_key.anchor))
+            .then_with(|| a_key.canon.cmp(&b_key.canon))
     });
 
     let mut committed = Vec::new();
@@ -464,11 +468,7 @@ impl PolicyKernel {
             return Err(KernelError::PolicyViolation("log sequence mismatch"));
         }
 
-        let replay_anchor = match (entry.op, &entry.output) {
-            (Op::AnchorMark, Output::Anchor(anchor)) => Some(*anchor),
-            _ => None,
-        };
-        let expected_output = execute_key_once(&canonize(entry.op, &entry.args, replay_anchor));
+        let expected_output = execute_key_once(&canonize(entry.op, &entry.args, None));
         if entry.output != expected_output {
             return Err(KernelError::PolicyViolation("log replay mismatch"));
         }
