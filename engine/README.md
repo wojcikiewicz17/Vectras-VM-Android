@@ -17,3 +17,7 @@ Núcleo nativo C/Rust para políticas e performance.
 find engine -maxdepth 3 -type d | sort
 sed -n '1,120p' engine/FILES_MAP.md
 ```
+
+## Core RMR unificado
+- O ponto único de verdade do core nativo agora é `engine/rmr/include/rmr_unified_kernel.h`.
+- A implementação correspondente está em `engine/rmr/src/rmr_unified_kernel.c`, encapsulando policy kernel, autodetect de hardware, bitraf e corelib por uma API pública estável.
