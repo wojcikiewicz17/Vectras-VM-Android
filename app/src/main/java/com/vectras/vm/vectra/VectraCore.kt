@@ -1199,13 +1199,14 @@ object VectraCore {
      * Noise is data (ρ = information not decoded yet).
      */
     fun psi(payload: ByteArray): Int {
-        val crc = NativeFastPath.coreIngest(payload)
-        if (crc != Int.MIN_VALUE) {
-            state.crc32c = crc
-            state.stageCounters[0]++
-            return crc
+        val crc = if (NativeFastPath.isNativeAvailable()) {
+            NativeFastPath.ingest(payload)
+        } else {
+            CRC32C.update(state.crc32c, payload)
         }
-        return state.crc32c
+        state.crc32c = crc
+        state.stageCounters[0]++
+        return crc
     }
 
     /**
@@ -1291,7 +1292,21 @@ object VectraCore {
         m10: Long,
         m11: Long
     ): VectraFlowSnapshot {
-        return flowOrchestrator.orchestrate(
+        if (!NativeFastPath.isNativeAvailable()) {
+            return flowOrchestrator.orchestrate(
+                cpuCycles,
+                storageReadBytes,
+                storageWriteBytes,
+                inputBytes,
+                outputBytes,
+                m00,
+                m01,
+                m10,
+                m11
+            )
+        }
+
+        val native = NativeFastPath.processRoute(
             cpuCycles,
             storageReadBytes,
             storageWriteBytes,
@@ -1301,6 +1316,19 @@ object VectraCore {
             m01,
             m10,
             m11
+        )
+        val route = when {
+            native[0] >= native[1] && native[0] >= native[2] -> VectraFlowRoute.CPU_HEAVY
+            native[1] >= native[2] -> VectraFlowRoute.STORAGE_HEAVY
+            else -> VectraFlowRoute.IO_HEAVY
+        }
+        return VectraFlowSnapshot(
+            orchestrationTag = native[4],
+            route = route,
+            cpuPressure = native[0].toInt(),
+            storagePressure = native[1].toInt(),
+            ioPressure = native[2].toInt(),
+            matrixDeterminant = native[3]
         )
     }
 

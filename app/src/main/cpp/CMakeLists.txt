@@ -3,7 +3,11 @@ project(vectra_core_accel C)
 
 add_library(vectra_core_accel SHARED
     vectra_core_accel.c
-    ../../../../engine/rmr/src/rmr_unified_kernel.c)
+    ../../../../engine/rmr/src/rmr_unified_kernel.c
+    ../../../../engine/rmr/src/rmr_hw_detect.c
+    ../../../../engine/rmr/src/rmr_cycles.c
+    ../../../../engine/rmr/src/rmr_ll_ops.c
+    ../../../../engine/rmr/src/rmr_corelib.c)
 
 find_library(log-lib log)
 
