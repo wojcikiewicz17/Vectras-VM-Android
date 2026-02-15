@@ -30,6 +30,15 @@ int main(void) {
   failed += expect(strstr(out, "-smp") != NULL, "args has smp");
   failed += expect(strstr(out, "-accel kvm") != NULL, "args has kvm");
 
+  RmR_QemuPlan_Autotune(&hw, RMR_GUEST_ARCH_PPC, 2048u, 0u, &plan);
+  failed += expect(plan.preset == RMR_QEMU_PRESET_COMPATIBILITY, "ppc preset compatibility");
+  failed += expect(plan.use_virtio == 0u, "ppc disables virtio");
+  failed += expect(plan.use_iothread == 0u, "ppc disables iothread");
+  failed += expect(RmR_QemuPlan_BuildArgs(&plan, out, sizeof(out)) == 0, "build args ppc");
+  failed += expect(strstr(out, "-drive if=ide") != NULL, "ppc uses ide fallback");
+  failed += expect(strstr(out, "-device rtl8139,netdev=n0") != NULL, "ppc uses rtl8139 fallback");
+  failed += expect(strstr(out, "virtio-scsi-pci") == NULL, "ppc avoids virtio-scsi device");
+
   RmR_QmpTelemetry tele;
   failed += expect(RmR_QmpTelemetry_Parse("{\"return\":{\"status\":\"running\"}}", &tele) == 0, "parse status");
   failed += expect(tele.running == 1u, "running state");
