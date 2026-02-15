@@ -8,6 +8,8 @@ pub const DEFAULT_CHUNK_SIZE: usize = 4096;
 
 mod ops;
 use ops::{ANCHOR_OP, FOCUS_OP, LEN_OP, REPLACE_CHAR_OP, TRIM_WS_OP};
+mod ffi;
+use ffi::UnifiedKernelHandle;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub enum Op {
@@ -88,32 +90,19 @@ fn resolve_op(op: Op) -> &'static dyn DeterministicOp {
 fn canon_anchor(anchor: Option<AnchorAddr>) -> String {
     match anchor {
         Some(anchor) => format!("{}:{}:{}", anchor.dev, anchor.block, anchor.page),
-        None => "none".to_string(),
+        None => "-".to_string(),
     }
 }
 
 fn build_canon(op_code: &str, canonical_args: &[String], anchor: Option<AnchorAddr>) -> String {
-    let mut canon = String::new();
-    canon.push_str(op_code);
-    canon.push('|');
-
-    for arg in canonical_args {
-        canon.push_str(&arg.len().to_string());
-        canon.push(':');
-        canon.push_str(arg);
-        canon.push('|');
-    }
-
-    canon.push_str("anchor=");
-    canon.push_str(&canon_anchor(anchor));
-    canon
+    let anchor_repr = canon_anchor(anchor);
+    format!("{op_code}|{}|{anchor_repr}", canonical_args.join("\u{1F}"))
 }
 
 pub fn canonize(op: Op, args: &[String], anchor: Option<AnchorAddr>) -> Key {
     let plugin = resolve_op(op);
-    let op_code = plugin.op_code();
     let canonical_args = plugin.canonize(args);
-    let canon = build_canon(plugin.op_code(), &canonical_args, anchor);
+    let canon = build_canon(op_code, &canonical_args, anchor);
     Key {
         op,
         args: canonical_args,
@@ -137,16 +126,7 @@ pub fn commit_tick(tick: u64, events: &[Event]) -> Vec<(u64, Output)> {
             a.id.cmp(&b.id).then_with(|| a_hash.cmp(&b_hash))
         });
     }
-    ordered.sort_by(|(a_key, _), (b_key, _)| {
-        a_key
-            .canon
-            .cmp(&b_key.canon)
-            .then_with(|| a_key.anchor.cmp(&b_key.anchor))
-            .then_with(|| a_key.args.cmp(&b_key.args))
-            .then_with(|| a_key.op.cmp(&b_key.op))
-            .then_with(|| a_key.anchor.cmp(&b_key.anchor))
-            .then_with(|| a_key.canon.cmp(&b_key.canon))
-    });
+    ordered.sort_by(|(a_key, _), (b_key, _)| a_key.cmp(b_key));
 
     let mut committed = Vec::new();
     for (key, bucket) in ordered {
@@ -352,26 +332,42 @@ impl RouteTable {
 
     pub fn pick_route(&self, status: TriadStatus, sequence: u64) -> (u16, RouteTarget, ChunkFlags) {
         let mut flags = ChunkFlags::default();
-        let mut available = Vec::new();
-        if status.cpu_ok {
-            available.push((1u16, RouteTarget::Cpu));
-        }
-        if status.ram_ok {
-            available.push((2u16, RouteTarget::Ram));
-        }
-        if status.disk_ok {
-            available.push((3u16, RouteTarget::Disk));
-        }
+        let Some(mut kernel) = UnifiedKernelHandle::new(sequence as u32, 0) else {
+            flags.bad_event = true;
+            flags.miss = true;
+            return (255, RouteTarget::Fallback, flags);
+        };
 
-        if available.len() >= 2 {
-            let pick = (sequence as usize) % available.len();
-            let (route_id, target) = available[pick];
-            return (route_id, target, flags);
-        }
+        let pressure = |ok: bool, lane: u64| -> u64 {
+            let base = (sequence.wrapping_add(lane) & 0xFFFF).saturating_add(1) << 10;
+            if ok {
+                base
+            } else {
+                base >> 2
+            }
+        };
 
-        flags.bad_event = true;
-        flags.miss = available.is_empty();
-        (255, RouteTarget::Fallback, flags)
+        let route_id = kernel.route_for_metrics(
+            pressure(status.cpu_ok, 1),
+            pressure(status.ram_ok, 3),
+            pressure(status.ram_ok, 5),
+            pressure(status.disk_ok, 7),
+            pressure(status.disk_ok, 11),
+            [1, 0, 0, 1],
+        );
+
+        let Some(route_id) = route_id else {
+            flags.bad_event = true;
+            flags.miss = true;
+            return (255, RouteTarget::Fallback, flags);
+        };
+
+        let target = self.resolve(route_id);
+        if target == RouteTarget::Fallback {
+            flags.bad_event = true;
+            flags.miss = true;
+        }
+        (route_id, target, flags)
     }
 }
 
@@ -468,7 +464,11 @@ impl PolicyKernel {
             return Err(KernelError::PolicyViolation("log sequence mismatch"));
         }
 
-        let expected_output = execute_key_once(&canonize(entry.op, &entry.args, None));
+        let replay_anchor = match &entry.output {
+            Output::Anchor(anchor) => Some(*anchor),
+            _ => None,
+        };
+        let expected_output = execute_key_once(&canonize(entry.op, &entry.args, replay_anchor));
         if entry.output != expected_output {
             return Err(KernelError::PolicyViolation("log replay mismatch"));
         }
@@ -741,15 +741,10 @@ fn route_label(target: RouteTarget) -> &'static str {
 }
 
 pub fn crc32c(data: &[u8]) -> u32 {
-    let mut crc = 0xFFFF_FFFFu32;
-    for &byte in data {
-        crc ^= byte as u32;
-        for _ in 0..8 {
-            let mask = (crc & 1).wrapping_neg();
-            crc = (crc >> 1) ^ (0x82F63B78 & mask);
-        }
-    }
-    !crc
+    let Some(mut kernel) = UnifiedKernelHandle::new(0, 0) else {
+        return 0;
+    };
+    kernel.verify_crc32c(data).unwrap_or(0)
 }
 
 pub fn fnv1a64(data: &[u8]) -> u64 {

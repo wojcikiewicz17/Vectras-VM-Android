@@ -1,10 +1,7 @@
 package com.vectras.vm.core;
 
 /**
- * NativeFastPath: optional JNI acceleration hooks with deterministic Java fallback.
- *
- * <p>Designed for hot loops where JNI+SIMD can be enabled without breaking portability.
- * If native library is unavailable, branch-light Java loops are used.</p>
+ * NativeFastPath: JNI thin adapter for unified kernel contracts.
  */
 public final class NativeFastPath {
 
@@ -109,99 +106,22 @@ public final class NativeFastPath {
         if (NATIVE_AVAILABLE) {
             int[] contract = nativeReadKernelUnitContract();
             if (contract != null && contract.length == KERNEL_CONTRACT_SIZE) {
-                int signature = contract[KERNEL_CONTRACT_SIGNATURE];
-                int pointerBits = normalizePointerBits(contract[KERNEL_CONTRACT_POINTER_BITS], signature);
-                int cacheLine = normalizeCacheLine(contract[KERNEL_CONTRACT_CACHE_LINE]);
-                int pageBytes = normalizePageSize(contract[KERNEL_CONTRACT_PAGE_SIZE]);
-                int featureMask = normalizeFeatureMask(contract[KERNEL_CONTRACT_FEATURES]);
-                int cpuCores = contract[KERNEL_CONTRACT_CPU_CORES] <= 0 ? 1 : contract[KERNEL_CONTRACT_CPU_CORES];
-                int arenaBytes = contract[KERNEL_CONTRACT_ARENA_BYTES] <= 0 ? 0 : contract[KERNEL_CONTRACT_ARENA_BYTES];
-                int ioQuantum = contract[KERNEL_CONTRACT_IO_QUANTUM];
-                if (ioQuantum <= 0) {
-                    ioQuantum = cacheLine * 64;
-                }
-                return new KernelUnitProfile(signature, pointerBits, cacheLine, pageBytes, featureMask, cpuCores, arenaBytes, ioQuantum);
+                return KernelUnitProfile.fromKernelContract(contract);
             }
+            return CompatibilityFallback.kernelUnitProfile("invalid kernel unit contract");
         }
-
-        int signature = BOOT_PROFILE.signature;
-        int cacheLine = BOOT_PROFILE.cacheLineBytes;
-        int pageBytes = BOOT_PROFILE.pageBytes;
-        int ioQuantum = cacheLine * 64;
-        int cores = Math.max(1, Runtime.getRuntime().availableProcessors());
-        return new KernelUnitProfile(signature, BOOT_PROFILE.pointerBits, cacheLine, pageBytes, BOOT_PROFILE.featureMask, cores, 0, ioQuantum);
+        return CompatibilityFallback.kernelUnitProfile("native library unavailable");
     }
 
     private static HardwareProfile readNativeHardwareProfile() {
         if (NATIVE_AVAILABLE) {
             int[] contract = nativeReadHardwareContract();
             if (contract != null && contract.length == HW_CONTRACT_SIZE) {
-                int signature = contract[HW_CONTRACT_SIGNATURE];
-                int pointerBits = normalizePointerBits(contract[HW_CONTRACT_POINTER_BITS], signature);
-                int cacheLine = normalizeCacheLine(contract[HW_CONTRACT_CACHE_LINE]);
-                int pageBytes = normalizePageSize(contract[HW_CONTRACT_PAGE_SIZE]);
-                int featureMask = normalizeFeatureMask(contract[HW_CONTRACT_FEATURES]);
-                return new HardwareProfile(
-                        signature,
-                        pointerBits,
-                        cacheLine,
-                        pageBytes,
-                        featureMask,
-                        contract[HW_CONTRACT_REG0],
-                        contract[HW_CONTRACT_REG1],
-                        contract[HW_CONTRACT_REG2],
-                        contract[HW_CONTRACT_GPIO_WORD_BITS],
-                        contract[HW_CONTRACT_GPIO_PIN_STRIDE]);
+                return HardwareProfile.fromHardwareContract(contract);
             }
+            return CompatibilityFallback.hardwareProfile("invalid hardware contract");
         }
-        return new HardwareProfile(ARCH_UNKNOWN | OS_UNKNOWN, 32, 64, 4096, 0, 0, 0, 0, 0, 0);
-    }
-
-    private static int normalizePointerBits(int pointerBits, int signature) {
-        if (pointerBits == 32 || pointerBits == 64) {
-            return pointerBits;
-        }
-
-        int arch = signature & 0xFF00;
-        if (arch == ARCH_ARM64 || arch == ARCH_X64 || arch == ARCH_RISCV64) {
-            return 64;
-        }
-        if (arch == ARCH_ARM32 || arch == ARCH_X86 || arch == ARCH_RISCV32) {
-            return 32;
-        }
-        String model = System.getProperty("sun.arch.data.model", "");
-        if ("64".equals(model)) {
-            return 64;
-        }
-        return 32;
-    }
-
-    private static int normalizeCacheLine(int line) {
-        if (line < 32) {
-            return 32;
-        }
-        if (line > 256) {
-            return 256;
-        }
-        return line;
-    }
-
-    private static int normalizePageSize(int page) {
-        if (page < 1024) {
-            return 1024;
-        }
-        if (page > 65536) {
-            return 65536;
-        }
-        return page;
-    }
-
-    private static int normalizeFeatureMask(int features) {
-        int mask = features;
-        if ((mask & (FEATURE_NEON | FEATURE_SSE42 | FEATURE_AVX2)) != 0) {
-            mask |= FEATURE_SIMD;
-        }
-        return mask;
+        return CompatibilityFallback.hardwareProfile("native library unavailable");
     }
 
     public static void copyBytes(byte[] src, int srcOffset, byte[] dst, int dstOffset, int length) {
@@ -554,19 +474,31 @@ public final class NativeFastPath {
             this.arenaBytes = arenaBytes;
             this.ioQuantumBytes = ioQuantumBytes;
         }
+
+        private static KernelUnitProfile fromKernelContract(int[] contract) {
+            return new KernelUnitProfile(
+                    contract[KERNEL_CONTRACT_SIGNATURE],
+                    contract[KERNEL_CONTRACT_POINTER_BITS],
+                    contract[KERNEL_CONTRACT_CACHE_LINE],
+                    contract[KERNEL_CONTRACT_PAGE_SIZE],
+                    contract[KERNEL_CONTRACT_FEATURES],
+                    contract[KERNEL_CONTRACT_CPU_CORES],
+                    contract[KERNEL_CONTRACT_ARENA_BYTES],
+                    contract[KERNEL_CONTRACT_IO_QUANTUM]);
+        }
     }
 
-    static final class HardwareProfile {
-        final int signature;
-        final int pointerBits;
-        final int cacheLineBytes;
-        final int pageBytes;
-        final int featureMask;
-        final int regSignature0;
-        final int regSignature1;
-        final int regSignature2;
-        final int gpioWordBits;
-        final int gpioPinStride;
+    public static final class HardwareProfile {
+        public final int signature;
+        public final int pointerBits;
+        public final int cacheLineBytes;
+        public final int pageBytes;
+        public final int featureMask;
+        public final int regSignature0;
+        public final int regSignature1;
+        public final int regSignature2;
+        public final int gpioWordBits;
+        public final int gpioPinStride;
 
         HardwareProfile(int signature, int pointerBits, int cacheLineBytes, int pageBytes, int featureMask,
                         int regSignature0, int regSignature1, int regSignature2,
@@ -581,6 +513,49 @@ public final class NativeFastPath {
             this.regSignature2 = regSignature2;
             this.gpioWordBits = gpioWordBits;
             this.gpioPinStride = gpioPinStride;
+        }
+
+        private static HardwareProfile fromHardwareContract(int[] contract) {
+            return new HardwareProfile(
+                    contract[HW_CONTRACT_SIGNATURE],
+                    contract[HW_CONTRACT_POINTER_BITS],
+                    contract[HW_CONTRACT_CACHE_LINE],
+                    contract[HW_CONTRACT_PAGE_SIZE],
+                    contract[HW_CONTRACT_FEATURES],
+                    contract[HW_CONTRACT_REG0],
+                    contract[HW_CONTRACT_REG1],
+                    contract[HW_CONTRACT_REG2],
+                    contract[HW_CONTRACT_GPIO_WORD_BITS],
+                    contract[HW_CONTRACT_GPIO_PIN_STRIDE]);
+        }
+    }
+
+    private static final class CompatibilityFallback {
+        private static boolean hardwareFallbackLogged;
+        private static boolean kernelFallbackLogged;
+
+        static HardwareProfile hardwareProfile(String reason) {
+            if (!hardwareFallbackLogged) {
+                hardwareFallbackLogged = true;
+                System.err.println("NativeFastPath compatibility fallback (hardware): " + reason);
+            }
+            return new HardwareProfile(ARCH_UNKNOWN | OS_UNKNOWN, 32, 64, 4096, 0, 0, 0, 0, 0, 0);
+        }
+
+        static KernelUnitProfile kernelUnitProfile(String reason) {
+            if (!kernelFallbackLogged) {
+                kernelFallbackLogged = true;
+                System.err.println("NativeFastPath compatibility fallback (kernel): " + reason);
+            }
+            return new KernelUnitProfile(
+                    BOOT_PROFILE.signature,
+                    BOOT_PROFILE.pointerBits,
+                    BOOT_PROFILE.cacheLineBytes,
+                    BOOT_PROFILE.pageBytes,
+                    BOOT_PROFILE.featureMask,
+                    Math.max(1, Runtime.getRuntime().availableProcessors()),
+                    0,
+                    Math.max(1, BOOT_PROFILE.cacheLineBytes) * 64);
         }
     }
 
@@ -610,6 +585,83 @@ public final class NativeFastPath {
             return 0L;
         }
         return nativeAudit(crc, matrixDeterminant, routeTag, verifyOk ? 1 : 0);
+    }
+
+    public static int crc32c(int initial, byte[] data, int offset, int length) {
+        if (data == null || length <= 0) {
+            return initial;
+        }
+        if (offset < 0 || offset + length > data.length) {
+            throw new IllegalArgumentException("Invalid crc range");
+        }
+        if (NATIVE_AVAILABLE) {
+            int nativeValue = nativeDeterministicCrc32c(initial, data, offset, length);
+            if (nativeValue != Integer.MIN_VALUE) {
+                return nativeValue;
+            }
+        }
+        int crc = initial;
+        for (int i = offset; i < offset + length; i++) {
+            crc ^= data[i];
+            for (int b = 0; b < 8; b++) {
+                int mask = -(crc & 1);
+                crc = (crc >>> 1) ^ (0x82F63B78 & mask);
+            }
+        }
+        return crc;
+    }
+
+    public static int parity2D8(int data16) {
+        if (NATIVE_AVAILABLE) {
+            return nativeDeterministicParity2D8(data16);
+        }
+        int parity = 0;
+        for (int row = 0; row < 4; row++) {
+            int rowParity = 0;
+            for (int col = 0; col < 4; col++) {
+                int idx = (row << 2) | col;
+                rowParity ^= (data16 >>> idx) & 1;
+            }
+            parity |= (rowParity << (row + 4));
+        }
+        for (int col = 0; col < 4; col++) {
+            int colParity = 0;
+            for (int row = 0; row < 4; row++) {
+                int idx = (row << 2) | col;
+                colParity ^= (data16 >>> idx) & 1;
+            }
+            parity |= (colParity << col);
+        }
+        return parity;
+    }
+
+    public static boolean verify4x4Block(int packedBlock) {
+        if (NATIVE_AVAILABLE) {
+            return nativeDeterministicVerify4x4Block(packedBlock) == 1;
+        }
+        int data = (packedBlock >>> 8) & 0xFFFF;
+        int storedParity = packedBlock & 0xFF;
+        return storedParity == (parity2D8(data) & 0xFF);
+    }
+
+    public static int[] policyTransition(int hitStreak, int missStreak, boolean hasEvent) {
+        if (NATIVE_AVAILABLE) {
+            int[] nativeValue = nativeDeterministicPolicyTransition(hitStreak, missStreak, hasEvent ? 1 : 0);
+            if (nativeValue != null && nativeValue.length == 3) {
+                return nativeValue;
+            }
+        }
+        int hits = hitStreak;
+        int misses = missStreak;
+        if (hasEvent) {
+            hits++;
+            misses = 0;
+        } else {
+            misses++;
+            hits = 0;
+        }
+        int policy = misses >= 2 ? 1 : 0;
+        return new int[]{hits, misses, policy};
     }
 
     private static native int nativeInit();
@@ -673,9 +725,7 @@ public final class NativeFastPath {
 
     private static native int[] nativeReadUnifiedCapabilities();
 
-    private static native int nativePlatformSignature();
 
-    private static native int nativeFeatureMask();
 
     private static native int nativeIngest(byte[] payload);
 
@@ -687,9 +737,15 @@ public final class NativeFastPath {
 
     private static native long nativeAudit(int crc, long matrixDeterminant, long routeTag, int verifyOk);
 
+    private static native int nativeDeterministicCrc32c(int initial, byte[] data, int offset, int length);
+
+    private static native int nativeDeterministicParity2D8(int data16);
+
+    private static native int nativeDeterministicVerify4x4Block(int packedBlock);
+
+    private static native int[] nativeDeterministicPolicyTransition(int hitStreak, int missStreak, int hasEvent);
+
     private static native int nativePointerBits();
 
-    private static native int nativeCacheLineBytes();
 
-    private static native int nativePageBytes();
 }

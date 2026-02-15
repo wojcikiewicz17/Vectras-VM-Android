@@ -1,308 +1,338 @@
 #include "rmr_unified_kernel.h"
+
+#include "bitraf.h"
+#include "rmr_corelib.h"
 #include "rmr_hw_detect.h"
+#include "rmr_policy_kernel.h"
 
 #include <stdlib.h>
-#include <string.h>
 
-#define RMR_UK_HANDLE_INDEX_BITS 10u
-#define RMR_UK_HANDLE_INDEX_MASK ((1u << RMR_UK_HANDLE_INDEX_BITS) - 1u)
-#define RMR_UK_HANDLE_GEN_SHIFT RMR_UK_HANDLE_INDEX_BITS
-#define RMR_UK_HANDLE_GEN_MASK ((1u << (31u - RMR_UK_HANDLE_GEN_SHIFT)) - 1u)
+typedef enum {
+  RMR_KERNEL_STATE_NEW = 0,
+  RMR_KERNEL_STATE_READY = 1,
+  RMR_KERNEL_STATE_SHUTDOWN = 2
+} rmr_kernel_state_t;
 
-static uint32_t rmr_crc32c_update(uint32_t seed, const uint8_t *data, size_t len) {
-  uint32_t crc = ~seed;
-  for (size_t i = 0; i < len; ++i) {
-    crc ^= data[i];
-    for (int b = 0; b < 8; ++b) {
-      uint32_t mask = (uint32_t)-(int32_t)(crc & 1u);
-      crc = (crc >> 1) ^ (0x82F63B78u & mask);
-    }
-  }
-  return ~crc;
+struct rmr_kernel {
+  rmr_kernel_state_t lifecycle;
+  uint32_t seed;
+  uint32_t rolling_crc32c;
+  uint64_t rolling_bitraf_hash;
+  uint32_t stage_counter;
+  uint64_t last_route_signature;
+  rmr_kernel_capabilities_t capabilities;
+};
+
+static int rmr_kernel_is_ready(const rmr_kernel_t *kernel) {
+  return kernel && kernel->lifecycle == RMR_KERNEL_STATE_READY;
 }
 
-static uint32_t rmr_make_signature(const RmR_HW_Info *hw) {
-  uint32_t arch = 0x0000u;
-  switch (hw->arch) {
-    case 4u: arch = 0x0100u; break;
-    case 3u: arch = 0x0200u; break;
-    case 2u: arch = 0x0300u; break;
-    case 1u: arch = 0x0400u; break;
-    case 5u: arch = (hw->ptr_bits == 64u) ? 0x0500u : 0x0600u; break;
-    default: break;
-  }
-  return arch | 0x0010u;
+static void rmr_kernel_capabilities_from_hw(const RmR_HW_Info *hw,
+                                            rmr_kernel_capabilities_t *caps) {
+  caps->arch = hw->arch;
+  caps->arch_hex = hw->arch_hex;
+  caps->word_bits = hw->word_bits;
+  caps->ptr_bits = hw->ptr_bits;
+  caps->is_little_endian = hw->is_little_endian;
+  caps->has_cycle_counter = hw->has_cycle_counter;
+  caps->has_asm_probe = hw->has_asm_probe;
+  caps->reg_signature_0 = hw->reg_signature_0;
+  caps->reg_signature_1 = hw->reg_signature_1;
+  caps->reg_signature_2 = hw->reg_signature_2;
+  caps->feature_bits_0 = hw->feature_bits_0;
+  caps->feature_bits_1 = hw->feature_bits_1;
+  caps->cacheline_bytes = hw->cacheline_bytes;
+  caps->cache_hint_l1 = hw->cache_hint_l1;
+  caps->cache_hint_l2 = hw->cache_hint_l2;
+  caps->cache_hint_l3 = hw->cache_hint_l3;
+  caps->page_bytes = hw->page_bytes;
+  caps->mem_bus_bits = hw->mem_bus_bits;
+  caps->gpio_word_bits = hw->gpio_word_bits;
+  caps->gpio_pin_stride = hw->gpio_pin_stride;
+  caps->align_bytes = hw->align_bytes;
 }
 
-static uint32_t rmr_feature_mask(const RmR_HW_Info *hw) {
-  uint32_t mask = 0u;
-  if (hw->arch == 3u || hw->arch == 4u) mask |= (1u << 0);
-  if (hw->feature_bits_0 & (1u << 1)) mask |= (1u << 1);
-  if (hw->feature_bits_0 & (1u << 2)) mask |= (1u << 2);
-  if (hw->feature_bits_0 & (1u << 3)) mask |= (1u << 3);
-  if (hw->feature_bits_0 & (1u << 4)) mask |= (1u << 4);
-  if (hw->feature_bits_0 & (1u << 5)) mask |= (1u << 5);
-  if (mask & ((1u << 0) | (1u << 4) | (1u << 5))) mask |= (1u << 6);
-  return mask;
-}
-
-int RmR_UnifiedKernel_Detect(RmR_UnifiedCapabilities *out_caps) {
-  if (!out_caps) return RMR_UK_ERR_ARG;
+rmr_status_t rmr_kernel_autodetect(rmr_kernel_capabilities_t *out_capabilities) {
+  if (!out_capabilities) return RMR_STATUS_ERR_ARG;
   RmR_HW_Info hw;
-  memset(&hw, 0, sizeof(hw));
+  rmr_mem_set(&hw, 0u, sizeof(hw));
   RmR_HW_Detect(&hw);
-  out_caps->signature = rmr_make_signature(&hw);
-  out_caps->pointer_bits = hw.ptr_bits;
-  out_caps->cache_line_bytes = hw.cacheline_bytes;
-  out_caps->page_bytes = hw.page_bytes;
-  out_caps->feature_mask = rmr_feature_mask(&hw);
-  out_caps->reg_signature_0 = hw.reg_signature_0;
-  out_caps->reg_signature_1 = hw.reg_signature_1;
-  out_caps->reg_signature_2 = hw.reg_signature_2;
-  out_caps->gpio_word_bits = hw.gpio_word_bits;
-  out_caps->gpio_pin_stride = hw.gpio_pin_stride;
-  return RMR_UK_OK;
+  rmr_kernel_capabilities_from_hw(&hw, out_capabilities);
+  return RMR_STATUS_OK;
 }
 
-int RmR_UnifiedKernel_Init(RmR_UnifiedKernel *kernel, const RmR_UnifiedConfig *config) {
-  if (!kernel || !config) return RMR_UK_ERR_ARG;
-  memset(kernel, 0, sizeof(*kernel));
-  if (RmR_UnifiedKernel_Detect(&kernel->caps) != RMR_UK_OK) return RMR_UK_ERR_STATE;
-  kernel->seed = config->seed;
-  kernel->crc32c = config->seed;
-  kernel->entropy = config->seed ^ 0x9E3779B9u;
-  kernel->arena_capacity = config->arena_bytes;
-  if (kernel->arena_capacity != 0u) {
-    kernel->arena_base = (uint8_t*)malloc(kernel->arena_capacity);
-    if (!kernel->arena_base) return RMR_UK_ERR_NOMEM;
+rmr_status_t rmr_kernel_init(rmr_kernel_t **out_kernel, const rmr_kernel_init_desc_t *desc) {
+  rmr_kernel_t *kernel;
+  if (!out_kernel || !desc) return RMR_STATUS_ERR_ARG;
+  if (*out_kernel) {
+    if ((*out_kernel)->lifecycle == RMR_KERNEL_STATE_READY) return RMR_STATUS_ERR_ALREADY_INITIALIZED;
+    if ((*out_kernel)->lifecycle == RMR_KERNEL_STATE_SHUTDOWN) return RMR_STATUS_ERR_ALREADY_SHUTDOWN;
+    return RMR_STATUS_ERR_STATE;
   }
-  kernel->initialized = 1u;
-  return RMR_UK_OK;
-}
 
-int RmR_UnifiedKernel_Shutdown(RmR_UnifiedKernel *kernel) {
-  if (!kernel) return RMR_UK_ERR_ARG;
-  free(kernel->arena_base);
-  memset(kernel, 0, sizeof(*kernel));
-  return RMR_UK_OK;
-}
+  kernel = (rmr_kernel_t *)malloc(sizeof(*kernel));
+  if (!kernel) return RMR_STATUS_ERR_NOMEM;
 
-int RmR_UnifiedKernel_QueryCapabilities(const RmR_UnifiedKernel *kernel, RmR_UnifiedCapabilities *out_caps) {
-  if (!kernel || !out_caps || !kernel->initialized) return RMR_UK_ERR_ARG;
-  *out_caps = kernel->caps;
-  return RMR_UK_OK;
-}
+  rmr_mem_set(kernel, 0u, sizeof(*kernel));
+  kernel->lifecycle = RMR_KERNEL_STATE_NEW;
+  kernel->seed = desc->seed;
+  kernel->rolling_crc32c = desc->seed;
+  kernel->rolling_bitraf_hash = (uint64_t)desc->seed;
 
-int RmR_UnifiedKernel_Ingest(RmR_UnifiedKernel *kernel, const uint8_t *data, size_t len, RmR_UnifiedIngestState *out) {
-  if (!kernel || !out || (!data && len != 0) || !kernel->initialized) return RMR_UK_ERR_ARG;
-  kernel->crc32c = rmr_crc32c_update(kernel->crc32c, data, len);
-  kernel->entropy = rmr_crc32c_update(kernel->entropy ^ (uint32_t)len, data, len);
-  kernel->stage_counter += 1u;
-  out->crc32c = kernel->crc32c;
-  out->entropy = kernel->entropy;
-  out->stage_counter = kernel->stage_counter;
-  return RMR_UK_OK;
-}
-
-int RmR_UnifiedKernel_Process(RmR_UnifiedKernel *kernel,
-                              uint64_t cpu_cycles,
-                              uint64_t storage_read_bytes,
-                              uint64_t storage_write_bytes,
-                              uint64_t input_bytes,
-                              uint64_t output_bytes,
-                              int64_t m00,
-                              int64_t m01,
-                              int64_t m10,
-                              int64_t m11,
-                              RmR_UnifiedProcessState *out) {
-  if (!kernel || !out || !kernel->initialized) return RMR_UK_ERR_ARG;
-  out->cpu_pressure = (uint32_t)((cpu_cycles >> 10) & 0xFFFFu);
-  out->storage_pressure = (uint32_t)(((storage_read_bytes + storage_write_bytes) >> 10) & 0xFFFFu);
-  out->io_pressure = (uint32_t)(((input_bytes + output_bytes) >> 10) & 0xFFFFu);
-  out->matrix_determinant = (m00 * m11) - (m01 * m10);
-  kernel->stage_counter += 1u;
-  return RMR_UK_OK;
-}
-
-int RmR_UnifiedKernel_Route(RmR_UnifiedKernel *kernel, const RmR_UnifiedProcessState *process, RmR_UnifiedRouteState *out) {
-  if (!kernel || !process || !out || !kernel->initialized) return RMR_UK_ERR_ARG;
-  uint32_t route = 3u;
-  if (process->cpu_pressure >= process->storage_pressure && process->cpu_pressure >= process->io_pressure) route = 1u;
-  else if (process->storage_pressure >= process->io_pressure) route = 2u;
-  out->route_id = route;
-  out->route_tag = ((uint64_t)kernel->crc32c << 32) ^ ((uint64_t)kernel->entropy) ^ (uint64_t)route ^ (uint64_t)process->matrix_determinant;
-  kernel->last_route_tag = out->route_tag;
-  kernel->stage_counter += 1u;
-  return RMR_UK_OK;
-}
-
-int RmR_UnifiedKernel_Verify(RmR_UnifiedKernel *kernel, const uint8_t *data, size_t len, uint32_t expected_crc32c, RmR_UnifiedVerifyState *out) {
-  if (!kernel || !out || (!data && len != 0) || !kernel->initialized) return RMR_UK_ERR_ARG;
-  out->computed_crc32c = rmr_crc32c_update(0u, data, len);
-  out->verify_ok = (expected_crc32c == out->computed_crc32c) ? 1u : 0u;
-  kernel->stage_counter += 1u;
-  return RMR_UK_OK;
-}
-
-int RmR_UnifiedKernel_Audit(RmR_UnifiedKernel *kernel,
-                            const RmR_UnifiedIngestState *ingest,
-                            const RmR_UnifiedProcessState *process,
-                            const RmR_UnifiedRouteState *route,
-                            const RmR_UnifiedVerifyState *verify,
-                            RmR_UnifiedAuditState *out) {
-  if (!kernel || !ingest || !process || !route || !verify || !out || !kernel->initialized) return RMR_UK_ERR_ARG;
-  uint64_t sig = ((uint64_t)ingest->crc32c << 32) ^ (uint64_t)ingest->entropy;
-  sig ^= ((uint64_t)process->cpu_pressure << 48) ^ ((uint64_t)process->storage_pressure << 24) ^ (uint64_t)process->io_pressure;
-  sig ^= (uint64_t)process->matrix_determinant;
-  sig ^= route->route_tag;
-  sig ^= ((uint64_t)verify->computed_crc32c << 1) ^ (uint64_t)verify->verify_ok;
-  out->audit_signature = sig;
-  out->audit_code = verify->verify_ok ? 0u : 1u;
-  kernel->stage_counter += 1u;
-  return RMR_UK_OK;
-}
-
-int RmR_UnifiedKernel_Copy(RmR_UnifiedKernel *kernel, uint8_t *dst, const uint8_t *src, size_t len) {
-  if (!kernel || !dst || !src || !kernel->initialized) return RMR_UK_ERR_ARG;
-  memmove(dst, src, len);
-  return RMR_UK_OK;
-}
-
-uint32_t RmR_UnifiedKernel_XorChecksum(RmR_UnifiedKernel *kernel, const uint8_t *data, size_t len) {
-  if (!kernel || !data || !kernel->initialized) return 0u;
-  uint32_t x = 0u;
-  for (size_t i = 0; i < len; ++i) x ^= data[i];
-  return x;
-}
-
-static int rmr_decode_handle(uint32_t handle, uint32_t *idx, uint32_t *gen) {
-  if (!idx || !gen || handle == 0u) return RMR_UK_ERR_HANDLE;
-  uint32_t index = handle & RMR_UK_HANDLE_INDEX_MASK;
-  if (index == 0u || index > RMR_UK_MAX_SLOTS) return RMR_UK_ERR_HANDLE;
-  uint32_t generation = (handle >> RMR_UK_HANDLE_GEN_SHIFT) & RMR_UK_HANDLE_GEN_MASK;
-  if (generation == 0u) return RMR_UK_ERR_HANDLE;
-  *idx = index - 1u;
-  *gen = generation;
-  return RMR_UK_OK;
-}
-
-static uint32_t rmr_make_handle(uint32_t idx, uint32_t gen) {
-  uint32_t g = gen & RMR_UK_HANDLE_GEN_MASK;
-  if (g == 0u) g = 1u;
-  return (g << RMR_UK_HANDLE_GEN_SHIFT) | (idx + 1u);
-}
-
-int RmR_UnifiedKernel_ArenaAlloc(RmR_UnifiedKernel *kernel, uint32_t bytes, uint32_t *out_handle) {
-  if (!kernel || !out_handle || !kernel->initialized || bytes == 0u || !kernel->arena_base) return RMR_UK_ERR_ARG;
-  for (uint32_t i = 0; i < RMR_UK_MAX_SLOTS; ++i) {
-    if (kernel->slots[i].in_use) continue;
-    uint32_t cursor = 0u;
-    for (;;) {
-      uint32_t next_off = kernel->arena_capacity;
-      int found = -1;
-      for (uint32_t j = 0; j < RMR_UK_MAX_SLOTS; ++j) {
-        if (!kernel->slots[j].in_use) continue;
-        if (kernel->slots[j].offset >= cursor && kernel->slots[j].offset < next_off) {
-          next_off = kernel->slots[j].offset;
-          found = (int)j;
-        }
-      }
-      if (next_off - cursor >= bytes) {
-        kernel->slots[i].in_use = 1u;
-        kernel->slots[i].offset = cursor;
-        kernel->slots[i].size = bytes;
-        kernel->slots[i].generation += 1u;
-        *out_handle = rmr_make_handle(i, kernel->slots[i].generation);
-        return RMR_UK_OK;
-      }
-      if (found < 0) break;
-      cursor = kernel->slots[found].offset + kernel->slots[found].size;
-      if (cursor > kernel->arena_capacity - bytes) break;
-    }
+  if (rmr_kernel_autodetect(&kernel->capabilities) != RMR_STATUS_OK) {
+    free(kernel);
+    return RMR_STATUS_ERR_STATE;
   }
-  return RMR_UK_ERR_NOMEM;
+
+  kernel->lifecycle = RMR_KERNEL_STATE_READY;
+  *out_kernel = kernel;
+  return RMR_STATUS_OK;
 }
 
-static int rmr_arena_ptr(RmR_UnifiedKernel *kernel, uint32_t handle, uint32_t offset, uint32_t len, uint8_t **out) {
-  if (!kernel || !out || !kernel->arena_base) return RMR_UK_ERR_ARG;
-  uint32_t idx = 0u, gen = 0u;
-  int rc = rmr_decode_handle(handle, &idx, &gen);
+rmr_status_t rmr_kernel_shutdown(rmr_kernel_t **kernel) {
+  rmr_kernel_t *ctx;
+  if (!kernel) return RMR_STATUS_ERR_ARG;
+  if (!*kernel) return RMR_STATUS_ERR_ALREADY_SHUTDOWN;
+
+  ctx = *kernel;
+  if (ctx->lifecycle == RMR_KERNEL_STATE_SHUTDOWN) {
+    free(ctx);
+    *kernel = NULL;
+    return RMR_STATUS_ERR_ALREADY_SHUTDOWN;
+  }
+
+  ctx->lifecycle = RMR_KERNEL_STATE_SHUTDOWN;
+  rmr_mem_set(ctx, 0u, sizeof(*ctx));
+  free(ctx);
+  *kernel = NULL;
+  return RMR_STATUS_OK;
+}
+
+rmr_status_t rmr_kernel_ingest(rmr_kernel_t *kernel,
+                               const rmr_kernel_ingest_desc_t *desc,
+                               rmr_kernel_ingest_result_t *out_result) {
+  if (!rmr_kernel_is_ready(kernel) || !desc || !out_result || (!desc->data && desc->data_len != 0u)) {
+    return RMR_STATUS_ERR_ARG;
+  }
+
+  kernel->rolling_crc32c = RmR_CRC32C(desc->data, desc->data_len) ^ kernel->rolling_crc32c;
+  kernel->rolling_bitraf_hash = bitraf_hash(desc->data, desc->data_len, kernel->seed) ^ kernel->rolling_bitraf_hash;
+  kernel->stage_counter += 1u;
+
+  out_result->crc32c = kernel->rolling_crc32c;
+  out_result->bitraf_hash = kernel->rolling_bitraf_hash;
+  out_result->entropy_milli = RmR_EntropyEstimateMilli(desc->data, desc->data_len);
+  out_result->stage_counter = kernel->stage_counter;
+  return RMR_STATUS_OK;
+}
+
+rmr_status_t rmr_kernel_process(rmr_kernel_t *kernel,
+                                const rmr_kernel_process_desc_t *desc,
+                                rmr_kernel_process_result_t *out_result) {
+  if (!rmr_kernel_is_ready(kernel) || !desc || !out_result) return RMR_STATUS_ERR_ARG;
+
+  out_result->cpu_pressure = (uint32_t)((desc->cpu_cycles >> 10u) & 0xFFFFu);
+  out_result->storage_pressure =
+      (uint32_t)(((desc->storage_read_bytes + desc->storage_write_bytes) >> 10u) & 0xFFFFu);
+  out_result->io_pressure = (uint32_t)(((desc->input_bytes + desc->output_bytes) >> 10u) & 0xFFFFu);
+  out_result->matrix_determinant =
+      (desc->matrix_m00 * desc->matrix_m11) - (desc->matrix_m01 * desc->matrix_m10);
+
+  kernel->stage_counter += 1u;
+  return RMR_STATUS_OK;
+}
+
+rmr_status_t rmr_kernel_route(rmr_kernel_t *kernel,
+                              const rmr_kernel_process_result_t *process,
+                              rmr_kernel_route_result_t *out_result) {
+  uint32_t route;
+  if (!rmr_kernel_is_ready(kernel) || !process || !out_result) return RMR_STATUS_ERR_ARG;
+
+  route = RMR_ROUTE_DISK;
+  if (process->cpu_pressure >= process->storage_pressure && process->cpu_pressure >= process->io_pressure) {
+    route = RMR_ROUTE_CPU;
+  } else if (process->storage_pressure >= process->io_pressure) {
+    route = RMR_ROUTE_RAM;
+  }
+
+  out_result->route_id = route;
+  out_result->route_signature = ((uint64_t)kernel->rolling_crc32c << 32)
+                              ^ kernel->rolling_bitraf_hash
+                              ^ (uint64_t)process->matrix_determinant
+                              ^ (uint64_t)route;
+  kernel->last_route_signature = out_result->route_signature;
+  kernel->stage_counter += 1u;
+  return RMR_STATUS_OK;
+}
+
+rmr_status_t rmr_kernel_verify(rmr_kernel_t *kernel,
+                               const rmr_kernel_verify_desc_t *desc,
+                               rmr_kernel_verify_result_t *out_result) {
+  if (!rmr_kernel_is_ready(kernel) || !desc || !out_result || (!desc->data && desc->data_len != 0u)) {
+    return RMR_STATUS_ERR_ARG;
+  }
+
+  out_result->computed_crc32c = RmR_CRC32C(desc->data, desc->data_len);
+  out_result->computed_bitraf_hash = bitraf_hash(desc->data, desc->data_len, kernel->seed);
+  out_result->crc_ok = (out_result->computed_crc32c == desc->expected_crc32c) ? 1u : 0u;
+  out_result->hash_ok = bitraf_verify(desc->data,
+                                      desc->data_len,
+                                      desc->expected_bitraf_hash,
+                                      kernel->seed)
+                      ? 1u
+                      : 0u;
+  kernel->stage_counter += 1u;
+
+  if (!out_result->crc_ok || !out_result->hash_ok) return RMR_STATUS_ERR_VERIFY;
+  return RMR_STATUS_OK;
+}
+
+rmr_status_t rmr_kernel_audit(rmr_kernel_t *kernel,
+                              const rmr_kernel_ingest_result_t *ingest,
+                              const rmr_kernel_process_result_t *process,
+                              const rmr_kernel_route_result_t *route,
+                              const rmr_kernel_verify_result_t *verify,
+                              rmr_kernel_audit_result_t *out_result) {
+  uint64_t signature;
+  if (!rmr_kernel_is_ready(kernel) || !ingest || !process || !route || !verify || !out_result) {
+    return RMR_STATUS_ERR_ARG;
+  }
+
+  signature = ((uint64_t)ingest->crc32c << 32) ^ ingest->bitraf_hash;
+  signature ^= ((uint64_t)process->cpu_pressure << 48)
+            ^ ((uint64_t)process->storage_pressure << 24)
+            ^ (uint64_t)process->io_pressure;
+  signature ^= (uint64_t)process->matrix_determinant;
+  signature ^= route->route_signature;
+  signature ^= ((uint64_t)verify->computed_crc32c << 1) ^ verify->computed_bitraf_hash;
+  signature ^= ((uint64_t)verify->crc_ok << 2) ^ ((uint64_t)verify->hash_ok << 3);
+
+  out_result->audit_signature = signature;
+  out_result->audit_code = (verify->crc_ok && verify->hash_ok) ? 0u : 1u;
+  kernel->stage_counter += 1u;
+  return RMR_STATUS_OK;
+}
+
+rmr_status_t rmr_kernel_get_capabilities(const rmr_kernel_t *kernel,
+                                         rmr_kernel_capabilities_t *out_capabilities) {
+  if (!rmr_kernel_is_ready(kernel) || !out_capabilities) return RMR_STATUS_ERR_ARG;
+  rmr_mem_copy(out_capabilities, &kernel->capabilities, sizeof(*out_capabilities));
+  return RMR_STATUS_OK;
+}
+
+static void rmr_caps_from_unified(const RmR_UnifiedCapabilities *in, rmr_kernel_capabilities_t *out) {
+  out->signature = in->signature;
+  out->pointer_bits = in->pointer_bits;
+  out->cache_line_bytes = in->cache_line_bytes;
+  out->page_bytes = in->page_bytes;
+  out->feature_mask = in->feature_mask;
+  out->register_width_bits = in->pointer_bits;
+  out->pin_count_hint = in->gpio_word_bits;
+  out->feature_bits_hi = in->reg_signature_2;
+}
+
+int rmr_kernel_init(rmr_kernel_state_t *state, uint32_t seed) {
+  RmR_UnifiedConfig config;
+  if (!state) return RMR_KERNEL_ERR_ARG;
+  config.seed = seed;
+  config.arena_bytes = 64u * 1024u * 1024u;
+  return RmR_UnifiedKernel_Init(state, &config);
+}
+
+int rmr_kernel_shutdown(rmr_kernel_state_t *state) {
+  return RmR_UnifiedKernel_Shutdown(state);
+}
+
+int rmr_kernel_get_capabilities(const rmr_kernel_state_t *state, rmr_kernel_capabilities_t *out_caps) {
+  RmR_UnifiedCapabilities caps;
+  int rc;
+  if (!state || !out_caps) return RMR_KERNEL_ERR_ARG;
+  rc = RmR_UnifiedKernel_QueryCapabilities(state, &caps);
   if (rc != RMR_UK_OK) return rc;
-  RmR_UnifiedArenaSlot *s = &kernel->slots[idx];
-  if (!s->in_use || s->generation != gen) return RMR_UK_ERR_HANDLE;
-  if (offset > s->size || len > s->size - offset) return RMR_UK_ERR_RANGE;
-  *out = kernel->arena_base + s->offset + offset;
-  return RMR_UK_OK;
+  rmr_caps_from_unified(&caps, out_caps);
+  return RMR_KERNEL_OK;
 }
 
-int RmR_UnifiedKernel_ArenaFree(RmR_UnifiedKernel *kernel, uint32_t handle) {
-  if (!kernel || !kernel->initialized) return RMR_UK_ERR_ARG;
-  uint32_t idx = 0u, gen = 0u;
-  int rc = rmr_decode_handle(handle, &idx, &gen);
+int rmr_kernel_autodetect(rmr_kernel_capabilities_t *out_caps) {
+  RmR_UnifiedCapabilities caps;
+  int rc;
+  if (!out_caps) return RMR_KERNEL_ERR_ARG;
+  rc = RmR_UnifiedKernel_Detect(&caps);
   if (rc != RMR_UK_OK) return rc;
-  RmR_UnifiedArenaSlot *s = &kernel->slots[idx];
-  if (!s->in_use || s->generation != gen) return RMR_UK_ERR_HANDLE;
-  memset(s, 0, sizeof(*s));
-  return RMR_UK_OK;
+  rmr_caps_from_unified(&caps, out_caps);
+  return RMR_KERNEL_OK;
 }
 
-int RmR_UnifiedKernel_ArenaCopy(RmR_UnifiedKernel *kernel, uint32_t src_handle, uint32_t src_offset, uint32_t dst_handle, uint32_t dst_offset, uint32_t len) {
-  uint8_t *src = NULL, *dst = NULL;
-  int rc = rmr_arena_ptr(kernel, src_handle, src_offset, len, &src);
+int rmr_kernel_ingest(rmr_kernel_state_t *state, const uint8_t *data, uint32_t len, uint32_t *out_crc32c) {
+  RmR_UnifiedIngestState ingest;
+  int rc;
+  if (!state || !out_crc32c || (!data && len != 0u)) return RMR_KERNEL_ERR_ARG;
+  rc = RmR_UnifiedKernel_Ingest(state, data, (size_t)len, &ingest);
   if (rc != RMR_UK_OK) return rc;
-  rc = rmr_arena_ptr(kernel, dst_handle, dst_offset, len, &dst);
+  *out_crc32c = ingest.crc32c;
+  return RMR_KERNEL_OK;
+}
+
+int rmr_kernel_process(rmr_kernel_state_t *state, int32_t a, int32_t b, uint32_t mode, int32_t *out_value) {
+  uint32_t ua = (uint32_t)a;
+  uint32_t ub = (uint32_t)b;
+  if (!state || !out_value) return RMR_KERNEL_ERR_ARG;
+  switch (mode & 3u) {
+    case 0u: *out_value = (int32_t)(ua ^ ub); break;
+    case 1u: *out_value = (int32_t)(ua + ub); break;
+    case 2u: *out_value = (int32_t)(ua - ub); break;
+    default: *out_value = (int32_t)((ua << (ub & 31u)) | (ua >> ((32u - (ub & 31u)) & 31u))); break;
+  }
+  state->stage_counter += 1u;
+  return RMR_KERNEL_OK;
+}
+
+int rmr_kernel_route(rmr_kernel_state_t *state, const rmr_kernel_route_input_t *in, rmr_kernel_route_output_t *out) {
+  RmR_UnifiedProcessState process;
+  RmR_UnifiedRouteState route;
+  int rc;
+  if (!state || !in || !out) return RMR_KERNEL_ERR_ARG;
+  rc = RmR_UnifiedKernel_Process(state,
+                                 in->cpu_cycles,
+                                 in->storage_read_bytes,
+                                 in->storage_write_bytes,
+                                 in->input_bytes,
+                                 in->output_bytes,
+                                 in->m00,
+                                 in->m01,
+                                 in->m10,
+                                 in->m11,
+                                 &process);
   if (rc != RMR_UK_OK) return rc;
-  memmove(dst, src, len);
-  return RMR_UK_OK;
-}
-
-int RmR_UnifiedKernel_ArenaFill(RmR_UnifiedKernel *kernel, uint32_t handle, uint32_t offset, uint32_t len, uint8_t value) {
-  uint8_t *dst = NULL;
-  int rc = rmr_arena_ptr(kernel, handle, offset, len, &dst);
+  rc = RmR_UnifiedKernel_Route(state, &process, &route);
   if (rc != RMR_UK_OK) return rc;
-  memset(dst, value, len);
-  return RMR_UK_OK;
+  out->route = route.route_id;
+  out->matrix_determinant = process.matrix_determinant;
+  out->cpu_pressure = process.cpu_pressure;
+  out->storage_pressure = process.storage_pressure;
+  out->io_pressure = process.io_pressure;
+  out->route_tag = route.route_tag;
+  return RMR_KERNEL_OK;
 }
 
-int RmR_UnifiedKernel_ArenaWrite(RmR_UnifiedKernel *kernel, uint32_t handle, uint32_t offset, const uint8_t *src, uint32_t len) {
-  uint8_t *dst = NULL;
-  if (!src) return RMR_UK_ERR_ARG;
-  int rc = rmr_arena_ptr(kernel, handle, offset, len, &dst);
+int rmr_kernel_verify(rmr_kernel_state_t *state, const uint8_t *data, uint32_t len, uint32_t expected_crc32c, uint32_t *out_verify_ok) {
+  RmR_UnifiedVerifyState verify;
+  int rc;
+  if (!state || !out_verify_ok || (!data && len != 0u)) return RMR_KERNEL_ERR_ARG;
+  rc = RmR_UnifiedKernel_Verify(state, data, (size_t)len, expected_crc32c, &verify);
   if (rc != RMR_UK_OK) return rc;
-  memcpy(dst, src, len);
-  return RMR_UK_OK;
+  *out_verify_ok = verify.verify_ok;
+  return verify.verify_ok ? RMR_KERNEL_OK : 1;
 }
 
-int RmR_UnifiedKernel_ArenaXorChecksum(RmR_UnifiedKernel *kernel, uint32_t handle, uint32_t offset, uint32_t len, uint32_t *out) {
-  uint8_t *src = NULL;
-  if (!out) return RMR_UK_ERR_ARG;
-  int rc = rmr_arena_ptr(kernel, handle, offset, len, &src);
-  if (rc != RMR_UK_OK) return rc;
-  uint32_t x = 0u;
-  for (uint32_t i = 0; i < len; ++i) x ^= src[i];
-  *out = x;
-  return RMR_UK_OK;
-}
-
-uint32_t RmR_UnifiedKernel_Popcount32(uint32_t value) {
-  value = value - ((value >> 1u) & 0x55555555u);
-  value = (value & 0x33333333u) + ((value >> 2u) & 0x33333333u);
-  value = (value + (value >> 4u)) & 0x0F0F0F0Fu;
-  value = value + (value >> 8u);
-  value = value + (value >> 16u);
-  return value & 0x3Fu;
-}
-
-uint32_t RmR_UnifiedKernel_ByteSwap32(uint32_t value) {
-  return (value >> 24u) | ((value >> 8u) & 0x0000FF00u) | ((value << 8u) & 0x00FF0000u) | (value << 24u);
-}
-
-uint32_t RmR_UnifiedKernel_Rotl32(uint32_t value, uint32_t distance) {
-  uint32_t d = distance & 31u;
-  return (value << d) | (value >> ((32u - d) & 31u));
-}
-
-uint32_t RmR_UnifiedKernel_Rotr32(uint32_t value, uint32_t distance) {
-  uint32_t d = distance & 31u;
-  return (value >> d) | (value << ((32u - d) & 31u));
+int rmr_kernel_audit(rmr_kernel_state_t *state, uint64_t *counters, uint32_t counter_count) {
+  if (!state || !counters || counter_count < 7u) return RMR_KERNEL_ERR_ARG;
+  counters[0] = state->caps.signature;
+  counters[1] = state->caps.pointer_bits;
+  counters[2] = state->crc32c;
+  counters[3] = state->entropy;
+  counters[4] = state->stage_counter;
+  counters[5] = (uint64_t)(uint32_t)(state->last_route_tag & 0xFFFFFFFFu);
+  counters[6] = (uint64_t)(uint32_t)((state->last_route_tag >> 32) & 0xFFFFFFFFu);
+  return RMR_KERNEL_OK;
 }

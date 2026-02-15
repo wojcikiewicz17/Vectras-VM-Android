@@ -4,10 +4,7 @@ project(vectra_core_accel C)
 add_library(vectra_core_accel SHARED
     vectra_core_accel.c
     ../../../../engine/rmr/src/rmr_unified_kernel.c
-    ../../../../engine/rmr/src/rmr_hw_detect.c
-    ../../../../engine/rmr/src/rmr_cycles.c
-    ../../../../engine/rmr/src/rmr_ll_ops.c
-    ../../../../engine/rmr/src/rmr_corelib.c)
+    ../../../../engine/rmr/src/rmr_hw_detect.c)
 
 find_library(log-lib log)
 
@@ -15,5 +12,4 @@ target_compile_options(vectra_core_accel PRIVATE -O3 -ffast-math -fvisibility=hi
 
 target_link_libraries(vectra_core_accel ${log-lib})
 
-
-target_include_directories(vectra_core_accel PRIVATE ../../../../engine/rmr/include)
+target_include_directories(vectra_core_accel PRIVATE ../../../../ ../../../../engine/rmr/include)

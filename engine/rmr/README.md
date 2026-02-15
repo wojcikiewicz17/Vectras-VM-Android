@@ -9,6 +9,12 @@
 make all
 ```
 
+## Core unificado (single source of truth)
+- Header canônico: `include/rmr_unified_kernel.h`
+- Implementação canônica: `src/rmr_unified_kernel.c`
+- API pública mínima consolidada: `rmr_kernel_init`, `rmr_kernel_shutdown`, `rmr_kernel_ingest`, `rmr_kernel_process`, `rmr_kernel_route`, `rmr_kernel_verify`, `rmr_kernel_audit`, `rmr_kernel_autodetect`, `rmr_kernel_get_capabilities`.
+- Este header é o único ponto de verdade para orquestração do core (lifecycle + I/O descriptors + capacidades de hardware).
+
 ## Artefatos
 - `build/engine/librmr.a`
 - `build/engine/libbitraf.a`

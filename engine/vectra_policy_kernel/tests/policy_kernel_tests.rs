@@ -159,7 +159,7 @@ fn canonize_produces_stable_forms_per_operation() {
             op: Op::TrimWs,
             args: vec!["abc".to_string()],
             anchor: None,
-            canon: "trim_ws|3:abc|anchor=none".to_string(),
+            canon: "trim_ws|abc|-".to_string(),
         }
     );
 
@@ -170,7 +170,7 @@ fn canonize_produces_stable_forms_per_operation() {
             op: Op::Len,
             args: vec!["  abc  ".to_string()],
             anchor: None,
-            canon: "len|7:  abc  |anchor=none".to_string(),
+            canon: "len|  abc  |-".to_string(),
         }
     );
 
@@ -190,7 +190,7 @@ fn canonize_produces_stable_forms_per_operation() {
             op: Op::ReplaceChar,
             args: vec!["aba".to_string(), "a".to_string(), "x".to_string()],
             anchor: Some(anchor),
-            canon: "replace_char|3:aba|1:a|1:x|anchor=2:15:3".to_string(),
+            canon: "replace_char|aba\u{1f}a\u{1f}x|2:15:3".to_string(),
         }
     );
 }
@@ -236,7 +236,7 @@ fn exec_bucket_executes_once_and_reuses_output() {
         op: Op::AnchorMark,
         args: vec!["anchor-1".to_string()],
         anchor: Some(anchor),
-        canon: "anchor|8:anchor-1|anchor=7:99:1".to_string(),
+        canon: "anchor|anchor-1|7:99:1".to_string(),
     };
     let bucket = vec![
         Event {
@@ -510,4 +510,56 @@ fn commit_tick_uses_total_stable_ordering_by_op_code() {
     assert_eq!(committed[1], (20, Output::Number(1)));
     assert_eq!(committed[2], (30, Output::Focus("z".to_string())));
     assert_eq!(committed[3], (40, Output::Text("z".to_string())));
+}
+
+#[test]
+fn commit_tick_is_deterministic_across_repeated_runs() {
+    let events = vec![
+        Event {
+            id: 91,
+            op: Op::AnchorMark,
+            args: vec!["anchor-A".to_string()],
+            anchor: Some(AnchorAddr {
+                dev: 1,
+                block: 2,
+                page: 3,
+            }),
+        },
+        Event {
+            id: 12,
+            op: Op::TrimWs,
+            args: vec!["  same  ".to_string()],
+            anchor: None,
+        },
+        Event {
+            id: 77,
+            op: Op::TrimWs,
+            args: vec!["same".to_string()],
+            anchor: None,
+        },
+        Event {
+            id: 35,
+            op: Op::AnchorMark,
+            args: vec!["anchor-B".to_string()],
+            anchor: Some(AnchorAddr {
+                dev: 1,
+                block: 2,
+                page: 4,
+            }),
+        },
+        Event {
+            id: 56,
+            op: Op::ReplaceChar,
+            args: vec!["aba".to_string(), "a".to_string(), "x".to_string()],
+            anchor: Some(AnchorAddr {
+                dev: 9,
+                block: 8,
+                page: 7,
+            }),
+        },
+    ];
+
+    let committed_a = commit_tick(1, &events);
+    let committed_b = commit_tick(1, &events);
+    assert_eq!(committed_a, committed_b);
 }
