@@ -1,7 +1,7 @@
 package com.vectras.vm.rafaelia;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.assertNotEquals;
 
 import java.io.File;
 import java.io.RandomAccessFile;
@@ -43,6 +43,17 @@ public class RafaeliaMvpTest {
     assertEquals(RafaeliaMvp.MODE_FUZZ, configA.mode());
     assertNotEquals(RafaeliaMvp.BENCHMARK_DEFAULT_SEED, configA.resolvedSeed());
     assertNotEquals(configA.resolvedSeed(), configB.resolvedSeed());
+  }
+
+  @Test
+  public void parseMainConfigSupportsConfigObjectInput() {
+    RafaeliaMvp.ConfigInput input = new RafaeliaMvp.ConfigInput(
+        new File("./cfg.bin"), RafaeliaMvp.MODE_BENCHMARK, null);
+
+    RafaeliaMvp.RuntimeConfig config = RafaeliaMvp.parseMainConfig(input);
+    assertEquals(RafaeliaMvp.MODE_BENCHMARK, config.mode());
+    assertEquals(RafaeliaMvp.BENCHMARK_DEFAULT_SEED, config.resolvedSeed());
+    assertEquals("./cfg.bin", config.path().getPath());
   }
 
   @Test

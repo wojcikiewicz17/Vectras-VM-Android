@@ -7,7 +7,8 @@ import java.io.RandomAccessFile;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
-import java.util.SplittableRandom;
+import java.util.Locale;
+import java.util.Random;
 import java.util.concurrent.Executors;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -45,34 +46,22 @@ public class RafaeliaMvp {
   static final long RHO_SLEEP_MS = 2L;
   static final int IRQ_QUEUE_CAPACITY = 1024;
   static final long IRQ_POLL_TIMEOUT_MS = 1_000L;
-  static final long RNG_SEED = 0x4F3C2B1A9D8E7F60L;
+  static final String MODE_BENCHMARK = "benchmark";
+  static final String MODE_FUZZ = "fuzz";
+  static final long BENCHMARK_DEFAULT_SEED = 0x52414641454C4941L; // "RAFAELIA" stable baseline seed.
   private static final ThreadLocal<CRC32C> CRC32C_POOL = ThreadLocal.withInitial(CRC32C::new);
 
-  static final class DeterministicRng {
-    private static final long GOLDEN_GAMMA = 0x9E3779B97F4A7C15L;
-    private long state;
+  record RuntimeConfig(File path, String mode, Long providedSeed, long resolvedSeed) {}
 
-    DeterministicRng(long seed) {
-      state = seed;
-    }
+  static final class ConfigInput {
+    final File path;
+    final String mode;
+    final Long seed;
 
-    long nextLong() {
-      long z = (state += GOLDEN_GAMMA);
-      z = (z ^ (z >>> 30)) * 0xBF58476D1CE4E5B9L;
-      z = (z ^ (z >>> 27)) * 0x94D049BB133111EBL;
-      return z ^ (z >>> 31);
-    }
-
-    int nextInt(int boundExclusive) {
-      if (boundExclusive <= 0) {
-        throw new IllegalArgumentException("boundExclusive must be > 0");
-      }
-      long unsigned = nextLong() >>> 1;
-      return (int) (unsigned % boundExclusive);
-    }
-
-    double nextDouble() {
-      return (nextLong() >>> 11) * 0x1.0p-53;
+    ConfigInput(File path, String mode, Long seed) {
+      this.path = path;
+      this.mode = mode;
+      this.seed = seed;
     }
   }
 
@@ -255,22 +244,31 @@ public class RafaeliaMvp {
 
   // ========== MVP loop ==========
   public static void main(String[] args) throws Exception {
-    File path = new File(args.length > 0 ? args[0] : "./bitstack.bin");
-    long seed = args.length > 1 ? Long.decode(args[1]) : System.nanoTime();
-    DeterministicRng radioRng = new DeterministicRng(seed ^ 0xA5A5A5A5A5A5A5A5L);
-    DeterministicRng dropRng = new DeterministicRng(seed ^ 0x5A5A5A5A5A5A5A5AL);
+    RuntimeConfig config = parseMainConfig(args);
+    File path = config.path();
+
+    final Random radioRandom = new Random(config.resolvedSeed() ^ 0x9E3779B97F4A7C15L);
+    final Random timerRandom = new Random(config.resolvedSeed() ^ 0xBF58476D1CE4E5B9L);
+    final Random dropRandom = new Random(config.resolvedSeed() ^ 0x94D049BB133111EBL);
+
+    System.out.printf(
+        "RafaeliaMvp mode=%s seed=%d providedSeed=%s path=%s%n",
+        config.mode(),
+        config.resolvedSeed(),
+        config.providedSeed() == null ? "<auto>" : config.providedSeed().toString(),
+        path.getAbsolutePath());
 
     IrqBus irq = new IrqBus();
 
     // Simulate “4G IRQ” bursts + timers
     ScheduledExecutorService sch = Executors.newScheduledThreadPool(2);
     sch.scheduleAtFixedRate(
-        () -> irq.fire(EventType.RADIO_4G, RADIO_PRIORITY, radioRng.nextInt(0x10000)),
+        () -> irq.fire(EventType.RADIO_4G, RADIO_PRIORITY, radioRandom.nextInt(0x1_0000)),
         RADIO_INITIAL_DELAY_MS,
         RADIO_PERIOD_MS,
         TimeUnit.MILLISECONDS);
     sch.scheduleAtFixedRate(
-        () -> irq.fire(EventType.TIMER, TIMER_PRIORITY, nextU16(timerRng)),
+        () -> irq.fire(EventType.TIMER, TIMER_PRIORITY, timerRandom.nextInt(0x1_0000)),
         TIMER_INITIAL_DELAY_MS,
         TIMER_PERIOD_MS,
         TimeUnit.MILLISECONDS);
@@ -292,7 +290,13 @@ public class RafaeliaMvp {
 
         // Build a 4x4 bits payload from event (toy mapping)
         // Seed from payload; introduce noise by random bit drop sometimes
-        int bits16 = generatePayloadWithOptionalDrop(ev.payload(), BIT_DROP_PROBABILITY, dropRng);
+        int bits16 = ev.payload() & 0xFFFF;
+
+        // simulate leak/bit-missing: 2% chance drop one bit
+        if (dropRandom.nextDouble() < BIT_DROP_PROBABILITY) {
+          int drop = dropRandom.nextInt(16);
+          bits16 &= ~(1 << drop);
+        }
 
         // (2) Processing: compute parity + syndrome vs last known parity
         int computedParity8 = parity2D8(bits16);
@@ -415,10 +419,15 @@ public class RafaeliaMvp {
       }
     }
 
-    String mode = normalizeMode(modeRaw);
-    long resolvedSeed = resolveSeed(mode, providedSeed);
-    File path = new File(pathRaw == null || pathRaw.isBlank() ? "./bitstack.bin" : pathRaw);
-    return new RuntimeConfig(path, mode, providedSeed, resolvedSeed);
+    File path = pathRaw == null || pathRaw.isBlank() ? null : new File(pathRaw);
+    return parseMainConfig(new ConfigInput(path, modeRaw, providedSeed));
+  }
+
+  static RuntimeConfig parseMainConfig(ConfigInput input) {
+    File path = input.path == null ? new File("./bitstack.bin") : input.path;
+    String mode = normalizeMode(input.mode);
+    long resolvedSeed = resolveSeed(mode, input.seed);
+    return new RuntimeConfig(path, mode, input.seed, resolvedSeed);
   }
 
   static String normalizeMode(String modeRaw) {
