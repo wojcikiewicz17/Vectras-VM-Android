@@ -20,6 +20,10 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         multiDexEnabled = false
 
+        ndk {
+            abiFilters(*rootProject.ext.supportedAbis as String[])
+        }
+
         externalNativeBuild {
             cmake {
                 cppFlags "-O3 -ffast-math -fno-exceptions -fno-rtti"
@@ -30,6 +34,16 @@ android {
         resValue "string", "app_version", versionName
         resValue "integer", "app_version_code", versionCode.toString()
         buildConfigField "int", "VECTRA_CORE_SEED", "0"
+    }
+
+    packaging {
+        jniLibs {
+            excludes += [
+                    "lib/armeabi-v7a/**",
+                    "lib/x86/**",
+                    "lib/x86_64/**"
+            ]
+        }
     }
 
     def releaseStoreFile = providers.gradleProperty("android.injected.signing.store.file").orNull ?: System.getenv("VECTRAS_RELEASE_STORE_FILE")

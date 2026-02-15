@@ -1,13 +1,36 @@
 package com.termux.terminal;
 
+import android.os.Build;
+import android.util.Log;
+
+import java.util.Arrays;
+
 /**
  * Native methods for creating and managing pseudoterminal subprocesses. C code is in jni/termux.c.
  */
 final class JNI {
 
+    private static final String TAG = "TermuxJNI";
+    private static volatile boolean nativeLibraryLoaded;
+
     static {
-        System.loadLibrary("termux");
+        nativeLibraryLoaded = loadNativeLibrary();
     }
+
+    private static boolean loadNativeLibrary() {
+        try {
+            System.loadLibrary("termux");
+            return true;
+        } catch (UnsatisfiedLinkError error) {
+            Log.e(TAG, "Unable to load libtermux.so for ABIs " + Arrays.toString(Build.SUPPORTED_ABIS), error);
+            return false;
+        }
+    }
+
+    public static boolean isNativeLibraryLoaded() {
+        return nativeLibraryLoaded;
+    }
+
 
     /**
      * Create a subprocess. Differs from {@link ProcessBuilder} in that a pseudoterminal is used to communicate with the

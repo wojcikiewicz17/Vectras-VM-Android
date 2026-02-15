@@ -1,6 +1,7 @@
 package com.termux.terminal;
 
 import android.annotation.SuppressLint;
+import android.os.Build;
 import android.os.Handler;
 import android.os.Message;
 import android.system.ErrnoException;
@@ -16,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.UUID;
 
 /**
@@ -174,6 +176,12 @@ public final class TerminalSession extends TerminalOutput {
      * @param rows    The number of rows in the terminal window.
      */
     public void initializeEmulator(int columns, int rows) {
+        if (!JNI.isNativeLibraryLoaded()) {
+            String abiMessage = "Terminal native ABI incompatível. Device ABIs=" + Arrays.toString(Build.SUPPORTED_ABIS);
+            Log.e(EmulatorDebug.LOG_TAG, abiMessage);
+            throw new IllegalStateException(abiMessage);
+        }
+
         mEmulator = new TerminalEmulator(this, columns, rows, /* transcript= */2000);
 
         int[] processId = new int[1];
