@@ -145,19 +145,17 @@ public class FileUtils {
         if(!file.exists())
             return "";
         StringBuilder builder = new StringBuilder("");
-        try {
-            FileInputStream stream = new FileInputStream(file);
-            byte[] buff = new byte[32768];
-            int bytesRead = 0;
+        byte[] buff = new byte[32768];
+        try (FileInputStream stream = new FileInputStream(file)) {
+            int bytesRead;
             while ((bytesRead = stream.read(buff, 0, buff.length)) > 0) {
-                builder.append(new String(buff, "UTF-8"));
+                builder.append(new String(buff, 0, bytesRead, "UTF-8"));
             }
-        } catch (Exception e) {
-            e.printStackTrace();
+        } catch (IOException ex) {
+            Log.e(TAG, "Failed to read file contents: " + filePath, ex);
         }
 
-        String contents = builder.toString();
-        return contents;
+        return builder.toString();
     }
 
     public static void viewVectrasLog(final Activity activity) {
