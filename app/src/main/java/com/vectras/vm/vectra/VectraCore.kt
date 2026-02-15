@@ -237,11 +237,15 @@ class VectraMemPool(private val chunkSize: Int, poolSize: Int) {
  * "Finger" = IRQ-like priority request (4G/radio is major source).
  */
 data class VectraEvent(
-    val type: EventType,
-    val priority: Int, // Higher = more urgent
-    val deterministicTick: Long = -1L,
-    val wallClockMs: Long = 0L,
-    val payload: ByteArray? = null
+    var type: EventType,
+    var priority: Int, // Higher = more urgent
+    var deterministicTick: Long = -1L,
+    var timestamp: Long = 0L,
+    var wallClockMs: Long = 0L,
+    @Volatile var payload: ByteArray? = null,
+    @Volatile var payloadArenaOffset: Int = -1,
+    @Volatile var payloadLength: Int = 0,
+    var slotIndex: Int = -1
 ) : Comparable<VectraEvent> {
     companion object {
         private val deterministicCounter = AtomicLong(0)
@@ -402,154 +406,174 @@ class VectraEventBus {
     companion object {
         private const val EVENT_CAPACITY = 1024
         private const val EVENT_PAYLOAD_CAPACITY = 512
-        private const val PRIORITY_BUCKETS = 8
         private const val TIMER_PAYLOAD_BYTES = 8
     }
 
-    private class EventSlot {
-        var typeOrdinal: Int = 0
-        var priority: Int = 0
-        var timestamp: Long = 0L
-        var payloadArenaOffset: Int = 0
-        var payloadLength: Int = 0
-        var inUse: Boolean = false
+    private val queueRing = IntArray(EVENT_RING_CAPACITY)
+    private val freeSlots = IntArray(EVENT_SLOT_COUNT) { idx -> EVENT_SLOT_COUNT - 1 - idx }
+    private val payloadArena = Array(EVENT_SLOT_COUNT) { ByteArray(EVENT_PAYLOAD_CAPACITY) }
+    private val eventPool = Array(EVENT_SLOT_COUNT) { idx ->
+        VectraEvent(
+            type = VectraEvent.EventType.SYSTEM_EVENT,
+            priority = 0,
+            timestamp = 0L,
+            wallClockMs = 0L,
+            payload = null,
+            payloadArenaOffset = idx,
+            payloadLength = 0,
+            slotIndex = idx
+        )
     }
-
-    class EventView internal constructor() {
-        var slotIndex: Int = -1
-            internal set
-        var typeOrdinal: Int = 0
-            internal set
-        var priority: Int = 0
-            internal set
-        var timestamp: Long = 0L
-            internal set
-        var payloadLength: Int = 0
-            internal set
-        var payload: ByteArray = EMPTY_PAYLOAD
-            internal set
-    }
-
     private val lock = ReentrantLock()
-    private val slots = Array(EVENT_CAPACITY) { idx ->
-        EventSlot().also { it.payloadArenaOffset = idx * EVENT_PAYLOAD_CAPACITY }
-    }
-    private val payloadArena = Array(EVENT_CAPACITY) { ByteArray(EVENT_PAYLOAD_CAPACITY) }
-    private val freeRing = IntArray(EVENT_CAPACITY)
-    private var freeHead = 0
-    private var freeTail = 0
-    private var freeSize = 0
-
-    private val bucketRings = Array(PRIORITY_BUCKETS) { IntArray(EVENT_CAPACITY) }
-    private val bucketHeads = IntArray(PRIORITY_BUCKETS)
-    private val bucketTails = IntArray(PRIORITY_BUCKETS)
-    private val bucketSizes = IntArray(PRIORITY_BUCKETS)
-
-    private val polledView = EventView()
-    private val timerPayloadBuffer = ThreadLocal.withInitial { ByteArray(TIMER_PAYLOAD_BYTES) }
+    private val deterministicTickCounter = AtomicLong(0L)
+    private var queueHead = 0
+    private var queueTail = 0
+    private var queueSize = 0
+    private var freeTop = EVENT_SLOT_COUNT
+    private val timerPayloadArenaOffset: Int
+    private var timerTickQueued = false
 
     init {
-        clear()
+        timerPayloadArenaOffset = acquireSlotLocked()
     }
 
-    fun post(
-        type: VectraEvent.EventType,
-        priority: Int,
-        timestamp: Long,
-        payload: ByteArray?,
-        payloadLength: Int = payload?.size ?: 0
-    ): Boolean {
-        lock.withLock {
-            val slotIndex = acquireSlotLocked() ?: return false
-            val slot = slots[slotIndex]
-            slot.typeOrdinal = type.ordinal
-            slot.priority = priority
-            slot.timestamp = timestamp
-            slot.payloadLength = writePayloadToSlot(slotIndex, payload, payloadLength)
-            slot.inUse = true
-            if (!enqueueBucketLocked(slotIndex, priority)) {
-                slot.inUse = false
-                slot.payloadLength = 0
-                releaseSlotLocked(slotIndex)
-                return false
-            }
-            return true
-        }
-    }
-
-    fun postTimerTick(nowMs: Long): Boolean {
-        val payload = timerPayloadBuffer.get()
-        writeLongLe(payload, 0, nowMs)
-        return post(
-            type = VectraEvent.EventType.TIMER_TICK,
-            priority = 1,
-            timestamp = nowMs,
-            payload = payload,
-            payloadLength = TIMER_PAYLOAD_BYTES
+    fun post(event: VectraEvent) {
+        postInternal(
+            type = event.type,
+            priority = event.priority,
+            timestamp = event.timestamp,
+            wallClockMs = event.wallClockMs,
+            payload = event.payload,
+            payloadLength = event.payloadLength
         )
     }
 
-    fun poll(): EventView? {
+    fun postTimerTick(nowMs: Long) {
         lock.withLock {
-            val slotIndex = dequeueBestLocked() ?: return null
-            val slot = slots[slotIndex]
-            polledView.slotIndex = slotIndex
-            polledView.typeOrdinal = slot.typeOrdinal
-            polledView.priority = slot.priority
-            polledView.timestamp = slot.timestamp
-            polledView.payloadLength = slot.payloadLength
-            polledView.payload = payloadArena[slotIndex]
-            return polledView
+            if (timerTickQueued || queueSize >= EVENT_RING_CAPACITY) return
+            val eventSlot = acquireSlotLocked()
+            if (eventSlot < 0) return
+
+            val timerSlot = payloadArena[timerPayloadArenaOffset]
+            writeLongLe(timerSlot, 0, nowMs)
+
+            val event = eventPool[eventSlot]
+            event.type = VectraEvent.EventType.TIMER_TICK
+            event.priority = 1
+            event.timestamp = System.nanoTime()
+            event.wallClockMs = nowMs
+            event.deterministicTick = deterministicTickCounter.incrementAndGet()
+            event.payload = null
+            event.payloadArenaOffset = timerPayloadArenaOffset
+            event.payloadLength = TIMER_PAYLOAD_BYTES
+
+            queueRing[queueTail] = eventSlot
+            queueTail = (queueTail + 1) and (EVENT_RING_CAPACITY - 1)
+            queueSize++
+            timerTickQueued = true
         }
     }
 
-    fun recycle(event: EventView?) {
+    private fun postInternal(
+        type: VectraEvent.EventType,
+        priority: Int,
+        timestamp: Long,
+        wallClockMs: Long,
+        payload: ByteArray?,
+        payloadLength: Int
+    ) {
+        lock.withLock {
+            if (queueSize >= EVENT_RING_CAPACITY) return
+            val slot = acquireSlotLocked()
+            if (slot < 0) return
+
+            val event = eventPool[slot]
+            event.type = type
+            event.priority = priority
+            event.timestamp = timestamp
+            event.wallClockMs = wallClockMs
+            event.deterministicTick = deterministicTickCounter.incrementAndGet()
+            event.payloadArenaOffset = slot
+
+            if (payload != null && payloadLength > 0) {
+                val len = payloadLength.coerceAtMost(EVENT_PAYLOAD_CAPACITY).coerceAtMost(payload.size)
+                System.arraycopy(payload, 0, payloadArena[slot], 0, len)
+                event.payloadLength = len
+                event.payload = null
+            } else {
+                event.payloadLength = 0
+                event.payload = null
+            }
+
+            queueRing[queueTail] = slot
+            queueTail = (queueTail + 1) and (EVENT_RING_CAPACITY - 1)
+            queueSize++
+        }
+    }
+
+    fun resolvePayload(event: VectraEvent?): ByteArray {
+        if (event == null) return EMPTY_PAYLOAD
+        val offset = event.payloadArenaOffset
+        if (offset !in 0 until EVENT_SLOT_COUNT) return EMPTY_PAYLOAD
+        return payloadArena[offset]
+    }
+
+    fun poll(): VectraEvent? {
+        lock.withLock {
+            if (queueSize == 0) return null
+            var bestPos = queueHead
+            var bestSlot = queueRing[queueHead]
+            var cursor = queueHead
+            repeat(queueSize) {
+                val slot = queueRing[cursor]
+                if (eventPool[slot].compareTo(eventPool[bestSlot]) < 0) {
+                    bestSlot = slot
+                    bestPos = cursor
+                }
+                cursor = (cursor + 1) and (EVENT_RING_CAPACITY - 1)
+            }
+
+            var pos = bestPos
+            while (pos != queueTail) {
+                val next = (pos + 1) and (EVENT_RING_CAPACITY - 1)
+                if (next == queueTail) break
+                queueRing[pos] = queueRing[next]
+                pos = next
+            }
+            queueTail = (queueTail - 1) and (EVENT_RING_CAPACITY - 1)
+            queueSize--
+            return eventPool[bestSlot]
+        }
+    }
+
+    fun recycle(event: VectraEvent?) {
         if (event == null) return
-        recycleSlot(event.slotIndex)
-        event.slotIndex = -1
-        event.payloadLength = 0
-        event.payload = EMPTY_PAYLOAD
-    }
-
-    fun recycleSlot(slotIndex: Int) {
         lock.withLock {
-            if (slotIndex !in 0 until EVENT_CAPACITY) return
-            val slot = slots[slotIndex]
-            if (!slot.inUse) return
-            slot.inUse = false
-            slot.payloadLength = 0
-            releaseSlotLocked(slotIndex)
+            val slot = event.slotIndex
+            if (slot !in 0 until EVENT_SLOT_COUNT || slot == timerPayloadArenaOffset) return
+            if (event.type == VectraEvent.EventType.TIMER_TICK) {
+                timerTickQueued = false
+            }
+            event.payloadLength = 0
+            event.payload = null
+            releaseSlotLocked(slot)
         }
     }
 
-    fun size(): Int {
-        lock.withLock {
-            var total = 0
-            for (bucket in 0 until PRIORITY_BUCKETS) total += bucketSizes[bucket]
-            return total
-        }
-    }
+    fun size(): Int = lock.withLock { queueSize }
 
     fun clear() {
         lock.withLock {
-            freeHead = 0
-            freeTail = 0
-            freeSize = 0
-            for (idx in 0 until EVENT_CAPACITY) {
-                freeRing[freeTail] = idx
-                freeTail = (freeTail + 1) % EVENT_CAPACITY
-                freeSize++
-                val slot = slots[idx]
-                slot.inUse = false
-                slot.payloadLength = 0
-                slot.typeOrdinal = 0
-                slot.priority = 0
-                slot.timestamp = 0L
-            }
-            for (bucket in 0 until PRIORITY_BUCKETS) {
-                bucketHeads[bucket] = 0
-                bucketTails[bucket] = 0
-                bucketSizes[bucket] = 0
+            queueHead = 0
+            queueTail = 0
+            queueSize = 0
+            freeTop = 0
+            timerTickQueued = false
+            for (idx in 0 until EVENT_SLOT_COUNT) {
+                if (idx == timerPayloadArenaOffset) continue
+                freeSlots[freeTop++] = idx
+                eventPool[idx].payloadLength = 0
+                eventPool[idx].payload = null
             }
         }
     }
@@ -558,56 +582,14 @@ class VectraEventBus {
         clear()
     }
 
-    private fun writePayloadToSlot(slotIndex: Int, payload: ByteArray?, payloadLength: Int): Int {
-        if (payload == null || payloadLength <= 0) return 0
-        val len = payloadLength.coerceAtMost(payload.size).coerceAtMost(EVENT_PAYLOAD_CAPACITY)
-        payload.copyInto(payloadArena[slotIndex], 0, 0, len)
-        return len
+    private fun acquireSlotLocked(): Int {
+        if (freeTop <= 0) return -1
+        return freeSlots[--freeTop]
     }
 
-    private fun acquireSlotLocked(): Int? {
-        if (freeSize == 0) return null
-        val slotIndex = freeRing[freeHead]
-        freeHead = (freeHead + 1) % EVENT_CAPACITY
-        freeSize--
-        return slotIndex
-    }
-
-    private fun releaseSlotLocked(slotIndex: Int) {
-        if (freeSize >= EVENT_CAPACITY) return
-        freeRing[freeTail] = slotIndex
-        freeTail = (freeTail + 1) % EVENT_CAPACITY
-        freeSize++
-    }
-
-    private fun enqueueBucketLocked(slotIndex: Int, priority: Int): Boolean {
-        val bucket = mapPriority(priority)
-        if (bucketSizes[bucket] >= EVENT_CAPACITY) return false
-        val tail = bucketTails[bucket]
-        bucketRings[bucket][tail] = slotIndex
-        bucketTails[bucket] = (tail + 1) % EVENT_CAPACITY
-        bucketSizes[bucket]++
-        return true
-    }
-
-    private fun dequeueBestLocked(): Int? {
-        for (bucket in PRIORITY_BUCKETS - 1 downTo 0) {
-            if (bucketSizes[bucket] == 0) continue
-            val head = bucketHeads[bucket]
-            val slotIndex = bucketRings[bucket][head]
-            bucketHeads[bucket] = (head + 1) % EVENT_CAPACITY
-            bucketSizes[bucket]--
-            return slotIndex
-        }
-        return null
-    }
-
-    private fun mapPriority(priority: Int): Int {
-        return when {
-            priority <= 0 -> 0
-            priority >= PRIORITY_BUCKETS - 1 -> PRIORITY_BUCKETS - 1
-            else -> priority
-        }
+    private fun releaseSlotLocked(slot: Int) {
+        if (freeTop >= EVENT_SLOT_COUNT) return
+        freeSlots[freeTop++] = slot
     }
 
     private fun writeLongLe(dst: ByteArray, offset: Int, value: Long) {
@@ -679,8 +661,8 @@ class VectraCycle(
 
         // Phase 2: Process
         if (event != null) {
-            val eventType = resolveEventType(event.typeOrdinal)
-            processEvent(event, eventType)
+            val payloadRef = eventBus.resolvePayload(event)
+            processEvent(event, payloadRef)
             Log.d(
                 TAG,
                 "event_processed timestamp=${event.timestamp} type=$eventType priority=${event.priority}"
@@ -689,9 +671,9 @@ class VectraCycle(
 
         // Phase 3: Output
         logger?.let {
-            val payload = event?.payload ?: EMPTY_PAYLOAD
+            val payload = eventBus.resolvePayload(event)
             val payloadLength = event?.payloadLength ?: 0
-            val meta = (event?.typeOrdinal ?: 0) or ((event?.priority ?: 0) shl 8)
+            val meta = (event?.type?.ordinal ?: 0) or ((event?.priority ?: 0) shl 8)
             it.append(payload, payloadLength, meta)
             state.stageCounters[3] += payloadLength.toLong()
         }
@@ -718,7 +700,7 @@ class VectraCycle(
         }
     }
 
-    private fun processEvent(event: VectraEventBus.EventView, eventType: VectraEvent.EventType) {
+    private fun processEvent(event: VectraEvent, payload: ByteArray) {
         // Update entropy hint based on event type
         val baseWeight = when (eventType) {
             VectraEvent.EventType.RADIO_EVENT -> 10 // Radio events add more rho
@@ -733,7 +715,7 @@ class VectraCycle(
         }
 
         if (event.payloadLength > 0) {
-            val entropy = CRC32C.update(state.entropyHint, event.payload, 0, event.payloadLength)
+            val entropy = CRC32C.update(state.entropyHint, payload, 0, event.payloadLength)
             state.entropyHint = entropy + weight
             state.seed = state.seed xor entropy
             state.stageCounters[1] += weight.toLong()
@@ -1056,17 +1038,8 @@ object VectraCore {
         Thread {
             while (initialized.get()) {
                 try {
-                    timestampBuffer.clear()
-                    timestampBuffer.putLong(System.currentTimeMillis())
-                    val payload = timestampBuffer.array().copyOf() // Copy to avoid sharing mutable buffer
                     val wallClockMs = System.currentTimeMillis()
-                    eventBus?.post(
-                        type = VectraEvent.EventType.TIMER_TICK,
-                        priority = 1,
-                        timestamp = wallClockMs,
-                        payload = payload,
-                        payloadLength = payload.size
-                    )
+                    eventBus?.postTimerTick(wallClockMs)
                     Log.d(TAG, "timer_tick_enqueued deterministic_tick=pending wall_clock_ms=$wallClockMs")
                     Thread.sleep(1000) // 1 Hz tick
                 } catch (e: InterruptedException) {
