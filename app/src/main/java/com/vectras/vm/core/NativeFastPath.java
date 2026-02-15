@@ -1,7 +1,5 @@
 package com.vectras.vm.core;
 
-import java.util.Locale;
-
 /**
  * NativeFastPath: optional JNI acceleration hooks with deterministic Java fallback.
  *
@@ -19,7 +17,12 @@ public final class NativeFastPath {
     private static final int HW_CONTRACT_CACHE_LINE = 2;
     private static final int HW_CONTRACT_PAGE_SIZE = 3;
     private static final int HW_CONTRACT_FEATURES = 4;
-    private static final int HW_CONTRACT_SIZE = 5;
+    private static final int HW_CONTRACT_REG0 = 5;
+    private static final int HW_CONTRACT_REG1 = 6;
+    private static final int HW_CONTRACT_REG2 = 7;
+    private static final int HW_CONTRACT_GPIO_WORD_BITS = 8;
+    private static final int HW_CONTRACT_GPIO_PIN_STRIDE = 9;
+    private static final int HW_CONTRACT_SIZE = 10;
 
     private static final int KERNEL_CONTRACT_SIGNATURE = 0;
     private static final int KERNEL_CONTRACT_POINTER_BITS = 1;
@@ -63,7 +66,7 @@ public final class NativeFastPath {
         }
         NATIVE_AVAILABLE = loaded;
         ARENA_AVAILABLE = loaded;
-        BOOT_PROFILE = detectHardwareProfile();
+        BOOT_PROFILE = readNativeHardwareProfile();
     }
 
     private NativeFastPath() {
@@ -129,7 +132,7 @@ public final class NativeFastPath {
         return new KernelUnitProfile(signature, BOOT_PROFILE.pointerBits, cacheLine, pageBytes, BOOT_PROFILE.featureMask, cores, 0, ioQuantum);
     }
 
-    private static HardwareProfile detectHardwareProfile() {
+    private static HardwareProfile readNativeHardwareProfile() {
         if (NATIVE_AVAILABLE) {
             int[] contract = nativeReadHardwareContract();
             if (contract != null && contract.length == HW_CONTRACT_SIZE) {
@@ -138,57 +141,20 @@ public final class NativeFastPath {
                 int cacheLine = normalizeCacheLine(contract[HW_CONTRACT_CACHE_LINE]);
                 int pageBytes = normalizePageSize(contract[HW_CONTRACT_PAGE_SIZE]);
                 int featureMask = normalizeFeatureMask(contract[HW_CONTRACT_FEATURES]);
-                return new HardwareProfile(signature, pointerBits, cacheLine, pageBytes, featureMask);
+                return new HardwareProfile(
+                        signature,
+                        pointerBits,
+                        cacheLine,
+                        pageBytes,
+                        featureMask,
+                        contract[HW_CONTRACT_REG0],
+                        contract[HW_CONTRACT_REG1],
+                        contract[HW_CONTRACT_REG2],
+                        contract[HW_CONTRACT_GPIO_WORD_BITS],
+                        contract[HW_CONTRACT_GPIO_PIN_STRIDE]);
             }
         }
-
-        int signature = javaPlatformSignature();
-        int pointerBits = normalizePointerBits(0, signature);
-        int cacheLine = 64;
-        int pageBytes = 4096;
-        int featureMask = normalizeFeatureMask(javaFeatureMask(signature));
-        return new HardwareProfile(signature, pointerBits, cacheLine, pageBytes, featureMask);
-    }
-
-    private static int javaPlatformSignature() {
-        int arch = ARCH_UNKNOWN;
-        String abi = System.getProperty("os.arch", "").toLowerCase(Locale.ROOT);
-        if (abi.contains("aarch64") || abi.contains("arm64")) {
-            arch = ARCH_ARM64;
-        } else if (abi.startsWith("arm")) {
-            arch = ARCH_ARM32;
-        } else if (abi.contains("x86_64") || abi.contains("amd64")) {
-            arch = ARCH_X64;
-        } else if (abi.contains("x86")) {
-            arch = ARCH_X86;
-        } else if (abi.contains("riscv64")) {
-            arch = ARCH_RISCV64;
-        } else if (abi.contains("riscv32")) {
-            arch = ARCH_RISCV32;
-        }
-
-        int os = OS_UNKNOWN;
-        String osName = System.getProperty("os.name", "").toLowerCase(Locale.ROOT);
-        if (osName.contains("android")) {
-            os = OS_ANDROID;
-        } else if (osName.contains("linux")) {
-            os = OS_LINUX;
-        }
-
-        return arch | os;
-    }
-
-    private static int javaFeatureMask(int signature) {
-        int features = 0;
-        int arch = signature & 0xFF00;
-
-        if (arch == ARCH_ARM64 || arch == ARCH_ARM32) {
-            features |= FEATURE_NEON;
-            features |= FEATURE_POPCNT;
-        } else if (arch == ARCH_X64 || arch == ARCH_X86) {
-            features |= FEATURE_POPCNT;
-        }
-        return features;
+        return new HardwareProfile(ARCH_UNKNOWN | OS_UNKNOWN, 32, 64, 4096, 0, 0, 0, 0, 0, 0);
     }
 
     private static int normalizePointerBits(int pointerBits, int signature) {
@@ -545,14 +511,54 @@ public final class NativeFastPath {
         final int cacheLineBytes;
         final int pageBytes;
         final int featureMask;
+        final int regSignature0;
+        final int regSignature1;
+        final int regSignature2;
+        final int gpioWordBits;
+        final int gpioPinStride;
 
-        HardwareProfile(int signature, int pointerBits, int cacheLineBytes, int pageBytes, int featureMask) {
+        HardwareProfile(int signature, int pointerBits, int cacheLineBytes, int pageBytes, int featureMask,
+                        int regSignature0, int regSignature1, int regSignature2,
+                        int gpioWordBits, int gpioPinStride) {
             this.signature = signature;
             this.pointerBits = pointerBits;
             this.cacheLineBytes = cacheLineBytes;
             this.pageBytes = pageBytes;
             this.featureMask = featureMask;
+            this.regSignature0 = regSignature0;
+            this.regSignature1 = regSignature1;
+            this.regSignature2 = regSignature2;
+            this.gpioWordBits = gpioWordBits;
+            this.gpioPinStride = gpioPinStride;
         }
+    }
+
+    public static int ingest(byte[] payload) {
+        if (!NATIVE_AVAILABLE || payload == null) {
+            return 0;
+        }
+        return nativeIngest(payload);
+    }
+
+    public static long[] processRoute(long cpuCycles, long storageReadBytes, long storageWriteBytes,
+                                      long inputBytes, long outputBytes,
+                                      long m00, long m01, long m10, long m11) {
+        if (!NATIVE_AVAILABLE) {
+            return new long[]{0L, 0L, 0L, (m00 * m11) - (m01 * m10), 0L};
+        }
+        long[] route = nativeProcessRoute(cpuCycles, storageReadBytes, storageWriteBytes, inputBytes, outputBytes, m00, m01, m10, m11);
+        return route != null && route.length == 5 ? route : new long[]{0L, 0L, 0L, 0L, 0L};
+    }
+
+    public static boolean verify(byte[] payload, int expectedCrc) {
+        return NATIVE_AVAILABLE && payload != null && nativeVerify(payload, expectedCrc) == 1;
+    }
+
+    public static long audit(int crc, long matrixDeterminant, long routeTag, boolean verifyOk) {
+        if (!NATIVE_AVAILABLE) {
+            return 0L;
+        }
+        return nativeAudit(crc, matrixDeterminant, routeTag, verifyOk ? 1 : 0);
     }
 
     private static native int nativeInit();
@@ -600,6 +606,16 @@ public final class NativeFastPath {
     private static native int nativePlatformSignature();
 
     private static native int nativeFeatureMask();
+
+    private static native int nativeIngest(byte[] payload);
+
+    private static native long[] nativeProcessRoute(long cpuCycles, long storageReadBytes, long storageWriteBytes,
+                                                    long inputBytes, long outputBytes,
+                                                    long m00, long m01, long m10, long m11);
+
+    private static native int nativeVerify(byte[] payload, int expectedCrc);
+
+    private static native long nativeAudit(int crc, long matrixDeterminant, long routeTag, int verifyOk);
 
     private static native int nativePointerBits();
 
