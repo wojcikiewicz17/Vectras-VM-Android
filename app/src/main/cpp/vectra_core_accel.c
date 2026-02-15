@@ -10,16 +10,16 @@
 #define VECTRA_KERNEL_CONTRACT_SIZE 8
 #define VECTRA_HW_CONTRACT_SIZE 10
 
-static rmr_kernel_state_t g_unified_state;
+static rmr_jni_kernel_state_t g_unified_state;
 static pthread_mutex_t g_unified_lock = PTHREAD_MUTEX_INITIALIZER;
 static int vectra_kernel_ensure(void) {
-    rmr_kernel_capabilities_t caps;
+    rmr_jni_capabilities_t caps;
     pthread_mutex_lock(&g_unified_lock);
-    int rc = rmr_kernel_get_capabilities(&g_unified_state, &caps);
+    int rc = rmr_jni_kernel_get_capabilities(&g_unified_state, &caps);
     if (rc != RMR_KERNEL_OK) {
-        rc = rmr_kernel_init(&g_unified_state, 0x56414343u);
+        rc = rmr_jni_kernel_init(&g_unified_state, 0x56414343u);
         if (rc == RMR_KERNEL_OK) {
-            rc = rmr_kernel_get_capabilities(&g_unified_state, &caps);
+            rc = rmr_jni_kernel_get_capabilities(&g_unified_state, &caps);
         }
     }
     pthread_mutex_unlock(&g_unified_lock);
@@ -36,9 +36,9 @@ JNIEXPORT jintArray JNICALL
 Java_com_vectras_vm_core_NativeFastPath_nativeReadHardwareContract(JNIEnv* env, jclass clazz) {
     (void)clazz;
     if (vectra_kernel_ensure() != RMR_KERNEL_OK) return NULL;
-    rmr_kernel_capabilities_t caps;
+    rmr_jni_capabilities_t caps;
     pthread_mutex_lock(&g_unified_lock);
-    int rc = rmr_kernel_get_capabilities(&g_unified_state, &caps);
+    int rc = rmr_jni_kernel_get_capabilities(&g_unified_state, &caps);
     pthread_mutex_unlock(&g_unified_lock);
     if (rc != RMR_KERNEL_OK) return NULL;
     jint payload[VECTRA_HW_CONTRACT_SIZE] = {
@@ -56,9 +56,9 @@ JNIEXPORT jintArray JNICALL
 Java_com_vectras_vm_core_NativeFastPath_nativeReadKernelUnitContract(JNIEnv* env, jclass clazz) {
     (void)clazz;
     if (vectra_kernel_ensure() != RMR_KERNEL_OK) return NULL;
-    rmr_kernel_capabilities_t caps;
+    rmr_jni_capabilities_t caps;
     pthread_mutex_lock(&g_unified_lock);
-    int rc = rmr_kernel_get_capabilities(&g_unified_state, &caps);
+    int rc = rmr_jni_kernel_get_capabilities(&g_unified_state, &caps);
     pthread_mutex_unlock(&g_unified_lock);
     if (rc != RMR_KERNEL_OK) return NULL;
     jint payload[VECTRA_KERNEL_CONTRACT_SIZE] = {
@@ -141,8 +141,8 @@ Java_com_vectras_vm_core_NativeFastPath_nativeCoreInit(JNIEnv* env, jclass clazz
     (void)env;
     (void)clazz;
     pthread_mutex_lock(&g_unified_lock);
-    (void)rmr_kernel_shutdown(&g_unified_state);
-    int rc = rmr_kernel_init(&g_unified_state, (uint32_t)seed);
+    (void)rmr_jni_kernel_shutdown(&g_unified_state);
+    int rc = rmr_jni_kernel_init(&g_unified_state, (uint32_t)seed);
     pthread_mutex_unlock(&g_unified_lock);
     return (jint)rc;
 }
@@ -152,7 +152,7 @@ Java_com_vectras_vm_core_NativeFastPath_nativeCoreShutdown(JNIEnv* env, jclass c
     (void)env;
     (void)clazz;
     pthread_mutex_lock(&g_unified_lock);
-    int rc = rmr_kernel_shutdown(&g_unified_state);
+    int rc = rmr_jni_kernel_shutdown(&g_unified_state);
     pthread_mutex_unlock(&g_unified_lock);
     return (jint)rc;
 }
@@ -166,7 +166,7 @@ Java_com_vectras_vm_core_NativeFastPath_nativeCoreIngest(JNIEnv* env, jclass cla
     if (!ptr) return RMR_KERNEL_ERR_STATE;
     uint32_t out = 0u;
     pthread_mutex_lock(&g_unified_lock);
-    int rc = rmr_kernel_ingest(&g_unified_state, (const uint8_t*)ptr, (uint32_t)len, &out);
+    int rc = rmr_jni_kernel_ingest(&g_unified_state, (const uint8_t*)ptr, (uint32_t)len, &out);
     pthread_mutex_unlock(&g_unified_lock);
     (*env)->ReleasePrimitiveArrayCritical(env, payload, ptr, JNI_ABORT);
     return (jint)((rc == RMR_KERNEL_OK) ? (int32_t)out : rc);
@@ -179,7 +179,7 @@ Java_com_vectras_vm_core_NativeFastPath_nativeCoreProcess(JNIEnv* env, jclass cl
     if (vectra_kernel_ensure() != RMR_KERNEL_OK) return RMR_KERNEL_ERR_STATE;
     int32_t out = 0;
     pthread_mutex_lock(&g_unified_lock);
-    int rc = rmr_kernel_process(&g_unified_state, (int32_t)a, (int32_t)b, (uint32_t)mode, &out);
+    int rc = rmr_jni_kernel_process(&g_unified_state, (int32_t)a, (int32_t)b, (uint32_t)mode, &out);
     pthread_mutex_unlock(&g_unified_lock);
     return (jint)((rc == RMR_KERNEL_OK) ? out : rc);
 }
@@ -193,7 +193,7 @@ Java_com_vectras_vm_core_NativeFastPath_nativeCoreRoute(JNIEnv* env, jclass claz
     (void)env;
     (void)clazz;
     if (vectra_kernel_ensure() != RMR_KERNEL_OK) return RMR_KERNEL_ERR_STATE;
-    rmr_kernel_route_input_t in;
+    rmr_jni_route_input_t in;
     in.cpu_cycles = (uint64_t)cpuCycles;
     in.storage_read_bytes = (uint64_t)storageReadBytes;
     in.storage_write_bytes = (uint64_t)storageWriteBytes;
@@ -203,9 +203,9 @@ Java_com_vectras_vm_core_NativeFastPath_nativeCoreRoute(JNIEnv* env, jclass claz
     in.m01 = (int64_t)m01;
     in.m10 = (int64_t)m10;
     in.m11 = (int64_t)m11;
-    rmr_kernel_route_output_t out;
+    rmr_jni_route_output_t out;
     pthread_mutex_lock(&g_unified_lock);
-    int rc = rmr_kernel_route(&g_unified_state, &in, &out);
+    int rc = rmr_jni_kernel_route(&g_unified_state, &in, &out);
     pthread_mutex_unlock(&g_unified_lock);
     return (jint)((rc == RMR_KERNEL_OK) ? (int32_t)out.route : rc);
 }
@@ -219,7 +219,7 @@ Java_com_vectras_vm_core_NativeFastPath_nativeCoreVerify(JNIEnv* env, jclass cla
     if (!ptr) return RMR_KERNEL_ERR_STATE;
     uint32_t out = 0u;
     pthread_mutex_lock(&g_unified_lock);
-    int rc = rmr_kernel_verify(&g_unified_state, (const uint8_t*)ptr, (uint32_t)len, (uint32_t)expected, &out);
+    int rc = rmr_jni_kernel_verify(&g_unified_state, (const uint8_t*)ptr, (uint32_t)len, (uint32_t)expected, &out);
     pthread_mutex_unlock(&g_unified_lock);
     (*env)->ReleasePrimitiveArrayCritical(env, payload, ptr, JNI_ABORT);
     if (rc == RMR_KERNEL_OK) {
@@ -237,7 +237,7 @@ Java_com_vectras_vm_core_NativeFastPath_nativeCoreAudit(JNIEnv* env, jclass claz
     if (vectra_kernel_ensure() != RMR_KERNEL_OK) return NULL;
     uint64_t counters[7] = {0};
     pthread_mutex_lock(&g_unified_lock);
-    int rc = rmr_kernel_audit(&g_unified_state, counters, 7u);
+    int rc = rmr_jni_kernel_audit(&g_unified_state, counters, 7u);
     pthread_mutex_unlock(&g_unified_lock);
     if (rc != RMR_KERNEL_OK) {
         return NULL;
@@ -258,9 +258,9 @@ Java_com_vectras_vm_core_NativeFastPath_nativeReadUnifiedCapabilities(JNIEnv* en
     if (vectra_kernel_ensure() != RMR_KERNEL_OK) {
         return NULL;
     }
-    rmr_kernel_capabilities_t caps;
+    rmr_jni_capabilities_t caps;
     pthread_mutex_lock(&g_unified_lock);
-    int rc = rmr_kernel_get_capabilities(&g_unified_state, &caps);
+    int rc = rmr_jni_kernel_get_capabilities(&g_unified_state, &caps);
     pthread_mutex_unlock(&g_unified_lock);
     if (rc != RMR_KERNEL_OK) {
         return NULL;
