@@ -7,6 +7,7 @@ import java.io.RandomAccessFile;
 import java.nio.ByteOrder;
 import java.nio.MappedByteBuffer;
 import java.nio.channels.FileChannel;
+import java.util.SplittableRandom;
 import java.util.concurrent.Executors;
 import java.util.concurrent.PriorityBlockingQueue;
 import java.util.concurrent.ScheduledExecutorService;
@@ -44,7 +45,31 @@ public class RafaeliaMvp {
   static final long RHO_SLEEP_MS = 2L;
   static final int IRQ_QUEUE_CAPACITY = 1024;
   static final long IRQ_POLL_TIMEOUT_MS = 1_000L;
+  static final long RNG_SEED = 0x4F3C2B1A9D8E7F60L;
   private static final ThreadLocal<CRC32C> CRC32C_POOL = ThreadLocal.withInitial(CRC32C::new);
+
+  interface DeterministicRng {
+    int nextInt(int bound);
+    double nextDouble();
+  }
+
+  static final class SplittableDeterministicRng implements DeterministicRng {
+    private final SplittableRandom random;
+
+    SplittableDeterministicRng(long seed) {
+      this.random = new SplittableRandom(seed);
+    }
+
+    @Override
+    public synchronized int nextInt(int bound) {
+      return random.nextInt(bound);
+    }
+
+    @Override
+    public synchronized double nextDouble() {
+      return random.nextDouble();
+    }
+  }
 
   // meta layout (u32):
   // [  0.. 7] parity (8 bits)
@@ -208,13 +233,15 @@ public class RafaeliaMvp {
   // ========== MVP loop ==========
   public static void main(String[] args) throws Exception {
     File path = new File(args.length > 0 ? args[0] : "./bitstack.bin");
+    DeterministicRng radioRng = new SplittableDeterministicRng(RNG_SEED);
+    DeterministicRng flowRng = new SplittableDeterministicRng(RNG_SEED ^ 0xA5A5A5A5A5A5A5A5L);
 
     IrqBus irq = new IrqBus();
 
     // Simulate “4G IRQ” bursts + timers
     ScheduledExecutorService sch = Executors.newScheduledThreadPool(2);
     sch.scheduleAtFixedRate(
-        () -> irq.fire(EventType.RADIO_4G, RADIO_PRIORITY, (int) (Math.random() * 0xFFFF)),
+        () -> irq.fire(EventType.RADIO_4G, RADIO_PRIORITY, radioRng.nextInt(0x10000)),
         RADIO_INITIAL_DELAY_MS,
         RADIO_PERIOD_MS,
         TimeUnit.MILLISECONDS);
@@ -244,8 +271,8 @@ public class RafaeliaMvp {
         int bits16 = ev.payload() & 0xFFFF;
 
         // simulate leak/bit-missing: 2% chance drop one bit
-        if (Math.random() < BIT_DROP_PROBABILITY) {
-          int drop = (int)(Math.random() * 16);
+        if (flowRng.nextDouble() < BIT_DROP_PROBABILITY) {
+          int drop = flowRng.nextInt(16);
           bits16 &= ~(1 << drop);
         }
 
