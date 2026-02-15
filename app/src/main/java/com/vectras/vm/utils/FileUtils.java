@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
@@ -39,7 +40,6 @@ import com.vectras.vm.R;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.io.InputStreamReader;
@@ -457,24 +457,17 @@ public class FileUtils {
 		return oS.toString();
 	}
 
-	public static void saveFileContents(String dBFile, String machinesToExport) {
-		// TODO Auto-generated method stub
+	public static void saveFileContents(String dBFile, String machinesToExport) throws IOException {
 		byteArrayToFile(machinesToExport.getBytes(), new File(dBFile));
 	}
 
-	public static void byteArrayToFile(byte[] byteData, File filePath) {
-
-		try {
-			FileOutputStream fos = new FileOutputStream(filePath);
+	public static void byteArrayToFile(byte[] byteData, File filePath) throws IOException {
+		try (FileOutputStream fos = new FileOutputStream(filePath)) {
 			fos.write(byteData);
-			fos.close();
-
-		} catch (FileNotFoundException ex) {
-			System.out.println("FileNotFoundException : " + ex);
-		} catch (IOException ioe) {
-			System.out.println("IOException : " + ioe);
+		} catch (IOException ex) {
+			Log.e(TAG, "Failed to write byte array to file: " + filePath, ex);
+			throw ex;
 		}
-
 	}
 
 	public static String getDataDir(Context context) {
