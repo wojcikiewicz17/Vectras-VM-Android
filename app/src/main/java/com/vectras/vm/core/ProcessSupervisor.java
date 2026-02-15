@@ -8,7 +8,9 @@ import com.vectras.vm.audit.AuditLedger;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
@@ -45,11 +47,25 @@ public class ProcessSupervisor {
 
     private static final long QMP_GRACE_TIMEOUT_MS = 1_200L;
 
-    private static final ExecutorService QMP_EXECUTOR = Executors.newCachedThreadPool(r -> {
-        Thread thread = new Thread(r, "process-supervisor-qmp");
-        thread.setDaemon(true);
-        return thread;
-    });
+    private static final int QMP_EXECUTOR_THREADS = 1;
+    private static final int QMP_QUEUE_CAPACITY = 16;
+
+    private static final ExecutorService QMP_EXECUTOR = new ThreadPoolExecutor(
+            QMP_EXECUTOR_THREADS,
+            QMP_EXECUTOR_THREADS,
+            0L,
+            TimeUnit.MILLISECONDS,
+            new LinkedBlockingQueue<>(QMP_QUEUE_CAPACITY),
+            new ThreadFactory() {
+                @Override
+                public Thread newThread(Runnable r) {
+                    Thread thread = new Thread(r, "process-supervisor-qmp");
+                    thread.setDaemon(true);
+                    return thread;
+                }
+            },
+            new ThreadPoolExecutor.CallerRunsPolicy()
+    );
 
     private static final TransitionSink NOOP_TRANSITION_SINK =
             (from, to, cause, action, stallMs, droppedLogs, bytes) -> {
@@ -274,5 +290,19 @@ public class ProcessSupervisor {
 
     public State getState() {
         return state;
+    }
+
+    static int getQmpExecutorMaxThreadsForTests() {
+        if (QMP_EXECUTOR instanceof ThreadPoolExecutor) {
+            return ((ThreadPoolExecutor) QMP_EXECUTOR).getMaximumPoolSize();
+        }
+        return -1;
+    }
+
+    static boolean isQmpExecutorCallerRunsPolicyForTests() {
+        if (QMP_EXECUTOR instanceof ThreadPoolExecutor) {
+            return ((ThreadPoolExecutor) QMP_EXECUTOR).getRejectedExecutionHandler() instanceof ThreadPoolExecutor.CallerRunsPolicy;
+        }
+        return false;
     }
 }
