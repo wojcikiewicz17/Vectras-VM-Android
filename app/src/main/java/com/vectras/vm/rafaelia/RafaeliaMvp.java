@@ -374,6 +374,77 @@ public class RafaeliaMvp {
     }
   }
 
+  static RuntimeConfig parseMainConfig(String[] args) {
+    String pathRaw = null;
+    String modeRaw = null;
+    Long providedSeed = null;
+
+    for (String rawArg : args) {
+      if (rawArg == null || rawArg.isBlank()) {
+        continue;
+      }
+      String arg = rawArg.trim();
+      if (arg.startsWith("--")) {
+        arg = arg.substring(2);
+      }
+      int eq = arg.indexOf('=');
+      if (eq <= 0) {
+        if (pathRaw == null) {
+          pathRaw = arg;
+        }
+        continue;
+      }
+
+      String key = arg.substring(0, eq).trim().toLowerCase(Locale.ROOT);
+      String value = arg.substring(eq + 1).trim();
+      switch (key) {
+        case "mode" -> modeRaw = value;
+        case "seed" -> providedSeed = parseSeed(value);
+        case "path", "file" -> pathRaw = value;
+        default -> {
+          // unknown args are ignored to keep CLI backward compatible
+        }
+      }
+    }
+
+    String mode = normalizeMode(modeRaw);
+    long resolvedSeed = resolveSeed(mode, providedSeed);
+    File path = new File(pathRaw == null || pathRaw.isBlank() ? "./bitstack.bin" : pathRaw);
+    return new RuntimeConfig(path, mode, providedSeed, resolvedSeed);
+  }
+
+  static String normalizeMode(String modeRaw) {
+    if (modeRaw == null || modeRaw.isBlank()) {
+      return MODE_FUZZ;
+    }
+    String mode = modeRaw.trim().toLowerCase(Locale.ROOT);
+    if (mode.equals("demo")) {
+      return MODE_FUZZ;
+    }
+    if (mode.equals(MODE_BENCHMARK) || mode.equals(MODE_FUZZ)) {
+      return mode;
+    }
+    throw new IllegalArgumentException("Unsupported mode='" + modeRaw + "'. Expected benchmark|fuzz|demo.");
+  }
+
+  static long parseSeed(String value) {
+    String trimmed = value.trim();
+    if (trimmed.startsWith("0x") || trimmed.startsWith("0X")) {
+      return Long.parseUnsignedLong(trimmed.substring(2), 16);
+    }
+    return Long.parseLong(trimmed);
+  }
+
+  static long resolveSeed(String mode, Long providedSeed) {
+    if (providedSeed != null) {
+      return providedSeed;
+    }
+    if (MODE_BENCHMARK.equals(mode)) {
+      return BENCHMARK_DEFAULT_SEED;
+    }
+    return System.nanoTime();
+  }
+
   // Simple 64-bit mixer (bitwise heavy) — engine-like core
   static long mix64(long s, int bits16, int t, int pr) {
     long x = s ^ ((long)bits16 * 0xD6E8FEB86659FD93L);

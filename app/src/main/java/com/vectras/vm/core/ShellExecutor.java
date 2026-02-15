@@ -8,19 +8,23 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicInteger;
 
 public class ShellExecutor {
     private static final String TAG = "ShellExecutor";
     private static final long DEFAULT_TIMEOUT_MS = 30_000L;
     private static final int OUTPUT_MAX_LINES = 512;
     private static final int OUTPUT_MAX_BYTES = 256 * 1024;
+    private static final int EXECUTOR_POOL_SIZE = 2;
+    private static final int EXECUTOR_QUEUE_CAPACITY = 32;
 
-    private final ExecutorService executorService;
+    private final ThreadPoolExecutor executorService;
     private volatile Process shellExecutorProcess;
     private volatile Future<?> processFuture;
 
@@ -39,7 +43,11 @@ public class ShellExecutor {
     }
 
     public ShellExecutor() {
-        this.executorService = Executors.newCachedThreadPool();
+        this(createDefaultExecutor());
+    }
+
+    ShellExecutor(ThreadPoolExecutor executorService) {
+        this.executorService = executorService;
     }
 
     public void exec(String command) {
@@ -83,6 +91,59 @@ public class ShellExecutor {
         Future<?> future = processFuture;
         if (future != null) {
             future.cancel(true);
+        }
+    }
+
+    public void shutdown() {
+        cancel();
+        executorService.shutdownNow();
+    }
+
+    int getPoolSizeLimitForTests() {
+        return executorService.getMaximumPoolSize();
+    }
+
+    int getQueueCapacityForTests() {
+        return EXECUTOR_QUEUE_CAPACITY;
+    }
+
+    int getCreatedThreadCountForTests() {
+        ThreadFactory threadFactory = executorService.getThreadFactory();
+        if (threadFactory instanceof NamedThreadFactory) {
+            return ((NamedThreadFactory) threadFactory).createdCount();
+        }
+        return -1;
+    }
+
+    private static ThreadPoolExecutor createDefaultExecutor() {
+        return new ThreadPoolExecutor(
+                EXECUTOR_POOL_SIZE,
+                EXECUTOR_POOL_SIZE,
+                0L,
+                TimeUnit.MILLISECONDS,
+                new LinkedBlockingQueue<>(EXECUTOR_QUEUE_CAPACITY),
+                new NamedThreadFactory("shell-executor"),
+                new ThreadPoolExecutor.CallerRunsPolicy()
+        );
+    }
+
+    private static final class NamedThreadFactory implements ThreadFactory {
+        private final String prefix;
+        private final AtomicInteger counter = new AtomicInteger(1);
+
+        private NamedThreadFactory(String prefix) {
+            this.prefix = prefix;
+        }
+
+        @Override
+        public Thread newThread(Runnable r) {
+            Thread thread = new Thread(r, prefix + "-" + counter.getAndIncrement());
+            thread.setDaemon(true);
+            return thread;
+        }
+
+        int createdCount() {
+            return counter.get() - 1;
         }
     }
 
