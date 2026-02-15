@@ -8,7 +8,7 @@ This document provides a comprehensive mapping of architecture, UI, and system i
 
 ## Table of Contents
 
-1. [Image Checklist (Action Required)](#1-image-checklist-action-required)
+1. [Image Checklist (Status Real)](#1-image-checklist-status-real)
 2. [Image Index Table](#2-image-index-table)
 3. [Layer Mappings](#3-layer-mappings)
    - [UI/UX Layer](#31-uiux-layer)
@@ -20,7 +20,7 @@ This document provides a comprehensive mapping of architecture, UI, and system i
 
 ---
 
-## 1. Image Checklist (Action Required)
+## 1. Image Checklist (Status Real)
 
 > **✅ Maintainer Status**: Este índice referencia apenas imagens com metadados completos no manifesto único: [`docs/assets/MANIFEST.md`](assets/MANIFEST.md).
 
