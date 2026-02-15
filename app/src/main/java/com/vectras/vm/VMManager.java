@@ -1262,12 +1262,81 @@ public class VMManager {
         }
     }
 
-    private static synchronized void resetLifecycleStateAfterKillAll() {
-        for (ProcessSupervisor supervisor : SUPERVISORS.values()) {
-            supervisor.stopGracefully(true);
+    private static boolean isPidAlive(long pid) {
+        if (pid <= 0) {
+            return false;
         }
-        SUPERVISORS.clear();
-        VM_STATES.clear();
+        try {
+            Process probe = new ProcessBuilder("sh", "-c", "kill -0 " + pid).start();
+            boolean finished = probe.waitFor(700, TimeUnit.MILLISECONDS);
+            return !finished || probe.exitValue() == 0;
+        } catch (Exception ignored) {
+            return false;
+        }
+    }
+
+    private static boolean signalPidAndAwait(long pid, int signal, long timeoutMs) {
+        if (pid <= 0) {
+            return false;
+        }
+        try {
+            new ProcessBuilder("sh", "-c", "kill -" + signal + " " + pid).start().waitFor(700, TimeUnit.MILLISECONDS);
+        } catch (Exception ignored) {
+            return false;
+        }
+        long deadline = ProcessRuntimeOps.monoMs() + Math.max(0, timeoutMs);
+        while (ProcessRuntimeOps.monoMs() < deadline) {
+            if (!isPidAlive(pid)) {
+                return true;
+            }
+            try {
+                Thread.sleep(120);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        return !isPidAlive(pid);
+    }
+
+    private static synchronized void resetLifecycleStateAfterKillAll() {
+        for (Map.Entry<String, ProcessSupervisor> entry : new HashMap<>(SUPERVISORS).entrySet()) {
+            String vmId = entry.getKey();
+            ProcessSupervisor supervisor = entry.getValue();
+            if (supervisor == null) {
+                continue;
+            }
+
+            long pid = supervisor.getPid();
+            VM_STATES.put(vmId, VmRuntimeState.STOPPING);
+            boolean stoppedGracefully = supervisor.stopGracefully(true);
+            boolean terminated = !isPidAlive(pid);
+
+            if (!terminated && pid > 0) {
+                Log.w(TAG, "killall fallback TERM by pid vmId=" + vmId + " pid=" + pid + " graceful=" + stoppedGracefully);
+                terminated = signalPidAndAwait(pid, 15, 2_500);
+            }
+
+            if (!terminated && pid > 0) {
+                long terminalPid = ProcessRuntimeOps.safePid(Terminal.qemuProcess);
+                if (terminalPid > 0 && terminalPid == pid) {
+                    try {
+                        Terminal.qemuProcess.destroyForcibly();
+                    } catch (RuntimeException ignored) {
+                    }
+                }
+                Log.w(TAG, "killall fallback KILL by pid vmId=" + vmId + " pid=" + pid);
+                terminated = signalPidAndAwait(pid, 9, 1_500);
+            }
+
+            if (terminated) {
+                SUPERVISORS.remove(vmId, supervisor);
+                VM_STATES.put(vmId, VmRuntimeState.STOPPED);
+            } else {
+                VM_STATES.put(vmId, VmRuntimeState.RUNNING);
+                Log.e(TAG, "killall could not terminate vmId=" + vmId + " pid=" + pid + " (state preserved, avoiding false STOPPED)");
+            }
+        }
     }
 
     public static synchronized void killallqemuprocesses(Context context) {
@@ -1276,8 +1345,17 @@ public class VMManager {
         Terminal vterm = new Terminal(context);
         if (Terminal.qemuProcess != null) {
             long pid = ProcessRuntimeOps.safePid(Terminal.qemuProcess);
-            if (pid > 0) {
+            if (pid > 0 && isPidAlive(pid)) {
                 vterm.executeShellCommand2("kill -15 " + pid, false, null);
+                if (!signalPidAndAwait(pid, 15, 2_000)) {
+                    try {
+                        Terminal.qemuProcess.destroyForcibly();
+                    } catch (RuntimeException ignored) {
+                    }
+                    if (!signalPidAndAwait(pid, 9, 1_500)) {
+                        Log.e(TAG, "killall could not terminate terminal-owned pid=" + pid);
+                    }
+                }
             }
         }
         if (!MainStartVM.lastVMName.isEmpty()) {
