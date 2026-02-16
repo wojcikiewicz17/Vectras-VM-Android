@@ -64,10 +64,9 @@ public final class BackgroundJob {
         Thread errThread = new Thread() {
             @Override
             public void run() {
-                InputStream stderr = mProcess.getErrorStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(stderr, StandardCharsets.UTF_8));
                 String line;
-                try {
+                try (InputStream stderr = mProcess.getErrorStream();
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(stderr, StandardCharsets.UTF_8))) {
                     // FIXME: Long lines.
                     while ((line = reader.readLine()) != null) {
                         String safeLine = sanitizeLine(line);
@@ -85,11 +84,9 @@ public final class BackgroundJob {
             @Override
             public void run() {
                 Log.i(LOG_TAG, "[" + pid + "] starting: " + processDescription);
-                InputStream stdout = mProcess.getInputStream();
-                BufferedReader reader = new BufferedReader(new InputStreamReader(stdout, StandardCharsets.UTF_8));
-
                 String line;
-                try {
+                try (InputStream stdout = mProcess.getInputStream();
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(stdout, StandardCharsets.UTF_8))) {
                     // FIXME: Long lines.
                     while ((line = reader.readLine()) != null) {
                         String safeLine = sanitizeLine(line);
@@ -111,8 +108,18 @@ public final class BackgroundJob {
 
                     result.putString("stdout", outResult.toString());
                     result.putInt("exitCode", exitCode);
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                    Log.w(LOG_TAG, "[" + pid + "] interrupted while waiting for process", e);
+                } finally {
+                    try {
+                        errThread.join();
+                    } catch (InterruptedException e) {
+                        Thread.currentThread().interrupt();
+                        errThread.interrupt();
+                        Log.w(LOG_TAG, "[" + pid + "] interrupted while joining stderr thread", e);
+                    }
 
-                    errThread.join();
                     result.putString("stderr", errResult.toString());
 
                     Intent data = new Intent();
@@ -125,8 +132,6 @@ public final class BackgroundJob {
                             // The caller doesn't want the result? That's fine, just ignore
                         }
                     }
-                } catch (InterruptedException e) {
-                    // Ignore
                 }
             }
         }.start();
