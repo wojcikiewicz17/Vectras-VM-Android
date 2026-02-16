@@ -2,6 +2,7 @@ package com.vectras.vm;
 
 import android.Manifest;
 import android.content.Intent;
+import android.content.ContentResolver;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.Environment;
@@ -78,8 +79,18 @@ public class RomReceiverActivity extends AppCompatActivity {
             return;
         }
 
+        if (!isTrustedUriScheme(uri)) {
+            Toast.makeText(this, getResources().getString(R.string.format_not_supported_please_select_file_with_format_cvbi), Toast.LENGTH_LONG).show();
+            return;
+        }
+
         String resolvedPath = getFilePath(uri);
         if (!isSupportedCvbiUri(uri, resolvedPath)) {
+            Toast.makeText(this, getResources().getString(R.string.format_not_supported_please_select_file_with_format_cvbi), Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        if (!hasSupportedMimeType(uri)) {
             Toast.makeText(this, getResources().getString(R.string.format_not_supported_please_select_file_with_format_cvbi), Toast.LENGTH_LONG).show();
             return;
         }
@@ -109,6 +120,26 @@ public class RomReceiverActivity extends AppCompatActivity {
 
         String lastSegment = uri.getLastPathSegment();
         return !TextUtils.isEmpty(lastSegment) && lastSegment.toLowerCase().endsWith(".cvbi");
+    }
+
+    private boolean hasSupportedMimeType(Uri uri) {
+        if ("file".equalsIgnoreCase(uri.getScheme())) {
+            return true;
+        }
+
+        ContentResolver resolver = getContentResolver();
+        String type = resolver.getType(uri);
+        if (TextUtils.isEmpty(type)) {
+            return true;
+        }
+        return "application/octet-stream".equalsIgnoreCase(type)
+                || "application/x-cvbi".equalsIgnoreCase(type)
+                || "application/vnd.vectras.cvbi".equalsIgnoreCase(type);
+    }
+
+    private boolean isTrustedUriScheme(Uri uri) {
+        String scheme = uri.getScheme();
+        return "content".equalsIgnoreCase(scheme) || "file".equalsIgnoreCase(scheme);
     }
 
     private String getFilePath(Uri _uri) {

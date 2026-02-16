@@ -26,9 +26,6 @@
     <uses-permission
         android:name="android.permission.QUERY_ALL_PACKAGES"
         tools:ignore="QueryAllPackagesPermission" />
-    <uses-permission
-        android:name="android.permission.WRITE_SECURE_SETTINGS"
-        tools:ignore="ProtectedPermissions" />
 
     <uses-feature
         android:name="android.hardware.touchscreen"
@@ -39,7 +36,7 @@
 
     <application
         android:name=".VectrasApp"
-        android:allowBackup="true"
+        android:allowBackup="false"
         android:banner="@mipmap/tv_banner"
         android:hardwareAccelerated="true"
         android:icon="@mipmap/ic_launcher"
@@ -105,18 +102,15 @@
             android:label="@string/importRom">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
+                <action android:name="android.intent.action.SEND" />
 
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
 
                 <data android:scheme="file" />
                 <data android:scheme="content" />
-                <data android:mimeType="*/*" />
-                <data android:host="*" />
                 <data android:pathPattern=".*\\.cvbi" />
-                <data android:pathPattern=".*\\..*\\.cvbi" />
-                <data android:pathPattern=".*\\..*\\..*\\.cvbi" />
-                <data android:pathPattern=".*\\..*\\..*\\..*\\.cvbi" />
+                <data android:mimeType="application/octet-stream" />
             </intent-filter>
         </activity>
         <activity
