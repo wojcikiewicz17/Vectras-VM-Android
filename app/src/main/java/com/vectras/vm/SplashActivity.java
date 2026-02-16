@@ -62,6 +62,8 @@ public class SplashActivity extends AppCompatActivity implements Runnable {
     }
 
     public void setupFiles() {
+        AppConfig.ensureStoragePaths(this);
+
         File tmpDir = new File(getFilesDir(), "usr/tmp");
         if (!tmpDir.isDirectory()) {
             if (tmpDir.mkdirs()) {
@@ -82,7 +84,7 @@ public class SplashActivity extends AppCompatActivity implements Runnable {
             if (!distroDir.mkdirs()) Log.e(TAG, "distro: Directory creation failed!");
         }
 
-        File cvbiDir = new File(FileUtils.getExternalFilesDirectory(this).getPath() + "/cvbi");
+        File cvbiDir = new File(AppConfig.cvbiFolder);
         if (!cvbiDir.exists()) {
             if (!cvbiDir.mkdirs()) Log.e(TAG, "cvbi: Directory creation failed!");
         }

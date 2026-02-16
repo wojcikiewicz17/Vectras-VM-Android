@@ -13,7 +13,6 @@ import com.google.android.material.color.DynamicColors;
 import com.vectras.qemu.Config;
 import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.core.DeterministicRuntimeMatrix;
-import com.vectras.vm.utils.FileUtils;
 import com.vectras.vm.utils.PackageUtils;
 import com.vectras.vm.utils.UIUtils;
 import com.vectras.vm.vectra.VectraCore;
@@ -102,13 +101,7 @@ public class VectrasApp extends Application {
 		AppConfig.vectrasVersionCode = PackageUtils.getThisVersionCode(_context);
 		AppConfig.internalDataDirPath = getFilesDir().getPath() + "/";
 		AppConfig.basefiledir = AppConfig.datadirpath(_context) + "/.qemu/";
-		AppConfig.maindirpath = FileUtils.getExternalFilesDirectory(_context).getPath() + "/";
-		AppConfig.sharedFolder = AppConfig.maindirpath + "SharedFolder/";
-		AppConfig.downloadsFolder = AppConfig.maindirpath + "Downloads/";
-		AppConfig.romsdatajson = AppConfig.maindirpath + "roms-data.json";
-		AppConfig.vmFolder = AppConfig.maindirpath + "roms/";
-		AppConfig.recyclebin = AppConfig.maindirpath + "recyclebin/";
-        AppConfig.cvbiFolder = AppConfig.maindirpath + "cvbi/";
+		AppConfig.ensureStoragePaths(_context);
 		AppConfig.lastCrashLogPath = AppConfig.internalDataDirPath + "logs/lastcrash.txt";
 
         Config.cacheDir = _context.getCacheDir().getAbsolutePath();
