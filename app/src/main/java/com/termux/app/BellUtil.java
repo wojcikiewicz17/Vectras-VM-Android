@@ -45,11 +45,15 @@ public class BellUtil {
         long timeSinceLastBell = now - lastBell;
 
         if (timeSinceLastBell < 0) {
-            // there is a next bell pending; don't schedule another one
+            // Coalescing policy: when calls arrive in high frequency and there is already
+            // a pending bell, keep the existing schedule and do not enqueue duplicates.
         } else if (timeSinceLastBell < MIN_PAUSE) {
-            // there was a bell recently, scheudle the next one
-            handler.postDelayed(bellRunnable, MIN_PAUSE - timeSinceLastBell);
-            lastBell = lastBell + MIN_PAUSE;
+            // there was a bell recently; schedule only one pending bell for the earliest
+            // allowed instant and replace any stale callback before posting.
+            long nextBellAt = lastBell + MIN_PAUSE;
+            handler.removeCallbacks(bellRunnable);
+            handler.postDelayed(bellRunnable, nextBellAt - now);
+            lastBell = nextBellAt;
         } else {
             // the last bell was long ago, do it now
             bellRunnable.run();
