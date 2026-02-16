@@ -230,17 +230,20 @@ public class SetupFeatureCore {
             String[] cmdline = {"tar", "xf", extractedFilePath, "-C", filesDir + "/" + extractTo};
             Process process = null;
             try {
-                process = Runtime.getRuntime().exec(cmdline);
+                ProcessBuilder processBuilder = new ProcessBuilder(cmdline);
+                processBuilder.redirectErrorStream(false);
+                processBuilder.environment().remove("LD_LIBRARY_PATH");
+                process = processBuilder.start();
 
                 // Capture standard error output (stderr)
-                BufferedReader errorReader =
-                        new BufferedReader(new InputStreamReader(process.getErrorStream()));
                 StringBuilder errorOutput = new StringBuilder();
-                String line;
-                while ((line = errorReader.readLine()) != null) {
-                    errorOutput.append(line).append("\n");
+                try (BufferedReader errorReader =
+                             new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
+                    String line;
+                    while ((line = errorReader.readLine()) != null) {
+                        errorOutput.append(line).append("\n");
+                    }
                 }
-                errorReader.close();
 
                 // Wait for the process to complete
                 int exitCode = process.waitFor();
@@ -251,9 +254,13 @@ public class SetupFeatureCore {
 
                 // If there was any output in stderr, treat it as an error
                 return exitCode == 0 && errorOutput.length() <= 0;
-            } catch (IOException | InterruptedException e) {
+            } catch (IOException e) {
                 lastErrorLog = lastErrorLog.isEmpty() ? e.toString() : lastErrorLog + "\n" + e;
                 Log.e(TAG, "extractSystemFiles: ", e);
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+                lastErrorLog = lastErrorLog.isEmpty() ? e.toString() : lastErrorLog + "\n" + e;
+                Log.e(TAG, "extractSystemFiles: interrupted", e);
             } finally {
                 if (process != null) {
                     process.destroy();
