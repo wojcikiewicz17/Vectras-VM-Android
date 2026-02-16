@@ -6,6 +6,7 @@ import android.content.res.Configuration;
 import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
+import android.os.Looper;
 import android.util.Log;
 
 import androidx.appcompat.app.AppCompatActivity;
@@ -25,9 +26,15 @@ import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.util.Locale;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class SplashActivity extends AppCompatActivity implements Runnable {
     private static final String TAG = "SplashActivity";
+    private static final ExecutorService FILE_INSTALL_EXECUTOR = Executors.newSingleThreadExecutor();
+    private static final AtomicBoolean FILE_INSTALL_STARTED = new AtomicBoolean(false);
+    private final Handler splashHandler = new Handler(Looper.getMainLooper());
 
     @Override
     protected void onCreate(Bundle bundle) {
@@ -38,11 +45,7 @@ public class SplashActivity extends AppCompatActivity implements Runnable {
 
         setupFolders();
 
-        try {
-            new Handler().postDelayed(this, 1000);
-        } catch (Exception e) {
-            Log.e(TAG, "Handler().postDelayed: ", e);
-        }
+        splashHandler.postDelayed(this, 1000);
         MainSettingsManager.setOrientationSetting(this, 1);
 
         setupFiles();
@@ -110,15 +113,29 @@ public class SplashActivity extends AppCompatActivity implements Runnable {
                     jsonFile.createNewFile();
                 }
 
-                FileWriter writer = new FileWriter(jsonFile);
-                writer.write("[]");
-                writer.flush();
-                writer.close();
+                try (FileWriter writer = new FileWriter(jsonFile)) {
+                    writer.write("[]");
+                    writer.flush();
+                }
             } catch (IOException e) {
                 Log.e(TAG, "Create roms-data.json file failed: ", e);
             }
 
-        new Thread(() -> FileInstaller.installFiles(getApplicationContext(), true)).start();
+        startFileInstallationIfNeeded();
+    }
+
+    private void startFileInstallationIfNeeded() {
+        if (!FILE_INSTALL_STARTED.compareAndSet(false, true)) {
+            return;
+        }
+        FILE_INSTALL_EXECUTOR.execute(() -> {
+            try {
+                FileInstaller.installFiles(getApplicationContext(), true);
+            } catch (RuntimeException e) {
+                FILE_INSTALL_STARTED.set(false);
+                Log.e(TAG, "FileInstaller.installFiles failed", e);
+            }
+        });
     }
 
     private void setupFolders() {
@@ -151,5 +168,11 @@ public class SplashActivity extends AppCompatActivity implements Runnable {
             }
         }
         finish();
+    }
+
+    @Override
+    protected void onDestroy() {
+        splashHandler.removeCallbacks(this);
+        super.onDestroy();
     }
 }

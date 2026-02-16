@@ -32,7 +32,7 @@ android {
                     arm64CppFlags += "-mcpu=${nativeMcpu}"
                 }
                 cppFlags arm64CppFlags.join(" ")
-                cFlags "-O3 -ffast-math"
+                cFlags "-O3 -march=armv8-a -ffast-math"
             }
         }
 
