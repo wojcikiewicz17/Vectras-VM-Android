@@ -495,8 +495,7 @@ public class Terminal {
             } finally {
                 safeUnregisterVmProcess(vmId, qemuProcess);
                 VMManager.clearVmStarting(vmId);
-                // Dismiss ProgressDialog on the main thread
-                new Handler(Looper.getMainLooper()).post(progressDialog::dismiss);
+                dismissProgressDialogSafely(progressDialog);
 
                 // Use callback to return both output and errors
                 new Handler(Looper.getMainLooper()).post(() -> callback.onCommandCompleted(resolveOutputText(output), errors.toString()));
