@@ -1,7 +1,5 @@
 package com.vectras.vm.network;
 
-import androidx.annotation.NonNull;
-
 import org.json.JSONObject;
 
 import java.io.BufferedInputStream;
@@ -14,19 +12,13 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.security.SecureRandom;
-import java.security.cert.X509Certificate;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import javax.net.ssl.HttpsURLConnection;
-import javax.net.ssl.SSLContext;
-import javax.net.ssl.SSLSocketFactory;
-import javax.net.ssl.TrustManager;
-import javax.net.ssl.X509TrustManager;
+import javax.net.ssl.SSLHandshakeException;
 
 public class RequestNetworkController {
     public static final String GET = "GET";
@@ -42,34 +34,12 @@ public class RequestNetworkController {
 
     private static RequestNetworkController mInstance;
     private final ExecutorService ioPool = Executors.newCachedThreadPool();
-    private SSLSocketFactory trustAllFactory;
 
     public static synchronized RequestNetworkController getInstance() {
         if (mInstance == null) {
             mInstance = new RequestNetworkController();
         }
         return mInstance;
-    }
-
-    private void ensureTrustAllFactory() {
-        if (trustAllFactory != null) {
-            return;
-        }
-        try {
-            final TrustManager[] trustAllCerts = new TrustManager[]{
-                    new X509TrustManager() {
-                        @Override public void checkClientTrusted(X509Certificate[] chain, String authType) {}
-                        @Override public void checkServerTrusted(X509Certificate[] chain, String authType) {}
-                        @NonNull @Override public X509Certificate[] getAcceptedIssuers() { return new X509Certificate[]{}; }
-                    }
-            };
-
-            SSLContext sslContext = SSLContext.getInstance("TLS");
-            sslContext.init(null, trustAllCerts, new SecureRandom());
-            trustAllFactory = sslContext.getSocketFactory();
-        } catch (Exception ignored) {
-            trustAllFactory = null;
-        }
     }
 
     public void execute(final RequestNetwork requestNetwork, String method, String url, final String tag, final RequestNetwork.RequestListener requestListener) {
@@ -85,14 +55,6 @@ public class RequestNetworkController {
                 connection.setRequestMethod(method);
                 connection.setRequestProperty("Cache-Control", "no-cache, no-store");
 
-                if (connection instanceof HttpsURLConnection httpsConnection) {
-                    ensureTrustAllFactory();
-                    if (trustAllFactory != null) {
-                        httpsConnection.setSSLSocketFactory(trustAllFactory);
-                        httpsConnection.setHostnameVerifier((hostname, session) -> true);
-                    }
-                }
-
                 applyHeaders(connection, requestNetwork.getHeaders());
                 writeBodyIfNeeded(connection, requestNetwork, method);
 
@@ -102,8 +64,15 @@ public class RequestNetworkController {
                 HashMap<String, Object> responseHeaders = mapHeaders(connection.getHeaderFields());
 
                 requestNetwork.getActivity().runOnUiThread(() -> requestListener.onResponse(tag, responseBody, responseHeaders));
+            } catch (SSLHandshakeException e) {
+                String detail = e.getMessage() == null || e.getMessage().isEmpty() ? "unknown TLS handshake error" : e.getMessage();
+                String errorMessage = "TLS handshake failed: " + detail;
+                requestNetwork.getActivity().runOnUiThread(() -> requestListener.onErrorResponse(tag, errorMessage));
             } catch (Exception e) {
-                requestNetwork.getActivity().runOnUiThread(() -> requestListener.onErrorResponse(tag, e.getMessage()));
+                String errorMessage = e.getMessage() == null || e.getMessage().isEmpty()
+                        ? e.getClass().getSimpleName()
+                        : e.getClass().getSimpleName() + ": " + e.getMessage();
+                requestNetwork.getActivity().runOnUiThread(() -> requestListener.onErrorResponse(tag, errorMessage));
             } finally {
                 if (connection != null) {
                     connection.disconnect();
