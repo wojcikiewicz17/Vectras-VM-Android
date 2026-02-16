@@ -31,12 +31,30 @@ else()
     set(log-lib "")
 endif()
 
-target_compile_options(rmr_core_static PRIVATE -O3 -ffast-math -fvisibility=hidden)
-if(TARGET rmr_policy_static)
-    target_compile_options(rmr_policy_static PRIVATE -O3 -ffast-math -fvisibility=hidden)
+set(VECTRA_COMMON_COMPILE_OPTIONS -O3 -ffast-math -fvisibility=hidden)
+set(VECTRA_ARM64_COMPILE_OPTIONS)
+
+if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+    set(VECTRA_ARM64_COMPILE_OPTIONS -march=armv8-a)
 endif()
-target_compile_options(bitraf_static PRIVATE -O3 -ffast-math -fvisibility=hidden)
-target_compile_options(vectra_core_accel PRIVATE -O3 -ffast-math -fvisibility=hidden)
+
+target_compile_options(rmr_core_static PRIVATE
+    ${VECTRA_COMMON_COMPILE_OPTIONS}
+    ${VECTRA_ARM64_COMPILE_OPTIONS})
+
+if(TARGET rmr_policy_static)
+    target_compile_options(rmr_policy_static PRIVATE
+        ${VECTRA_COMMON_COMPILE_OPTIONS}
+        ${VECTRA_ARM64_COMPILE_OPTIONS})
+endif()
+
+target_compile_options(bitraf_static PRIVATE
+    ${VECTRA_COMMON_COMPILE_OPTIONS}
+    ${VECTRA_ARM64_COMPILE_OPTIONS})
+
+target_compile_options(vectra_core_accel PRIVATE
+    ${VECTRA_COMMON_COMPILE_OPTIONS}
+    ${VECTRA_ARM64_COMPILE_OPTIONS})
 
 target_link_libraries(vectra_core_accel PRIVATE rmr_core_static ${log-lib})
 
