@@ -45,6 +45,7 @@ import com.vectras.vm.rafaelia.RafaeliaEventRecorder;
 import com.vectras.vm.rafaelia.RafaeliaSettings;
 
 import java.io.File;
+import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicLong;
 
 public class MainStartVM {
@@ -52,8 +53,7 @@ public class MainStartVM {
     public static AlertDialog progressDialog;
     public static boolean skipIDEwithARM64DialogInStartVM = false;
     public static boolean isStopNow = false;
-    public static final Handler handlerForLaunch = new Handler(Looper.getMainLooper());
-    public static Runnable tickForLaunch = null;
+    private static final LaunchPoller LAUNCH_POLLER = new LaunchPoller();
 
     public static String lastVMName = "";
     public static String lastEnv = "";
@@ -104,6 +104,7 @@ public class MainStartVM {
             String vmID,
             String thumbnailFile
     ) {
+        stopLaunchPoller();
 
         boolean isX11Ui = MainSettingsManager.getVmUi(context).equals("X11");
         String runCommandFormat = resolveRunCommandFormat(
@@ -114,7 +115,10 @@ public class MainStartVM {
 
         if (isLaunchFromPending) {
             isLaunchFromPending = false;
-            if (pendingVMID.isEmpty()) return;
+            if (pendingVMID.isEmpty()) {
+                stopLaunchPoller();
+                return;
+            }
             pendingVMID = "";
         } else {
             lastVMName = vmName;
@@ -129,6 +133,7 @@ public class MainStartVM {
                     pendingVMID = ensureLastVmIdInitialized(vmID);
                     pendingThumbnailFile = thumbnailFile;
                     DisplaySystem.launch(context);
+                    stopLaunchPoller();
                     return;
                 }
             }
@@ -172,6 +177,7 @@ public class MainStartVM {
                     null,
                     null
             );
+            stopLaunchPoller();
             return;
         }
 
@@ -184,6 +190,7 @@ public class MainStartVM {
                         context.getString(R.string.vm_cache_dir_failed_to_create_content),
                         R.drawable.warning_48px
                 );
+                stopLaunchPoller();
                 return;
             }
         }
@@ -195,6 +202,7 @@ public class MainStartVM {
                     context.getString(R.string.harmful_command_was_detected) + " " + context.getResources().getString(R.string.reason) + ": " + VMManager.latestUnsafeCommandReason,
                     R.drawable.verified_user_24px
             );
+            stopLaunchPoller();
             return;
         }
 
@@ -214,6 +222,7 @@ public class MainStartVM {
                     null,
                     null
             );
+            stopLaunchPoller();
             return;
         }
 
@@ -222,6 +231,7 @@ public class MainStartVM {
         if (VMManager.isVMRunning(context, finalvmID)) {
             Toast.makeText(context, "This VM is already running.", Toast.LENGTH_LONG).show();
             DisplaySystem.launch(context);
+            stopLaunchPoller();
             return;
         }
 
@@ -229,6 +239,7 @@ public class MainStartVM {
             if (env.contains("tcg,thread=multi")) {
                 DialogUtils.twoDialog(context, context.getResources().getString(R.string.problem_has_been_detected), context.getResources().getString(R.string.can_not_use_mttcg), context.getString(R.string.ok), context.getString(R.string.cancel), true, R.drawable.warning_48px, true,
                         () -> startNow(context, vmName, env.replace("tcg,thread=multi", "tcg,thread=single"), finalvmID, thumbnailFile), null, null);
+                stopLaunchPoller();
                 return;
             }
         }
@@ -239,6 +250,7 @@ public class MainStartVM {
                         skipIDEwithARM64DialogInStartVM = true;
                         startNow(context, vmName, env, finalvmID, thumbnailFile);
                     }, null, null);
+            stopLaunchPoller();
             return;
         } else if (skipIDEwithARM64DialogInStartVM) {
             skipIDEwithARM64DialogInStartVM = false;
@@ -258,6 +270,7 @@ public class MainStartVM {
                     () -> context.startActivity(new Intent(context, ExternalVNCSettingsActivity.class)),
                     null,
                     null);
+            stopLaunchPoller();
             return;
         }
 
@@ -316,57 +329,11 @@ public class MainStartVM {
         if (MainSettingsManager.getVmUi(context).equals("X11") && !DisplaySystem.isUseBuiltInX11()) {
             if (!PackageUtils.isInstalled("com.termux.x11", context)) {
                 DialogUtils.needInstallTermuxX11(context);
+                stopLaunchPoller();
                 return;
             }
         }
-
-        tickForLaunch = new Runnable() {
-            @Override
-            public void run() {
-                if (isStopNow || VMManager.isQemuStopedWithError || FileUtils.isFileExists(Config.getLocalQMPSocketPath())) {
-                    handlerForLaunch.removeCallbacks(this);
-
-                    if (context instanceof Activity activity) {
-                        if (!activity.isFinishing() && !activity.isDestroyed()) {
-                            if (progressDialog != null && progressDialog.isShowing()) {
-                                progressDialog.dismiss();
-                            }
-                        }
-                    }
-
-                    if (!isStopNow && !VMManager.isQemuStopedWithError) {
-                        if (headless) {
-                            Log.i(TAG, "engine-only launch completed without frontend attach");
-                        } else if (MainSettingsManager.getVmUi(context).equals("VNC")) {
-                            if (MainSettingsManager.getVncExternal(context)) {
-                                Config.currentVNCServervmID = finalvmID;
-                                DialogUtils.oneDialog(context,
-                                        context.getString(R.string.vnc_server),
-                                        context.getString(R.string.running_vm_with_vnc_server_content) + " " + (Integer.parseInt(MainSettingsManager.getVncExternalDisplay(context)) + 5900) + ".",
-                                        R.drawable.cast_24px
-                                );
-                            } else {
-                                MainVNCActivity.started = true;
-                                context.startActivity(new Intent(context, MainVNCActivity.class));
-                            }
-//                    } else if (MainSettingsManager.getVmUi(activity).equals("SPICE")) {
-//                        //This feature is not available yet.
-                        } else if (MainSettingsManager.getVmUi(context).equals("X11") && !DisplaySystem.isUseBuiltInX11()) {
-                            DisplaySystem.launch(context);
-                        }
-
-                        Log.i(TAG, "Virtual machine running.");
-                    }
-
-                    skipIDEwithARM64DialogInStartVM = false;
-                    tickForLaunch = null;
-                    return;
-                }
-
-                handlerForLaunch.postDelayed(this, 500);
-            }
-        };
-        handlerForLaunch.postDelayed(tickForLaunch, 1000);
+        LAUNCH_POLLER.start(context, finalvmID, headless);
 
         String[] params = env.split("\\s+");
         VectrasStatus.logInfo("Params:");
@@ -414,6 +381,7 @@ public class MainStartVM {
         ImageView ivStop = progressView.findViewById(R.id.ivStop);
         ivStop.setOnClickListener(v -> {
             isStopNow = true;
+            stopLaunchPoller();
             VMManager.shutdownCurrentVM();
         });
 
@@ -427,5 +395,93 @@ public class MainStartVM {
 
     public static void setDefault() {
         // Compatibility no-op: command format is now immutable and derived locally in startNow(...).
+    }
+
+    private static void stopLaunchPoller() {
+        LAUNCH_POLLER.stop();
+    }
+
+    private static void dismissProgressDialog(Context context) {
+        if (!(context instanceof Activity activity)) {
+            return;
+        }
+        if (activity.isFinishing() || activity.isDestroyed()) {
+            return;
+        }
+        if (progressDialog != null && progressDialog.isShowing()) {
+            progressDialog.dismiss();
+        }
+    }
+
+    private static final class LaunchPoller {
+        private final Handler handler = new Handler(Looper.getMainLooper());
+        private WeakReference<Context> contextRef = new WeakReference<>(null);
+        private Context appContext;
+        private String vmId;
+        private boolean headless;
+        private boolean running;
+
+        private final Runnable tick = new Runnable() {
+            @Override
+            public void run() {
+                if (!running) {
+                    return;
+                }
+                if (isStopNow || VMManager.isQemuStopedWithError || FileUtils.isFileExists(Config.getLocalQMPSocketPath())) {
+                    stop();
+                    Context uiContext = contextRef.get();
+                    if (uiContext != null) {
+                        dismissProgressDialog(uiContext);
+                    }
+
+                    if (!isStopNow && !VMManager.isQemuStopedWithError) {
+                        Context launchContext = uiContext != null ? uiContext : appContext;
+                        if (headless) {
+                            Log.i(TAG, "engine-only launch completed without frontend attach");
+                        } else if (MainSettingsManager.getVmUi(launchContext).equals("VNC")) {
+                            if (MainSettingsManager.getVncExternal(launchContext)) {
+                                Config.currentVNCServervmID = vmId;
+                                DialogUtils.oneDialog(launchContext,
+                                        launchContext.getString(R.string.vnc_server),
+                                        launchContext.getString(R.string.running_vm_with_vnc_server_content) + " " + (Integer.parseInt(MainSettingsManager.getVncExternalDisplay(launchContext)) + 5900) + ".",
+                                        R.drawable.cast_24px
+                                );
+                            } else {
+                                MainVNCActivity.started = true;
+                                Intent intent = new Intent(launchContext, MainVNCActivity.class);
+                                if (!(launchContext instanceof Activity)) {
+                                    intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+                                }
+                                launchContext.startActivity(intent);
+                            }
+                        } else if (MainSettingsManager.getVmUi(launchContext).equals("X11") && !DisplaySystem.isUseBuiltInX11()) {
+                            DisplaySystem.launch(launchContext);
+                        }
+
+                        Log.i(TAG, "Virtual machine running.");
+                    }
+
+                    skipIDEwithARM64DialogInStartVM = false;
+                    return;
+                }
+
+                handler.postDelayed(this, 500);
+            }
+        };
+
+        void start(Context context, String vmId, boolean headless) {
+            stop();
+            this.contextRef = new WeakReference<>(context);
+            this.appContext = context.getApplicationContext();
+            this.vmId = vmId;
+            this.headless = headless;
+            this.running = true;
+            handler.postDelayed(tick, 1000);
+        }
+
+        void stop() {
+            running = false;
+            handler.removeCallbacksAndMessages(null);
+        }
     }
 }
