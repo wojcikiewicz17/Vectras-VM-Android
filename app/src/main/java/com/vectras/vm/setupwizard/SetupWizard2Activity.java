@@ -648,7 +648,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 errorReader.close();
 
                 // Wait for the process to finish
-                process.waitFor();
+             //   process.waitFor();
 
                 // Wait for the process to finish
                 int exitValue = process.waitFor();
