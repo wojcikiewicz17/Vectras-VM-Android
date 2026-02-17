@@ -79,6 +79,14 @@ class LocaleManager private constructor(private val context: Context) {
     ): Boolean = withContext(Dispatchers.IO) {
         val module = LanguageModule.getByCode(languageCode) ?: return@withContext false
 
+        if (!isValidModuleDownloadUrl(module.downloadUrl)) {
+            android.util.Log.e(
+                "LocaleManager",
+                "Invalid module download URL for language module: $languageCode"
+            )
+            return@withContext false
+        }
+
         if (module.isBuiltIn) {
             return@withContext true
         }
@@ -107,7 +115,35 @@ class LocaleManager private constructor(private val context: Context) {
 
             onProgress?.invoke(75)
 
-            getLangFile(languageCode).writeText(body)
+            val langDir = getLangDir()
+            val finalFile = File(langDir, "$languageCode.json")
+            val tempFile = File(langDir, "$languageCode.json.tmp")
+
+            val persisted = try {
+                tempFile.writeText(body)
+                if (finalFile.exists() && !finalFile.delete()) {
+                    throw IllegalStateException("Could not replace existing language module file")
+                }
+                if (!tempFile.renameTo(finalFile)) {
+                    throw IllegalStateException("Could not atomically move temporary language module file")
+                }
+                true
+            } catch (e: Exception) {
+                if (tempFile.exists()) {
+                    tempFile.delete()
+                }
+                android.util.Log.e(
+                    "LocaleManager",
+                    "Failed to persist language module file: $languageCode",
+                    e
+                )
+                false
+            }
+
+            if (!persisted) {
+                return@withContext false
+            }
+
             markLanguageDownloaded(languageCode)
 
             onProgress?.invoke(100)
@@ -214,5 +250,17 @@ class LocaleManager private constructor(private val context: Context) {
             out[key] = json.optString(key, "")
         }
         return out
+    }
+
+    private fun isValidModuleDownloadUrl(downloadUrl: String): Boolean {
+        return try {
+            val url = URL(downloadUrl)
+            val isHttps = url.protocol.equals("https", ignoreCase = true)
+            val hasHost = !url.host.isNullOrBlank()
+            val hasExpectedPath = url.path?.endsWith(".json", ignoreCase = true) == true
+            isHttps && hasHost && hasExpectedPath
+        } catch (_: Exception) {
+            false
+        }
     }
 }
