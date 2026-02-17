@@ -20,9 +20,21 @@ This document provides a comprehensive mapping of architecture, UI, and system i
 
 ---
 
+## 0. Política Canônica de Ativos Visuais
+
+Formato canônico adotado neste repositório: **híbrido controlado**.
+
+- **Obrigatório para conteúdo local**: ASCII versionado em `docs/assets/ascii/`.
+- **Permitido para binário**: apenas como referência externa com URL estável e proveniência documentada.
+- **Fonte única de verdade**: [`docs/assets/MANIFEST.md`](assets/MANIFEST.md).
+
+> Regra curta: **não existe PNG local obrigatório**; o obrigatório é a rastreabilidade no manifesto (ASCII local ou binário externo com proveniência).
+
+---
+
 ## 1. Image Checklist (Status Real)
 
-> **✅ Maintainer Status**: Este índice referencia apenas imagens com metadados completos no manifesto único: [`docs/assets/MANIFEST.md`](assets/MANIFEST.md).
+> **✅ Maintainer Status**: Este índice segue a política canônica híbrida controlada e referencia ativos rastreáveis no manifesto único: [`docs/assets/MANIFEST.md`](assets/MANIFEST.md).
 
 ### Tracked Images (metadata complete)
 

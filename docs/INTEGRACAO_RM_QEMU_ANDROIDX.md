@@ -51,10 +51,16 @@ Consolidar melhorias comprovadas dos projetos externos (QEMU e AndroidX) dentro 
 
 ## 4. Uso dos diagramas fornecidos (imagens)
 
-Os diagramas devem guiar o desenho das camadas de integração usando como fonte canônica os artefatos ASCII versionados em `docs/assets/ascii/`, conforme `docs/assets/MANIFEST.md` e política de índice em `docs/IMAGES_INDEX.md`:
+Os diagramas devem guiar o desenho das camadas de integração seguindo a política canônica **híbrida controlada** do repositório:
 
-- **Diagrama 1 (Olho/Toroide/IA)** → binário PNG indisponível no repositório e sem equivalente ASCII versionado no momento. Referência de proveniência pendente em [`docs/assets/CHAT_PROMPT_PROVENANCE.md`](assets/CHAT_PROMPT_PROVENANCE.md).
-- **Diagrama 2 (Coerência/Estabilidade)** → binário PNG indisponível no repositório e sem equivalente ASCII versionado no momento. Referência de proveniência pendente em [`docs/assets/CHAT_PROMPT_PROVENANCE.md`](assets/CHAT_PROMPT_PROVENANCE.md).
+- **Canônico interno**: somente artefatos ASCII versionados em `docs/assets/ascii/`.
+- **Binários visuais (PNG/JPG/SVG)**: não são comitados localmente; ficam apenas em origem externa estável e com proveniência obrigatória.
+- **Rastreabilidade**: todo artefato citado em docs deve constar em `docs/assets/MANIFEST.md` (local ou externo) e, quando pendente, também em `docs/assets/CHAT_PROMPT_PROVENANCE.md`.
+
+Aplicação imediata desta regra para os diagramas de referência:
+
+- **Diagrama 1 (Olho/Toroide/IA)** → artefato **externo** com proveniência pendente, registrado em `docs/assets/MANIFEST.md` e detalhado em [`docs/assets/CHAT_PROMPT_PROVENANCE.md`](assets/CHAT_PROMPT_PROVENANCE.md).
+- **Diagrama 2 (Coerência/Estabilidade)** → artefato **externo** com proveniência pendente, registrado em `docs/assets/MANIFEST.md` e detalhado em [`docs/assets/CHAT_PROMPT_PROVENANCE.md`](assets/CHAT_PROMPT_PROVENANCE.md).
 - **Arquitetura Fractal** → [`docs/assets/ascii/rafaelia-fractal-architecture.ascii.md`](assets/ascii/rafaelia-fractal-architecture.ascii.md).
 - **Pipeline de Sistema** → [`docs/assets/ascii/rafaelia-system-pipeline.ascii.md`](assets/ascii/rafaelia-system-pipeline.ascii.md).
 - **Modelo Matemático** → [`docs/assets/ascii/rafaelia-mathematical.ascii.md`](assets/ascii/rafaelia-mathematical.ascii.md).
@@ -130,7 +136,7 @@ Complemento recomendado: manter também o salmo técnico em
 
 ## 7. Próximos passos recomendados
 
-1. Incorporar os diagramas em `docs/assets/`.
+1. Converter novos diagramas para ASCII versionado em `docs/assets/ascii/`; quando não houver conversão imediata, registrar como externo com proveniência em `docs/assets/MANIFEST.md` e `docs/assets/CHAT_PROMPT_PROVENANCE.md`.
 2. Expandir o índice de imagens (`docs/IMAGES_INDEX.md`).
 3. Criar checklist de refatoração por módulo.
 4. Iniciar migração incremental para AndroidX (ViewModel/ActivityResult).
