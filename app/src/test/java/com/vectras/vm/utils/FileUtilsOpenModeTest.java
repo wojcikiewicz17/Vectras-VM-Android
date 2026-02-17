@@ -7,6 +7,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 
 import android.content.ContentResolver;
 import android.content.Context;
@@ -63,6 +65,28 @@ public class FileUtilsOpenModeTest {
         assertTrue((Boolean) method.invoke(null, "content://disk.iSo"));
         assertFalse((Boolean) method.invoke(null, "/storage/emulated/0/vm/disk.qcow2"));
         assertFalse((Boolean) method.invoke(null, (Object) null));
+    }
+
+
+    @Test
+    public void fileValid_multipleContentUriValidations_shouldNotGrowFdMap() throws Exception {
+        Context context = mock(Context.class);
+        ContentResolver resolver = mock(ContentResolver.class);
+        when(context.getContentResolver()).thenReturn(resolver);
+
+        File tempFile = File.createTempFile("vectras-file-valid", ".img");
+        when(resolver.openFileDescriptor(any(Uri.class), anyString()))
+                .thenAnswer(invocation -> ParcelFileDescriptor.open(tempFile, ParcelFileDescriptor.MODE_READ_WRITE));
+
+        FileUtils.fds.clear();
+        int initialSize = FileUtils.fds.size();
+
+        for (int i = 0; i < 20; i++) {
+            assertTrue(FileUtils.fileValid(context, "content://disk.qcow2", "rw"));
+        }
+
+        assertEquals(initialSize, FileUtils.fds.size());
+        verify(resolver, times(20)).openFileDescriptor(Uri.parse("content://disk.qcow2"), "rw");
     }
 
     @Test

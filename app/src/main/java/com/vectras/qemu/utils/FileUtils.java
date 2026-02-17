@@ -211,14 +211,28 @@ public class FileUtils {
         if (path == null || path.equals(""))
             return true;
         if (path.startsWith("content://") || path.startsWith("/content/")) {
-            int fd = get_fd(context, path, backendMode);
-            if (fd <= 0)
+            String normalizedPath = path.replaceFirst("^/content", "content:");
+            ParcelFileDescriptor pfd = null;
+            try {
+                String mode = resolveContentOpenMode(normalizedPath, backendMode);
+                pfd = context.getContentResolver().openFileDescriptor(Uri.parse(normalizedPath), mode);
+                return pfd != null;
+            } catch (Exception e) {
+                Log.e(TAG, "Failed to validate file path: " + path, e);
                 return false;
+            } finally {
+                if (pfd != null) {
+                    try {
+                        pfd.close();
+                    } catch (IOException e) {
+                        Log.w(TAG, "Failed to close file descriptor during validation: " + path, e);
+                    }
+                }
+            }
         } else {
             File file = new File(path);
             return file.exists();
         }
-        return true;
     }
 
     @Deprecated
