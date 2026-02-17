@@ -152,6 +152,17 @@ public class Terminal {
         }
     }
 
+    private static void clearQemuProcessIfMatches(Process process) {
+        if (process == null) {
+            return;
+        }
+        synchronized (Terminal.class) {
+            if (qemuProcess == process) {
+                qemuProcess = null;
+            }
+        }
+    }
+
     private static void dismissProgressDialogSafely(AlertDialog progressDialog) {
         if (progressDialog == null) {
             return;
