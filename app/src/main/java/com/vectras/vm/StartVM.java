@@ -60,21 +60,24 @@ public class StartVM {
             String hdd1;
 
             if (!img.isEmpty()) {
+                String backendImgPath = resolveBackendPath(activity, img, "rw");
                 if (ifType.isEmpty()) {
                     hdd0 = "-hda";
-                    hdd0 += " " + shellQuote(img);
+                    hdd0 += " " + shellQuote(backendImgPath);
                 } else {
                     hdd0 = "-drive";
                     hdd0 += " index=0";
                     hdd0 += ",media=disk";
+                    hdd0 += ",readonly=off";
                     hdd0 += ",if=" + ifType;
-                    hdd0 += ",file=" + shellQuote(img);
+                    hdd0 += ",file=" + shellQuote(backendImgPath);
 
                     if ((arch.equals("ARM64") && ifType.equals("ide")) || arch.equals("PPC")) {
                         hdd0 = "-drive";
                         hdd0 += " index=0";
                         hdd0 += ",media=disk";
-                        hdd0 += ",file=" + shellQuote(img);
+                        hdd0 += ",readonly=off";
+                        hdd0 += ",file=" + shellQuote(backendImgPath);
                     }
                 }
                 params.add(hdd0);
@@ -84,9 +87,10 @@ public class StartVM {
                 File cdromFile = new File(filesDir + "/data/Vectras/drive.iso");
 
                 if (cdromFile.exists()) {
+                    String backendCdromPath = resolveBackendPath(activity, cdromFile.getPath(), "r");
                     if (arch.equals("ARM64")) {
                         cdrom = " -drive";
-                        cdrom += " if=none,id=cdrom,format=raw,media=cdrom,file=" + shellQuote(cdromFile.getPath());
+                        cdrom += " if=none,id=cdrom,format=raw,media=cdrom,readonly=on,file=" + shellQuote(backendCdromPath);
                         cdrom += " -device";
                         cdrom += " usb-storage,drive=cdrom";
                         if (!extras.contains("-device nec-usb-xhci")) {
@@ -98,34 +102,37 @@ public class StartVM {
                     } else {
                         if (ifType.isEmpty()) {
                             cdrom = "-cdrom";
-                            cdrom += " " + shellQuote(cdromFile.getPath());
+                            cdrom += " " + shellQuote(backendCdromPath);
                         } else {
                             cdrom = "-drive";
                             cdrom += " index=1";
                             cdrom += ",media=cdrom";
-                            cdrom += ",file=" + shellQuote(cdromFile.getPath());
+                            cdrom += ",readonly=on";
+                            cdrom += ",file=" + shellQuote(backendCdromPath);
                         }
                     }
 
                     params.add(cdrom);
                 }
             } else {
+                String backendCdromPath = resolveBackendPath(activity, cdrompath, "r");
                 if (arch.equals("ARM64")) {
                     cdrom += " -device";
                     cdrom += " nec-usb-xhci,id=defaultxhci";
                     cdrom += " -device";
                     cdrom += " usb-storage,bus=defaultxhci.0,drive=cdrom";
                     cdrom += " -drive";
-                    cdrom += " if=none,id=cdrom,format=raw,media=cdrom,file=" + shellQuote(cdrompath);
+                    cdrom += " if=none,id=cdrom,format=raw,media=cdrom,readonly=on,file=" + shellQuote(backendCdromPath);
                 } else {
                     if (ifType.isEmpty()) {
                         cdrom = "-cdrom";
-                        cdrom += " " + shellQuote(cdrompath);
+                        cdrom += " " + shellQuote(backendCdromPath);
                     } else {
                         cdrom = "-drive";
                         cdrom += " index=1";
                         cdrom += ",media=cdrom";
-                        cdrom += ",file=" + shellQuote(cdrompath);
+                        cdrom += ",readonly=on";
+                        cdrom += ",file=" + shellQuote(backendCdromPath);
                     }
                 }
                 params.add(cdrom);
@@ -134,15 +141,17 @@ public class StartVM {
             File hdd1File = new File(filesDir + "/data/Vectras/hdd1.qcow2");
 
             if (hdd1File.exists()) {
+                String backendHdd1Path = resolveBackendPath(activity, hdd1File.getPath(), "rw");
                 if (ifType.isEmpty()) {
                     hdd1 = "-hdb";
-                    hdd1 += " " + shellQuote(hdd1File.getPath());
+                    hdd1 += " " + shellQuote(backendHdd1Path);
                 } else {
                     hdd1 = "-drive";
                     hdd1 += " index=2";
                     hdd1 += ",media=disk";
+                    hdd1 += ",readonly=off";
                     hdd1 += ",if=" + ifType;
-                    hdd1 += ",file=" + shellQuote(hdd1File.getPath());
+                    hdd1 += ",file=" + shellQuote(backendHdd1Path);
                 }
 
                 params.add(hdd1);
@@ -155,7 +164,9 @@ public class StartVM {
                     && MainSettingsManager.getUseSdl(activity)) {
                 String wrapperPath = get3dfxWrapperPath(activity);
                 if (wrapperPath != null && !finalextra.contains(wrapperPath)) {
-                    String wrapperCdrom = "-drive index=4,media=cdrom,file=" + shellQuote(wrapperPath);
+                    String backendWrapperPath = resolveBackendPath(activity, wrapperPath, "r");
+                    String wrapperCdrom = "-drive index=4,media=cdrom,file=" + shellQuote(backendWrapperPath);
+                    wrapperCdrom = wrapperCdrom.replace(",media=cdrom", ",media=cdrom,readonly=on");
                     params.add(wrapperCdrom);
                 }
             }
@@ -373,6 +384,21 @@ public class StartVM {
 
     static String shellQuote(String value) {
         return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    private static String resolveBackendPath(Activity activity, String path, String backendMode) {
+        if (path == null || path.isEmpty()) {
+            return path;
+        }
+        if (!path.startsWith("content://") && !path.startsWith("/content/")) {
+            return path;
+        }
+
+        int fd = FileUtils.get_fd(activity, path, backendMode);
+        if (fd <= 0) {
+            return path;
+        }
+        return "/proc/self/fd/" + fd;
     }
 
 }
