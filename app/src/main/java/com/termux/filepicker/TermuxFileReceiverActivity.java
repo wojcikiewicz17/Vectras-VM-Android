@@ -25,6 +25,9 @@ import java.util.regex.Pattern;
 public class TermuxFileReceiverActivity extends Activity {
 
     interface InputStreamOpener {
+        /**
+         * Opens a new stream instance for reading. The caller is responsible for closing it.
+         */
         InputStream open() throws IOException;
     }
 
@@ -109,7 +112,20 @@ public class TermuxFileReceiverActivity extends Activity {
 
             if (attachmentFileName == null) attachmentFileName = subjectFromIntent;
 
-            promptNameAndSave(() -> getContentResolver().openInputStream(uri), attachmentFileName);
+            try (InputStream preflightStream = getContentResolver().openInputStream(uri)) {
+                if (preflightStream == null) {
+                    final IOException e = new IOException("Content resolver returned null stream.");
+                    showErrorDialogAndQuit("Unable to handle shared content:\n\nCannot open input stream.");
+                    Log.e("termux", "handleContentUri(uri=" + uri + ") failed", e);
+                    return;
+                }
+            }
+
+            promptNameAndSave(() -> {
+                InputStream in = getContentResolver().openInputStream(uri);
+                if (in == null) throw new IOException("Content resolver returned null stream.");
+                return in;
+            }, attachmentFileName);
         } catch (Exception e) {
             showErrorDialogAndQuit("Unable to handle shared content:\n\n" + e.getMessage());
             Log.e("termux", "handleContentUri(uri=" + uri + ") failed", e);
