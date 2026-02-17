@@ -79,12 +79,19 @@ final class TermuxInstaller {
                     final byte[] buffer = new byte[8096];
                     final List<Pair<String, String>> symlinks = new ArrayList<>(50);
 
-                    //final byte[] zipBytes = loadZipBytes();
-                    final byte[] zipBytest = new byte[0];
-                    try (ZipInputStream zipInput = new ZipInputStream(new ByteArrayInputStream(zipBytest))) {
+                    final byte[] zipBytes = loadZipBytes();
+                    if (zipBytes == null || zipBytes.length == 0) {
+                        final String errorMessage = "Bootstrap archive is empty or unavailable: loadZipBytes() returned null/empty data";
+                        Log.e(EmulatorDebug.LOG_TAG, errorMessage);
+                        throw new RuntimeException(errorMessage);
+                    }
+
+                    boolean symlinksFound = false;
+                    try (ZipInputStream zipInput = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
                         ZipEntry zipEntry;
                         while ((zipEntry = zipInput.getNextEntry()) != null) {
                             if (zipEntry.getName().equals("SYMLINKS.txt")) {
+                                symlinksFound = true;
                                 BufferedReader symlinksReader = new BufferedReader(new InputStreamReader(zipInput));
                                 String line;
                                 while ((line = symlinksReader.readLine()) != null) {
@@ -119,8 +126,14 @@ final class TermuxInstaller {
                         }
                     }
 
+                    if (!symlinksFound) {
+                        final String errorMessage = "Bootstrap archive is invalid: SYMLINKS.txt entry was not found";
+                        Log.e(EmulatorDebug.LOG_TAG, errorMessage);
+                        throw new RuntimeException(errorMessage);
+                    }
+
                     if (symlinks.isEmpty())
-                        throw new RuntimeException("No SYMLINKS.txt encountered");
+                        throw new RuntimeException("Bootstrap archive contains SYMLINKS.txt but no symlink definitions");
                     for (Pair<String, String> symlink : symlinks) {
                         Os.symlink(symlink.first, symlink.second);
                     }
