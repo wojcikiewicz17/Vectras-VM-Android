@@ -597,34 +597,24 @@ public class SetupWizard2Activity extends AppCompatActivity {
                         .setTmpDir(tmpDirPath);
                 prootCommandBuilder.applyEnvironment(processBuilder.environment());
                 processBuilder.command(prootCommandBuilder.buildCommand());
+                processBuilder.redirectErrorStream(true);
                 Process process = processBuilder.start();
-                // Get the input and output streams of the process
-                BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
-                BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()));
-                BufferedReader errorReader = new BufferedReader(new InputStreamReader(process.getErrorStream()));
+                // Get the merged output stream and write command input safely
+                try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
+                     BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
 
-                // Send user command to PRoot
-                writer.write(userCommand);
-                writer.newLine();
-                writer.flush();
-                writer.close();
+                    // Send user command to PRoot
+                    writer.write(userCommand);
+                    writer.newLine();
+                    writer.flush();
 
-                // Read the input stream for the output of the command
-                String line;
-                while ((line = reader.readLine()) != null) {
-                    final String outputLine = line;
-                    runOnUiThread(() -> appendTextAndScroll(outputLine + "\n"));
+                    // Read the merged stdout/stderr stream continuously
+                    String line;
+                    while ((line = reader.readLine()) != null) {
+                        final String outputLine = line;
+                        runOnUiThread(() -> appendTextAndScroll(outputLine + "\n"));
+                    }
                 }
-
-                // Read any errors from the error stream
-                while ((line = errorReader.readLine()) != null) {
-                    final String errorLine = line;
-                    runOnUiThread(() -> appendTextAndScroll(errorLine + "\n"));
-                }
-
-                // Clean up
-                reader.close();
-                errorReader.close();
 
                 ProcessRuntimeOps.TimeoutExecutionResult result = ProcessRuntimeOps.waitForByCategory(
                         process,
