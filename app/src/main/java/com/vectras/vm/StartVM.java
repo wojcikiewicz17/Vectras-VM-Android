@@ -19,6 +19,9 @@ import com.vectras.vm.qemu.VmProfile;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Objects;
 
 public class StartVM {
@@ -254,15 +257,7 @@ public class StartVM {
 
             params.add(memoryStr);
 
-            if (ifType.isEmpty()) {
-                if (extras.contains("-drive index=1,media=cdrom,file=")) {
-                    finalextra = extras.replace("-drive index=1,media=cdrom,file=", "-cdrom ");
-                }
-            } else {
-                if (extras.contains("-cdrom ")) {
-                    finalextra = extras.replace("-cdrom ", "-drive index=1,media=cdrom,file=");
-                }
-            }
+            finalextra = normalizeCdromArgumentStyle(extras, ifType);
         }
 
         RafaeliaConfig rafaeliaConfig = RafaeliaConfig.fromPreferences(activity);
@@ -384,6 +379,159 @@ public class StartVM {
 
     static String shellQuote(String value) {
         return "'" + value.replace("'", "'\"'\"'") + "'";
+    }
+
+    static String normalizeCdromArgumentStyle(String extras, String ifType) {
+        if (extras == null || extras.isEmpty()) {
+            return extras;
+        }
+
+        ArrayList<ArgToken> tokens = tokenizeArguments(extras);
+        if (tokens.isEmpty()) {
+            return extras;
+        }
+
+        ArrayList<Replacement> replacements = new ArrayList<>();
+        for (int i = 0; i < tokens.size(); i++) {
+            ArgToken current = tokens.get(i);
+            if ("-cdrom".equals(current.text) && i + 1 < tokens.size()) {
+                ArgToken pathToken = tokens.get(i + 1);
+                replacements.add(new Replacement(
+                        current.start,
+                        pathToken.end,
+                        ifType.isEmpty()
+                                ? "-cdrom " + pathToken.text
+                                : "-drive index=1,media=cdrom,readonly=on,file=" + pathToken.text
+                ));
+                i++;
+            } else if ("-drive".equals(current.text) && i + 1 < tokens.size()) {
+                ArgToken driveToken = tokens.get(i + 1);
+                String driveFile = extractCdromDriveFile(driveToken.text);
+                if (driveFile != null) {
+                    replacements.add(new Replacement(
+                            current.start,
+                            driveToken.end,
+                            ifType.isEmpty()
+                                    ? "-cdrom " + driveFile
+                                    : "-drive index=1,media=cdrom,readonly=on,file=" + driveFile
+                    ));
+                    i++;
+                }
+            }
+        }
+
+        if (replacements.isEmpty()) {
+            return extras;
+        }
+
+        Collections.sort(replacements, Comparator.comparingInt(r -> -r.start));
+        StringBuilder normalized = new StringBuilder(extras);
+        for (Replacement replacement : replacements) {
+            normalized.replace(replacement.start, replacement.end, replacement.value);
+        }
+        return normalized.toString();
+    }
+
+    private static String extractCdromDriveFile(String driveSpec) {
+        List<String> options = splitDriveOptions(driveSpec);
+        String media = null;
+        String file = null;
+        for (String option : options) {
+            int equalsIndex = option.indexOf('=');
+            if (equalsIndex <= 0) {
+                continue;
+            }
+            String key = option.substring(0, equalsIndex).trim();
+            String value = option.substring(equalsIndex + 1).trim();
+            if ("media".equals(key)) {
+                media = value;
+            } else if ("file".equals(key)) {
+                file = value;
+            }
+        }
+        if (!"cdrom".equals(media) || file == null || file.isEmpty()) {
+            return null;
+        }
+        return file;
+    }
+
+    private static List<String> splitDriveOptions(String value) {
+        ArrayList<String> options = new ArrayList<>();
+        StringBuilder current = new StringBuilder();
+        boolean inSingleQuote = false;
+        boolean inDoubleQuote = false;
+        for (int i = 0; i < value.length(); i++) {
+            char c = value.charAt(i);
+            if (c == '\'' && !inDoubleQuote) {
+                inSingleQuote = !inSingleQuote;
+            } else if (c == '"' && !inSingleQuote) {
+                inDoubleQuote = !inDoubleQuote;
+            }
+
+            if (c == ',' && !inSingleQuote && !inDoubleQuote) {
+                options.add(current.toString());
+                current.setLength(0);
+            } else {
+                current.append(c);
+            }
+        }
+        options.add(current.toString());
+        return options;
+    }
+
+    private static ArrayList<ArgToken> tokenizeArguments(String commandLine) {
+        ArrayList<ArgToken> tokens = new ArrayList<>();
+        int index = 0;
+        while (index < commandLine.length()) {
+            while (index < commandLine.length() && Character.isWhitespace(commandLine.charAt(index))) {
+                index++;
+            }
+            if (index >= commandLine.length()) {
+                break;
+            }
+
+            int tokenStart = index;
+            boolean inSingleQuote = false;
+            boolean inDoubleQuote = false;
+            while (index < commandLine.length()) {
+                char c = commandLine.charAt(index);
+                if (c == '\'' && !inDoubleQuote) {
+                    inSingleQuote = !inSingleQuote;
+                } else if (c == '"' && !inSingleQuote) {
+                    inDoubleQuote = !inDoubleQuote;
+                } else if (Character.isWhitespace(c) && !inSingleQuote && !inDoubleQuote) {
+                    break;
+                }
+                index++;
+            }
+            int tokenEnd = index;
+            tokens.add(new ArgToken(commandLine.substring(tokenStart, tokenEnd), tokenStart, tokenEnd));
+        }
+        return tokens;
+    }
+
+    private static final class ArgToken {
+        final String text;
+        final int start;
+        final int end;
+
+        ArgToken(String text, int start, int end) {
+            this.text = text;
+            this.start = start;
+            this.end = end;
+        }
+    }
+
+    private static final class Replacement {
+        final int start;
+        final int end;
+        final String value;
+
+        Replacement(int start, int end, String value) {
+            this.start = start;
+            this.end = end;
+            this.value = value;
+        }
     }
 
     private static String resolveBackendPath(Activity activity, String path, String backendMode) {
