@@ -25,6 +25,8 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.InvalidPathException;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
@@ -215,23 +217,66 @@ public class SetupFeatureCore {
 
     public static boolean extractSystemFiles(Context context, String fromAsset, String extractTo) {
         String randomFileName = VMManager.startRamdomVMID();
-        String filesDir = context.getFilesDir().getAbsolutePath();
         String abi = Build.SUPPORTED_ABIS[0];
         String assetPath = fromAsset + "/" + abi + ".tar";
-        String extractedFilePath = filesDir + "/" + randomFileName + ".tar";
-        File destDir = new File(filesDir + "/" + extractTo);
-        if (!destDir.exists()) if (!destDir.mkdir()) Log.e(TAG, "extractSystemFiles: Unable to create folder " + filesDir + "/" + extractTo);
+
+        final Path filesDirRealPath;
+        final Path extractTargetPath;
+        final Path extractedTarPath;
+        try {
+            filesDirRealPath = context.getFilesDir().toPath().toRealPath();
+            extractTargetPath = filesDirRealPath.resolve(extractTo).normalize();
+            extractedTarPath = filesDirRealPath.resolve(randomFileName + ".tar").normalize();
+        } catch (IOException | InvalidPathException e) {
+            lastErrorLog = "Invalid extraction path configuration: " + e;
+            Log.e(TAG, lastErrorLog, e);
+            return false;
+        }
+
+        if (!extractTargetPath.startsWith(filesDirRealPath) || !extractedTarPath.startsWith(filesDirRealPath)) {
+            lastErrorLog = "Rejected extraction paths outside app files directory"
+                    + " filesDir=" + filesDirRealPath
+                    + " extractTo=" + extractTargetPath
+                    + " extractedFilePath=" + extractedTarPath;
+            Log.e(TAG, lastErrorLog);
+            return false;
+        }
+
+        Log.i(TAG, "extractSystemFiles approved paths"
+                + " filesDir=" + filesDirRealPath
+                + " extractTo=" + extractTargetPath
+                + " extractedFilePath=" + extractedTarPath);
+
+        File destDir = extractTargetPath.toFile();
+        if (!destDir.exists()) {
+            if (!destDir.mkdirs()) {
+                Log.e(TAG, "extractSystemFiles: Unable to create folder " + extractTargetPath);
+            }
+        }
 
         boolean isCompleted;
 
         // Step 1: Copy asset to filesDir
-        isCompleted = copyAssetToFile(context, assetPath, extractedFilePath);
+        isCompleted = copyAssetToFile(context, assetPath, extractedTarPath.toString());
+
+        if (isCompleted) {
+            File extractedTarFile = extractedTarPath.toFile();
+            if (!extractedTarPath.toString().endsWith(".tar") || !extractedTarFile.exists() || !extractedTarFile.isFile()) {
+                lastErrorLog = "Invalid tar file before extraction"
+                        + " path=" + extractedTarPath
+                        + " exists=" + extractedTarFile.exists()
+                        + " isFile=" + extractedTarFile.isFile();
+                Log.e(TAG, lastErrorLog);
+                return false;
+            }
+        }
 
         // Step 2: Run tar extraction
         if (isCompleted) {
-            String[] cmdline = {"tar", "xf", extractedFilePath, "-C", filesDir + "/" + extractTo};
+            String[] cmdline = {"tar", "xf", extractedTarPath.toString(), "-C", extractTargetPath.toString()};
             Process process = null;
             try {
+                // Security note: ProcessBuilder receives each token separately. There is no shell invocation here.
                 ProcessBuilder processBuilder = new ProcessBuilder(cmdline);
                 processBuilder.redirectErrorStream(true);
                 processBuilder.environment().remove("LD_LIBRARY_PATH");
