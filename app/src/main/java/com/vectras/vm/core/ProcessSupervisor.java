@@ -131,6 +131,11 @@ public class ProcessSupervisor {
                 // em outra instância Java para o mesmo PID; tratamos como idempotente.
                 return;
             }
+            if (currentAlive && process.isAlive() && currentPid <= 0L && incomingPid <= 0L) {
+                // Android 14/15 pode bloquear leitura de PID; evita crash por rebind com wrapper diferente.
+                Log.w(TAG, "bindProcess: PID unavailable; treating duplicate bind as idempotent for vmId=" + vmId);
+                return;
+            }
 
             if (!currentAlive) {
                 // Supervisor ainda estava com referência antiga, mas o processo já encerrou.

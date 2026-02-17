@@ -92,11 +92,12 @@ public class AppConfig {
 
     public static String neededPkgsAlpine() {
         if (DeviceUtils.isArm()) {
-            return "bash aria2 tar dwm xterm libslirp libslirp-dev pulseaudio-dev glib-dev pixman-dev zlib-dev spice-dev" +
-                    " libusbredirparser usbredir-dev sdl2 sdl2-dev sdl2_image-dev libepoxy-dev virglrenderer-dev rdma-core fluxbox" +
-                    " libusb libaio ncurses-libs curl libnfs gtk+3.0 gtk+3.0-dev fuse libpulse libseccomp jack pipewire liburing pulseaudio pulseaudio-alsa alsa-plugins-pulse" +
-                    " mesa-dri-gallium mesa-vulkan-swrast vulkan-loader mesa-utils mesa-egl mesa-gbm mesa-vulkan-ati mesa-vulkan-broadcom mesa-vulkan-freedreno mesa-vulkan-panfrost" +
-                    " qemu-audio-sdl capstone libcbor snappy lzo ndctl keyutils-libs vde2-libs libdw libbpf sndio-libs linux-pam fuse3-libs libssh vte3";
+            return "bash aria2 tar fluxbox xterm" +
+                    " libslirp libpulse libseccomp pipewire liburing" +
+                    " sdl2 sdl2_image libepoxy virglrenderer" +
+                    " libusb libaio ncurses-libs curl libnfs" +
+                    " mesa-dri-gallium mesa-vulkan-swrast vulkan-loader mesa-utils mesa-egl mesa-gbm mesa-vulkan-freedreno" +
+                    " qemu-audio-sdl snappy lzo ndctl vde2-libs sndio-libs linux-pam fuse3-libs libssh vte3";
         } else {
             return "bash aria2 tar dwm xterm libslirp libslirp-dev pulseaudio-dev glib-dev pixman-dev zlib-dev spice-dev" +
                     " libusbredirparser usbredir-dev sdl2 sdl2-dev sdl2_image-dev libepoxy-dev virglrenderer-dev rdma-core fluxbox" +
