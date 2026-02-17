@@ -194,23 +194,24 @@ public class TermuxFileReceiverActivity extends Activity {
     }
 
     public File saveStreamWithName(InputStream in, String attachmentFileName) {
-        File receiveDir = new File(TERMUX_RECEIVEDIR);
-        if (!receiveDir.isDirectory() && !receiveDir.mkdirs()) {
-            showErrorDialogAndQuit("Cannot create directory: " + receiveDir.getAbsolutePath());
-            return null;
-        }
-        try {
+        try (InputStream autoCloseIn = in) {
+            File receiveDir = new File(TERMUX_RECEIVEDIR);
+            if (!receiveDir.isDirectory() && !receiveDir.mkdirs()) {
+                showErrorDialogAndQuit("Cannot create directory: " + receiveDir.getAbsolutePath());
+                return null;
+            }
+
             final File outFile = new File(receiveDir, attachmentFileName);
-            try (in; FileOutputStream f = new FileOutputStream(outFile)) {
+            try (FileOutputStream f = new FileOutputStream(outFile)) {
                 byte[] buffer = new byte[4096];
                 int readBytes;
-                while ((readBytes = in.read(buffer)) > 0) {
+                while ((readBytes = autoCloseIn.read(buffer)) > 0) {
                     f.write(buffer, 0, readBytes);
                 }
             }
             return outFile;
         } catch (IOException e) {
-            showErrorDialogAndQuit("Error saving file:\n\n" + e);
+            showErrorDialogAndQuit("Error saving file '" + attachmentFileName + "':\n\n" + e);
             Log.e("termux", "Error saving file", e);
             return null;
         }
