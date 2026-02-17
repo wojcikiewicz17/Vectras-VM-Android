@@ -282,22 +282,22 @@ public class SetupFeatureCore {
                 processBuilder.environment().remove("LD_LIBRARY_PATH");
                 process = processBuilder.start();
 
-                // Capture process output (stderr redirected to stdout)
-                StringBuilder commandOutput = new StringBuilder();
-                Thread outputCollector = new Thread(() -> {
-                    try (BufferedReader outputReader =
-                                 new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                // Capture standard error output (stderr)
+                StringBuilder errorOutput = new StringBuilder();
+                Thread stderrCollector = new Thread(() -> {
+                    try (BufferedReader errorReader =
+                                 new BufferedReader(new InputStreamReader(process.getErrorStream()))) {
                         String line;
-                        while ((line = outputReader.readLine()) != null) {
-                            synchronized (commandOutput) {
-                                commandOutput.append(line).append("\n");
+                        while ((line = errorReader.readLine()) != null) {
+                            synchronized (errorOutput) {
+                                errorOutput.append(line).append("\n");
                             }
                         }
                     } catch (IOException e) {
-                        Log.e(TAG, "extractSystemFiles output collector: ", e);
+                        Log.e(TAG, "extractSystemFiles stderr collector: ", e);
                     }
-                }, "setup-extract-output");
-                outputCollector.start();
+                }, "setup-extract-stderr");
+                stderrCollector.start();
 
                 ProcessRuntimeOps.TimeoutExecutionResult waitResult = ProcessRuntimeOps.waitForByCategory(
                         process,
@@ -305,10 +305,10 @@ public class SetupFeatureCore {
                 );
 
                 try {
-                    outputCollector.join();
+                    stderrCollector.join();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    lastErrorLog = "Extraction output collector interrupted ["
+                    lastErrorLog = "Extraction stderr collector interrupted ["
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
                             + "] asset=" + assetPath;
                     Log.e(TAG, lastErrorLog, e);
@@ -316,9 +316,9 @@ public class SetupFeatureCore {
                 }
 
                 String commandSummary = formatCommand(cmdline);
-                String outputSummary;
-                synchronized (commandOutput) {
-                    outputSummary = commandOutput.toString().trim();
+                String stderrSummary;
+                synchronized (errorOutput) {
+                    stderrSummary = errorOutput.toString().trim();
                 }
                 if (waitResult.status == ProcessRuntimeOps.TimeoutExecutionResult.Status.TIMEOUT) {
                     lastErrorLog = "Timeout during extraction ["
@@ -326,7 +326,7 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " detail=" + waitResult.message
-                            + (outputSummary.isEmpty() ? "" : " output=" + outputSummary);
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary);
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -337,18 +337,18 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " detail=" + waitResult.message
-                            + (outputSummary.isEmpty() ? "" : " output=" + outputSummary);
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary);
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
 
-                if (waitResult.exitCode != 0 || !outputSummary.isEmpty()) {
+                if (waitResult.exitCode != 0 || !stderrSummary.isEmpty()) {
                     lastErrorLog = "Extraction failed ["
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " exit=" + waitResult.exitCode
-                            + (outputSummary.isEmpty() ? "" : " output=" + outputSummary);
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary);
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
