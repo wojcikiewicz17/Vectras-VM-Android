@@ -73,6 +73,7 @@ find . -maxdepth 2 -type d | sort
 ## Índices
 - [DOC_INDEX.md](DOC_INDEX.md)
 - [docs/README.md](docs/README.md)
+- [docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md](docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md)
 
 ## Setup rápido de build
 - Copie `local.properties.example` para `local.properties` e ajuste `sdk.dir`.

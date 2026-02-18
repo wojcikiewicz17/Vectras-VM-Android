@@ -110,3 +110,9 @@ O manager integra sinais de hardware e fast-paths sem quebrar fallback:
 - Comparar runs com o **mesmo** `ExecutionProfile`.
 - Usar `ValidationReport` + `DiagnosticMetricsView` como critério de aceitação de resultados.
 - Considerar inválidos resultados com baixa confiança persistente ou alta variância recorrente.
+
+## Metadados
+- Versão do documento: 1.1
+- Última atualização: 2026-02-18
+- Commit de referência: `8a378fa`
+- Domínio de código coberto: Gerenciador de benchmark do app Android e diagnóstico de execução.

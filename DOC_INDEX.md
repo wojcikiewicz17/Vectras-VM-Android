@@ -41,6 +41,7 @@ Cada diretório tem:
 - Nomenclatura alinhada ao padrão (`README.md` + `FILES_MAP.md`) usado em `engine/`, `tools/` e `docs/`.
 
 ## Documentos técnicos especializados
+- Narrativa em 5 níveis (executivo/técnico/operacional/verificabilidade/adoção): [`docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md`](docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md)
 - Arquitetura: `docs/ARCHITECTURE.md`, `docs/RAFAELIA_COHESION_ENTERPRISE_STACK.md`
 - Operação: `docs/OPERATIONS.md`, `docs/BLUEPRINT_FLUXOS_VM.md`
 - Performance: `docs/PERFORMANCE_INTEGRITY.md`, `docs/BENCHMARKS.md`
