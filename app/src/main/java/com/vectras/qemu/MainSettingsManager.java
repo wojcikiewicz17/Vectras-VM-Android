@@ -98,11 +98,16 @@ public class MainSettingsManager extends AppCompatActivity
     public boolean onPreferenceStartFragment(@NonNull PreferenceFragmentCompat caller, Preference pref) {
         // Instantiate the new Fragment
         final Bundle bundle = pref.getExtras();
+        final String fragmentName = pref.getFragment();
 
-        assert pref.getFragment() != null;
+        if (fragmentName == null || fragmentName.trim().isEmpty()) {
+            Log.e(TAG, "onPreferenceStartFragment: fragment name is null/empty for key=" + pref.getKey());
+            return false;
+        }
+
         Fragment fragment = getSupportFragmentManager()
                 .getFragmentFactory()
-                .instantiate(getClassLoader(), pref.getFragment());
+                .instantiate(getClassLoader(), fragmentName);
         fragment.setArguments(bundle);
 
 //        fragment.setTargetFragment(caller, 0);
@@ -357,7 +362,10 @@ public class MainSettingsManager extends AppCompatActivity
 
             if (!getuseDefaultBios(getActivity())) {
                 SwitchPreferenceCompat useUEFIPref = findPreference("useUEFI");
-                assert useUEFIPref != null;
+                if (useUEFIPref == null) {
+                    Log.e(TAG, "QemuPreferencesFragment.onCreate: useUEFI preference not found");
+                    return;
+                }
                 if (!getuseDefaultBios(getActivity())) {
                     useUEFIPref.setChecked(false);
                     setuseUEFI(getActivity(), false);
@@ -366,10 +374,16 @@ public class MainSettingsManager extends AppCompatActivity
             }
 
             SwitchPreferenceCompat useDefaultBiosPref = findPreference("useDefaultBios");
-            assert useDefaultBiosPref != null;
+            if (useDefaultBiosPref == null) {
+                Log.e(TAG, "QemuPreferencesFragment.onCreate: useDefaultBios preference not found");
+                return;
+            }
             useDefaultBiosPref.setOnPreferenceChangeListener((preference, newValue) -> {
                 SwitchPreferenceCompat useUEFIPref = findPreference("useUEFI");
-                assert useUEFIPref != null;
+                if (useUEFIPref == null) {
+                    Log.e(TAG, "QemuPreferencesFragment.onCreate: useUEFI preference not found during useDefaultBios change");
+                    return false;
+                }
                 if (!(Boolean) newValue) {
                     if (getuseUEFI(getActivity())) {
                         useUEFIPref.setChecked(false);
@@ -422,9 +436,15 @@ public class MainSettingsManager extends AppCompatActivity
             }
 
             SwitchPreferenceCompat customMemory = findPreference("customMemory");
-            assert customMemory != null;
+            if (customMemory == null) {
+                Log.e(TAG, "QemuPreferencesFragment.onCreatePreferences: customMemory preference not found");
+                return;
+            }
             EditTextPreference memory = findPreference("memory");
-            assert memory != null;
+            if (memory == null) {
+                Log.e(TAG, "QemuPreferencesFragment.onCreatePreferences: memory preference not found");
+                return;
+            }
 
             memory.setOnBindEditTextListener(editText -> {
                 editText.setInputType(InputType.TYPE_CLASS_NUMBER);
@@ -930,33 +950,45 @@ public class MainSettingsManager extends AppCompatActivity
     }
 
     public static boolean isFirstLaunch(Context context) {
-        PackageInfo pInfo = null;
-
-        try {
-            pInfo = context.getPackageManager().getPackageInfo(Objects.requireNonNull(context.getClass().getPackage()).getName(),
-                    PackageManager.GET_META_DATA);
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.e(TAG, "isFirstLaunch", e);
-        }
+        PackageInfo pInfo = getPackageInfo(context, "isFirstLaunch");
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
-        assert pInfo != null;
+        if (pInfo == null) {
+            Log.w(TAG, "isFirstLaunch: package info unavailable, assuming first launch");
+            return true;
+        }
         return prefs.getBoolean("firstTime" + pInfo.versionName, true);
     }
 
     public static void setFirstLaunch(Context context) {
-        PackageInfo pInfo = null;
-
-        try {
-            pInfo = context.getPackageManager().getPackageInfo(Objects.requireNonNull(context.getClass().getPackage()).getName(),
-                    PackageManager.GET_META_DATA);
-        } catch (PackageManager.NameNotFoundException e) {
-            Log.e(TAG, "setFirstLaunch", e);
-        }
+        PackageInfo pInfo = getPackageInfo(context, "setFirstLaunch");
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         SharedPreferences.Editor edit = prefs.edit();
-        assert pInfo != null;
+        if (pInfo == null) {
+            Log.e(TAG, "setFirstLaunch: package info unavailable, skipping preference update");
+            return;
+        }
         edit.putBoolean("firstTime" + pInfo.versionName, false);
         edit.apply();
+    }
+
+    private static PackageInfo getPackageInfo(Context context, String caller) {
+        if (context == null) {
+            throw new IllegalStateException(caller + ": context must not be null");
+        }
+
+        Package packageRef = context.getClass().getPackage();
+        if (packageRef == null) {
+            Log.e(TAG, caller + ": context package is null");
+            return null;
+        }
+
+        try {
+            return context.getPackageManager().getPackageInfo(packageRef.getName(),
+                    PackageManager.GET_META_DATA);
+        } catch (PackageManager.NameNotFoundException e) {
+            Log.e(TAG, caller + ": package info not found for " + packageRef.getName(), e);
+            return null;
+        }
     }
 
 
