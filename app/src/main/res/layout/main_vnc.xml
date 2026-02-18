@@ -129,7 +129,7 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:gravity="right|center_vertical"
-                        android:labelFor="@id/textIP"
+                        android:hint="@string/vnc_address_hint"
                         android:paddingRight="10dip"
                         android:text="@string/address_caption"
                         android:textAppearance="?android:attr/textAppearanceMedium" />
@@ -164,16 +164,8 @@
                         android:layout_width="fill_parent"
                         android:layout_height="wrap_content"
                         android:layout_weight="1"
-                        app:boxBackgroundMode="none">
-
-                        <com.google.android.material.textfield.TextInputEditText
-                                android:id="@+id/textPORT"
-                                android:layout_width="fill_parent"
-                                android:layout_height="wrap_content"
-                                android:inputType="number"
-                                android:singleLine="true"
-                                android:text="5900" />
-                    </com.google.android.material.textfield.TextInputLayout>
+                        android:singleLine="true"
+                        android:text="@string/vnc_default_port" />
                 </TableRow>
 
                 <TableRow>
