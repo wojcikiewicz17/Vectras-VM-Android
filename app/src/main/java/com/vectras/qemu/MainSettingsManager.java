@@ -1041,6 +1041,18 @@ public class MainSettingsManager extends AppCompatActivity
         return prefs.getInt("SelectedMirror", 0);
     }
 
+    public static void setLastSetupBootstrapUrl(Context context, String value) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("lastSetupBootstrapUrl", value);
+        edit.apply();
+    }
+
+    public static String getLastSetupBootstrapUrl(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("lastSetupBootstrapUrl", "");
+    }
+
     public static void setDontShowAgainJoinBetaUpdateChannelDialog(Context context, Boolean _boolean) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         SharedPreferences.Editor edit = prefs.edit();

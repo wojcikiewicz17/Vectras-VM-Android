@@ -68,6 +68,8 @@ import java.util.concurrent.Executors;
 
 public class SetupWizard2Activity extends AppCompatActivity {
     private static final String TAG = "SetupWizard2Activity";
+    private static final String BOOTSTRAP_PREFIX_ARIA2 = " aria2c -x 4 --async-dns=false --disable-ipv6 --check-certificate=false -o setup.tar.gz ";
+    private static final String BOOTSTRAP_PREFIX_CURL = " curl -o setup.tar.gz -L ";
     ActivitySetupWizard2Binding binding;
     SetupQemuDoneBinding bindingFinalSteps;
     public static final int ACTION_SYSTEM_UPDATE = 1;
@@ -156,6 +158,12 @@ public class SetupWizard2Activity extends AppCompatActivity {
         HashMap<String, String> item = mirrorList.get(MainSettingsManager.getSelectedMirror(this));
         selectedMirrorCommand = Objects.requireNonNull(item.get("mirror"));
         selectedMirrorLocation = Objects.requireNonNull(item.get("location"));
+
+        String persistedBootstrapLink = MainSettingsManager.getLastSetupBootstrapUrl(this);
+        if (isBootstrapLinkValid(persistedBootstrapLink)) {
+            bootstrapFileLink = persistedBootstrapLink;
+            downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, false);
+        }
 
         bindingFinalSteps.main.setVisibility(View.GONE);
 
@@ -427,7 +435,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
                         } else {
                             bootstrapFileLink = Objects.requireNonNull(mmap.get(DeviceUtils.is64bit() ? "amd64" : "x86")).toString();
                         }
-                        downloadBootstrapsCommand = " aria2c -x 4 --async-dns=false --disable-ipv6 --check-certificate=false -o setup.tar.gz " + bootstrapFileLink;
+                        downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, false);
+                        MainSettingsManager.setLastSetupBootstrapUrl(SetupWizard2Activity.this, bootstrapFileLink);
                     }
                 }
                 new Handler(Looper.getMainLooper()).postDelayed(() -> {
@@ -441,6 +450,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
             @Override
             public void onErrorResponse(String tag, String message) {
+                applyOfflineBootstrapFallback();
                 new Handler(Looper.getMainLooper()).postDelayed(() -> uiController(STEP_SETUP_OPTIONS), 1000);
             }
         };
@@ -654,7 +664,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                     isExecutingCommand = false;
                     if (aria2Error && downloadBootstrapsCommand.contains("aria2c")) {
                         runOnUiThread(() -> {
-                            downloadBootstrapsCommand = " curl -o setup.tar.gz -L " + bootstrapFileLink;
+                            downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, true);
                             startSetup();
                         });
                     } else {
@@ -735,6 +745,36 @@ public class SetupWizard2Activity extends AppCompatActivity {
         }
 
         binding.tvLastestCommandResult.setText(progressText + newLog);
+    }
+
+
+    private String buildBootstrapDownloadCommand(String link, boolean forceCurl) {
+        if (!isBootstrapLinkValid(link)) {
+            return "";
+        }
+        String prefix = forceCurl ? BOOTSTRAP_PREFIX_CURL : BOOTSTRAP_PREFIX_ARIA2;
+        return prefix + link;
+    }
+
+    private boolean isBootstrapLinkValid(String link) {
+        return link != null && !link.trim().isEmpty()
+                && (link.startsWith("https://") || link.startsWith("http://"));
+    }
+
+    private void applyOfflineBootstrapFallback() {
+        if (isBootstrapLinkValid(bootstrapFileLink)) {
+            if (downloadBootstrapsCommand.isEmpty()) {
+                downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, false);
+            }
+            return;
+        }
+
+        String persistedBootstrapLink = MainSettingsManager.getLastSetupBootstrapUrl(this);
+        if (isBootstrapLinkValid(persistedBootstrapLink)) {
+            bootstrapFileLink = persistedBootstrapLink;
+            downloadBootstrapsCommand = buildBootstrapDownloadCommand(bootstrapFileLink, false);
+            runOnUiThread(() -> UIUtils.toastShort(this, getString(R.string.this_option_is_temporarily_unavailable_because_the_server_cannot_be_connected)));
+        }
     }
 
     private void selectMirror() {
