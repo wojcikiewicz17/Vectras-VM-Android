@@ -59,6 +59,7 @@ import java.io.BufferedWriter;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Objects;
@@ -111,6 +112,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     boolean isLibProotError = false;
     boolean aria2Error = false;
     boolean isServerError = false;
+    boolean criticalSetupStderr = false;
     boolean isNotEnoughStorageSpace = false;
     boolean isCustomSetupMode = false;
     boolean pendingStandardSetupStart = false;
@@ -535,37 +537,68 @@ public class SetupWizard2Activity extends AppCompatActivity {
             // #   String installCommand = resolveInstallCommand(packageManagerType);
            // #    String requiredPackages = resolveRequiredPackages(packageManagerType);
 
-                String cmd = selectedMirrorCommand + ";" +
-                        " set -e;" +
-                        " echo \"Starting setup...\";" +
-                        " " + updateCommand + ";" +
-                        " echo \"Installing packages...\";" +
-                        " " + installCommand + ";" +
-                        " echo \"Downloading Qemu...\";";
+                criticalSetupStderr = false;
+                String setupTimestamp = String.valueOf(Instant.now().toEpochMilli());
+                String stagingBase = "/root/.vectras-staging";
+                String backupBase = "/root/.vectras-backups";
+                String stateBase = "/root/.vectras-setup";
+                String stageDir = stagingBase + "/" + setupTimestamp;
+                String stageRoot = stageDir + "/rootfs";
+                String setupArchive = stageDir + "/setup.tar.gz";
 
+                String bootstrapAcquireCommand;
                 if (isCustomSetupMode) {
-                    cmd += " tar -xzvf " + tarPath + " -C /;" +
-                            " rm " + tarPath + ";" +
-                            " chmod 775 /usr/local/bin/*;";
+                    bootstrapAcquireCommand = "cp '" + tarPath + "' '" + setupArchive + "'";
                 } else {
                     if (FileUtils.isFileExists(getFilesDir().getAbsolutePath() + "/distro/root/setup.tar.gz"))
                         FileUtils.deleteDirectory(getFilesDir().getAbsolutePath() + "/distro/root/setup.tar.gz");
-
-                    cmd += downloadBootstrapsCommand + ";" +
-                            " echo \"Installing Qemu...\";" +
-                            " tar -xzvf setup.tar.gz -C /;" +
-                            " rm setup.tar.gz;" +
-                            " chmod 775 /usr/local/bin/*;";
+                    bootstrapAcquireCommand = "cd '" + stageDir + "' && " + downloadBootstrapsCommand;
                 }
 
-                cmd += " echo \"Just a sec...\";" +
-                        " echo export TMPDIR=/tmp >> /etc/profile;" +
+                String cmd = selectedMirrorCommand + ";" +
+                        " set -e;" +
+                        " SETUP_TS='" + setupTimestamp + "';" +
+                        " STAGING_BASE='" + stagingBase + "';" +
+                        " BACKUP_BASE='" + backupBase + "';" +
+                        " STATE_BASE='" + stateBase + "';" +
+                        " STAGE_DIR='" + stageDir + "';" +
+                        " STAGE_ROOT='" + stageRoot + "';" +
+                        " SETUP_ARCHIVE='" + setupArchive + "';" +
+                        " STATE_FILE='" + stateBase + "/setup_state.json';" +
+                        " mkdir -p \"$STAGING_BASE\" \"$BACKUP_BASE\" \"$STATE_BASE\" \"$STAGE_ROOT\";" +
+                        " ln -sfn \"$STAGE_DIR\" \"$STAGING_BASE/latest\";" +
+                        " write_state(){ PHASE=\"$1\"; MSG=\"$2\"; printf '{\\\"timestamp\\\":\\\"%s\\\",\\\"phase\\\":\\\"%s\\\",\\\"stage_dir\\\":\\\"%s\\\",\\\"message\\\":\\\"%s\\\"}\\n' \"$SETUP_TS\" \"$PHASE\" \"$STAGE_DIR\" \"$MSG\" > \"$STATE_FILE\"; };" +
+                        " rollback_setup(){ REASON=\"$1\"; write_state ROLLED_BACK \"$REASON\"; echo \"CRITICAL_STDERR: rollback reason=$REASON\"; if [ -d \"$BACKUP_BASE/current/usr-local-bin\" ]; then rm -rf /usr/local/bin; cp -a \"$BACKUP_BASE/current/usr-local-bin\" /usr/local/bin; fi; if [ -f \"$BACKUP_BASE/current/etc-profile\" ]; then cp -a \"$BACKUP_BASE/current/etc-profile\" /etc/profile; fi; rm -rf \"$STAGE_DIR\"; };" +
+                        " write_state PREPARE 'Preparing staging pipeline';" +
+                        " echo \"Starting setup...\";" +
+                        " " + updateCommand + " || { rollback_setup 'update command failed'; exit 41; };" +
+                        " echo \"Installing packages...\";" +
+                        " " + installCommand + " || { rollback_setup 'package install failed'; exit 42; };" +
+                        " echo \"Downloading Qemu...\";" +
+                        " " + bootstrapAcquireCommand + " || { rollback_setup 'bootstrap acquisition failed'; exit 43; };" +
+                        " echo \"Installing Qemu...\";" +
+                        " tar -xzvf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\" || { rollback_setup 'bootstrap extraction failed'; exit 44; };" +
+                        " test -d \"$STAGE_ROOT/usr/local/bin\" || { rollback_setup 'missing /usr/local/bin in staging'; exit 45; };" +
+                        " test -x \"$STAGE_ROOT/usr/local/bin/qemu-system-x86_64\" -o -x \"$STAGE_ROOT/usr/local/bin/qemu-system-aarch64\" || { rollback_setup 'missing qemu binary in staging'; exit 46; };" +
+                        " chmod 775 \"$STAGE_ROOT\"/usr/local/bin/* || { rollback_setup 'invalid binary permissions'; exit 47; };" +
+                        " write_state STAGE_OK 'Staging validation completed';" +
+                        " mkdir -p \"$BACKUP_BASE/$SETUP_TS\";" +
+                        " [ -L \"$BACKUP_BASE/current\" ] && ln -sfn \"$(readlink -f \"$BACKUP_BASE/current\")\" \"$BACKUP_BASE/previous\" || true;" +
+                        " cp -a /usr/local/bin \"$BACKUP_BASE/$SETUP_TS/usr-local-bin\";" +
+                        " cp -a /etc/profile \"$BACKUP_BASE/$SETUP_TS/etc-profile\";" +
+                        " ln -sfn \"$BACKUP_BASE/$SETUP_TS\" \"$BACKUP_BASE/current\";" +
+                        " rm -rf /usr/local/bin; mv \"$STAGE_ROOT/usr/local/bin\" /usr/local/bin || { rollback_setup 'promotion failed'; exit 48; };" +
+                        " write_state PROMOTED 'Promotion finished';" +
+                        " rm -f \"$SETUP_ARCHIVE\";" +
+                        " echo \"Just a sec...\";" +
+                        " grep -q 'export TMPDIR=/tmp' /etc/profile || echo export TMPDIR=/tmp >> /etc/profile;" +
                         " mkdir -p $TMPDIR/pulse;" +
-                        " echo export PULSE_SERVER=127.0.0.1 >> /etc/profile;" +
+                        " grep -q 'export PULSE_SERVER=127.0.0.1' /etc/profile || echo export PULSE_SERVER=127.0.0.1 >> /etc/profile;" +
                         " mkdir -p ~/.vnc && printf '%s\n' '" + escapedVncPassword + "' '" + escapedVncPassword + "' | vncpasswd -f > ~/.vnc/passwd && chmod 0600 ~/.vnc/passwd;" +
+                        " rm -rf \"$STAGE_DIR\";" +
                         " echo \"Installation successful! xssFjnj58Id\"";
 
-                executeShellCommand(cmd);
+                executeShellCommand(cmd, setupTimestamp);
             });
         }).start();
     }
@@ -645,7 +678,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 }
             });
 
-    public void executeShellCommand(String userCommand) {
+    public void executeShellCommand(String userCommand, String setupTimestamp) {
         isExecutingCommand = true;
         new Thread(() -> {
             try {
@@ -693,6 +726,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                             + "]: "
                             + result.message;
                     Log.e(TAG, withSetupSourceDiagnostic(timeoutMessage));
+                    executeBestEffortRollback(setupTimestamp, "timeout during setup");
                     runOnUiThread(() -> {
                         appendTextAndScroll("Error: " + withSetupSourceDiagnostic(timeoutMessage) + "\n");
                         uiController(STEP_ERROR, logs);
@@ -707,6 +741,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                             + "]: "
                             + result.message;
                     Log.e(TAG, withSetupSourceDiagnostic(operationErrorMessage));
+                    executeBestEffortRollback(setupTimestamp, "execution error during setup");
                     runOnUiThread(() -> {
                         appendTextAndScroll("Error: " + withSetupSourceDiagnostic(operationErrorMessage) + "\n");
                         uiController(STEP_ERROR, logs);
@@ -715,6 +750,16 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 }
 
                 int exitValue = result.exitCode;
+                if (exitValue == 0 && criticalSetupStderr) {
+                    isExecutingCommand = false;
+                    executeBestEffortRollback(setupTimestamp, "critical stderr detected");
+                    runOnUiThread(() -> {
+                        appendTextAndScroll("Error: " + withSetupSourceDiagnostic("critical stderr detected during setup") + "\n");
+                        uiController(STEP_ERROR, logs);
+                    });
+                    return;
+                }
+
                 if (exitValue != 0) {
                     isExecutingCommand = false;
                     if (aria2Error && downloadBootstrapsCommand.contains("aria2c")) {
@@ -723,6 +768,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                             startSetup();
                         });
                     } else {
+                        executeBestEffortRollback(setupTimestamp, "non-zero exit code: " + exitValue);
                         runOnUiThread(() -> {
                             String toastMessage = "Command failed with exit code: " + exitValue;
                             appendTextAndScroll("Error: " + withSetupSourceDiagnostic(toastMessage) + "\n");
@@ -735,12 +781,51 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 // Handle exceptions by printing the stack trace in the terminal output
                 final String errorMessage = e.getMessage();
                 Log.e(TAG, withSetupSourceDiagnostic("executeShellCommand IO error: " + errorMessage), e);
+                executeBestEffortRollback(setupTimestamp, "io error during setup");
                 runOnUiThread(() -> {
                     appendTextAndScroll("Error: " + withSetupSourceDiagnostic(errorMessage) + "\n");
                     uiController(STEP_ERROR, logs);
                 });
             }
         }).start(); // Execute the command in a separate thread to prevent blocking the UI thread
+    }
+
+    private void executeBestEffortRollback(String setupTimestamp, String reason) {
+        if (setupTimestamp == null || setupTimestamp.isEmpty()) {
+            return;
+        }
+        new Thread(() -> {
+            try {
+                String sanitizedReason = reason == null ? "unknown error" : reason.replace("\"", "").replace("\n", " ");
+                String rollbackCommand = "set -e; " +
+                        "BACKUP_BASE=/root/.vectras-backups; " +
+                        "STAGE_DIR=/root/.vectras-staging/" + setupTimestamp + "; " +
+                        "mkdir -p /root/.vectras-setup; " +
+                        "if [ -d \"$BACKUP_BASE/current/usr-local-bin\" ]; then rm -rf /usr/local/bin; cp -a \"$BACKUP_BASE/current/usr-local-bin\" /usr/local/bin; fi; " +
+                        "if [ -f \"$BACKUP_BASE/current/etc-profile\" ]; then cp -a \"$BACKUP_BASE/current/etc-profile\" /etc/profile; fi; " +
+                        "rm -rf \"$STAGE_DIR\"; " +
+                        "printf '{\\"timestamp\\":\\"" + setupTimestamp + "\\",\\"phase\\":\\"ROLLED_BACK\\",\\"stage_dir\\":\\"/root/.vectras-staging/" + setupTimestamp + "\\",\\"message\\":\\"" + sanitizedReason + "\\"}\\n' > /root/.vectras-setup/setup_state.json";
+
+                ProcessBuilder processBuilder = new ProcessBuilder();
+                String filesDir = getFilesDir().getAbsolutePath();
+                String tmpDirPath = getFilesDir().getAbsolutePath() + "/usr/tmp";
+                ProotCommandBuilder prootCommandBuilder = new ProotCommandBuilder(this, filesDir + "/distro", "/root")
+                        .setPath("/bin:/usr/bin:/sbin:/usr/sbin")
+                        .setTmpDir(tmpDirPath);
+                prootCommandBuilder.applyEnvironment(processBuilder.environment());
+                processBuilder.command(prootCommandBuilder.buildCommand());
+                processBuilder.redirectErrorStream(true);
+                Process process = processBuilder.start();
+                try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()))) {
+                    writer.write(rollbackCommand);
+                    writer.newLine();
+                    writer.flush();
+                }
+                process.waitFor();
+            } catch (Exception e) {
+                Log.e(TAG, "Best-effort rollback failed: " + e.getMessage(), e);
+            }
+        }).start();
     }
 
     @SuppressLint("SetTextI18n")
@@ -763,6 +848,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
             aria2Error = true;
         } else if (newLog.contains("temporary error")) {
             isServerError = true;
+        } else if (newLog.contains("CRITICAL_STDERR:")) {
+            criticalSetupStderr = true;
         }
 
         updateProgressText(newLog);
