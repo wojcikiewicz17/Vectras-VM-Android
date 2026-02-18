@@ -1,6 +1,9 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(vectra_core_accel C)
 
+option(RMR_ENABLE_POLICY_MODULE "Enable RMR policy module" ON)
+option(RMR_ENABLE_BITRAF_MODULE "Enable BITRAF module" ON)
+
 set(VECTRA_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../../)
 set(VECTRA_RMR_INCLUDE_DIR ${VECTRA_REPO_ROOT}/engine/rmr/include)
 
@@ -25,11 +28,11 @@ if(RMR_ENABLE_BITRAF_MODULE)
 endif()
 
 find_library(log-lib log)
-find_package(JNI REQUIRED)
 
 if(ANDROID)
     find_library(log-lib log)
 else()
+    find_package(JNI REQUIRED)
     set(log-lib "")
 endif()
 
@@ -44,14 +47,11 @@ if(TARGET rmr_policy_static)
     target_compile_options(rmr_policy_static PRIVATE
         ${VECTRA_COMMON_COMPILE_OPTIONS}
         ${VECTRA_ARM64_COMPILE_OPTIONS})
+    target_include_directories(rmr_policy_static PRIVATE
+        ${VECTRA_RMR_INCLUDE_DIR})
 endif()
 
-if(RMR_ENABLE_POLICY_MODULE)
-    target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_POLICY_MODULE=1)
-else()
-    target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_POLICY_MODULE=0)
-endif()
-
+target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_POLICY_MODULE=1 RMR_ENABLE_BITRAF_MODULE=1)
 
 target_compile_options(vectra_core_accel PRIVATE
     ${VECTRA_COMMON_COMPILE_OPTIONS}
@@ -59,23 +59,24 @@ target_compile_options(vectra_core_accel PRIVATE
 
 target_link_libraries(vectra_core_accel PRIVATE ${log-lib})
 
-if(TARGET rmr_policy_static)
-    target_link_libraries(vectra_core_accel PRIVATE rmr_policy_static)
-endif()
+target_link_libraries(vectra_core_accel PRIVATE rmr_policy_static)
 
 if(TARGET bitraf_static)
     target_compile_options(bitraf_static PRIVATE
         ${VECTRA_COMMON_COMPILE_OPTIONS}
         ${VECTRA_ARM64_COMPILE_OPTIONS})
+    target_include_directories(bitraf_static PRIVATE
+        ${VECTRA_RMR_INCLUDE_DIR})
 endif()
 
-if(RMR_ENABLE_BITRAF_MODULE)
-    target_link_libraries(vectra_core_accel PRIVATE bitraf_static)
-endif()
+target_link_libraries(vectra_core_accel PRIVATE bitraf_static)
 
 target_include_directories(vectra_core_accel PRIVATE
-    ${VECTRA_RMR_INCLUDE_DIR}
-    ${JNI_INCLUDE_DIRS})
+    ${VECTRA_RMR_INCLUDE_DIR})
+
+if(NOT ANDROID)
+    target_include_directories(vectra_core_accel PRIVATE ${JNI_INCLUDE_DIRS})
+endif()
 
 if(CMAKE_ANDROID_NDK)
     target_include_directories(vectra_core_accel PRIVATE

@@ -792,8 +792,19 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
     private void updateVmFlowState(BottomsheetdialogLoggerBinding binding) {
         String vmId = MainStartVM.lastVMID == null ? "" : MainStartVM.lastVMID.trim();
         String normalizedVmId = vmId.isEmpty() ? "unknown" : vmId;
-        String flow = VmFlowTracker.current(normalizedVmId).name();
-        String interop = VmFlowTracker.isNativeInteropEnabled() ? "JNI" : "JAVA";
-        binding.tvVmFlowState.setText("VM Flow: " + flow + " (" + normalizedVmId + ") [" + interop + "]");
+        VmFlowTracker.DiagnosticsSnapshot snapshot = VmFlowTracker.diagnostics(this, normalizedVmId);
+        String interop = snapshot.nativeEnabled ? "JNI" : "JAVA";
+        long nativeMonoMs = snapshot.nativeLastMonoNanos > 0L ? (snapshot.nativeLastMonoNanos / 1_000_000L) : 0L;
+        long driftMs = (nativeMonoMs > 0L && snapshot.auditLastMonoMillis > 0L)
+                ? Math.abs(nativeMonoMs - snapshot.auditLastMonoMillis)
+                : -1L;
+        String drift = driftMs >= 0L ? (driftMs + "ms") : "n/a";
+        String hitRatePercent = String.format(java.util.Locale.getDefault(), "%.1f%%", snapshot.hitRatePermille / 10.0f);
+        String metrics = "slots=" + snapshot.occupiedSlots + "/" + snapshot.capacitySlots
+                + " hit=" + hitRatePercent
+                + " mono(native/audit)=" + nativeMonoMs + "/" + snapshot.auditLastMonoMillis
+                + " drift=" + drift;
+        binding.tvVmFlowState.setText("VM Flow: " + snapshot.state.name() + " (" + snapshot.vmId + ") [" + interop + "]
+" + metrics);
     }
 }

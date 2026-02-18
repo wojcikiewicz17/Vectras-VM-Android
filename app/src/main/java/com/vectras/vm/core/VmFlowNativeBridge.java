@@ -34,7 +34,23 @@ final class VmFlowNativeBridge {
         return nativeVmFlowCurrent(vmHash);
     }
 
+    static int[] stats() {
+        if (!AVAILABLE) return null;
+        return nativeVmFlowStats();
+    }
+
+    static long vmLastMonoNanos(int vmHash) {
+        if (!AVAILABLE) return 0L;
+        int[] parts = nativeVmFlowLastMono(vmHash);
+        if (parts == null || parts.length < 2) return 0L;
+        long lo = ((long) parts[0]) & 0xFFFFFFFFL;
+        long hi = ((long) parts[1]) & 0xFFFFFFFFL;
+        return (hi << 32) | lo;
+    }
+
     private static native int nativeVmFlowInit();
     private static native void nativeVmFlowMark(int vmHash, int stateOrdinal);
     private static native int nativeVmFlowCurrent(int vmHash);
+    private static native int[] nativeVmFlowStats();
+    private static native int[] nativeVmFlowLastMono(int vmHash);
 }
