@@ -1053,6 +1053,51 @@ public class MainSettingsManager extends AppCompatActivity
         return prefs.getString("lastSetupBootstrapUrl", "");
     }
 
+    public static void setSetupInstallState(Context context, String state) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("setupInstallState", state);
+        edit.apply();
+    }
+
+    public static String getSetupInstallState(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("setupInstallState", "");
+    }
+
+    public static void setSetupInstallStateDetail(Context context, String detail) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("setupInstallStateDetail", detail);
+        edit.apply();
+    }
+
+    public static String getSetupInstallStateDetail(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("setupInstallStateDetail", "");
+    }
+
+    public static void setSetupInstallTimestamp(Context context, String timestamp) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("setupInstallTimestamp", timestamp);
+        edit.apply();
+    }
+
+    public static String getSetupInstallTimestamp(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("setupInstallTimestamp", "");
+    }
+
+    public static void clearSetupInstallSnapshot(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.remove("setupInstallState");
+        edit.remove("setupInstallStateDetail");
+        edit.remove("setupInstallTimestamp");
+        edit.apply();
+    }
+
     public static void setDontShowAgainJoinBetaUpdateChannelDialog(Context context, Boolean _boolean) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         SharedPreferences.Editor edit = prefs.edit();
