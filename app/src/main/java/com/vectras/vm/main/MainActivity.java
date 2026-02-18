@@ -47,6 +47,7 @@ import com.vectras.vm.R;
 import com.vectras.vm.WebViewActivity;
 import com.vectras.vm.benchmark.BenchmarkActivity;
 import com.vectras.vm.core.LogcatRuntime;
+import com.vectras.vm.core.VmFlowTracker;
 import com.vectras.vm.databinding.ActivityMainBinding;
 import com.vectras.vm.databinding.ActivityMainContentBinding;
 import com.vectras.vm.main.softwarestore.SoftwareStoreFragment;
@@ -63,6 +64,7 @@ import com.vectras.vm.adapter.LogsAdapter;
 import com.vectras.vm.main.core.CallbackInterface;
 import com.vectras.vm.main.core.DisplaySystem;
 import com.vectras.vm.main.core.PendingCommand;
+import com.vectras.vm.main.core.MainStartVM;
 import com.vectras.vm.main.core.SharedData;
 import com.vectras.vm.main.monitor.SystemMonitorFragment;
 import com.vectras.vm.main.romstore.RomStoreFragment;
@@ -693,6 +695,7 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
 
         // Update log count
         updateLogCount(binding, mLogAdapter.getItemCount());
+        updateVmFlowState(binding);
         
         // Export button
         binding.btnExport.setOnClickListener(v -> {
@@ -764,7 +767,10 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
 
         final LogcatRuntime logcatRuntime = LogcatRuntime.getInstance();
         final LogcatRuntime.Listener logListener = appended -> runOnUiThread(
-                () -> updateLogCount(binding, mLogAdapter.getItemCount())
+                () -> {
+                    updateLogCount(binding, mLogAdapter.getItemCount());
+                    updateVmFlowState(binding);
+                }
         );
         logcatRuntime.addListener(logListener);
         logcatRuntime.acquire();
@@ -777,5 +783,24 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
     
     private void updateLogCount(BottomsheetdialogLoggerBinding binding, int count) {
         binding.tvLogCount.setText(String.format(java.util.Locale.getDefault(), "%d logs", count));
+    }
+
+    private void updateVmFlowState(BottomsheetdialogLoggerBinding binding) {
+        String vmId = MainStartVM.lastVMID == null ? "" : MainStartVM.lastVMID.trim();
+        String normalizedVmId = vmId.isEmpty() ? "unknown" : vmId;
+        VmFlowTracker.DiagnosticsSnapshot snapshot = VmFlowTracker.diagnostics(this, normalizedVmId);
+        String interop = snapshot.nativeEnabled ? "JNI" : "JAVA";
+        long nativeMonoMs = snapshot.nativeLastMonoNanos > 0L ? (snapshot.nativeLastMonoNanos / 1_000_000L) : 0L;
+        long driftMs = (nativeMonoMs > 0L && snapshot.auditLastMonoMillis > 0L)
+                ? Math.abs(nativeMonoMs - snapshot.auditLastMonoMillis)
+                : -1L;
+        String drift = driftMs >= 0L ? (driftMs + "ms") : "n/a";
+        String hitRatePercent = String.format(java.util.Locale.getDefault(), "%.1f%%", snapshot.hitRatePermille / 10.0f);
+        String metrics = "slots=" + snapshot.occupiedSlots + "/" + snapshot.capacitySlots
+                + " hit=" + hitRatePercent
+                + " mono(native/audit)=" + nativeMonoMs + "/" + snapshot.auditLastMonoMillis
+                + " drift=" + drift;
+        binding.tvVmFlowState.setText("VM Flow: " + snapshot.state.name() + " (" + snapshot.vmId + ") [" + interop + "]
+" + metrics);
     }
 }

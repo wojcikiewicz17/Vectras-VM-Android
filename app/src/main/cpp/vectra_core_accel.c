@@ -5,6 +5,7 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdatomic.h>
+#include <time.h>
 #include "rmr_unified_kernel.h"
 #if defined(RMR_ENABLE_POLICY_MODULE)
 #include "rmr_policy_kernel.h"
@@ -456,3 +457,144 @@ JNIEXPORT jstring JNICALL Java_com_vectras_vm_core_NativeLogcatBridge_nativeRead
     return result;
 }
 JNIEXPORT void JNICALL Java_com_vectras_vm_core_NativeLogcatBridge_nativeShutdownCapture(JNIEnv* env, jclass clazz){(void)env;(void)clazz; if(atomic_exchange(&g_capture_running,0)==1) pthread_join(g_capture_thread,NULL);}
+
+// ===== VM Flow JNI interop (enterprise fullstack) =====
+#define VECTRA_VM_FLOW_CAPACITY 128
+
+typedef struct {
+    int vm_hash;
+    int state_ordinal;
+    uint32_t stamp;
+    uint64_t last_mono_nanos;
+} vectra_vm_flow_slot_t;
+
+static vectra_vm_flow_slot_t g_vm_flow_slots[VECTRA_VM_FLOW_CAPACITY];
+static pthread_mutex_t g_vm_flow_lock = PTHREAD_MUTEX_INITIALIZER;
+static uint32_t g_vm_flow_stamp = 1u;
+static uint64_t g_vm_flow_query_count = 0u;
+static uint64_t g_vm_flow_hit_count = 0u;
+
+static uint64_t vectra_mono_nanos(void) {
+    struct timespec ts;
+    if (clock_gettime(CLOCK_MONOTONIC, &ts) != 0) {
+        return 0u;
+    }
+    return ((uint64_t)ts.tv_sec * 1000000000ull) + (uint64_t)ts.tv_nsec;
+}
+
+static int vectra_vm_flow_find_or_evict_locked(int vm_hash) {
+    int free_index = -1;
+    int evict_index = 0;
+    uint32_t min_stamp = 0xFFFFFFFFu;
+
+    for (int i = 0; i < VECTRA_VM_FLOW_CAPACITY; ++i) {
+        if (g_vm_flow_slots[i].vm_hash == vm_hash) {
+            return i;
+        }
+        if (g_vm_flow_slots[i].stamp == 0u && free_index < 0) {
+            free_index = i;
+        }
+        if (g_vm_flow_slots[i].stamp < min_stamp) {
+            min_stamp = g_vm_flow_slots[i].stamp;
+            evict_index = i;
+        }
+    }
+
+    return (free_index >= 0) ? free_index : evict_index;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_VmFlowNativeBridge_nativeVmFlowInit(JNIEnv* env, jclass clazz) {
+    (void)env;
+    (void)clazz;
+    return (vectra_kernel_ensure() == RMR_KERNEL_OK) ? 1 : 0;
+}
+
+JNIEXPORT void JNICALL
+Java_com_vectras_vm_core_VmFlowNativeBridge_nativeVmFlowMark(JNIEnv* env, jclass clazz, jint vmHash, jint stateOrdinal) {
+    (void)env;
+    (void)clazz;
+
+    pthread_mutex_lock(&g_vm_flow_lock);
+    int idx = vectra_vm_flow_find_or_evict_locked((int)vmHash);
+    if (idx >= 0) {
+        g_vm_flow_slots[idx].vm_hash = (int)vmHash;
+        g_vm_flow_slots[idx].state_ordinal = (int)stateOrdinal;
+        g_vm_flow_slots[idx].stamp = ++g_vm_flow_stamp;
+        g_vm_flow_slots[idx].last_mono_nanos = vectra_mono_nanos();
+        if (g_vm_flow_stamp == 0u) {
+            g_vm_flow_stamp = 1u;
+        }
+    }
+    pthread_mutex_unlock(&g_vm_flow_lock);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_VmFlowNativeBridge_nativeVmFlowCurrent(JNIEnv* env, jclass clazz, jint vmHash) {
+    (void)env;
+    (void)clazz;
+
+    jint state = -1;
+    pthread_mutex_lock(&g_vm_flow_lock);
+    g_vm_flow_query_count++;
+    for (int i = 0; i < VECTRA_VM_FLOW_CAPACITY; ++i) {
+        if (g_vm_flow_slots[i].stamp != 0u && g_vm_flow_slots[i].vm_hash == (int)vmHash) {
+            state = (jint)g_vm_flow_slots[i].state_ordinal;
+            g_vm_flow_hit_count++;
+            g_vm_flow_slots[i].stamp = ++g_vm_flow_stamp;
+            if (g_vm_flow_stamp == 0u) {
+                g_vm_flow_stamp = 1u;
+            }
+            break;
+        }
+    }
+    pthread_mutex_unlock(&g_vm_flow_lock);
+    return state;
+}
+
+
+JNIEXPORT jintArray JNICALL
+Java_com_vectras_vm_core_VmFlowNativeBridge_nativeVmFlowStats(JNIEnv* env, jclass clazz) {
+    (void)clazz;
+    jint payload[3] = {0, VECTRA_VM_FLOW_CAPACITY, 0};
+    pthread_mutex_lock(&g_vm_flow_lock);
+    int occupied = 0;
+    for (int i = 0; i < VECTRA_VM_FLOW_CAPACITY; ++i) {
+        if (g_vm_flow_slots[i].stamp != 0u) {
+            occupied++;
+        }
+    }
+    payload[0] = occupied;
+    payload[1] = VECTRA_VM_FLOW_CAPACITY;
+    if (g_vm_flow_query_count > 0u) {
+        payload[2] = (jint)((g_vm_flow_hit_count * 1000u) / g_vm_flow_query_count);
+    }
+    pthread_mutex_unlock(&g_vm_flow_lock);
+
+    jintArray arr = (*env)->NewIntArray(env, 3);
+    if (!arr) return NULL;
+    (*env)->SetIntArrayRegion(env, arr, 0, 3, payload);
+    return arr;
+}
+
+JNIEXPORT jintArray JNICALL
+Java_com_vectras_vm_core_VmFlowNativeBridge_nativeVmFlowLastMono(JNIEnv* env, jclass clazz, jint vmHash) {
+    (void)clazz;
+    uint64_t mono = 0u;
+    pthread_mutex_lock(&g_vm_flow_lock);
+    for (int i = 0; i < VECTRA_VM_FLOW_CAPACITY; ++i) {
+        if (g_vm_flow_slots[i].stamp != 0u && g_vm_flow_slots[i].vm_hash == (int)vmHash) {
+            mono = g_vm_flow_slots[i].last_mono_nanos;
+            break;
+        }
+    }
+    pthread_mutex_unlock(&g_vm_flow_lock);
+
+    jint payload[2];
+    payload[0] = (jint)(mono & 0xFFFFFFFFu);
+    payload[1] = (jint)((mono >> 32u) & 0xFFFFFFFFu);
+    jintArray arr = (*env)->NewIntArray(env, 2);
+    if (!arr) return NULL;
+    (*env)->SetIntArrayRegion(env, arr, 0, 2, payload);
+    return arr;
+}
