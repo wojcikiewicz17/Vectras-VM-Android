@@ -793,6 +793,7 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
         String vmId = MainStartVM.lastVMID == null ? "" : MainStartVM.lastVMID.trim();
         String normalizedVmId = vmId.isEmpty() ? "unknown" : vmId;
         String flow = VmFlowTracker.current(normalizedVmId).name();
-        binding.tvVmFlowState.setText("VM Flow: " + flow + " (" + normalizedVmId + ")");
+        String interop = VmFlowTracker.isNativeInteropEnabled() ? "JNI" : "JAVA";
+        binding.tvVmFlowState.setText("VM Flow: " + flow + " (" + normalizedVmId + ") [" + interop + "]");
     }
 }

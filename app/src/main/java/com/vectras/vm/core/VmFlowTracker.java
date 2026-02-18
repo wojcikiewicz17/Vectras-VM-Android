@@ -31,6 +31,8 @@ public final class VmFlowTracker {
         String key = normalizeVmId(vmId);
         VmFlowState from = STATES.getOrDefault(key, VmFlowState.IDLE);
         STATES.put(key, to);
+        int vmHash = stableVmHash(key);
+        VmFlowNativeBridge.mark(vmHash, to.ordinal());
 
         AuditLedger.record(context, new AuditEvent(
                 SystemClock.elapsedRealtime(),
@@ -49,7 +51,27 @@ public final class VmFlowTracker {
     }
 
     public static VmFlowState current(String vmId) {
-        return STATES.getOrDefault(normalizeVmId(vmId), VmFlowState.IDLE);
+        String key = normalizeVmId(vmId);
+        int nativeOrdinal = VmFlowNativeBridge.current(stableVmHash(key));
+        if (nativeOrdinal >= 0 && nativeOrdinal < VmFlowState.values().length) {
+            VmFlowState nativeState = VmFlowState.values()[nativeOrdinal];
+            STATES.put(key, nativeState);
+            return nativeState;
+        }
+        return STATES.getOrDefault(key, VmFlowState.IDLE);
+    }
+
+    public static boolean isNativeInteropEnabled() {
+        return VmFlowNativeBridge.isAvailable();
+    }
+
+    private static int stableVmHash(String key) {
+        int hash = 0x811C9DC5;
+        for (int i = 0; i < key.length(); i++) {
+            hash ^= key.charAt(i);
+            hash *= 0x01000193;
+        }
+        return hash;
     }
 
     private static String normalizeVmId(String vmId) {
