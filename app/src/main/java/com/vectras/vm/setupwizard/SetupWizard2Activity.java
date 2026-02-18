@@ -772,8 +772,28 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 }
 
                 if (exitValue == 0) {
-                    isExecutingCommand = false;
-                    runOnUiThread(this::finalizeSetupSuccess);
+                    SetupFeatureCore.PostInstallCheckResult postInstallCheck = SetupFeatureCore.runPostInstallCheck(this);
+                    if (postInstallCheck.ok) {
+                        runOnUiThread(() -> {
+                            MainSettingsManager.setStandardSetupVersion(this, AppConfig.standardSetupVersion);
+                            MainSettingsManager.setsetUpWithManualSetupBefore(this, isCustomSetupMode);
+                            uiController(STEP_PATERON);
+                            if (isSystemUpdateMode) {
+                                uiControllerFinalSteps(STEP_FINISH);
+                            } else {
+                                uiControllerFinalSteps(STEP_PATERON);
+                            }
+                            isExecutingCommand = false;
+                        });
+                    } else {
+                        isExecutingCommand = false;
+                        executeBestEffortRollback(setupTimestamp, "post install check failed");
+                        runOnUiThread(() -> {
+                            String technicalMessage = withSetupSourceDiagnostic(postInstallCheck.technicalMessage());
+                            appendTextAndScroll("Error: " + technicalMessage + "\n");
+                            uiController(STEP_ERROR, technicalMessage);
+                        });
+                    }
                     return;
                 }
 
@@ -792,19 +812,6 @@ public class SetupWizard2Activity extends AppCompatActivity {
                             uiController(STEP_ERROR, logs);
                         });
                     }
-                    return;
-                }
-
-                String validationFailureReason = validatePostInstallSynchronously(setupTimestamp);
-                if (validationFailureReason != null) {
-                    isExecutingCommand = false;
-                    executeBestEffortRollback(setupTimestamp, "post-install validation failed");
-                    final String technicalReason = withSetupSourceDiagnostic("post-install validation failed: " + validationFailureReason);
-                    Log.e(TAG, technicalReason);
-                    runOnUiThread(() -> {
-                        appendTextAndScroll("Error: " + technicalReason + "\n");
-                        uiController(STEP_ERROR, logs + "\n" + technicalReason);
-                    });
                     return;
                 }
 
@@ -939,7 +946,9 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private void appendTextAndScroll(String newLog) {
         logs += newLog;
 
-        if (newLog.contains("libproot.so --help") || newLog.contains("/bin/sh: can't fork:")) {
+        if (newLog.contains("xssFjnj58Id")) {
+            advanceSetupProgress(100);
+        } else if (newLog.contains("libproot.so --help") || newLog.contains("/bin/sh: can't fork:")) {
             isLibProotError = true;
         } else if (newLog.contains("not complete: /root/setup.tar.gz")) {
             aria2Error = true;

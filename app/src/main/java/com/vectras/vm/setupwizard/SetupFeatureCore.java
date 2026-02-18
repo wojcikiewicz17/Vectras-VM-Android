@@ -139,173 +139,42 @@ public class SetupFeatureCore {
 
     public static final class PostInstallCheckResult {
         public final boolean ok;
+        public final String summary;
         public final ArrayList<String> failures;
 
-        private PostInstallCheckResult(boolean ok, ArrayList<String> failures) {
+        private PostInstallCheckResult(boolean ok, String summary, ArrayList<String> failures) {
             this.ok = ok;
+            this.summary = summary;
             this.failures = failures;
         }
 
-        public String summary() {
-            if (ok) {
-                return "Post-install check OK";
+        public String technicalMessage() {
+            if (failures.isEmpty()) {
+                return summary;
             }
-            StringBuilder summaryBuilder = new StringBuilder("Post-install check failed:\n");
+            StringJoiner joiner = new StringJoiner("\n");
             for (String failure : failures) {
-                summaryBuilder.append("• ").append(failure).append("\n");
+                joiner.add("- " + failure);
             }
-            return summaryBuilder.toString().trim();
-        }
-    }
-
-    private static final class RequiredFileSpec {
-        final String label;
-        final String path;
-        final long minSizeBytes;
-        final String expectedSha256;
-
-        RequiredFileSpec(String label, String path, long minSizeBytes, String expectedSha256) {
-            this.label = label;
-            this.path = path;
-            this.minSizeBytes = minSizeBytes;
-            this.expectedSha256 = expectedSha256;
+            return summary + "\n" + joiner;
         }
     }
 
     public static PostInstallCheckResult runPostInstallCheck(Context context) {
         ArrayList<String> failures = new ArrayList<>();
-        String filesDir = context.getFilesDir().getAbsolutePath();
-
-        if (!isInstalledSystemFiles(context)) {
-            failures.add("system-files: base installation markers missing (proot and/or distro)");
+        if (!isInstalledProot(context)) {
+            failures.add("missing required binary: proot");
         }
-
-        String[] qemuCandidates = new String[]{
-                filesDir + "/distro/usr/local/bin/qemu-system-x86_64",
-                filesDir + "/distro/usr/bin/qemu-system-x86_64",
-                filesDir + "/distro/usr/local/bin/qemu-system-aarch64",
-                filesDir + "/distro/usr/bin/qemu-system-aarch64"
-        };
-        if (!existsAny(qemuCandidates)) {
-            failures.add("qemu: missing essential binary (expected qemu-system-x86_64 and/or qemu-system-aarch64)");
+        if (!isInstalledDistro(context)) {
+            failures.add("missing required distro busybox");
         }
-
-        ArrayList<RequiredFileSpec> requiredFiles = new ArrayList<>();
-        requiredFiles.add(new RequiredFileSpec(
-                "proot",
-                filesDir + "/usr/bin/proot",
-                128 * 1024,
-                null
-        ));
-        requiredFiles.add(new RequiredFileSpec(
-                "busybox",
-                filesDir + "/distro/bin/busybox",
-                128 * 1024,
-                null
-        ));
-
-        RequiredFileSpec selectedQemuSpec = resolveFirstExistingSpec(
-                "qemu-system-x86_64",
-                new String[]{
-                        filesDir + "/distro/usr/local/bin/qemu-system-x86_64",
-                        filesDir + "/distro/usr/bin/qemu-system-x86_64"
-                },
-                1024 * 1024,
-                null
-        );
-        if (selectedQemuSpec == null) {
-            selectedQemuSpec = resolveFirstExistingSpec(
-                    "qemu-system-aarch64",
-                    new String[]{
-                            filesDir + "/distro/usr/local/bin/qemu-system-aarch64",
-                            filesDir + "/distro/usr/bin/qemu-system-aarch64"
-                    },
-                    1024 * 1024,
-                    null
-            );
-        }
-        if (selectedQemuSpec != null) {
-            requiredFiles.add(selectedQemuSpec);
-        }
-
-        for (RequiredFileSpec spec : requiredFiles) {
-            validateRequiredFile(spec, failures);
+        if (!isInstalledQemu(context)) {
+            failures.add("missing required qemu-system-x86_64 binary");
         }
 
         boolean ok = failures.isEmpty();
-        PostInstallCheckResult result = new PostInstallCheckResult(ok, failures);
-        if (!ok) {
-            lastErrorLog = result.summary();
-            Log.e(TAG, "runPostInstallCheck: " + lastErrorLog);
-        }
-        return result;
-    }
-
-    private static RequiredFileSpec resolveFirstExistingSpec(
-            String label,
-            String[] candidatePaths,
-            long minSizeBytes,
-            String expectedSha256
-    ) {
-        for (String candidatePath : candidatePaths) {
-            if (FileUtils.isFileExists(candidatePath)) {
-                return new RequiredFileSpec(label, candidatePath, minSizeBytes, expectedSha256);
-            }
-        }
-        return null;
-    }
-
-    private static void validateRequiredFile(RequiredFileSpec spec, ArrayList<String> failures) {
-        File file = new File(spec.path);
-        if (!file.exists() || !file.isFile()) {
-            failures.add(spec.label + ": file not found at " + spec.path);
-            return;
-        }
-
-        long size = file.length();
-        if (size < spec.minSizeBytes) {
-            failures.add(spec.label + ": file too small (size=" + size + " bytes, min=" + spec.minSizeBytes + " bytes) path=" + spec.path);
-        }
-
-        if (spec.expectedSha256 != null && !spec.expectedSha256.trim().isEmpty()) {
-            String expected = spec.expectedSha256.trim().toLowerCase(Locale.ROOT);
-            String actual = sha256Hex(file);
-            if (actual.isEmpty()) {
-                failures.add(spec.label + ": failed to compute SHA-256 for " + spec.path);
-            } else if (!expected.equals(actual)) {
-                failures.add(spec.label + ": SHA-256 mismatch (expected=" + expected + ", actual=" + actual + ") path=" + spec.path);
-            }
-        }
-    }
-
-    private static boolean existsAny(String[] paths) {
-        for (String path : paths) {
-            if (FileUtils.isFileExists(path)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private static String sha256Hex(File file) {
-        try (FileInputStream fileInputStream = new FileInputStream(file);
-             BufferedInputStream in = new BufferedInputStream(fileInputStream)) {
-            MessageDigest messageDigest = MessageDigest.getInstance("SHA-256");
-            byte[] buffer = new byte[8192];
-            int n;
-            while ((n = in.read(buffer)) != -1) {
-                messageDigest.update(buffer, 0, n);
-            }
-            byte[] digest = messageDigest.digest();
-            StringBuilder hex = new StringBuilder(digest.length * 2);
-            for (byte b : digest) {
-                hex.append(String.format(Locale.US, "%02x", b));
-            }
-            return hex.toString();
-        } catch (IOException | NoSuchAlgorithmException e) {
-            Log.e(TAG, "sha256Hex: ", e);
-            return "";
-        }
+        String summary = ok ? "Post-install check passed." : "Post-install check failed.";
+        return new PostInstallCheckResult(ok, summary, failures);
     }
 
     public static PreflightResult runVmStartPreflight(
