@@ -151,7 +151,9 @@ public class ProcessSupervisor {
                         .append(" state=")
                         .append(state)
                         .append(" currentAlive=")
-                        .append(currentAlive);
+                        .append(currentAlive)
+                        .append(" incomingAlive=")
+                        .append(process.isAlive());
                 if (currentPid > 0L) {
                     warn.append(" currentPid=").append(currentPid);
                 }
@@ -159,7 +161,12 @@ public class ProcessSupervisor {
                     warn.append(" incomingPid=").append(incomingPid);
                 }
                 Log.w(TAG, warn.toString());
-                stopGracefully(false);
+                Process previousProcess = this.process;
+                boolean stopped = stopGracefully(false);
+                if (!stopped && previousProcess != null && previousProcess.isAlive()) {
+                    Log.w(TAG, "bindProcess: previous process did not stop before rebind vmId=" + vmId);
+                }
+                this.state = State.START;
             }
         }
 
