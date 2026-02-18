@@ -183,15 +183,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
         binding.standardSetupOption.setOnClickListener(v -> {
             if (downloadBootstrapsCommand.isEmpty()) {
                 pendingStandardSetupStart = true;
-                DialogUtils.twoDialog(SetupWizard2Activity.this, getString(R.string.oops),
-                        getString(R.string.this_option_is_temporarily_unavailable_because_the_server_cannot_be_connected),
-                        getString(R.string.try_again),
-                        getString(R.string.ok),
-                        true, R.drawable.warning_48px,
-                        true,
-                        this::getDataForStandardSetup,
-                        null,
-                        null);
+                showStandardSetupUnavailableDialog();
             } else {
                 pendingStandardSetupStart = false;
                 isCustomSetupMode = false;
@@ -457,8 +449,15 @@ public class SetupWizard2Activity extends AppCompatActivity {
             @Override
             public void onErrorResponse(String tag, String message) {
                 applyOfflineBootstrapFallback();
+                boolean hasResolvedBootstrap = !downloadBootstrapsCommand.isEmpty();
+                boolean shouldNotifyUnavailable = pendingStandardSetupStart && !hasResolvedBootstrap;
                 pendingStandardSetupStart = false;
-                new Handler(Looper.getMainLooper()).postDelayed(() -> uiController(STEP_SETUP_OPTIONS), 1000);
+                new Handler(Looper.getMainLooper()).postDelayed(() -> {
+                    uiController(STEP_SETUP_OPTIONS);
+                    if (shouldNotifyUnavailable) {
+                        showStandardSetupUnavailableDialog();
+                    }
+                }, 1000);
             }
         };
 
@@ -466,6 +465,13 @@ public class SetupWizard2Activity extends AppCompatActivity {
     }
 
     private void startSetup() {
+        if (!isCustomSetupMode && downloadBootstrapsCommand.isEmpty()) {
+            pendingStandardSetupStart = false;
+            uiController(STEP_SETUP_OPTIONS);
+            showStandardSetupUnavailableDialog();
+            return;
+        }
+
         uiController(STEP_INSTALLING_PACKAGES);
 
         new Thread(() -> {
@@ -537,6 +543,22 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 executeShellCommand(cmd);
             });
         }).start();
+    }
+
+    private void showStandardSetupUnavailableDialog() {
+        DialogUtils.threeDialog(SetupWizard2Activity.this,
+                getString(R.string.oops),
+                getString(R.string.standard_setup_unavailable_no_network_no_cache),
+                getString(R.string.try_again),
+                getString(R.string.ok),
+                getString(R.string.use_local_bootstrap_file),
+                true,
+                R.drawable.warning_48px,
+                true,
+                this::getDataForStandardSetup,
+                null,
+                () -> binding.customSetupOption.performClick(),
+                null);
     }
 
     private String resolveRequiredPackages(LibraryChecker.PackageManagerType managerType) {
