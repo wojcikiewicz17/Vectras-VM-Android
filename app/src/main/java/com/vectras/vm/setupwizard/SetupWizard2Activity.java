@@ -116,6 +116,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     boolean isNotEnoughStorageSpace = false;
     boolean isCustomSetupMode = false;
     boolean pendingStandardSetupStart = false;
+    boolean setupSuccessMarkerSeen = false;
     final ArrayList<HashMap<String, String>> mirrorList = new ArrayList<>();
     ExecutorService executor = Executors.newSingleThreadExecutor();
     private final ActivityResultLauncher<Uri> storagePermissionLauncher =
@@ -521,6 +522,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 extractEntryCounter = 0;
                 aria2Error = false;
                 isServerError = false;
+                setupSuccessMarkerSeen = false;
                 String vncPassword = MainSettingsManager.getVncExternalPassword(this);
                 if (vncPassword == null || vncPassword.isEmpty()) {
                     vncPassword = UUID.randomUUID().toString().replace("-", "").substring(0, 12);
@@ -682,12 +684,9 @@ public class SetupWizard2Activity extends AppCompatActivity {
         isExecutingCommand = true;
         new Thread(() -> {
             try {
-                // Set up the process builder to start PRoot with environmental variables and commands
                 ProcessBuilder processBuilder = new ProcessBuilder();
 
-                // Adjust these environment variables as necessary for your app
                 String filesDir = getFilesDir().getAbsolutePath();
-
                 String tmpDirPath = getFilesDir().getAbsolutePath() + "/usr/tmp";
 
                 ProotCommandBuilder prootCommandBuilder = new ProotCommandBuilder(this, filesDir + "/distro", "/root")
@@ -697,16 +696,13 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 processBuilder.command(prootCommandBuilder.buildCommand());
                 processBuilder.redirectErrorStream(true);
                 Process process = processBuilder.start();
-                // Get the merged output stream and write command input safely
+
                 try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()));
                      BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
-
-                    // Send user command to PRoot
                     writer.write(userCommand);
                     writer.newLine();
                     writer.flush();
 
-                    // Read the merged stdout/stderr stream continuously
                     String line;
                     while ((line = reader.readLine()) != null) {
                         final String outputLine = line;
@@ -721,42 +717,38 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
                 if (result.status == ProcessRuntimeOps.TimeoutExecutionResult.Status.TIMEOUT) {
                     isExecutingCommand = false;
-                    final String timeoutMessage = "Command timed out ["
-                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                            + "]: "
-                            + result.message;
-                    Log.e(TAG, withSetupSourceDiagnostic(timeoutMessage));
-                    executeBestEffortRollback(setupTimestamp, "timeout during setup");
-                    runOnUiThread(() -> {
-                        appendTextAndScroll("Error: " + withSetupSourceDiagnostic(timeoutMessage) + "\n");
-                        uiController(STEP_ERROR, logs);
-                    });
+                    handleSetupFailureWithRollback(
+                            setupTimestamp,
+                            "timeout during setup",
+                            SetupFeatureCore.formatPostCheckFailure(java.util.Arrays.asList(
+                                    "timeout",
+                                    ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name().toLowerCase()
+                            ))
+                    );
                     return;
                 }
 
                 if (result.status == ProcessRuntimeOps.TimeoutExecutionResult.Status.ERROR) {
                     isExecutingCommand = false;
-                    final String operationErrorMessage = "Command execution error ["
-                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                            + "]: "
-                            + result.message;
-                    Log.e(TAG, withSetupSourceDiagnostic(operationErrorMessage));
-                    executeBestEffortRollback(setupTimestamp, "execution error during setup");
-                    runOnUiThread(() -> {
-                        appendTextAndScroll("Error: " + withSetupSourceDiagnostic(operationErrorMessage) + "\n");
-                        uiController(STEP_ERROR, logs);
-                    });
+                    handleSetupFailureWithRollback(
+                            setupTimestamp,
+                            "execution error during setup",
+                            SetupFeatureCore.formatPostCheckFailure(java.util.Arrays.asList(
+                                    "execution-error",
+                                    ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name().toLowerCase()
+                            ))
+                    );
                     return;
                 }
 
                 int exitValue = result.exitCode;
                 if (exitValue == 0 && criticalSetupStderr) {
                     isExecutingCommand = false;
-                    executeBestEffortRollback(setupTimestamp, "critical stderr detected");
-                    runOnUiThread(() -> {
-                        appendTextAndScroll("Error: " + withSetupSourceDiagnostic("critical stderr detected during setup") + "\n");
-                        uiController(STEP_ERROR, logs);
-                    });
+                    handleSetupFailureWithRollback(
+                            setupTimestamp,
+                            "critical stderr detected",
+                            SetupFeatureCore.formatPostCheckFailure(java.util.Arrays.asList("critical-stderr"))
+                    );
                     return;
                 }
 
@@ -768,26 +760,68 @@ public class SetupWizard2Activity extends AppCompatActivity {
                             startSetup();
                         });
                     } else {
-                        executeBestEffortRollback(setupTimestamp, "non-zero exit code: " + exitValue);
-                        runOnUiThread(() -> {
-                            String toastMessage = "Command failed with exit code: " + exitValue;
-                            appendTextAndScroll("Error: " + withSetupSourceDiagnostic(toastMessage) + "\n");
-                            uiController(STEP_ERROR, logs);
-                        });
+                        handleSetupFailureWithRollback(
+                                setupTimestamp,
+                                "non-zero exit code: " + exitValue,
+                                SetupFeatureCore.formatPostCheckFailure(java.util.Arrays.asList("exit-" + exitValue))
+                        );
                     }
+                    return;
                 }
+
+                if (!setupSuccessMarkerSeen) {
+                    isExecutingCommand = false;
+                    handleSetupFailureWithRollback(
+                            setupTimestamp,
+                            "success marker missing",
+                            SetupFeatureCore.formatPostCheckFailure(java.util.Arrays.asList("success-marker-missing"))
+                    );
+                    return;
+                }
+
+                SetupFeatureCore.SetupPostCheckResult postCheckResult = SetupFeatureCore.runSetupPostCheck(this);
+                if (!postCheckResult.ok) {
+                    isExecutingCommand = false;
+                    String postCheckIdentifier = postCheckResult.technicalReason();
+                    handleSetupFailureWithRollback(setupTimestamp, postCheckIdentifier, postCheckIdentifier);
+                    return;
+                }
+
+                isExecutingCommand = false;
+                runOnUiThread(() -> {
+                    MainSettingsManager.setStandardSetupVersion(this, AppConfig.standardSetupVersion);
+                    MainSettingsManager.setsetUpWithManualSetupBefore(this, isCustomSetupMode);
+                    uiController(STEP_PATERON);
+                    if (isSystemUpdateMode) {
+                        uiControllerFinalSteps(STEP_FINISH);
+                    } else {
+                        uiControllerFinalSteps(STEP_PATERON);
+                    }
+                });
             } catch (IOException e) {
                 isExecutingCommand = false;
-                // Handle exceptions by printing the stack trace in the terminal output
-                final String errorMessage = e.getMessage();
-                Log.e(TAG, withSetupSourceDiagnostic("executeShellCommand IO error: " + errorMessage), e);
-                executeBestEffortRollback(setupTimestamp, "io error during setup");
-                runOnUiThread(() -> {
-                    appendTextAndScroll("Error: " + withSetupSourceDiagnostic(errorMessage) + "\n");
-                    uiController(STEP_ERROR, logs);
-                });
+                Log.e(TAG, withSetupSourceDiagnostic("executeShellCommand IO error: " + e.getMessage()), e);
+                handleSetupFailureWithRollback(
+                        setupTimestamp,
+                        "io error during setup",
+                        SetupFeatureCore.formatPostCheckFailure(java.util.Arrays.asList("io-error"))
+                );
             }
-        }).start(); // Execute the command in a separate thread to prevent blocking the UI thread
+        }).start();
+    }
+
+    private void triggerStepErrorWithSetupDiagnostic(String errorIdentifier) {
+        String safeErrorIdentifier = errorIdentifier == null || errorIdentifier.trim().isEmpty()
+                ? SetupFeatureCore.POST_CHECK_FAIL_PREFIX + "unknown"
+                : errorIdentifier.trim();
+        Log.e(TAG, withSetupSourceDiagnostic(safeErrorIdentifier));
+        appendTextAndScroll("Error: " + withSetupSourceDiagnostic(safeErrorIdentifier) + "\n");
+        uiController(STEP_ERROR, withSetupSourceDiagnostic(logs));
+    }
+
+    private void handleSetupFailureWithRollback(String setupTimestamp, String rollbackReason, String errorIdentifier) {
+        executeBestEffortRollback(setupTimestamp, rollbackReason);
+        runOnUiThread(() -> triggerStepErrorWithSetupDiagnostic(errorIdentifier));
     }
 
     private void executeBestEffortRollback(String setupTimestamp, String reason) {
@@ -833,15 +867,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
         logs += newLog;
 
         if (newLog.contains("xssFjnj58Id")) {
-            isExecutingCommand = false;
-            MainSettingsManager.setStandardSetupVersion(this, AppConfig.standardSetupVersion);
-            MainSettingsManager.setsetUpWithManualSetupBefore(this, isCustomSetupMode);
-            uiController(STEP_PATERON);
-            if (isSystemUpdateMode) {
-                uiControllerFinalSteps(STEP_FINISH);
-            } else {
-                uiControllerFinalSteps(STEP_PATERON);
-            }
+            setupSuccessMarkerSeen = true;
         } else if (newLog.contains("libproot.so --help") || newLog.contains("/bin/sh: can't fork:")) {
             isLibProotError = true;
         } else if (newLog.contains("not complete: /root/setup.tar.gz")) {

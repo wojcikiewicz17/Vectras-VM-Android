@@ -40,6 +40,7 @@ import java.util.StringJoiner;
 public class SetupFeatureCore {
     public static String TAG = "SetupFeatureCore";
     public static String lastErrorLog = "";
+    public static final String POST_CHECK_FAIL_PREFIX = "POST_CHECK_FAIL:";
 
     public static boolean isInstalledSystemFiles(Context context) {
         return isInstalledProot(context) && isInstalledDistro(context);
@@ -132,6 +133,50 @@ public class SetupFeatureCore {
         boolean shouldRequireXterm() {
             return "X11".equals(vmUi) && runWithXterm && !headless;
         }
+    }
+
+    public static final class SetupPostCheckResult {
+        public final boolean ok;
+        public final ArrayList<String> failedItems;
+
+        SetupPostCheckResult(boolean ok, ArrayList<String> failedItems) {
+            this.ok = ok;
+            this.failedItems = failedItems;
+        }
+
+        public String technicalReason() {
+            return formatPostCheckFailure(failedItems);
+        }
+    }
+
+    public static String formatPostCheckFailure(List<String> failedItems) {
+        StringJoiner joiner = new StringJoiner(",");
+        if (failedItems != null) {
+            for (String item : failedItems) {
+                if (item != null && !item.trim().isEmpty()) {
+                    joiner.add(item.trim());
+                }
+            }
+        }
+        String compactItems = joiner.toString();
+        if (compactItems.isEmpty()) {
+            compactItems = "unknown";
+        }
+        return POST_CHECK_FAIL_PREFIX + compactItems;
+    }
+
+    public static SetupPostCheckResult runSetupPostCheck(Context context) {
+        ArrayList<String> failedItems = new ArrayList<>();
+        if (!isInstalledProot(context)) {
+            failedItems.add("missing-proot");
+        }
+        if (!isInstalledDistro(context)) {
+            failedItems.add("missing-distro-busybox");
+        }
+        if (!isInstalledQemu(context)) {
+            failedItems.add("missing-qemu-binary");
+        }
+        return new SetupPostCheckResult(failedItems.isEmpty(), failedItems);
     }
 
     public static PreflightResult runVmStartPreflight(
@@ -421,6 +466,22 @@ public class SetupFeatureCore {
 
                 if (fromAsset.contains("alpine")) {
                     setDNS(context);
+                }
+
+                ArrayList<String> extractionPostCheckFailedItems = new ArrayList<>();
+                if (!extractTargetPath.toFile().exists()) {
+                    extractionPostCheckFailedItems.add("missing-extract-target");
+                }
+                if ("bootstrap".equals(fromAsset) && !isInstalledProot(context)) {
+                    extractionPostCheckFailedItems.add("missing-proot-after-bootstrap-extract");
+                }
+                if (fromAsset.contains("alpine") && !isInstalledDistro(context)) {
+                    extractionPostCheckFailedItems.add("missing-distro-after-alpine-extract");
+                }
+                if (!extractionPostCheckFailedItems.isEmpty()) {
+                    lastErrorLog = formatPostCheckFailure(extractionPostCheckFailedItems);
+                    Log.e(TAG, lastErrorLog);
+                    return false;
                 }
 
                 return true;
