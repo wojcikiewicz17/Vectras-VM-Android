@@ -6,6 +6,7 @@
 #include <stdio.h>
 #include <stdatomic.h>
 #include "rmr_unified_kernel.h"
+#include "rmr_policy_kernel.h"
 
 // Bridge JNI oficializa retorno via RMR_KERNEL_OK e família RMR_KERNEL_ERR_*.
 // RMR_UK_* fica restrito à base/compat (ou pontos explicitamente documentados).
@@ -207,7 +208,23 @@ JNIEXPORT jlong JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeAudit(JNIE
     return (jlong)out.audit_signature;
 }
 
-JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeDeterministicCrc32c(JNIEnv* env, jclass clazz, jint initial, jbyteArray data, jint offset, jint length){(void)clazz; if(vectra_kernel_ensure()!=RMR_KERNEL_OK||!data||offset<0||length<0)return (jint)0x80000000u; jsize n=(*env)->GetArrayLength(env,data); if(offset+length>n)return (jint)0x80000000u; jbyte* p=(*env)->GetPrimitiveArrayCritical(env,data,NULL); if(!p)return (jint)0x80000000u; uint32_t crc=(uint32_t)initial; const uint8_t* src=(const uint8_t*)p+offset; for(jsize i=0;i<length;i++){ crc^=(uint32_t)src[i]; for(uint32_t b=0;b<8;b++){ uint32_t mask=(uint32_t)-(int32_t)(crc&1u); crc=(crc>>1u)^(0x82F63B78u&mask);} } (*env)->ReleasePrimitiveArrayCritical(env,data,p,JNI_ABORT); return (jint)crc;}
+static uint32_t vectra_crc32c_deterministic(uint32_t initial, const uint8_t* src, size_t len) {
+    return RmR_CRC32C_RawUpdate(initial, src, len);
+}
+
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_NativeFastPath_nativeDeterministicCrc32c(JNIEnv* env, jclass clazz, jint initial, jbyteArray data, jint offset, jint length) {
+    (void)clazz;
+    if (vectra_kernel_ensure() != RMR_KERNEL_OK || !data || offset < 0 || length < 0) return (jint)0x80000000u;
+    jsize n = (*env)->GetArrayLength(env, data);
+    if (offset > n || length > (n - offset)) return (jint)0x80000000u;
+    jbyte* p = (*env)->GetPrimitiveArrayCritical(env, data, NULL);
+    if (!p) return (jint)0x80000000u;
+
+    uint32_t crc = vectra_crc32c_deterministic((uint32_t)initial, (const uint8_t*)p + (size_t)offset, (size_t)length);
+    (*env)->ReleasePrimitiveArrayCritical(env, data, p, JNI_ABORT);
+    return (jint)crc;
+}
 JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeDeterministicParity2D8(JNIEnv* env, jclass clazz, jint data16){(void)env;(void)clazz; uint32_t parity=0u; uint32_t d=(uint32_t)data16; for(uint32_t row=0;row<4;row++){ uint32_t rowParity=0u; for(uint32_t col=0;col<4;col++){ uint32_t idx=(row<<2u)|col; rowParity^=(d>>idx)&1u; } parity|=(rowParity<<(row+4u)); } for(uint32_t col=0;col<4;col++){ uint32_t colParity=0u; for(uint32_t row=0;row<4;row++){ uint32_t idx=(row<<2u)|col; colParity^=(d>>idx)&1u; } parity|=(colParity<<col); } return (jint)(parity&0xFFu);} 
 JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeDeterministicVerify4x4Block(JNIEnv* env, jclass clazz, jint packedBlock){(void)env;(void)clazz; uint32_t data=((uint32_t)packedBlock>>8u)&0xFFFFu; uint32_t stored=(uint32_t)packedBlock&0xFFu; uint32_t parity=0u; for(uint32_t row=0;row<4;row++){ uint32_t rowParity=0u; for(uint32_t col=0;col<4;col++){ uint32_t idx=(row<<2u)|col; rowParity^=(data>>idx)&1u; } parity|=(rowParity<<(row+4u)); } for(uint32_t col=0;col<4;col++){ uint32_t colParity=0u; for(uint32_t row=0;row<4;row++){ uint32_t idx=(row<<2u)|col; colParity^=(data>>idx)&1u; } parity|=(colParity<<col); } return (stored==(parity&0xFFu))?1:0;}
 JNIEXPORT jintArray JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeDeterministicPolicyTransition(JNIEnv* env, jclass clazz, jint hitStreak, jint missStreak, jint hasEvent){(void)clazz; jint hits=hitStreak; jint misses=missStreak; if(hasEvent!=0){ hits+=1; misses=0; } else { misses+=1; hits=0; } jint policy=(misses>=2)?1:0; jint out[3]={hits,misses,policy}; jintArray arr=(*env)->NewIntArray(env,3); if(!arr)return NULL; (*env)->SetIntArrayRegion(env,arr,0,3,out); return arr;}

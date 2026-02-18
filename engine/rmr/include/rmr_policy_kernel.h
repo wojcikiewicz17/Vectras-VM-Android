@@ -72,6 +72,7 @@ typedef struct {
 } RmR_AuditSummary;
 
 uint32_t RmR_CRC32C(const uint8_t *buf, size_t len);
+uint32_t RmR_CRC32C_RawUpdate(uint32_t initial, const uint8_t *buf, size_t len);
 uint64_t RmR_Hash64_FNV1a(const uint8_t *buf, size_t len);
 uint32_t RmR_EntropyEstimateMilli(const uint8_t *buf, size_t len);
 
