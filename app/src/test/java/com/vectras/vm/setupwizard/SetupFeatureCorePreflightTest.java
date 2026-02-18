@@ -69,6 +69,22 @@ public class SetupFeatureCorePreflightTest {
         assertTrue(summary.contains("Optional components for current mode"));
     }
 
+    @Test
+    public void runVmStartPreflight_largeInstalledDb_withExpectedPackagesAtEnd_readsEntireFile() throws Exception {
+        File filesDir = Files.createTempDirectory("preflight-large-db-test").toFile();
+        createBinary(filesDir, "distro/usr/bin/qemu-system-x86_64");
+        writeLargeInstalledPackageDb(filesDir, 6000);
+        Context context = mockContext(filesDir);
+
+        SetupFeatureCore.PreflightResult result = SetupFeatureCore.runVmStartPreflight(
+                context,
+                "qemu-system-x86_64",
+                new SetupFeatureCore.VmStartPreflightOptions("X11", false, false)
+        );
+
+        assertTrue(result.missingPackages.isEmpty());
+    }
+
     private static Context mockContext(File filesDir) {
         Context context = mock(Context.class);
         when(context.getFilesDir()).thenReturn(filesDir);
@@ -113,6 +129,28 @@ public class SetupFeatureCorePreflightTest {
         for (String pkg : packages) {
             db.append("P:").append(pkg).append("\n");
         }
+        Files.write(dbFile.toPath(), db.toString().getBytes(StandardCharsets.UTF_8));
+    }
+
+    private static void writeLargeInstalledPackageDb(File filesDir, int fillerEntries) throws IOException {
+        File dbFile = new File(filesDir, "distro/lib/apk/db/installed");
+        File parent = dbFile.getParentFile();
+        if (!parent.exists() && !parent.mkdirs()) {
+            throw new IOException("Failed to create dir: " + parent);
+        }
+
+        Set<String> packages = new LinkedHashSet<>();
+        addPkgs(packages, AppConfig.neededPkgs());
+        addPkgs(packages, AppConfig.neededPkgs32bit());
+
+        StringBuilder db = new StringBuilder();
+        for (int i = 0; i < fillerEntries; i++) {
+            db.append("P:filler-pkg-").append(i).append("\n");
+        }
+        for (String pkg : packages) {
+            db.append("P:").append(pkg).append("\n");
+        }
+
         Files.write(dbFile.toPath(), db.toString().getBytes(StandardCharsets.UTF_8));
     }
 
