@@ -193,7 +193,23 @@ public class SetupFeatureCore {
     }
 
     private static boolean isPkgInstalled(String pkgDb, String pkgName) {
-        return pkgDb.contains("\nP:" + pkgName + "\n") || pkgDb.startsWith("P:" + pkgName + "\n");
+        if (pkgDb == null || pkgName == null || pkgDb.isEmpty() || pkgName.isEmpty()) {
+            return false;
+        }
+
+        String[] lines = pkgDb.split("\\R");
+        for (String line : lines) {
+            if (!line.startsWith("P:")) {
+                continue;
+            }
+
+            String installedPkg = line.substring(2);
+            if (installedPkg.equals(pkgName)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static boolean hasBinary(Context context, String binary) {
