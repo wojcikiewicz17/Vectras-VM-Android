@@ -1053,4 +1053,5 @@ CPU1 %3$d%% · CPUm %4$d%% · MEM %5$d%% · IO %6$d%% · INT %7$d%% · EMU %8$d%
     <string name="a11y_open_glxgears">Open GLXGears</string>
     <string name="a11y_open_vkcube">Open Vulkan cube</string>
 
+    <string name="a11y_send_email">Send email</string>
 </resources>

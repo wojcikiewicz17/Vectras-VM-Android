@@ -133,4 +133,5 @@
     <string name="lang_total_size">Total baixado: %s</string>
     <string name="lang_clear_all">Limpar todos os pacotes de idioma</string>
     <string name="lang_clear_all_confirm">Remover todos os pacotes de idioma baixados? O app voltará ao inglês.</string>
+    <string name="a11y_send_email">Enviar e-mail</string>
 </resources>
