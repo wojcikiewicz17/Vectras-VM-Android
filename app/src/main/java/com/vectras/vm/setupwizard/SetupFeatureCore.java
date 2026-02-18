@@ -193,7 +193,12 @@ public class SetupFeatureCore {
     }
 
     private static boolean isPkgInstalled(String pkgDb, String pkgName) {
-        if (pkgDb == null || pkgName == null || pkgDb.isEmpty() || pkgName.isEmpty()) {
+        if (pkgDb == null || pkgName == null) {
+            return false;
+        }
+
+        String normalizedPkgName = pkgName.trim();
+        if (pkgDb.trim().isEmpty() || normalizedPkgName.isEmpty()) {
             return false;
         }
 
@@ -204,7 +209,7 @@ public class SetupFeatureCore {
             }
 
             String installedPkg = line.substring(2);
-            if (installedPkg.equals(pkgName)) {
+            if (installedPkg.equals(normalizedPkgName)) {
                 return true;
             }
         }
