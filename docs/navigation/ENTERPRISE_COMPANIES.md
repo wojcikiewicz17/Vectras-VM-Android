@@ -57,7 +57,7 @@ Guia para avaliação e operação corporativa com foco em implantação técnic
 6. Publicar relatório de decisão (go/no-go) com riscos residuais.
 
 ## Metadados
-- Versão: 1.2
-- Última atualização: 2026-02
-- Responsável: manutenção documental
-- Licença: GPL-2.0
+- Versão do documento: 1.3
+- Última atualização: 2026-02-18
+- Commit de referência: `8a378fa`
+- Domínio de código coberto: Arquitetura e operação full-stack (app, engine/runtime, governança docs).

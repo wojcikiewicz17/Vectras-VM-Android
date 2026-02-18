@@ -39,7 +39,7 @@ Documento de comparação de benchmark orientado por evidência reproduzível. D
 - Declarar limitações de ambiente que afetem estabilidade dos dados.
 
 ## Metadados
-- Versão: 1.1
-- Última atualização: 2026-02
-- Responsável: manutenção documental
-- Licença: GPL-2.0
+- Versão do documento: 1.2
+- Última atualização: 2026-02-18
+- Commit de referência: `8a378fa`
+- Domínio de código coberto: App benchmark (`app/src/main/java/com/vectras/vm/benchmark/*`) e documentação de método comparativo (`docs/navigation`).

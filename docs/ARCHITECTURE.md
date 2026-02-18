@@ -84,3 +84,9 @@ sequenceDiagram
 ## 7) Fonte de verdade de determinismo
 - O determinismo matemático e de política (CRC32C, paridade 4x4, verificação de bloco, roteamento e transição de política de evento) reside no core C unificado em `engine/rmr` e é exposto para Android via JNI (`vectra_core_accel`).
 - O Kotlin mantém fluxo de app e integração Android (Context, lifecycle, IO de alto nível), atuando como camada de marshaling/orquestração para chamadas determinísticas do core.
+
+## Metadados
+- Versão do documento: 1.1
+- Última atualização: 2026-02-18
+- Commit de referência: `8a378fa`
+- Domínio de código coberto: Arquitetura operacional VM (app Android + supervisor/runtime + engine C/JNI).

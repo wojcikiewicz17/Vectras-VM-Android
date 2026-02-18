@@ -46,6 +46,7 @@ Cada documento técnico deve conter, quando aplicável:
 - Manter um **Change Log** se o documento for crítico (ex.: arquitetura, compliance).
 - Registrar saneamentos de links internos em `CHANGELOG.md` e, quando aplicável, no documento de governança correspondente.
 - Alinhar versões com a versão do projeto quando possível.
+- Toda mudança em caminhos críticos (app, engine, tools, web, runtime e docs de governança) deve atualizar os metadados e os links de rastreabilidade do documento correspondente.
 
 ## 7) Padrões para Arquivos de Navegação
 

@@ -24,7 +24,7 @@ Documento executivo para diligência técnica. Resume capacidades implementadas 
 4. Verificar cobertura de testes unitários.
 
 ## Metadados
-- Versão: 1.1
-- Última atualização: 2026-02
-- Responsável: manutenção documental
-- Licença: GPL-2.0
+- Versão do documento: 1.2
+- Última atualização: 2026-02-18
+- Commit de referência: `8a378fa`
+- Domínio de código coberto: Visão executiva de app/engine/runtime com rastreabilidade documental.

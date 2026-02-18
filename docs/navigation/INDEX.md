@@ -20,5 +20,7 @@ Navegação por audiência para documentos técnicos e operacionais alinhados ao
 - `../../archive/root-history/IMPLEMENTATION_COMPLETE.md`
 
 ## Metadados
-- Versão: 1.1
-- Última atualização: 2026-02
+- Versão do documento: 1.2
+- Última atualização: 2026-02-18
+- Commit de referência: `8a378fa`
+- Domínio de código coberto: Índice de navegação documental e ponte para domínios app, engine, tools, web e runtime.
