@@ -6,7 +6,9 @@
 #include <stdio.h>
 #include <stdatomic.h>
 #include "rmr_unified_kernel.h"
+#if defined(RMR_ENABLE_POLICY_MODULE)
 #include "rmr_policy_kernel.h"
+#endif
 
 // Bridge JNI oficializa retorno via RMR_KERNEL_OK e família RMR_KERNEL_ERR_*.
 // RMR_UK_* fica restrito à base/compat (ou pontos explicitamente documentados).
@@ -209,7 +211,29 @@ JNIEXPORT jlong JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeAudit(JNIE
 }
 
 static uint32_t vectra_crc32c_deterministic(uint32_t initial, const uint8_t* src, size_t len) {
+#if defined(RMR_ENABLE_POLICY_MODULE)
     return RmR_CRC32C_RawUpdate(initial, src, len);
+#else
+    static atomic_int crc_table_ready = ATOMIC_VAR_INIT(0);
+    static uint32_t crc_table[256];
+
+    if (atomic_load_explicit(&crc_table_ready, memory_order_acquire) == 0) {
+        for (uint32_t i = 0; i < 256u; ++i) {
+            uint32_t c = i;
+            for (uint32_t b = 0; b < 8u; ++b) {
+                c = (c & 1u) ? (0x82F63B78u ^ (c >> 1u)) : (c >> 1u);
+            }
+            crc_table[i] = c;
+        }
+        atomic_store_explicit(&crc_table_ready, 1, memory_order_release);
+    }
+
+    uint32_t crc = initial;
+    for (size_t i = 0; i < len; ++i) {
+        crc = crc_table[(crc ^ src[i]) & 0xFFu] ^ (crc >> 8u);
+    }
+    return crc;
+#endif
 }
 
 JNIEXPORT jint JNICALL
