@@ -187,28 +187,37 @@ static void init_crc32c_table(void) {
   g_crc32c_table_ready = 1;
 }
 
-static uint32_t crc32c_sw(const uint8_t *buf, size_t len) {
-  uint32_t crc = 0xFFFFFFFFu;
+static uint32_t crc32c_sw_update(uint32_t crc, const uint8_t *buf, size_t len) {
   for (size_t i = 0; i < len; ++i) {
     crc = g_crc32c_table[(crc ^ buf[i]) & 0xFFu] ^ (crc >> 8);
   }
-  return ~crc;
+  return crc;
 }
 
-uint32_t RmR_CRC32C(const uint8_t *buf, size_t len) {
-  init_crc32c_table();
+static uint32_t crc32c_aarch64_update(uint32_t crc, const uint8_t *buf, size_t len) {
 #if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32)
-  uint32_t crc = 0xFFFFFFFFu;
   size_t i = 0;
   for (; i + 8 <= len; i += 8) {
     uint64_t x;
     rmr_mem_copy(&x, buf + i, sizeof(x));
-    crc = __crc32cd(crc, x);
+    crc = __builtin_aarch64_crc32cx(crc, x);
   }
-  for (; i < len; ++i) crc = __crc32cb(crc, buf[i]);
-  return ~crc;
+  for (; i < len; ++i) crc = __builtin_aarch64_crc32cb(crc, buf[i]);
+  return crc;
+#else
+  (void)buf;
+  (void)len;
+  return crc;
+#endif
+}
+
+uint32_t RmR_CRC32C_RawUpdate(uint32_t initial, const uint8_t *buf, size_t len) {
+  if ((!buf && len != 0u) || len == 0u) return initial;
+  init_crc32c_table();
+#if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32)
+  return crc32c_aarch64_update(initial, buf, len);
 #elif defined(__SSE4_2__) && (defined(__x86_64__) || defined(__i386__))
-  uint32_t crc = 0xFFFFFFFFu;
+  uint32_t crc = initial;
   size_t i = 0;
   for (; i + 8 <= len; i += 8) {
     uint64_t x;
@@ -216,10 +225,14 @@ uint32_t RmR_CRC32C(const uint8_t *buf, size_t len) {
     crc = (uint32_t)_mm_crc32_u64(crc, x);
   }
   for (; i < len; ++i) crc = _mm_crc32_u8(crc, buf[i]);
-  return ~crc;
+  return crc;
 #else
-  return crc32c_sw(buf, len);
+  return crc32c_sw_update(initial, buf, len);
 #endif
+}
+
+uint32_t RmR_CRC32C(const uint8_t *buf, size_t len) {
+  return ~RmR_CRC32C_RawUpdate(0xFFFFFFFFu, buf, len);
 }
 
 uint64_t RmR_Hash64_FNV1a(const uint8_t *buf, size_t len) {
