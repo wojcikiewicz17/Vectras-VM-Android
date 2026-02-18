@@ -24,6 +24,14 @@ Camada técnica central de documentação do Vectras VM Android.
 - Inovação e autoria técnica (navegação): `navigation/TECHNOLOGY_INNOVATION_AUTHORSHIP.md`
 - Estado atual do ciclo do projeto: `../PROJECT_STATE.md`
 
+
+## Checklist de freshness por domínio
+- [ ] **app**: validar se APIs/fluxos em `app/` e `docs/API.md` continuam alinhados.
+- [ ] **engine**: revisar mudanças em `engine/` e refletir impactos em `docs/ARCHITECTURE.md`.
+- [ ] **tools**: confirmar atualização de utilitários/scripts e referências operacionais em `docs/OPERATIONS.md`.
+- [ ] **web**: checar documentação de interfaces web (quando aplicável) e índices correlatos.
+- [ ] **runtime**: sincronizar alterações de supervisão/execução VM com `docs/ARCHITECTURE.md` e `docs/BENCHMARK_MANAGER.md`.
+
 ## Cadeia de comando de validação documental
 ```bash
 find docs -maxdepth 2 -type f | sort
@@ -32,7 +40,7 @@ sed -n '1,120p' docs/ROOT_FILE_CHAIN.md
 ```
 
 ## Metadados
-- Versão do documento: 1.2
+- Versão do documento: 1.1
 - Última atualização: 2026-02-18
-- Commit de referência: `5f551f0`
+- Commit de referência: `8a378fa`
 - Domínio de código coberto: Portal documental transversal para app, engine, tools, web e runtime.
