@@ -46,6 +46,12 @@ if(TARGET rmr_policy_static)
         ${VECTRA_ARM64_COMPILE_OPTIONS})
 endif()
 
+if(RMR_ENABLE_POLICY_MODULE)
+    target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_POLICY_MODULE=1)
+else()
+    target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_POLICY_MODULE=0)
+endif()
+
 
 target_compile_options(vectra_core_accel PRIVATE
     ${VECTRA_COMMON_COMPILE_OPTIONS}
