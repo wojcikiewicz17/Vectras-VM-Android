@@ -19,8 +19,10 @@ if(RMR_ENABLE_POLICY_MODULE)
         ../../../../engine/rmr/src/rmr_ll_tuning.c)
 endif()
 
-add_library(bitraf_static STATIC
-    ../../../../engine/rmr/src/bitraf.c)
+if(RMR_ENABLE_BITRAF_MODULE)
+    add_library(bitraf_static STATIC
+        ../../../../engine/rmr/src/bitraf.c)
+endif()
 
 find_library(log-lib log)
 find_package(JNI REQUIRED)
@@ -38,28 +40,27 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
     set(VECTRA_ARM64_COMPILE_OPTIONS -march=armv8-a)
 endif()
 
-target_compile_options(rmr_core_static PRIVATE
-    ${VECTRA_COMMON_COMPILE_OPTIONS}
-    ${VECTRA_ARM64_COMPILE_OPTIONS})
-
 if(TARGET rmr_policy_static)
     target_compile_options(rmr_policy_static PRIVATE
         ${VECTRA_COMMON_COMPILE_OPTIONS}
         ${VECTRA_ARM64_COMPILE_OPTIONS})
 endif()
 
-target_compile_options(bitraf_static PRIVATE
-    ${VECTRA_COMMON_COMPILE_OPTIONS}
-    ${VECTRA_ARM64_COMPILE_OPTIONS})
 
 target_compile_options(vectra_core_accel PRIVATE
     ${VECTRA_COMMON_COMPILE_OPTIONS}
     ${VECTRA_ARM64_COMPILE_OPTIONS})
 
-target_link_libraries(vectra_core_accel PRIVATE rmr_core_static ${log-lib})
+target_link_libraries(vectra_core_accel PRIVATE ${log-lib})
 
 if(TARGET rmr_policy_static)
     target_link_libraries(vectra_core_accel PRIVATE rmr_policy_static)
+endif()
+
+if(TARGET bitraf_static)
+    target_compile_options(bitraf_static PRIVATE
+        ${VECTRA_COMMON_COMPILE_OPTIONS}
+        ${VECTRA_ARM64_COMPILE_OPTIONS})
 endif()
 
 if(RMR_ENABLE_BITRAF_MODULE)
