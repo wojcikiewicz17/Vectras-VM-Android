@@ -29,7 +29,7 @@ Guia de pesquisa alinhado ao código do projeto, com foco em reprodutibilidade e
 4. Publicar método e limitações do ambiente de teste.
 
 ## Metadados
-- Versão: 1.1
-- Última atualização: 2026-02
-- Responsável: manutenção documental
-- Licença: GPL-2.0
+- Versão do documento: 1.2
+- Última atualização: 2026-02-18
+- Commit de referência: `8a378fa`
+- Domínio de código coberto: Pesquisa reproduzível sobre benchmark, core e integração JNI/app.

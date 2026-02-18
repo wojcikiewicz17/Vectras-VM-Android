@@ -3,6 +3,13 @@
 ## Resumo
 Navegação por audiência para documentos técnicos e operacionais alinhados ao código implementado.
 
+## Trilha de navegação em 5 níveis
+1. Institucional: [`../../README.md`](../../README.md)
+2. Índice global: [`../../DOC_INDEX.md`](../../DOC_INDEX.md)
+3. Hub técnico: [`../README.md`](../README.md)
+4. Índice de navegação por público: [`INDEX.md`](INDEX.md)
+5. Documento-alvo (execução): `HIGH_LEVEL_INVESTORS.md`, `SCIENTISTS_RESEARCH.md`, `UNIVERSITIES_ACADEMIC.md`, `ENTERPRISE_COMPANIES.md`, `BENCHMARK_COMPARISONS.md`, `PERFORMANCE_OPERATIONS.md`.
+
 ## Audiências
 - **Big Tech / Board** → `BIGTECH_REVOLUTION_ANNOUNCE.md` (narrativa em 5 níveis)
 - **Investors & VCs** → `HIGH_LEVEL_INVESTORS.md` (diligência técnica)
@@ -23,5 +30,7 @@ Navegação por audiência para documentos técnicos e operacionais alinhados ao
 - `../../archive/root-history/IMPLEMENTATION_COMPLETE.md`
 
 ## Metadados
-- Versão: 1.3
-- Última atualização: 2026-02
+- Versão do documento: 1.3
+- Última atualização: 2026-02-18
+- Commit de referência: `5f551f0`
+- Domínio de código coberto: Índice de navegação documental e ponte para domínios app, engine, tools, web e runtime.
