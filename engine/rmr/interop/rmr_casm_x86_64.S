@@ -44,3 +44,10 @@ rmr_casm_xor_fold32_x86_64:
 .size rmr_casm_xor_fold32_x86_64, .-rmr_casm_xor_fold32_x86_64
 
 .section .note.GNU-stack,"",@progbits
+
+.global rmr_casm_bridge_marker
+.type rmr_casm_bridge_marker, @function
+rmr_casm_bridge_marker:
+  mov $0x41534d31, %eax
+  ret
+.size rmr_casm_bridge_marker, .-rmr_casm_bridge_marker

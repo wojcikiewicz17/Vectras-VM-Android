@@ -7,13 +7,9 @@ option(RMR_ENABLE_BITRAF_MODULE "Enable BITRAF module" ON)
 set(VECTRA_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../../)
 set(VECTRA_RMR_INCLUDE_DIR ${VECTRA_REPO_ROOT}/engine/rmr/include)
 
-set(VECTRA_LOWLEVEL_SOURCES
-    ../../../../engine/rmr/src/rmr_lowlevel_portable.c
-    ../../../../engine/rmr/src/rmr_lowlevel_mix.c
-    ../../../../engine/rmr/src/rmr_lowlevel_reduce.c)
-
-if(CMAKE_SYSTEM_PROCESSOR STREQUAL "x86_64")
-    list(APPEND VECTRA_LOWLEVEL_SOURCES ../../../../engine/rmr/interop/rmr_lowlevel_x86_64.S)
+set(VECTRA_X86_64_ASM_SOURCE)
+if(NOT ANDROID AND (CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64"))
+    set(VECTRA_X86_64_ASM_SOURCE ../../../../engine/rmr/interop/rmr_casm_x86_64.S)
 endif()
 
 add_library(vectra_core_accel SHARED
@@ -24,7 +20,7 @@ add_library(vectra_core_accel SHARED
     ../../../../engine/rmr/src/rmr_corelib.c
     ../../../../engine/rmr/src/rmr_ll_ops.c
     ../../../../engine/rmr/src/rmr_cycles.c
-    ${VECTRA_LOWLEVEL_SOURCES})
+    ${VECTRA_X86_64_ASM_SOURCE})
 
 if(RMR_ENABLE_POLICY_MODULE)
     add_library(rmr_policy_static STATIC

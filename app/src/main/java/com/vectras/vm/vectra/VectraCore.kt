@@ -43,6 +43,8 @@ private fun logError(message: String, throwable: Throwable? = null, deterministi
     Log.e(TAG, "deterministic_tick=$deterministicTick wall_clock_ms=$wallClockMs $message", throwable)
 }
 
+fun vectraLowLevelBridgeMarker(): Int = NativeFastPath.asmBridgeMarker()
+
 /**
  * VectraState: Holds 1024-bit flags (state depth/stack flags).
  * Uses BitSet-like structure with LongArray for efficient bit operations.

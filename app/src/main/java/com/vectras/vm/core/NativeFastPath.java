@@ -120,6 +120,21 @@ public final class NativeFastPath {
         return BOOT_PROFILE.featureMask;
     }
 
+    /**
+     * Java -> JNI C -> ASM marker used to assert low-level bridge path at runtime.
+     */
+    public static int asmBridgeMarker() {
+        if (NATIVE_AVAILABLE) {
+            int marker = nativeAsmBridgeMarker();
+            if (marker != 0) {
+                telemetryNativeHit();
+                return marker;
+            }
+        }
+        telemetryFallbackHit();
+        return 0x4A564D31; // "JVM1"
+    }
+
     public static NativeBridgeTelemetrySnapshot readNativeBridgeTelemetry() {
         KernelUnitProfile kernel = readKernelUnitProfile();
         return new NativeBridgeTelemetrySnapshot(
@@ -987,6 +1002,8 @@ public final class NativeFastPath {
     private static native int[] nativeDeterministicPolicyTransition(int hitStreak, int missStreak, int hasEvent);
 
     private static native int nativePointerBits();
+
+    private static native int nativeAsmBridgeMarker();
 
 
 }
