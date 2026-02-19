@@ -14,6 +14,7 @@ endif()
 
 add_library(vectra_core_accel SHARED
     vectra_core_accel.c
+    lowlevel_bridge.c
     ../../../../engine/rmr/src/rmr_unified_kernel.c
     ../../../../engine/rmr/src/rmr_hw_detect.c
     ../../../../engine/rmr/src/rmr_corelib.c
