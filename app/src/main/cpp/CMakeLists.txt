@@ -44,7 +44,7 @@ find_library(log-lib log)
 if(ANDROID)
     find_library(log-lib log)
 else()
-    find_package(JNI REQUIRED)
+    find_package(JNI REQUIRED COMPONENTS JVM)
     set(log-lib "")
 endif()
 
