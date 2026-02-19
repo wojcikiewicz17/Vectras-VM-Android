@@ -39,6 +39,9 @@ public final class AdvancedAlgorithms {
     /** Inverse golden ratio */
     private static final double INV_PHI = 0.618033988749895;
 
+    /** Validation message for transform sizes that must be powers of two */
+    private static final String POWER_OF_TWO_SIZE_ERROR = "Size must be power of 2";
+
     private static final ThreadLocal<Buffers> THREAD_LOCAL_BUFFERS =
             ThreadLocal.withInitial(Buffers::new);
 
@@ -739,7 +742,7 @@ public final class AdvancedAlgorithms {
     public static void fastHadamardTransform(int[] data) {
         int n = data.length;
         if (n == 0 || (n & (n - 1)) != 0) {
-            throw new IllegalArgumentException("Size must be power of 2");
+            throw new IllegalArgumentException(POWER_OF_TWO_SIZE_ERROR);
         }
         
         for (int step = 1; step < n; step <<= 1) {
@@ -762,6 +765,10 @@ public final class AdvancedAlgorithms {
      */
     public static void walshSequencyOrder(int[] data) {
         int n = data.length;
+        if (n == 0 || (n & (n - 1)) != 0) {
+            throw new IllegalArgumentException(POWER_OF_TWO_SIZE_ERROR);
+        }
+
         Buffers buffers = THREAD_LOCAL_BUFFERS.get();
         int[] temp = buffers.ensureTempIntCapacity(n);
         

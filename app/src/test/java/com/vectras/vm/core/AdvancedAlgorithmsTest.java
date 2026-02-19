@@ -302,19 +302,23 @@ public class AdvancedAlgorithmsTest {
     @Test
     public void testWalshSequencyOrder() {
         int[] data = {0, 1, 2, 3, 4, 5, 6, 7};
-        int[] original = data.clone();
+        int[] expected = {0, 1, 3, 2, 6, 7, 5, 4};
 
         AdvancedAlgorithms.walshSequencyOrder(data);
-        
-        // Should reorder data
-        boolean reordered = false;
-        for (int i = 0; i < data.length; i++) {
-            if (data[i] != original[i]) {
-                reordered = true;
-                break;
-            }
+
+        assertArrayEquals("Should reorder data in Walsh sequency order", expected, data);
+    }
+
+    @Test
+    public void testWalshSequencyOrderInvalidSize() {
+        int[] data = {1, 2, 3}; // Not power of 2
+
+        try {
+            AdvancedAlgorithms.walshSequencyOrder(data);
+            fail("Should throw exception for non-power-of-2 size");
+        } catch (IllegalArgumentException e) {
+            assertEquals("Size must be power of 2", e.getMessage());
         }
-        assertTrue("Should reorder data", reordered);
     }
 
     @Test
