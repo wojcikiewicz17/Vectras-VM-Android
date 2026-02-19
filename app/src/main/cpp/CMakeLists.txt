@@ -61,17 +61,11 @@ if(TARGET rmr_policy_static)
         ${VECTRA_ARM64_COMPILE_OPTIONS})
     target_include_directories(rmr_policy_static PRIVATE
         ${VECTRA_RMR_INCLUDE_DIR})
+    target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_POLICY_MODULE=1)
+    target_link_libraries(vectra_core_accel PRIVATE rmr_policy_static)
+else()
+    target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_POLICY_MODULE=0)
 endif()
-
-target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_POLICY_MODULE=1 RMR_ENABLE_BITRAF_MODULE=1)
-
-target_compile_options(vectra_core_accel PRIVATE
-    ${VECTRA_COMMON_COMPILE_OPTIONS}
-    ${VECTRA_ARM64_COMPILE_OPTIONS})
-
-target_link_libraries(vectra_core_accel PRIVATE ${log-lib})
-
-target_link_libraries(vectra_core_accel PRIVATE rmr_policy_static)
 
 if(TARGET bitraf_static)
     target_compile_options(bitraf_static PRIVATE
@@ -79,9 +73,17 @@ if(TARGET bitraf_static)
         ${VECTRA_ARM64_COMPILE_OPTIONS})
     target_include_directories(bitraf_static PRIVATE
         ${VECTRA_RMR_INCLUDE_DIR})
+    target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_BITRAF_MODULE=1)
+    target_link_libraries(vectra_core_accel PRIVATE bitraf_static)
+else()
+    target_compile_definitions(vectra_core_accel PRIVATE RMR_ENABLE_BITRAF_MODULE=0)
 endif()
 
-target_link_libraries(vectra_core_accel PRIVATE bitraf_static)
+target_compile_options(vectra_core_accel PRIVATE
+    ${VECTRA_COMMON_COMPILE_OPTIONS}
+    ${VECTRA_ARM64_COMPILE_OPTIONS})
+
+target_link_libraries(vectra_core_accel PRIVATE ${log-lib})
 
 target_include_directories(vectra_core_accel PRIVATE
     ${VECTRA_RMR_INCLUDE_DIR})
