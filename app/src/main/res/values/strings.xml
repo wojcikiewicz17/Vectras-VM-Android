@@ -557,6 +557,8 @@
     <string name="this_option_is_temporarily_unavailable_because_the_server_cannot_be_connected">This option is temporarily unavailable because the server cannot be connected.</string>
     <string name="standard_setup_unavailable_no_network_no_cache">Standard setup is unavailable right now because there is no network connection and no cached bootstrap source was found.</string>
     <string name="use_local_bootstrap_file">Use local bootstrap file</string>
+    <string name="use_bundled_bootstrap_package">Use bundled bootstrap package</string>
+    <string name="unable_to_prepare_bundled_bootstrap_package">Unable to prepare bundled bootstrap package.</string>
     <string name="vectras_vm_cannot_run_on_this_device">Vectras VM cannot run on this device.</string>
     <string name="not_enough_storage_space">Not enough storage space.</string>
     <string name="there_are_no_logs">There are no logs.</string>

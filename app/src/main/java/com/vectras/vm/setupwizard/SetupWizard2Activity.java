@@ -59,7 +59,9 @@ import com.vectras.vterm.TerminalBottomSheetDialog;
 
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.time.Instant;
@@ -75,6 +77,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private static final String TAG = "SetupWizard2Activity";
     private static final String BOOTSTRAP_PREFIX_ARIA2 = " aria2c -x 4 --async-dns=false --disable-ipv6 --check-certificate=false -o setup.tar.gz ";
     private static final String BOOTSTRAP_PREFIX_CURL = " curl -o setup.tar.gz -L ";
+    private static final String[] BOOTSTRAP_COMPATIBLE_ABI_PREFIXES = new String[]{"arm64-v8a", "aarch64", "armeabi-v7a", "armhf", "x86_64", "amd64", "x86"};
     private static final Pattern ARIA2_PROGRESS_PATTERN = Pattern.compile("\\((\\d{1,3})%\\)");
     private static final Pattern CURL_PROGRESS_PATTERN = Pattern.compile("^\\s*(\\d{1,3})\\s+\\d");
     private static final Pattern PACKAGE_PROGRESS_PATTERN = Pattern.compile("\\((\\d+)/(\\d+)\\)");
@@ -85,7 +88,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private enum SetupSource {
         REMOTE,
         OFFLINE_FALLBACK,
-        MANUAL_FILE
+        MANUAL_FILE,
+        BUNDLED_ASSET
     }
 
     private enum InstallState {
@@ -118,6 +122,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     String selectedMirrorLocation = "";
     String downloadBootstrapsCommand = "";
     String tarPath = "";
+    String setupArchiveFileName = "setup.tar.gz";
     String progressText ="0%";
     int setupProgressPercent = 0;
     boolean bootstrapDownloadActive = false;
@@ -580,10 +585,13 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
                 String bootstrapAcquireCommand;
                 if (isCustomSetupMode) {
+                    setupArchive = stageDir + "/" + setupArchiveFileName;
                     bootstrapAcquireCommand = "cp " + CommandUtils.shellSingleQuote(tarPath) + " " + CommandUtils.shellSingleQuote(setupArchive);
                 } else {
                     if (FileUtils.isFileExists(getFilesDir().getAbsolutePath() + "/distro/root/setup.tar.gz"))
                         FileUtils.deleteDirectory(getFilesDir().getAbsolutePath() + "/distro/root/setup.tar.gz");
+                    if (FileUtils.isFileExists(getFilesDir().getAbsolutePath() + "/distro/root/setup.tar"))
+                        FileUtils.deleteDirectory(getFilesDir().getAbsolutePath() + "/distro/root/setup.tar");
                     bootstrapAcquireCommand = "cd '" + stageDir + "' && " + downloadBootstrapsCommand;
                 }
 
@@ -613,7 +621,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                         " " + bootstrapAcquireCommand + " || { rollback_setup 'bootstrap acquisition failed'; exit 43; };" +
                         " echo STATE_TRANSITION:STAGING;" +
                         " echo \"Installing Qemu...\";" +
-                        " tar -xzvf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\" || { rollback_setup 'bootstrap extraction failed'; exit 44; };" +
+                        " if gzip -t \"$SETUP_ARCHIVE\" >/dev/null 2>&1; then tar -xzvf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\"; else tar -xvf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\"; fi || { rollback_setup 'bootstrap extraction failed'; exit 44; };" +
                         " test -d \"$STAGE_ROOT/usr/local/bin\" || { rollback_setup 'missing /usr/local/bin in staging'; exit 45; };" +
                         " test -x \"$STAGE_ROOT/usr/local/bin/qemu-system-x86_64\" -o -x \"$STAGE_ROOT/usr/local/bin/qemu-system-aarch64\" || { rollback_setup 'missing qemu binary in staging'; exit 46; };" +
                         " chmod 775 \"$STAGE_ROOT\"/usr/local/bin/* || { rollback_setup 'invalid binary permissions'; exit 47; };" +
@@ -649,14 +657,50 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 getString(R.string.standard_setup_unavailable_no_network_no_cache),
                 getString(R.string.try_again),
                 getString(R.string.ok),
-                getString(R.string.use_local_bootstrap_file),
+                getString(R.string.use_bundled_bootstrap_package),
                 true,
                 R.drawable.warning_48px,
                 true,
                 this::getDataForStandardSetup,
                 null,
-                () -> binding.customSetupOption.performClick(),
+                this::startBundledBootstrapSetup,
                 null);
+    }
+
+    private void startBundledBootstrapSetup() {
+        uiController(STEP_INSTALLING_PACKAGES);
+        new Thread(() -> {
+            if (!prepareBundledBootstrapArchive()) {
+                runOnUiThread(() -> uiController(STEP_ERROR, withSetupSourceDiagnostic(getString(R.string.unable_to_prepare_bundled_bootstrap_package))));
+                return;
+            }
+
+            runOnUiThread(() -> {
+                isCustomSetupMode = true;
+                setSetupSource(SetupSource.BUNDLED_ASSET, "Using bundled bootstrap package from app assets.");
+                startSetup();
+            });
+        }).start();
+    }
+
+    private boolean prepareBundledBootstrapArchive() {
+        String abi = Build.SUPPORTED_ABIS[0];
+        String assetPath = "alpine19/" + abi + ".tar";
+        setupArchiveFileName = "setup.tar";
+
+        try (InputStream input = getAssets().open(assetPath);
+             FileOutputStream output = new FileOutputStream(tarPath)) {
+            byte[] buffer = new byte[32 * 1024];
+            int read;
+            while ((read = input.read(buffer)) != -1) {
+                output.write(buffer, 0, read);
+            }
+            output.flush();
+            return true;
+        } catch (IOException e) {
+            Log.e(TAG, "Failed to prepare bundled bootstrap archive: " + assetPath, e);
+            return false;
+        }
     }
 
     private String resolveRequiredPackages(LibraryChecker.PackageManagerType managerType) {
@@ -689,8 +733,9 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private final ActivityResultLauncher<String> bootstrapFilePicker =
             registerForActivityResult(new ActivityResultContracts.GetContent(), uri -> {
                 if (uri != null) {
-                    String abi = Build.SUPPORTED_ABIS[0];
-                    if (FileUtils.getFileNameFromUri(this, uri).endsWith(abi + ".tar.gz")) {
+                    String fileName = FileUtils.getFileNameFromUri(this, uri);
+                    if (isCompatibleBootstrapArchive(fileName)) {
+                        setupArchiveFileName = fileName.endsWith(".tar") ? "setup.tar" : "setup.tar.gz";
                         uiController(STEP_INSTALLING_PACKAGES);
                         new Thread(() -> {
                             try {
@@ -707,7 +752,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                     } else {
                         DialogUtils.oneDialog(this,
                                 getString(R.string.invalid_file),
-                                getString(R.string.please_select) + " vectras-vm-" + abi + ".tar.gz.",
+                                getString(R.string.please_select) + " vectras-vm-<abi>.tar.gz",
                                 getResources().getString(R.string.ok),
                                 true,
                                 R.drawable.warning_48px,
@@ -1081,7 +1126,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
             advanceSetupProgress(80);
         }
 
-        if (newLog.contains("tar -xzvf ") || newLog.startsWith("x ")) {
+        if (newLog.contains("tar -xzvf ") || newLog.contains("tar -xvf ") || newLog.startsWith("x ")) {
             if (newLog.startsWith("x ")) {
                 extractEntryCounter++;
                 int extractionProgress = 80 + Math.min(10, extractEntryCounter / 25);
@@ -1605,5 +1650,24 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
     public String getPath(Uri uri) {
         return FileUtils.getPath(this, uri);
+    }
+
+    private boolean isCompatibleBootstrapArchive(String fileName) {
+        if (fileName == null) {
+            return false;
+        }
+
+        String normalized = fileName.trim().toLowerCase();
+        if (!(normalized.endsWith(".tar.gz") || normalized.endsWith(".tar"))) {
+            return false;
+        }
+
+        for (String abiPrefix : BOOTSTRAP_COMPATIBLE_ABI_PREFIXES) {
+            if (normalized.contains(abiPrefix)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 }
