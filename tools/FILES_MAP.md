@@ -84,8 +84,13 @@ Mapa arquivo-a-arquivo em três linhas por item: papel, ligação e comando de i
 - **Inspeção**: `bash tools/export_source_tarball.sh` e `find archive/source-export -maxdepth 3 -type f | sort`.
 
 
+## `tools/mirror_alpine_apk_failures.sh`
+- **Papel**: baixa para o repositório os pacotes `.apk` do Alpine que falharam no setup (com retry), incluindo índices e manifesto de resolução/falha.
+- **Liga com**: usado por [`tools/prefetch_bootstrap_downloads.sh`](prefetch_bootstrap_downloads.sh) para espelhar downloads não-Android também.
+- **Inspeção**: `bash tools/mirror_alpine_apk_failures.sh` e `find archive/download-mirror/alpine-apk-failures -maxdepth 3 -type f | sort`.
+
 ## `tools/prefetch_bootstrap_downloads.sh`
-- **Papel**: executa bootstrap oficial para baixar/instalar componentes Android em `archive/download-mirror/` e depois chama export para gerar `.tar.gz` com conteúdo pós-download.
+- **Papel**: executa bootstrap oficial para baixar/instalar componentes Android, espelha falhas de pacotes Alpine e depois chama export para gerar `.tar.gz` com conteúdo pós-download.
 - **Liga com**: usa [`tools/termux-arm64-orchestrator/bootstrap-termux-android15.sh`](termux-arm64-orchestrator/bootstrap-termux-android15.sh) e [`tools/export_source_tarball.sh`](export_source_tarball.sh).
 - **Inspeção**: `bash tools/prefetch_bootstrap_downloads.sh` e `find archive/download-mirror -maxdepth 3 -type f | sort`.
 

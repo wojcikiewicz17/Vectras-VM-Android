@@ -25,6 +25,10 @@ printf '[prefetch] ANDROID_CACHE_HOME=%s\n' "$ANDROID_CACHE_HOME"
 # Executa o bootstrap oficial para garantir que estamos baixando exatamente os artefatos definidos pelo projeto.
 ./tools/termux-arm64-orchestrator/bootstrap-termux-android15.sh
 
+
+# Espelha também os pacotes Alpine que reportaram erro no setup.
+./tools/mirror_alpine_apk_failures.sh "$MIRROR_ROOT/alpine-apk-failures"
+
 # Exporta tar.gz contendo repo + tudo que foi baixado/instalado.
 ANDROID_SDK_ROOT="$SDK_ROOT" ANDROID_CACHE_HOME="$CACHE_HOME" ./tools/export_source_tarball.sh "$MIRROR_ROOT/source-export"
 
