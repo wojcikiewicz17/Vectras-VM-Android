@@ -146,6 +146,14 @@ public class RomInfo extends AppCompatActivity {
                             intent.putExtra("finalromfilename", getIntent().getStringExtra("finalromfilename"));
                             intent.putExtra("rompath", finalFilePath);
                             intent.putExtra("romuri", uri.toString());
+                            intent.putExtra("expectedSha256", getIntent().getStringExtra("sha256"));
+                            String romStateId = getIntent().getStringExtra("id");
+                            if (romStateId == null || romStateId.trim().isEmpty()) {
+                                romStateId = getIntent().getStringExtra("vecid");
+                            }
+                            if (romStateId != null && !romStateId.trim().isEmpty()) {
+                                intent.putExtra("romIdForDownloadState", romStateId);
+                            }
                             if (Objects.requireNonNull(getIntent().getStringExtra("extra")).contains(selectedFileName)) {
                                 intent.putExtra("addtodrive", "");
                                 intent.putExtra("romextra", getIntent().getStringExtra("extra"));
@@ -208,7 +216,10 @@ public class RomInfo extends AppCompatActivity {
                 finalName = "rom-" + romId + ".bin";
             }
 
-            String expectedHash = getIntent().getStringExtra("hash");
+            String expectedHash = getIntent().getStringExtra("sha256");
+            if (expectedHash == null || expectedHash.trim().isEmpty()) {
+                expectedHash = getIntent().getStringExtra("hash");
+            }
 
             com.vectras.vm.download.DownloadCoordinator coordinator = new com.vectras.vm.download.DownloadCoordinator(this);
             coordinator.enqueueRomDownload(romId, url, finalName, expectedHash);

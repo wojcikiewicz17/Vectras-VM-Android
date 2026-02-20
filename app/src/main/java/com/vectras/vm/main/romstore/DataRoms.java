@@ -35,4 +35,6 @@ public class DataRoms {
     public String id;
     @SerializedName("vecid")
     public String vecid;
+    @SerializedName("sha256")
+    public String sha256;
 }

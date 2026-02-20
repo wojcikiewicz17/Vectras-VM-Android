@@ -9,6 +9,7 @@ import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -28,10 +29,12 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 
 public class RomStoreFragment extends Fragment {
 
+    private static final String TAG = "RomStoreFragment";
     FragmentHomeRomStoreBinding binding;
     private RequestNetwork net;
     private RequestNetwork.RequestListener _net_request_listener;
@@ -143,6 +146,7 @@ public class RomStoreFragment extends Fragment {
             binding.linearnothinghere.setVisibility(View.VISIBLE);
         }
 
+        dataRoms = filterInvalidSha256(dataRoms);
         dataRoms = deduplicateByVecid(dataRoms);
 
         homeRomStoreViewModel.setRomsList(dataRoms);
@@ -157,5 +161,68 @@ public class RomStoreFragment extends Fragment {
         if (romStoreCallToHomeListener != null) {
             romStoreCallToHomeListener.updateSearchStatus(true);
         }
+    }
+
+
+    private List<DataRoms> filterInvalidSha256(List<DataRoms> source) {
+        List<DataRoms> filtered = new ArrayList<>();
+        if (source == null) {
+            return filtered;
+        }
+        for (DataRoms item : source) {
+            if (item == null) {
+                Log.w(TAG, "Skipping null ROM item from catalog");
+                continue;
+            }
+            if (!isValidSha256(item.sha256)) {
+                Log.w(TAG, "Skipping ROM item without valid sha256. name=" + item.romName + " id=" + item.id + " vecid=" + item.vecid + " sha256=" + item.sha256);
+                continue;
+            }
+            item.sha256 = item.sha256.trim().toLowerCase(Locale.US);
+            filtered.add(item);
+        }
+        return filtered;
+    }
+
+    private boolean isValidSha256(String value) {
+        if (value == null) {
+            return false;
+        }
+        String normalized = value.trim();
+        if (normalized.length() != 64) {
+            return false;
+        }
+        for (int i = 0; i < normalized.length(); i++) {
+            char c = normalized.charAt(i);
+            boolean digit = c >= '0' && c <= '9';
+            boolean lowerHex = c >= 'a' && c <= 'f';
+            boolean upperHex = c >= 'A' && c <= 'F';
+            if (!(digit || lowerHex || upperHex)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private List<DataRoms> deduplicateByVecid(List<DataRoms> source) {
+        List<DataRoms> result = new ArrayList<>();
+        if (source == null) {
+            return result;
+        }
+
+        Map<String, DataRoms> byVecid = new LinkedHashMap<>();
+        for (DataRoms item : source) {
+            if (item == null) {
+                continue;
+            }
+            String key = item.vecid;
+            if (key == null || key.trim().isEmpty()) {
+                result.add(item);
+                continue;
+            }
+            byVecid.put(key.trim(), item);
+        }
+        result.addAll(byVecid.values());
+        return result;
     }
 }
