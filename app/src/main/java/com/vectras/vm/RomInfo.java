@@ -156,6 +156,14 @@ public class RomInfo extends AppCompatActivity {
                             intent.putExtra("finalromfilename", getIntent().getStringExtra("finalromfilename"));
                             intent.putExtra("rompath", finalFilePath);
                             intent.putExtra("romuri", uri.toString());
+                            intent.putExtra("expectedSha256", getIntent().getStringExtra("sha256"));
+                            String romStateId = getIntent().getStringExtra("id");
+                            if (romStateId == null || romStateId.trim().isEmpty()) {
+                                romStateId = getIntent().getStringExtra("vecid");
+                            }
+                            if (romStateId != null && !romStateId.trim().isEmpty()) {
+                                intent.putExtra("romIdForDownloadState", romStateId);
+                            }
                             if (Objects.requireNonNull(getIntent().getStringExtra("extra")).contains(selectedFileName)) {
                                 intent.putExtra("addtodrive", "");
                                 intent.putExtra("romextra", getIntent().getStringExtra("extra"));
