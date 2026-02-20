@@ -204,7 +204,7 @@ class LocaleManager private constructor(private val context: Context) {
 
     fun applyLocale(context: Context): Context {
         val languageCode = getCurrentLanguage()
-        val locale = Locale(languageCode)
+        val locale = toLocale(languageCode)
         Locale.setDefault(locale)
 
         val config = Configuration(context.resources.configuration)
@@ -222,7 +222,7 @@ class LocaleManager private constructor(private val context: Context) {
     @Suppress("DEPRECATION")
     fun updateConfiguration(resources: Resources) {
         val languageCode = getCurrentLanguage()
-        val locale = Locale(languageCode)
+        val locale = toLocale(languageCode)
         Locale.setDefault(locale)
 
         val config = resources.configuration
@@ -234,6 +234,19 @@ class LocaleManager private constructor(private val context: Context) {
         }
 
         resources.updateConfiguration(config, resources.displayMetrics)
+    }
+
+    private fun toLocale(languageCode: String): Locale {
+        if (!languageCode.contains('-') && !languageCode.contains('_')) {
+            return Locale(languageCode)
+        }
+
+        val localeFromTag = Locale.forLanguageTag(languageCode)
+        return if (localeFromTag == Locale.ROOT || localeFromTag.language.isBlank() || localeFromTag.language == "und") {
+            Locale(languageCode)
+        } else {
+            localeFromTag
+        }
     }
 
     fun getDownloadedModulesSize(): Long {

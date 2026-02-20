@@ -3,6 +3,7 @@ package com.vectras.vm.localization
 import android.content.Context
 import androidx.test.core.app.ApplicationProvider
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -37,6 +38,24 @@ class LocaleManagerTest {
             .clear()
             .commit()
         resetLocaleManagerSingleton()
+    }
+
+
+
+    @Test
+    fun toLocale_handlesSimpleAndCompositeLanguageCodes() {
+        val toLocaleMethod = LocaleManager::class.java.getDeclaredMethod("toLocale", String::class.java)
+        toLocaleMethod.isAccessible = true
+
+        val enLocale = toLocaleMethod.invoke(localeManager, "en") as java.util.Locale
+        assertEquals("en", enLocale.language)
+
+        val ptLocale = toLocaleMethod.invoke(localeManager, "pt") as java.util.Locale
+        assertEquals("pt", ptLocale.language)
+
+        val ptBrLocale = toLocaleMethod.invoke(localeManager, "pt-BR") as java.util.Locale
+        assertEquals("pt", ptBrLocale.language)
+        assertEquals("BR", ptBrLocale.country)
     }
 
     @Test
