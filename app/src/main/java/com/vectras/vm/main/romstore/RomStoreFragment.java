@@ -7,6 +7,8 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.lifecycle.ViewModelProvider;
+
+import com.vectras.vm.download.DownloadViewModel;
 import androidx.recyclerview.widget.LinearLayoutManager;
 
 import android.util.Log;
@@ -43,6 +45,7 @@ public class RomStoreFragment extends Fragment {
     MainUiStateViewModel mainUiStateViewModel;
     RomStoreHomeAdpater mAdapter;
     List<DataRoms> data = new ArrayList<>();
+    DownloadViewModel downloadViewModel;
 
     private RomStoreCallToHomeListener romStoreCallToHomeListener;
     public interface RomStoreCallToHomeListener {
@@ -89,6 +92,7 @@ public class RomStoreFragment extends Fragment {
 
         homeRomStoreViewModel = new ViewModelProvider(requireActivity()).get(HomeRomStoreViewModel.class);
         mainUiStateViewModel = new ViewModelProvider(requireActivity()).get(MainUiStateViewModel.class);
+        downloadViewModel = new ViewModelProvider(requireActivity()).get(DownloadViewModel.class);
         homeRomStoreViewModel.getRomsList().observe(getViewLifecycleOwner(), roms -> {
             if (roms == null || roms.isEmpty()) {
                 loadFromServer();
@@ -97,6 +101,7 @@ public class RomStoreFragment extends Fragment {
                 data.clear();
                 data.addAll(roms);
                 mAdapter.notifyDataSetChanged();
+                bindDownloadObservers();
             }
         });
     }
@@ -134,6 +139,33 @@ public class RomStoreFragment extends Fragment {
         net.startRequestNetwork(RequestNetworkController.GET, AppConfig.vectrasRaw + "vroms-store.json","",_net_request_listener);
     }
 
+    private void bindDownloadObservers() {
+        if (downloadViewModel == null) {
+            return;
+        }
+        for (DataRoms rom : data) {
+            String romId = RomStoreHomeAdpater.resolveRomId(rom);
+            downloadViewModel.observeState(romId).observe(getViewLifecycleOwner(), state ->
+                    mAdapter.updateDownloadState(romId, state));
+        }
+    }
+
+    private List<DataRoms> deduplicateByVecid(@Nullable List<DataRoms> source) {
+        if (source == null || source.isEmpty()) {
+            return new ArrayList<>();
+        }
+
+        Map<String, DataRoms> uniqueById = new LinkedHashMap<>();
+        for (DataRoms rom : source) {
+            if (rom == null) {
+                continue;
+            }
+            String key = RomStoreHomeAdpater.resolveRomId(rom);
+            uniqueById.put(key, rom);
+        }
+        return new ArrayList<>(uniqueById.values());
+    }
+
     private void loadData() {
         List<DataRoms> dataRoms = new ArrayList<>();
 
@@ -153,6 +185,7 @@ public class RomStoreFragment extends Fragment {
         data.clear();
         data.addAll(dataRoms);
         mAdapter.notifyDataSetChanged();
+        bindDownloadObservers();
         SharedData.dataRomStore.clear();
         SharedData.dataRomStore.addAll(dataRoms);
         if (mainUiStateViewModel != null) {
