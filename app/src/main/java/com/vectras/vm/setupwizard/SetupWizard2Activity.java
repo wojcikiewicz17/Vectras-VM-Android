@@ -82,8 +82,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private static final Pattern CURL_PROGRESS_PATTERN = Pattern.compile("^\\s*(\\d{1,3})\\s+\\d");
     private static final Pattern PACKAGE_PROGRESS_PATTERN = Pattern.compile("\\((\\d+)/(\\d+)\\)");
     private static final Pattern BOOTSTRAP_HOST_PATTERN = Pattern.compile("^(?:[A-Za-z0-9-]+\\.)+[A-Za-z]{2,63}$");
-    private static final Pattern BOOTSTRAP_ALLOWED_PATH_PATTERN = Pattern.compile("^/[^?#]*vectras-vm-[A-Za-z0-9_-]+\\.tar\\.gz$");
-    private static final String[] BOOTSTRAP_ALLOWED_HOST_SUFFIXES = new String[]{"vectras.vercel.app", "raw.githubusercontent.com"};
+    private static final int MAX_LOG_BUFFER_CHARS = 64 * 1024;
 
     private enum SetupSource {
         REMOTE,
@@ -621,7 +620,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                         " " + bootstrapAcquireCommand + " || { rollback_setup 'bootstrap acquisition failed'; exit 43; };" +
                         " echo STATE_TRANSITION:STAGING;" +
                         " echo \"Installing Qemu...\";" +
-                        " if gzip -t \"$SETUP_ARCHIVE\" >/dev/null 2>&1; then tar -xzvf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\"; else tar -xvf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\"; fi || { rollback_setup 'bootstrap extraction failed'; exit 44; };" +
+                        " if gzip -t \"$SETUP_ARCHIVE\" >/dev/null 2>&1; then tar -xzf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\"; else tar -xf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\"; fi || { rollback_setup 'bootstrap extraction failed'; exit 44; };" +
                         " test -d \"$STAGE_ROOT/usr/local/bin\" || { rollback_setup 'missing /usr/local/bin in staging'; exit 45; };" +
                         " test -x \"$STAGE_ROOT/usr/local/bin/qemu-system-x86_64\" -o -x \"$STAGE_ROOT/usr/local/bin/qemu-system-aarch64\" || { rollback_setup 'missing qemu binary in staging'; exit 46; };" +
                         " chmod 775 \"$STAGE_ROOT\"/usr/local/bin/* || { rollback_setup 'invalid binary permissions'; exit 47; };" +
@@ -1009,47 +1008,10 @@ public class SetupWizard2Activity extends AppCompatActivity {
         }).start();
     }
 
-    private void executeBestEffortRollback(String setupTimestamp, String reason) {
-        if (setupTimestamp == null || setupTimestamp.isEmpty()) {
-            return;
-        }
-        new Thread(() -> {
-            try {
-                String sanitizedReason = reason == null ? "unknown error" : reason.replace("\"", "").replace("\n", " ");
-                String rollbackCommand = "set -e; " +
-                        "BACKUP_BASE=/root/.vectras-backups; " +
-                        "STAGE_DIR=/root/.vectras-staging/" + setupTimestamp + "; " +
-                        "mkdir -p /root/.vectras-setup; " +
-                        "if [ -d \"$BACKUP_BASE/current/usr-local-bin\" ]; then rm -rf /usr/local/bin; cp -a \"$BACKUP_BASE/current/usr-local-bin\" /usr/local/bin; fi; " +
-                        "if [ -f \"$BACKUP_BASE/current/etc-profile\" ]; then cp -a \"$BACKUP_BASE/current/etc-profile\" /etc/profile; fi; " +
-                        "rm -rf \"$STAGE_DIR\"; " +
-                        "printf '{\\\"version\\\":1,\\\"timestamp\\\":\\\"" + setupTimestamp + "\\\",\\\"phase\\\":\\\"ROLLBACK\\\",\\\"stage_dir\\\":\\\"/root/.vectras-staging/" + setupTimestamp + "\\\",\\\"message\\\":\\\"" + sanitizedReason + "\\\"}\\n' > /root/.vectras-setup/setup_state.json";
-
-                ProcessBuilder processBuilder = new ProcessBuilder();
-                String filesDir = getFilesDir().getAbsolutePath();
-                String tmpDirPath = getFilesDir().getAbsolutePath() + "/usr/tmp";
-                ProotCommandBuilder prootCommandBuilder = new ProotCommandBuilder(this, filesDir + "/distro", "/root")
-                        .setPath("/bin:/usr/bin:/sbin:/usr/sbin")
-                        .setTmpDir(tmpDirPath);
-                prootCommandBuilder.applyEnvironment(processBuilder.environment());
-                processBuilder.command(prootCommandBuilder.buildCommand());
-                processBuilder.redirectErrorStream(true);
-                Process process = processBuilder.start();
-                try (BufferedWriter writer = new BufferedWriter(new OutputStreamWriter(process.getOutputStream()))) {
-                    writer.write(rollbackCommand);
-                    writer.newLine();
-                    writer.flush();
-                }
-                process.waitFor();
-            } catch (Exception e) {
-                Log.e(TAG, "Best-effort rollback failed: " + e.getMessage(), e);
-            }
-        }).start();
-    }
-
     @SuppressLint("SetTextI18n")
     private void appendTextAndScroll(String newLog) {
-        logs += newLog;
+        appendToLogs(newLog);
+        String normalizedLog = newLog.toLowerCase();
 
         if (newLog.contains("STATE_TRANSITION:")) {
             handleStateTransitionLog(newLog);
@@ -1057,23 +1019,30 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
         if (newLog.contains("xssFjnj58Id")) {
             setupSuccessMarkerSeen = true;
-        } else if (newLog.contains("libproot.so --help") || newLog.contains("/bin/sh: can't fork:")) {
+        } else if (normalizedLog.contains("libproot.so --help") || normalizedLog.contains("/bin/sh: can't fork:")) {
             isLibProotError = true;
-        } else if (newLog.contains("not complete: /root/setup.tar.gz")) {
+        } else if (normalizedLog.contains("not complete: /root/setup.tar.gz") || normalizedLog.contains("download not complete")) {
             aria2Error = true;
-        } else if (newLog.contains("temporary error")) {
+        } else if (normalizedLog.contains("temporary error") || normalizedLog.contains("server returned") || normalizedLog.contains("http response header was bad")) {
             isServerError = true;
-        } else if (newLog.contains("CRITICAL_STDERR:")
-                || newLog.contains("permission denied")
-                || newLog.contains("No such file or directory")
-                || newLog.contains("cannot stat")
-                || newLog.contains("segmentation fault")) {
+        } else if (normalizedLog.contains("critical_stderr:")
+                || normalizedLog.contains("permission denied")
+                || normalizedLog.contains("no such file or directory")
+                || normalizedLog.contains("cannot stat")
+                || normalizedLog.contains("segmentation fault")) {
             criticalSetupStderr = true;
         }
 
         updateProgressText(newLog);
 
         binding.tvLastestCommandResult.setText(progressText + "[" + setupSource + "] " + newLog);
+    }
+
+    private void appendToLogs(String newLog) {
+        logs += newLog;
+        if (logs.length() > MAX_LOG_BUFFER_CHARS) {
+            logs = logs.substring(logs.length() - MAX_LOG_BUFFER_CHARS);
+        }
     }
 
     private void updateProgressText(String newLog) {
@@ -1126,14 +1095,12 @@ public class SetupWizard2Activity extends AppCompatActivity {
             advanceSetupProgress(80);
         }
 
-        if (newLog.contains("tar -xzvf ") || newLog.contains("tar -xvf ") || newLog.startsWith("x ")) {
-            if (newLog.startsWith("x ")) {
-                extractEntryCounter++;
-                int extractionProgress = 80 + Math.min(10, extractEntryCounter / 25);
-                advanceSetupProgress(extractionProgress);
-            } else {
-                advanceSetupProgress(81);
-            }
+        if (newLog.contains("Installing Qemu...")) {
+            extractEntryCounter = 0;
+        }
+
+        if (newLog.contains("STATE_TRANSITION:PROMOTING")) {
+            advanceSetupProgress(90);
         }
 
         if (newLog.contains("qemu-system")) {
@@ -1338,9 +1305,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
             Uri parsed = Uri.parse(trimmed);
             String scheme = parsed.getScheme();
             String host = parsed.getHost();
-            String encodedPath = parsed.getEncodedPath();
 
-            if (scheme == null || host == null || encodedPath == null) {
+            if (scheme == null || host == null) {
                 return null;
             }
 
@@ -1354,31 +1320,12 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 return null;
             }
 
-            boolean allowedHost = false;
-            for (String suffix : BOOTSTRAP_ALLOWED_HOST_SUFFIXES) {
-                if (normalizedHost.equals(suffix) || normalizedHost.endsWith("." + suffix)) {
-                    allowedHost = true;
-                    break;
-                }
-            }
-            if (!allowedHost) {
-                return null;
-            }
-
-            if (!BOOTSTRAP_ALLOWED_PATH_PATTERN.matcher(encodedPath).matches()) {
-                return null;
-            }
-
             String authority = parsed.getEncodedAuthority();
-            if (authority == null || authority.contains("@") || authority.contains(":")) {
+            if (authority == null || authority.contains("@")) {
                 return null;
             }
 
-            if (parsed.getEncodedQuery() != null || parsed.getEncodedFragment() != null) {
-                return null;
-            }
-
-            return normalizedScheme + "://" + normalizedHost + encodedPath;
+            return trimmed;
         } catch (Exception e) {
             return null;
         }
