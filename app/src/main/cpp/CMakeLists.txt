@@ -41,7 +41,12 @@ add_library(vectra_core_accel SHARED
     ../../../../engine/rmr/src/rmr_hw_detect.c
     ../../../../engine/rmr/src/rmr_corelib.c
     ../../../../engine/rmr/src/rmr_ll_ops.c
+    ../../../../engine/rmr/src/rmr_ll_tuning.c
     ../../../../engine/rmr/src/rmr_cycles.c
+    ../../../../engine/rmr/src/rmr_lowlevel_portable.c
+    ../../../../engine/rmr/src/rmr_lowlevel_mix.c
+    ../../../../engine/rmr/src/rmr_lowlevel_reduce.c
+    ../../../../engine/rmr/src/rmr_neon_simd.c
     ${VECTRA_LOWLEVEL_SOURCES}
     ${VECTRA_CASM_SOURCES})
 
@@ -73,11 +78,23 @@ else()
     set(log-lib "")
 endif()
 
-set(VECTRA_COMMON_COMPILE_OPTIONS -O3 -ffast-math -fvisibility=hidden -DRMR_BAREMETAL=1 -ffreestanding -fno-builtin -DRMR_NO_STDLIB=1)
+# BUG#3 FIX: -ffreestanding/-fno-builtin removed — Android JNI requires bionic libc
+set(VECTRA_COMMON_COMPILE_OPTIONS -O3 -ffast-math -fvisibility=hidden -DRMR_BAREMETAL=1 -DRMR_JNI_BUILD=1)
 set(VECTRA_ARM64_COMPILE_OPTIONS)
 
 if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
-    set(VECTRA_ARM64_COMPILE_OPTIONS -march=armv8-a+crc -mabi=lp64 -fno-stack-protector)
+    # +crc enables CRC32 intrinsics | +simd enables NEON | +sha2 enables SHA hw
+    set(VECTRA_ARM64_COMPILE_OPTIONS
+        -march=armv8-a+crc+simd
+        -mabi=lp64
+        -DRMR_ARCH_ARM64=1
+        -DRMR_FEAT_CRC32_HW=1)
+endif()
+if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+    set(VECTRA_ARM64_COMPILE_OPTIONS -msse4.2 -mpopcnt -DRMR_ARCH_X86_64=1)
+endif()
+if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+    set(VECTRA_ARM64_COMPILE_OPTIONS -march=armv7-a -mfpu=neon -DRMR_ARCH_ARM32=1)
 endif()
 
 if(TARGET rmr_policy_static)
