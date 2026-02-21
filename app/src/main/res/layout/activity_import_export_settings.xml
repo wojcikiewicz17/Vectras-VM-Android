@@ -19,17 +19,17 @@
             style="@style/App.CollapsingToolbarLarge"
             app:title="@string/import_and_export"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             app:subtitle="@string/settings">
 
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/toolbar"
                 style="@style/App.CollapsingMaterialToolbar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
                 app:navigationIcon="@drawable/arrow_back_rounded_24px" />
 
         </com.google.android.material.appbar.CollapsingToolbarLayout>
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView

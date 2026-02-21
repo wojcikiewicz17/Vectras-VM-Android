@@ -19,16 +19,16 @@
             style="@style/App.CollapsingToolbarLarge"
             app:title="@string/checking_for_updates"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             app:subtitle="@string/just_a_sec">
 
             <com.google.android.material.appbar.MaterialToolbar
                 android:id="@+id/toolbar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
                 style="@style/App.CollapsingMaterialToolbar" />
 
         </com.google.android.material.appbar.CollapsingToolbarLayout>
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     </com.google.android.material.appbar.AppBarLayout>
 
     <androidx.core.widget.NestedScrollView

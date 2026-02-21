@@ -18,16 +18,16 @@
         <com.google.android.material.appbar.CollapsingToolbarLayout
             style="@style/App.CollapsingToolbarLarge"
             android:layout_width="match_parent"
-            android:layout_height="wrap_content"
+            android:layout_height="match_parent"
             app:title="@string/about" >
 
             <com.google.android.material.appbar.MaterialToolbar
                 style="@style/App.CollapsingMaterialToolbar"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
                 android:id="@+id/toolbar" />
 
         </com.google.android.material.appbar.CollapsingToolbarLayout>
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
     </com.google.android.material.appbar.AppBarLayout>
 
     <include layout="@layout/content_about" />
