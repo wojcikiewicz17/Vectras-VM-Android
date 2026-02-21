@@ -29,12 +29,12 @@ android {
                 def nativeMcpu = providers.gradleProperty("NATIVE_MCPU").orNull
                 def rmrEnablePolicyModule = providers.gradleProperty("RMR_ENABLE_POLICY_MODULE").orElse("ON").get()
                 def rmrEnableBitrafModule = providers.gradleProperty("RMR_ENABLE_BITRAF_MODULE").orElse("ON").get()
-                def arm64CppFlags = ["-O3", "-ffast-math", "-fno-exceptions", "-fno-rtti", "-march=armv8-a"]
+                def arm64CppFlags = ["-O3", "-ffast-math", "-fno-exceptions", "-fno-rtti", "-march=armv8-a+crc", "-DRMR_BAREMETAL=1", "-DRMR_JNI_BUILD=1"]
                 if (nativeMcpu) {
                     arm64CppFlags += "-mcpu=${nativeMcpu}"
                 }
                 cppFlags arm64CppFlags.join(" ")
-                cFlags "-O3 -march=armv8-a -ffast-math"
+                cFlags "-O3 -ffast-math -DRMR_BAREMETAL=1 -DRMR_JNI_BUILD=1"
                 arguments "-DRMR_ENABLE_POLICY_MODULE=${rmrEnablePolicyModule}", "-DRMR_ENABLE_BITRAF_MODULE=${rmrEnableBitrafModule}"
             }
         }
