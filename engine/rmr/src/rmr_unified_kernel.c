@@ -3,10 +3,19 @@
 #include "bitraf.h"
 #include "rmr_corelib.h"
 #include "rmr_hw_detect.h"
+#if defined(RMR_ENABLE_POLICY_MODULE) && RMR_ENABLE_POLICY_MODULE
 #include "rmr_policy_kernel.h"
+#endif
 
-/* BUG FIX: stdlib removido — baremetal usa rmr_baremetal_compat.h */
-#include "rmr_baremetal_compat.h"
+/* JNI build uses bionic malloc; baremetal uses bump allocator */
+#if defined(RMR_JNI_BUILD) && RMR_JNI_BUILD
+#  include <stdlib.h>
+#  include <string.h>
+#  define rmr_malloc(sz) malloc(sz)
+#  define rmr_free(p)   free(p)
+#else
+#  include "rmr_baremetal_compat.h"
+#endif
 
 typedef enum {
   RMR_LEGACY_STATE_NEW = 0,
@@ -72,7 +81,7 @@ rmr_status_t rmr_legacy_kernel_init(rmr_legacy_kernel_t **out_kernel,
     return RMR_STATUS_ERR_STATE;
   }
 
-  kernel = (rmr_legacy_kernel_t *)malloc(sizeof(*kernel));
+  kernel = (rmr_legacy_kernel_t *)rmr_malloc(sizeof(*kernel));
   if (!kernel) return RMR_STATUS_ERR_NOMEM;
 
   rmr_mem_set(kernel, 0u, sizeof(*kernel));
@@ -82,7 +91,7 @@ rmr_status_t rmr_legacy_kernel_init(rmr_legacy_kernel_t **out_kernel,
   kernel->rolling_bitraf_hash = (uint64_t)desc->seed;
 
   if (rmr_legacy_kernel_autodetect(&kernel->capabilities) != RMR_STATUS_OK) {
-    free(kernel);
+    rmr_free(kernel);
     return RMR_STATUS_ERR_STATE;
   }
 
@@ -98,14 +107,14 @@ rmr_status_t rmr_legacy_kernel_shutdown(rmr_legacy_kernel_t **kernel) {
 
   ctx = *kernel;
   if (ctx->lifecycle == RMR_LEGACY_STATE_SHUTDOWN) {
-    free(ctx);
+    rmr_free(ctx);
     *kernel = NULL;
     return RMR_STATUS_ERR_ALREADY_SHUTDOWN;
   }
 
   ctx->lifecycle = RMR_LEGACY_STATE_SHUTDOWN;
   rmr_mem_set(ctx, 0u, sizeof(*ctx));
-  free(ctx);
+  rmr_free(ctx);
   *kernel = NULL;
   return RMR_STATUS_OK;
 }
@@ -292,7 +301,7 @@ int RmR_UnifiedKernel_Init(RmR_UnifiedKernel *kernel, const RmR_UnifiedConfig *c
   if (RmR_UnifiedKernel_Detect(&kernel->caps) != RMR_UK_OK) return RMR_KERNEL_ERR_STATE;
 
   arena_bytes = config->arena_bytes ? config->arena_bytes : (64u * 1024u * 1024u);
-  kernel->arena_base = (uint8_t *)malloc((size_t)arena_bytes);
+  kernel->arena_base = (uint8_t *)rmr_malloc((size_t)arena_bytes);
   if (!kernel->arena_base) {
     rmr_mem_set(kernel, 0u, sizeof(*kernel));
     return RMR_KERNEL_ERR_STATE;
@@ -304,7 +313,7 @@ int RmR_UnifiedKernel_Init(RmR_UnifiedKernel *kernel, const RmR_UnifiedConfig *c
 int RmR_UnifiedKernel_Shutdown(RmR_UnifiedKernel *kernel) {
   if (!kernel) return RMR_KERNEL_ERR_ARG;
   if (!kernel->initialized) return RMR_KERNEL_ERR_STATE;
-  if (kernel->arena_base) free(kernel->arena_base);
+  if (kernel->arena_base) rmr_free(kernel->arena_base);
   rmr_mem_set(kernel, 0u, sizeof(*kernel));
   return RMR_UK_OK;
 }
