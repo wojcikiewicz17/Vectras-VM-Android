@@ -33,8 +33,8 @@
 #define RMR_KERNEL_ERR_ARCH      -4
 #define RMR_KERNEL_ERR_ALLOC     -5
 
-/* magic for native OK check */
-#define RMR_UK_NATIVE_OK_MAGIC   0x52414641u  /* "RAFA" */
+/* magic for native OK check — MUST match NativeFastPath.NATIVE_OK_MAGIC = 0x56414343 */
+#define RMR_UK_NATIVE_OK_MAGIC   0x56414343u  /* "VACC" — Java contract anchor */
 
 /* ── architecture IDs ── */
 #define RMR_ARCH_UNKNOWN   0x00u

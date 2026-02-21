@@ -26,6 +26,10 @@ add_library(rmr STATIC
   engine/rmr/src/rmr_ll_tuning.c
   engine/rmr/src/rmr_casm_bridge.c
   engine/rmr/src/rmr_unified_kernel.c
+  engine/rmr/src/rmr_lowlevel_portable.c
+  engine/rmr/src/rmr_lowlevel_mix.c
+  engine/rmr/src/rmr_lowlevel_reduce.c
+  engine/rmr/src/rmr_neon_simd.c
 )
 
 target_include_directories(rmr PUBLIC engine/rmr/include)
