@@ -7,6 +7,7 @@ import android.util.Log;
 import com.vectras.qemu.Config;
 
 import org.json.JSONObject;
+import org.json.JSONArray;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -14,7 +15,12 @@ import java.io.InputStreamReader;
 import java.io.PrintWriter;
 import java.net.InetSocketAddress;
 import java.net.Socket;
+import java.util.Arrays;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Locale;
+import java.util.Set;
 
 public class QmpClient {
 
@@ -27,6 +33,16 @@ public class QmpClient {
 	private static final int DEFAULT_RETRY_DELAY_MS = 1000;
 	private static final int STOP_RETRIES = 1;
 	private static final int STOP_RETRY_DELAY_MS = 150;
+	private static final String MASKED_VALUE = "***";
+	private static final Set<String> SENSITIVE_LOG_FIELDS = new HashSet<>(Arrays.asList(
+			"password",
+			"passwd",
+			"secret",
+			"token",
+			"auth",
+			"authorization",
+			"arg"
+	));
 	public static boolean allow_external = false;
 	private static final ConcurrentHashMap<String, Object> VM_SOCKET_LOCKS = new ConcurrentHashMap<>();
 
@@ -240,19 +256,50 @@ public class QmpClient {
 
 		try {
 			JSONObject object = new JSONObject(request);
-			JSONObject arguments = object.optJSONObject("arguments");
-			if (arguments != null) {
-				if (arguments.has("password")) {
-					arguments.put("password", "***");
-				}
-				if (arguments.has("arg")) {
-					arguments.put("arg", "***");
-				}
-			}
+			sanitizeJsonObjectForLogs(object);
 			return object.toString();
 		} catch (Exception ignored) {
 			return request;
 		}
+	}
+
+	private static void sanitizeJsonObjectForLogs(JSONObject object) {
+		if (object == null) {
+			return;
+		}
+
+		Iterator<String> keys = object.keys();
+		while (keys.hasNext()) {
+			String key = keys.next();
+			Object value = object.opt(key);
+			if (isSensitiveField(key)) {
+				object.put(key, MASKED_VALUE);
+				continue;
+			}
+			sanitizeJsonValueForLogs(value);
+		}
+	}
+
+	private static void sanitizeJsonArrayForLogs(JSONArray array) {
+		if (array == null) {
+			return;
+		}
+
+		for (int index = 0; index < array.length(); index++) {
+			sanitizeJsonValueForLogs(array.opt(index));
+		}
+	}
+
+	private static void sanitizeJsonValueForLogs(Object value) {
+		if (value instanceof JSONObject) {
+			sanitizeJsonObjectForLogs((JSONObject) value);
+		} else if (value instanceof JSONArray) {
+			sanitizeJsonArrayForLogs((JSONArray) value);
+		}
+	}
+
+	private static boolean isSensitiveField(String key) {
+		return key != null && SENSITIVE_LOG_FIELDS.contains(key.toLowerCase(Locale.ROOT));
 	}
 
     private static String getResponse(BufferedReader in) throws Exception {
