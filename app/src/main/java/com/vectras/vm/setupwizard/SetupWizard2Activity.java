@@ -51,6 +51,7 @@ import com.vectras.vm.utils.JSONUtils;
 import com.vectras.vm.utils.LibraryChecker;
 import com.vectras.vm.utils.ListUtils;
 import com.vectras.vm.utils.PermissionUtils;
+import com.vectras.vm.utils.SafeFileName;
 import com.vectras.vm.utils.TarUtils;
 import com.vectras.vm.utils.UIUtils;
 import com.vectras.vm.utils.CommandUtils;
@@ -761,6 +762,14 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 if (uri != null) {
                     String fileName = FileUtils.getFileNameFromUri(this, uri);
                     if (isCompatibleBootstrapArchive(fileName)) {
+                        try {
+                            SafeFileName.normalizeFromDisplayName(fileName);
+                        } catch (IllegalArgumentException invalidName) {
+                            Log.e(TAG, "Rejected setup archive name from URI: " + fileName + " uri=" + uri, invalidName);
+                            uiController(STEP_ERROR, withSetupSourceDiagnostic(getString(R.string.the_file_could_not_be_processed_content) + "\n" + invalidName.getMessage()));
+                            return;
+                        }
+
                         setupArchiveFileName = fileName.endsWith(".tar") ? "setup.tar" : "setup.tar.gz";
                         uiController(STEP_INSTALLING_PACKAGES);
                         new Thread(() -> {
@@ -772,7 +781,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
                                     startSetup();
                                 });
                             } catch (Exception e) {
-                                runOnUiThread(() -> uiController(STEP_ERROR, withSetupSourceDiagnostic(getString(R.string.the_file_could_not_be_processed_content))));
+                                Log.e(TAG, "Failed to import setup archive from URI: " + uri, e);
+                                runOnUiThread(() -> uiController(STEP_ERROR, withSetupSourceDiagnostic(getString(R.string.the_file_could_not_be_processed_content) + "\n" + e.getMessage())));
                             }
                         }).start();
                     } else {

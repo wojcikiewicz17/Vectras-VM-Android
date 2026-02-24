@@ -712,13 +712,20 @@ public class FileUtils {
 	}
 
 	public static void copyFileFromUri(Context context, Uri sourceUri, String destFile) throws IOException {
+		copyFileFromUri(context, sourceUri, new File(destFile));
+	}
 
-		File file = new File(destFile);
-		if (!Objects.requireNonNull(file.getParentFile()).exists()) {
-			file.getParentFile().mkdirs();
+	public static void copyFileFromUri(Context context, Uri sourceUri, File destFile) throws IOException {
+		File parent = Objects.requireNonNull(destFile.getParentFile());
+		if (!parent.exists() && !parent.mkdirs()) {
+			throw new IOException("Unable to create destination folder: " + parent);
 		}
 
-        try (InputStream inputStream = context.getContentResolver().openInputStream(sourceUri); OutputStream outputStream = new FileOutputStream(destFile)) {
+		try (InputStream inputStream = context.getContentResolver().openInputStream(sourceUri);
+			 OutputStream outputStream = new FileOutputStream(destFile)) {
+			if (inputStream == null) {
+				throw new IOException("Unable to open source URI: " + sourceUri);
+			}
 			byte[] buffer = new byte[32 * 1024];
 			if (DeviceUtils.totalMemoryCapacity(context) < 3L * 1024 * 1024 * 1024) {
 				buffer = new byte[4 * 1024];
@@ -727,15 +734,28 @@ public class FileUtils {
 			} else if (DeviceUtils.totalMemoryCapacity(context) < 7L * 1024 * 1024 * 1024) {
 				buffer = new byte[16 * 1024];
 			}
-            int bytesRead;
-            while (true) {
-                assert inputStream != null;
-                if ((bytesRead = inputStream.read(buffer)) == -1) break;
-                outputStream.write(buffer, 0, bytesRead);
-            }
+			int bytesRead;
+			while ((bytesRead = inputStream.read(buffer)) != -1) {
+				outputStream.write(buffer, 0, bytesRead);
+			}
+			outputStream.flush();
+		}
+	}
 
-            outputStream.flush();
-        }
+	public static File resolveSafeDestinationFile(File allowedRoot, String displayName) throws IOException {
+		String safeName = SafeFileName.normalizeFromDisplayName(displayName);
+		File rootCanonical = allowedRoot.getCanonicalFile();
+		if (!rootCanonical.exists() && !rootCanonical.mkdirs()) {
+			throw new IOException("Unable to create destination root: " + rootCanonical);
+		}
+
+		File destCanonical = new File(rootCanonical, safeName).getCanonicalFile();
+		String rootPath = rootCanonical.getPath();
+		String destPath = destCanonical.getPath();
+		if (!destPath.equals(rootPath) && !destPath.startsWith(rootPath + File.separator)) {
+			throw new SecurityException("Destination escapes allowed root.");
+		}
+		return destCanonical;
 	}
 
 	public static String getFileNameFromUri(Context context, Uri uri) {

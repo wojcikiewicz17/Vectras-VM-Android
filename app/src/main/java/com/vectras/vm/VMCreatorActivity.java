@@ -420,11 +420,13 @@ public class VMCreatorActivity extends AppCompatActivity {
                                 _filename = String.valueOf(System.currentTimeMillis());
                             }
 
-                            FileUtils.copyFileFromUri(this, uri, AppConfig.vmFolder + vmID + "/" + _filename);
+                            File vmRoot = new File(AppConfig.vmFolder + vmID);
+                            File safeDestination = FileUtils.resolveSafeDestinationFile(vmRoot, _filename);
+                            FileUtils.copyFileFromUri(this, uri, safeDestination);
 
-                            String final_filename = _filename;
+                            String finalPath = safeDestination.getPath();
                             runOnUiThread(() -> {
-                                binding.cdrom.setText(AppConfig.vmFolder + vmID + "/" + final_filename);
+                                binding.cdrom.setText(finalPath);
                                 binding.cdromField.setEndIconMode(TextInputLayout.END_ICON_CUSTOM);
                                 binding.cdromField.setEndIconDrawable(R.drawable.close_24px);
                                 changeOnClickCdrom();
@@ -432,14 +434,14 @@ public class VMCreatorActivity extends AppCompatActivity {
                         } catch (Exception e) {
                             runOnUiThread(() -> DialogUtils.oneDialog(this,
                                     getString(R.string.oops),
-                                    getString(R.string.unable_to_copy_iso_file_content),
+                                    getString(R.string.unable_to_copy_iso_file_content) + "\n" + e.getMessage(),
                                     getString(R.string.ok),
                                     true,
                                     R.drawable.warning_48px,
                                     true,
                                     null,
                                     null));
-                            Log.e(TAG, "isoPicker: " + e.getMessage());
+                            Log.e(TAG, "Rejected or failed ISO copy from URI: " + uri, e);
                         } finally {
                             runOnUiThread(progressDialog::dismiss);
                         }
@@ -885,19 +887,22 @@ public class VMCreatorActivity extends AppCompatActivity {
                         _filename = String.valueOf(System.currentTimeMillis());
                     }
 
-                    FileUtils.copyFileFromUri(this, _content_describer, AppConfig.vmFolder + vmID + "/" + _filename);
+                    File vmRoot = new File(AppConfig.vmFolder + vmID);
+                    File safeDestination = FileUtils.resolveSafeDestinationFile(vmRoot, _filename);
+                    FileUtils.copyFileFromUri(this, _content_describer, safeDestination);
 
-                    String final_filename = _filename;
+                    String finalPath = safeDestination.getPath();
                     runOnUiThread(() -> {
                         if (_addtodrive) {
-                            binding.drive.setText(AppConfig.vmFolder + vmID + "/" + final_filename);
+                            binding.drive.setText(finalPath);
                             binding.driveField.setEndIconDrawable(R.drawable.more_vert_24px);
                         }
                     });
                 } catch (Exception e) {
+                    Log.e(TAG, "Rejected or failed hard drive copy from URI: " + _content_describer, e);
                     runOnUiThread(() -> DialogUtils.oneDialog(this,
                             getString(R.string.oops),
-                            getString(R.string.unable_to_copy_hard_drive_file_content),
+                            getString(R.string.unable_to_copy_hard_drive_file_content) + "\n" + e.getMessage(),
                             getString(R.string.ok),
                             true,
                             R.drawable.warning_48px,
