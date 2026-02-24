@@ -34,7 +34,6 @@ class FullBufferBitmapData extends AbstractBitmapData {
 		 */
 		public Drawable(AbstractBitmapData data) {
 			super(data);
-			// TODO Auto-generated constructor stub
 		}
 
 		/* (non-Javadoc)
