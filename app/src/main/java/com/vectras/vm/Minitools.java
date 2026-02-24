@@ -166,6 +166,17 @@ public class Minitools extends AppCompatActivity {
         spinnerselectmirror.setSelection(MainSettingsManager.getSelectedMirror(Minitools.this));
     }
 
+    private void openExternalLink(String url) {
+        if (!EndpointValidator.isValidHttpUrl(url)) {
+            Toast.makeText(getApplicationContext(), getResources().getString(R.string.failed), Toast.LENGTH_SHORT).show();
+            return;
+        }
+        Intent intent = new Intent();
+        intent.setAction(ACTION_VIEW);
+        intent.setData(Uri.parse(url));
+        startActivity(intent);
+    }
+
     public class SpinnerSelectMirrorAdapter extends BaseAdapter {
 
         ArrayList<HashMap<String, String>> _data;

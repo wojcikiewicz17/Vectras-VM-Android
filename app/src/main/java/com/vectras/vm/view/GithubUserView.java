@@ -86,7 +86,7 @@ public class GithubUserView extends LinearLayout {
                 String avatar = json.optString("avatar_url", "");
 
                 Bitmap avatarBitmap = null;
-                if (!avatar.isEmpty()) {
+                if (EndpointValidator.isValidHttpUrl(avatar)) {
                     avatarBitmap = downloadBitmap(avatar);
                 }
 
