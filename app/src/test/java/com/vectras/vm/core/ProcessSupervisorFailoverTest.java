@@ -5,6 +5,7 @@ import com.vectras.vm.AppConfig;
 import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
+import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.File;
