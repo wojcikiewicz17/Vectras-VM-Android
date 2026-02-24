@@ -1,33 +1,65 @@
 package com.vectras.vm.network;
 
+import androidx.annotation.NonNull;
+
 import java.net.URI;
-import java.net.URISyntaxException;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Locale;
+import java.util.Set;
 
 public final class EndpointValidator {
+
+    private static final Set<String> DEFAULT_ALLOWLIST;
+
+    static {
+        Set<String> hosts = new HashSet<>();
+        hosts.add(NetworkEndpoints.HOST_ANBUI);
+        hosts.add(NetworkEndpoints.HOST_GITHUB_API);
+        hosts.add(NetworkEndpoints.HOST_GITHUB_WEB);
+        hosts.add(NetworkEndpoints.HOST_GITHUB_RAW);
+        DEFAULT_ALLOWLIST = Collections.unmodifiableSet(hosts);
+    }
+
     private EndpointValidator() {
     }
 
-    public static boolean isValidHttpUrl(String url) {
-        if (url == null || url.trim().isEmpty()) {
-            return false;
-        }
-        try {
-            URI uri = new URI(url.trim());
-            String scheme = uri.getScheme();
-            String host = uri.getHost();
-            if (scheme == null || host == null || host.trim().isEmpty()) {
-                return false;
-            }
-            return "http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme);
-        } catch (URISyntaxException e) {
-            return false;
-        }
+    public static boolean isAllowed(@NonNull String url) {
+        return isAllowed(url, DEFAULT_ALLOWLIST);
     }
 
-    public static String requireValidHttpUrl(String url, String fieldName) {
-        if (!isValidHttpUrl(url)) {
-            throw new IllegalArgumentException("Invalid endpoint for " + fieldName + ": " + String.valueOf(url));
+    public static boolean isAllowed(@NonNull String url, @NonNull Set<String> hostAllowlist) {
+        if (url.trim().isEmpty()) {
+            return false;
         }
-        return url;
+
+        URI uri;
+        try {
+            uri = URI.create(url);
+        } catch (Exception ignored) {
+            return false;
+        }
+
+        String scheme = uri.getScheme();
+        String host = uri.getHost();
+        int port = uri.getPort();
+
+        if (scheme == null || !"https".equalsIgnoreCase(scheme)) {
+            return false;
+        }
+        if (host == null || host.trim().isEmpty()) {
+            return false;
+        }
+
+        String normalizedHost = host.toLowerCase(Locale.ROOT);
+        if (!hostAllowlist.contains(normalizedHost)) {
+            return false;
+        }
+
+        if (port != -1 && port != 443) {
+            return false;
+        }
+
+        return uri.getUserInfo() == null;
     }
 }
