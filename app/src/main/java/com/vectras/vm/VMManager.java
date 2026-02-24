@@ -704,13 +704,32 @@ public class VMManager {
         }
     }
 
+    static ArrayList<HashMap<String, Object>> parseVmListJson(String json) {
+        if (json == null || json.trim().isEmpty()) {
+            return new ArrayList<>();
+        }
+        try {
+            ArrayList<HashMap<String, Object>> vmList = new Gson().fromJson(json, new TypeToken<ArrayList<HashMap<String, Object>>>() {
+            }.getType());
+            return vmList != null ? vmList : new ArrayList<>();
+        } catch (RuntimeException parseError) {
+            Log.w(TAG, "parseVmListJson: invalid JSON, using empty list", parseError);
+            return new ArrayList<>();
+        }
+    }
+
+    static boolean isValidVmPosition(ArrayList<HashMap<String, Object>> vmList, int position) {
+        return vmList != null && position >= 0 && position < vmList.size();
+    }
+
     public static void deleteVM(int position) {
         String vmId;
-        ArrayList<HashMap<String, Object>> vmList;
-        vmList = new Gson().fromJson(FileUtils.readAFile(AppConfig.maindirpath + "roms-data.json"), new TypeToken<ArrayList<HashMap<String, Object>>>() {
-        }.getType());
+        ArrayList<HashMap<String, Object>> vmList = parseVmListJson(
+                FileUtils.readAFile(AppConfig.maindirpath + "roms-data.json"));
 
-        if (position > vmList.size() - 1) return;
+        if (!isValidVmPosition(vmList, position)) {
+            return;
+        }
 
         if (vmList.get(position).containsKey("vmID")) {
             vmId = Objects.requireNonNull(vmList.get(position).get("vmID")).toString();

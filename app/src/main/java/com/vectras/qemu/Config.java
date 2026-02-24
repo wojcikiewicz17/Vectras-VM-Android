@@ -21,6 +21,7 @@ package com.vectras.qemu;
 import android.androidVNC.COLORMODEL;
 import android.androidVNC.VncCanvasActivity;
 import android.graphics.Bitmap;
+import android.content.Context;
 import android.os.Environment;
 import android.widget.ImageView.ScaleType;
 
@@ -188,7 +189,28 @@ public class Config {
     public static boolean defaultCheckNewVersion = true;
 
     // App config
-    public static final String datadirpath = VectrasApp.getApp().getExternalFilesDir("data")+"/";
+    private static volatile String datadirpath;
+
+    public static String getDatadirpath() {
+        String cached = datadirpath;
+        if (cached != null) {
+            return cached;
+        }
+        synchronized (Config.class) {
+            if (datadirpath == null) {
+                Context appContext = VectrasApp.getApp();
+                if (appContext == null) {
+                    return "";
+                }
+                java.io.File externalDataDir = appContext.getExternalFilesDir("data");
+                if (externalDataDir == null) {
+                    return "";
+                }
+                datadirpath = externalDataDir.getAbsolutePath() + "/";
+            }
+            return datadirpath;
+        }
+    }
 
 	public static String machinename = "VECTRAS";
 	public static int paused = 0;
