@@ -57,72 +57,71 @@ public class QmpClient {
 		PrintWriter out = null;
 		BufferedReader in = null;
 
-		try {
-		    if(allow_external) {
-                pingSocket = new Socket();
-                pingSocket.connect(new InetSocketAddress(Config.QMPServer, Config.QMPPort), SOCKET_CONNECT_TIMEOUT_MS);
-                pingSocket.setSoTimeout(SOCKET_READ_TIMEOUT_MS);
-                out = new PrintWriter(pingSocket.getOutputStream(), true);
-                in = new BufferedReader(new InputStreamReader(pingSocket.getInputStream()));
-		    } else {
-		        localSocket = new LocalSocket();
-		        String localQMPSocketPath = Config.getLocalQMPSocketPath();
-                LocalSocketAddress localSocketAddr = new LocalSocketAddress(localQMPSocketPath, LocalSocketAddress.Namespace.FILESYSTEM);
-                localSocket.connect(localSocketAddr);
-                localSocket.setSoTimeout(SOCKET_READ_TIMEOUT_MS);
-                out = new PrintWriter(localSocket.getOutputStream(), true);
-                in = new BufferedReader(new InputStreamReader(localSocket.getInputStream()));
-            }
-
-
-			response = negotiateCapabilities(out, in, maxRetries, retryDelayMs);
-			if (!isGreetingAndCapabilitiesContractSatisfied(response)) {
-				Log.w(TAG, "QMP greeting/capabilities contract not satisfied. Raw response=" + response);
-			}
-
-			sendRequest(out, command);
-			trial=0;
-			while (trial < maxRetries) {
-				response = isQueryMigrateCommand ? getQueryMigrateResponse(in) : getResponse(in);
-				if (response != null && !response.isEmpty()) {
-					break;
-				}
-				Thread.sleep(retryDelayMs);
-				trial++;
-			}
-		} catch (java.net.ConnectException e) {
-			Log.w(TAG, "Could not connect to QMP", e);
-			if(Config.debugQmp)
-			    e.printStackTrace();
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			Log.e(TAG, "Interrupted while waiting for QMP response", e);
-		} catch (IOException e) {
-			Log.e(TAG, "I/O error while connecting to QMP", e);
-			if(Config.debugQmp)
-				e.printStackTrace();
-		} catch(Exception e) {
-            Log.e(TAG, "Error while connecting to QMP", e);
-            if(Config.debugQmp)
-				e.printStackTrace();
-		} finally {
-			if (out != null)
-				out.close();
+		synchronized (lockForCurrentSocket()) {
 			try {
-				if (in != null)
-					in.close();
-				if (pingSocket != null)
-					pingSocket.close();
-				if (localSocket != null)
-					localSocket.close();
-			} catch (IOException e) {
-				Log.e(TAG, "Error closing QMP connection", e);
-			}
+				if(allow_external) {
+					pingSocket = new Socket();
+					pingSocket.connect(new InetSocketAddress(Config.QMPServer, Config.QMPPort), SOCKET_CONNECT_TIMEOUT_MS);
+					pingSocket.setSoTimeout(SOCKET_READ_TIMEOUT_MS);
+					out = new PrintWriter(pingSocket.getOutputStream(), true);
+					in = new BufferedReader(new InputStreamReader(pingSocket.getInputStream()));
+				} else {
+					localSocket = new LocalSocket();
+					String localQMPSocketPath = Config.getLocalQMPSocketPath();
+					LocalSocketAddress localSocketAddr = new LocalSocketAddress(localQMPSocketPath, LocalSocketAddress.Namespace.FILESYSTEM);
+					localSocket.connect(localSocketAddr);
+					localSocket.setSoTimeout(SOCKET_READ_TIMEOUT_MS);
+					out = new PrintWriter(localSocket.getOutputStream(), true);
+					in = new BufferedReader(new InputStreamReader(localSocket.getInputStream()));
+				}
 
+				response = negotiateCapabilities(out, in, maxRetries, retryDelayMs);
+				if (!isGreetingAndCapabilitiesContractSatisfied(response)) {
+					Log.w(TAG, "QMP greeting/capabilities contract not satisfied. Raw response=" + response);
+				}
+
+				sendRequest(out, command);
+				trial=0;
+				while (trial < maxRetries) {
+					response = isQueryMigrateCommand ? getQueryMigrateResponse(in) : getResponse(in);
+					if (response != null && !response.isEmpty()) {
+						break;
+					}
+					Thread.sleep(retryDelayMs);
+					trial++;
+				}
+			} catch (java.net.ConnectException e) {
+				Log.w(TAG, "Could not connect to QMP", e);
+				if(Config.debugQmp)
+					e.printStackTrace();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				Log.e(TAG, "Interrupted while waiting for QMP response", e);
+			} catch (IOException e) {
+				Log.e(TAG, "I/O error while connecting to QMP", e);
+				if(Config.debugQmp)
+					e.printStackTrace();
+			} catch(Exception e) {
+				Log.e(TAG, "Error while connecting to QMP", e);
+				if(Config.debugQmp)
+					e.printStackTrace();
+			} finally {
+				if (out != null)
+					out.close();
+				try {
+					if (in != null)
+						in.close();
+					if (pingSocket != null)
+						pingSocket.close();
+					if (localSocket != null)
+						localSocket.close();
+				} catch (IOException e) {
+					Log.e(TAG, "Error closing QMP connection", e);
+				}
+			}
 		}
 
 		return response;
-		}
 	}
 
 	private static boolean isQueryMigrateCommand(String command) {
