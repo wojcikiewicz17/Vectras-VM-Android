@@ -28,20 +28,39 @@ public class ProcessOutputDrainer {
         void onLine(String stream, String line);
     }
 
+    public interface ErrorReporter {
+        void onReadError(String stream, String vmContext, IOException error);
+
+        void onReadErrorSuppressed(String stream, String vmContext, IOException error);
+    }
+
     private final ExecutorService streamExecutor = Executors.newFixedThreadPool(2);
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
     private final TokenBucketRateLimiter ioErrorLogLimiter =
             new TokenBucketRateLimiter(IO_ERROR_LOG_REFILL_PER_SEC, IO_ERROR_LOG_BURST);
     private final TokenBucketRateLimiter ioErrorSuppressedLogLimiter =
             new TokenBucketRateLimiter(IO_ERROR_SUPPRESSED_LOG_REFILL_PER_SEC, IO_ERROR_SUPPRESSED_LOG_BURST);
+    private final ErrorReporter errorReporter;
+
+    public ProcessOutputDrainer() {
+        this(new LogcatErrorReporter());
+    }
+
+    public ProcessOutputDrainer(ErrorReporter errorReporter) {
+        this.errorReporter = errorReporter;
+    }
 
     public void cancel() {
         cancelled.set(true);
     }
 
     public void drain(Process process, OutputLineConsumer consumer) throws InterruptedException {
-        Future<?> out = streamExecutor.submit(() -> readStream("stdout", process.getInputStream(), consumer));
-        Future<?> err = streamExecutor.submit(() -> readStream("stderr", process.getErrorStream(), consumer));
+        drain(process, null, consumer);
+    }
+
+    public void drain(Process process, String vmContext, OutputLineConsumer consumer) throws InterruptedException {
+        Future<?> out = streamExecutor.submit(() -> readStream("stdout", process.getInputStream(), vmContext, consumer));
+        Future<?> err = streamExecutor.submit(() -> readStream("stderr", process.getErrorStream(), vmContext, consumer));
 
         try {
             waitFuture(out);
@@ -67,15 +86,36 @@ public class ProcessOutputDrainer {
         }
     }
 
-    private void readStream(String name, InputStream stream, OutputLineConsumer consumer) {
+    private void readStream(String name, InputStream stream, String vmContext, OutputLineConsumer consumer) {
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(stream, StandardCharsets.UTF_8))) {
             String line;
             while (!cancelled.get() && (line = reader.readLine()) != null) {
                 consumer.onLine(name, line);
             }
         } catch (IOException e) {
-            Log.w(TAG, "readStream non-fatal failure on " + name
-                    + " [" + e.getClass().getSimpleName() + "]: " + e.getMessage(), e);
+            if (ioErrorLogLimiter.tryAcquire()) {
+                errorReporter.onReadError(name, vmContext, e);
+            } else if (ioErrorSuppressedLogLimiter.tryAcquire()) {
+                errorReporter.onReadErrorSuppressed(name, vmContext, e);
+            }
+        }
+    }
+
+    private static final class LogcatErrorReporter implements ErrorReporter {
+        @Override
+        public void onReadError(String stream, String vmContext, IOException error) {
+            Log.w(TAG, formatMessage("readStream non-fatal failure", stream, vmContext, error), error);
+        }
+
+        @Override
+        public void onReadErrorSuppressed(String stream, String vmContext, IOException error) {
+            Log.w(TAG, formatMessage("readStream failure suppressed by rate-limit", stream, vmContext, error));
+        }
+
+        private static String formatMessage(String prefix, String stream, String vmContext, IOException error) {
+            String contextPart = vmContext == null ? "" : " vmContext=" + vmContext;
+            return prefix + " on " + stream + contextPart
+                    + " [" + error.getClass().getSimpleName() + "]: " + error.getMessage();
         }
     }
 

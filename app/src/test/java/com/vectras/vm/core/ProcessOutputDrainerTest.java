@@ -4,6 +4,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -68,6 +69,49 @@ public class ProcessOutputDrainerTest {
         }
     }
 
+    @Test
+    public void shouldHandleIOExceptionFromReadWithoutCrashingAndReportError() throws Exception {
+        CountingErrorReporter reporter = new CountingErrorReporter();
+        ProcessOutputDrainer drainer = new ProcessOutputDrainer(reporter);
+        Process fake = new DualStreamProcess(
+                new FailingInputStream(new byte[]{'o', 'k', '\n'}, 2),
+                new ByteArrayInputStream(new byte[0])
+        );
+
+        try {
+            drainer.drain(fake, "vm-audit-ctx", (stream, line) -> { });
+        } finally {
+            drainer.shutdown();
+        }
+
+        Assert.assertEquals(1, reporter.acceptedErrors.get());
+        Assert.assertEquals(0, reporter.suppressedErrors.get());
+        Assert.assertEquals("stdout", reporter.lastStream);
+        Assert.assertEquals("vm-audit-ctx", reporter.lastVmContext);
+    }
+
+    @Test
+    public void shouldRateLimitMultipleDrainReadFailures() throws Exception {
+        CountingErrorReporter reporter = new CountingErrorReporter();
+        ProcessOutputDrainer drainer = new ProcessOutputDrainer(reporter);
+
+        try {
+            for (int i = 0; i < 10; i++) {
+                Process fake = new DualStreamProcess(
+                        new FailingInputStream(new byte[]{'x', '\n'}, 1),
+                        new ByteArrayInputStream(new byte[0])
+                );
+                drainer.drain(fake, "vm-rate-limit", (stream, line) -> { });
+            }
+        } finally {
+            drainer.shutdown();
+        }
+
+        Assert.assertTrue("accepted should be limited", reporter.acceptedErrors.get() <= 2);
+        Assert.assertTrue("suppressed should be limited", reporter.suppressedErrors.get() <= 1);
+        Assert.assertTrue("some errors must be observable", reporter.acceptedErrors.get() >= 1);
+    }
+
     private static class FakeProcess extends Process {
         private final InputStream stdout;
         private final InputStream stderr;
@@ -83,5 +127,67 @@ public class ProcessOutputDrainerTest {
         @Override public int waitFor() { return 0; }
         @Override public int exitValue() { return 0; }
         @Override public void destroy() {}
+    }
+
+    private static class DualStreamProcess extends Process {
+        private final InputStream stdout;
+        private final InputStream stderr;
+
+        DualStreamProcess(InputStream stdout, InputStream stderr) {
+            this.stdout = stdout;
+            this.stderr = stderr;
+        }
+
+        @Override public OutputStream getOutputStream() { return OutputStream.nullOutputStream(); }
+        @Override public InputStream getInputStream() { return stdout; }
+        @Override public InputStream getErrorStream() { return stderr; }
+        @Override public int waitFor() { return 0; }
+        @Override public int exitValue() { return 0; }
+        @Override public void destroy() {}
+    }
+
+    private static class FailingInputStream extends InputStream {
+        private final byte[] data;
+        private final int failAtReadCount;
+        private int index;
+        private int readCount;
+
+        FailingInputStream(byte[] data, int failAtReadCount) {
+            this.data = data;
+            this.failAtReadCount = failAtReadCount;
+        }
+
+        @Override
+        public int read() throws IOException {
+            readCount++;
+            if (readCount >= failAtReadCount) {
+                throw new IOException("forced-read-failure-" + failAtReadCount);
+            }
+            if (index >= data.length) {
+                return -1;
+            }
+            return data[index++];
+        }
+    }
+
+    private static class CountingErrorReporter implements ProcessOutputDrainer.ErrorReporter {
+        private final AtomicInteger acceptedErrors = new AtomicInteger();
+        private final AtomicInteger suppressedErrors = new AtomicInteger();
+        private volatile String lastStream;
+        private volatile String lastVmContext;
+
+        @Override
+        public void onReadError(String stream, String vmContext, IOException error) {
+            acceptedErrors.incrementAndGet();
+            lastStream = stream;
+            lastVmContext = vmContext;
+        }
+
+        @Override
+        public void onReadErrorSuppressed(String stream, String vmContext, IOException error) {
+            suppressedErrors.incrementAndGet();
+            lastStream = stream;
+            lastVmContext = vmContext;
+        }
     }
 }
