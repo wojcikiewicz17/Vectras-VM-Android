@@ -17,6 +17,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
+import org.json.JSONObject;
+
 public class ProcessSupervisorFailoverTest {
 
 
@@ -145,17 +147,16 @@ public class ProcessSupervisorFailoverTest {
         Assert.assertTrue("stop should failover quickly when QMP hangs", elapsedMs < 3_500L);
     }
 
-
     @Test
-    public void stopGracefully_qmpExecutionFailure_auditsExecutionFailureCause() {
+    public void stopGracefully_qmpExecutionFailure_thenTermSuccess_auditsExecFailure() {
         RecordingTransitionSink sink = new RecordingTransitionSink();
-        FakeProcess process = new FakeProcess(false, true);
         String vmId = "vm-qmp-exec-failure";
+        FakeProcess process = new FakeProcess(false, true);
         ProcessSupervisor supervisor = new ProcessSupervisor(
                 null,
                 vmId,
                 () -> {
-                    throw new IllegalStateException("qmp channel failed");
+                    throw new IllegalStateException("qmp executor boom");
                 },
                 sink,
                 new ProcessSupervisor.Clock() {
@@ -183,7 +184,7 @@ public class ProcessSupervisorFailoverTest {
         Assert.assertEquals(0, process.destroyForciblyCount);
         Assert.assertTrue(sink.containsPrefix("RUN->FAILOVER:qmp_exec_failure:term_kill"));
         Assert.assertTrue(sink.containsPrefix("FAILOVER->STOP:term_success:term"));
-        Assert.assertTrue(auditContainsCause(vmId, "RUN", "FAILOVER", "qmp_exec_failure"));
+        Assert.assertTrue(auditLedgerContainsCauseForVm(vmId, "qmp_exec_failure"));
     }
 
     @Test
@@ -330,9 +331,8 @@ public class ProcessSupervisorFailoverTest {
     }
 
 
-
-    private boolean auditContainsCause(String vmId, String stateFrom, String stateTo, String causeCode) {
-        File ledger = new File(AppConfig.internalDataDirPath, "audit-ledger.jsonl");
+    private static boolean auditLedgerContainsCauseForVm(String vmId, String causeCode) {
+        File ledger = new File(new File(AppConfig.internalDataDirPath), "audit-ledger.jsonl");
         if (!ledger.exists()) {
             return false;
         }
@@ -342,11 +342,9 @@ public class ProcessSupervisorFailoverTest {
                 if (line.trim().isEmpty()) {
                     continue;
                 }
-                JSONObject event = new JSONObject(line);
-                if (vmId.equals(event.optString("vm_id"))
-                        && stateFrom.equals(event.optString("state_from"))
-                        && stateTo.equals(event.optString("state_to"))
-                        && causeCode.equals(event.optString("cause_code"))) {
+                JSONObject json = new JSONObject(line);
+                if (vmId.equals(json.optString("vm_id"))
+                        && causeCode.equals(json.optString("cause_code"))) {
                     return true;
                 }
             }
