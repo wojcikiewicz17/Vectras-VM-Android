@@ -328,7 +328,7 @@ public class MainStartVM {
             MainService.startCommand(finalCommand, context);
         } else {
             Intent serviceIntent = new Intent(context, MainService.class);
-            MainService.activityContext = context.getApplicationContext();
+            MainService.setActivityContext(context);
             MainService.env = finalCommand;
             MainService.CHANNEL_ID = vmName;
             if (SDK_INT >= Build.VERSION_CODES.O) {

@@ -23,7 +23,7 @@ public class MainService extends Service {
     public static volatile String env = null;
     private String TAG = "MainService";
     public static volatile MainService service;
-    public static volatile Context activityContext;
+    private static volatile Context activityContext;
     private static final Object LOCK = new Object();
 
     @Override
@@ -53,7 +53,7 @@ public class MainService extends Service {
         Context ctx;
         synchronized (LOCK) {
             command = env;
-            ctx = activityContext;
+            ctx = getActivityContext();
         }
 
         if (command != null) {
@@ -126,6 +126,18 @@ public class MainService extends Service {
         vterm.executeShellCommand2(_env, true, _context);
     }
 
+    public static void setActivityContext(Context context) {
+        synchronized (LOCK) {
+            activityContext = context != null ? context.getApplicationContext() : null;
+        }
+    }
+
+    public static Context getActivityContext() {
+        synchronized (LOCK) {
+            return activityContext;
+        }
+    }
+
     private static void cleanup(Context fallbackContext) {
         synchronized (LOCK) {
             MainService currentService = service;
@@ -141,7 +153,7 @@ public class MainService extends Service {
 
     private static void clearReferences() {
         synchronized (LOCK) {
-            activityContext = null;
+            setActivityContext(null);
             env = null;
             service = null;
         }
