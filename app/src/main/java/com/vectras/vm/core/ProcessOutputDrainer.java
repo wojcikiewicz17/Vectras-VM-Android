@@ -65,8 +65,9 @@ public class ProcessOutputDrainer {
             while (!cancelled.get() && (line = reader.readLine()) != null) {
                 consumer.onLine(name, line);
             }
-        } catch (IOException ignored) {
-            // non-fatal by design
+        } catch (IOException e) {
+            Log.w(TAG, "readStream non-fatal failure on " + name
+                    + " [" + e.getClass().getSimpleName() + "]: " + e.getMessage(), e);
         }
     }
 
