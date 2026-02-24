@@ -6,12 +6,17 @@ import org.junit.Assert;
 import org.junit.Before;
 import org.junit.Test;
 
+import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileReader;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+
+import org.json.JSONObject;
 
 public class ProcessSupervisorFailoverTest {
 
@@ -140,6 +145,47 @@ public class ProcessSupervisorFailoverTest {
         Assert.assertTrue(sink.containsPrefix("FAILOVER->STOP:term_success:term"));
         Assert.assertTrue("stop should failover quickly when QMP hangs", elapsedMs < 3_500L);
     }
+
+    @Test
+    public void stopGracefully_qmpExecutionFailure_thenTermSuccess_auditsExecFailure() {
+        RecordingTransitionSink sink = new RecordingTransitionSink();
+        String vmId = "vm-qmp-exec-failure";
+        FakeProcess process = new FakeProcess(false, true);
+        ProcessSupervisor supervisor = new ProcessSupervisor(
+                null,
+                vmId,
+                () -> {
+                    throw new IllegalStateException("qmp executor boom");
+                },
+                sink,
+                new ProcessSupervisor.Clock() {
+                    private long mono = 1000L;
+                    private long wall = 1_700_000_000_000L;
+
+                    @Override
+                    public long monoMs() {
+                        return mono++;
+                    }
+
+                    @Override
+                    public long wallMs() {
+                        return wall++;
+                    }
+                }
+        );
+
+        supervisor.bindProcess(process);
+        boolean stopped = supervisor.stopGracefully(true);
+
+        Assert.assertTrue(stopped);
+        Assert.assertEquals(ProcessSupervisor.State.STOP, supervisor.getState());
+        Assert.assertEquals(1, process.destroyCount);
+        Assert.assertEquals(0, process.destroyForciblyCount);
+        Assert.assertTrue(sink.containsPrefix("RUN->FAILOVER:qmp_exec_failure:term_kill"));
+        Assert.assertTrue(sink.containsPrefix("FAILOVER->STOP:term_success:term"));
+        Assert.assertTrue(auditLedgerContainsCauseForVm(vmId, "qmp_exec_failure"));
+    }
+
     @Test
     public void stopGracefully_termTimeout_thenKill() {
         RecordingTransitionSink sink = new RecordingTransitionSink();
@@ -281,6 +327,30 @@ public class ProcessSupervisorFailoverTest {
         Assert.assertTrue(sink.containsPrefix("RUN->FAILOVER:no_qmp:term_kill"));
         Assert.assertTrue(sink.containsPrefix("FAILOVER->STOP:term_success:term"));
         Assert.assertEquals(6, sink.size());
+    }
+
+
+    private static boolean auditLedgerContainsCauseForVm(String vmId, String causeCode) {
+        File ledger = new File(new File(AppConfig.internalDataDirPath), "audit-ledger.jsonl");
+        if (!ledger.exists()) {
+            return false;
+        }
+        try (BufferedReader reader = new BufferedReader(new FileReader(ledger))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                if (line.trim().isEmpty()) {
+                    continue;
+                }
+                JSONObject json = new JSONObject(line);
+                if (vmId.equals(json.optString("vm_id"))
+                        && causeCode.equals(json.optString("cause_code"))) {
+                    return true;
+                }
+            }
+        } catch (Exception ignored) {
+            return false;
+        }
+        return false;
     }
 
     private static final class RecordingTransitionSink implements ProcessSupervisor.TransitionSink {

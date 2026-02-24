@@ -26,6 +26,8 @@ import java.util.concurrent.TimeoutException;
  */
 public class ProcessSupervisor {
     private static final String TAG = "ProcessSupervisor";
+    private static final double QMP_EXECUTION_FAILURE_LOG_REFILL_PER_SEC = 0.1d;
+    private static final int QMP_EXECUTION_FAILURE_LOG_BURST = 2;
     interface QmpTransport {
         String sendPowerdown();
     }
@@ -82,6 +84,8 @@ public class ProcessSupervisor {
     private final QmpTransport qmpTransport;
     private final TransitionSink transitionSink;
     private final Clock clock;
+    private final TokenBucketRateLimiter qmpExecutionFailureLogLimiter =
+            new TokenBucketRateLimiter(QMP_EXECUTION_FAILURE_LOG_REFILL_PER_SEC, QMP_EXECUTION_FAILURE_LOG_BURST);
     private volatile Process process;
     private volatile State state = State.START;
     private volatile long startWallMs;
@@ -215,13 +219,13 @@ public class ProcessSupervisor {
 
         boolean stopped = false;
         boolean qmpRequested = false;
-        boolean qmpTimedOut = false;
+        String qmpFailoverCause = "qmp_reject";
         try {
             if (tryQmp) {
                 qmpRequested = true;
-                String result = sendPowerdownWithTimeout(EXECUTORS.qmpGraceTimeoutMs());
-                qmpTimedOut = result == null;
-                if (ProcessRuntimeOps.isQmpAck(result) && awaitExit(running, 3_000)) {
+                QmpAttemptResult attemptResult = sendPowerdownWithTimeout(EXECUTORS.qmpGraceTimeoutMs());
+                qmpFailoverCause = attemptResult.failoverCause();
+                if (attemptResult.isAck() && awaitExit(running, 3_000)) {
                     synchronized (this) {
                         transition(state, State.STOP, "qmp_shutdown", 0, 0, stallMs, "qmp");
                     }
@@ -231,7 +235,7 @@ public class ProcessSupervisor {
             }
 
             synchronized (this) {
-                transition(state, State.FAILOVER, qmpRequested ? (qmpTimedOut ? "qmp_timeout" : "qmp_reject") : "no_qmp", 0, 0, stallMs, "term_kill");
+                transition(state, State.FAILOVER, qmpRequested ? qmpFailoverCause : "no_qmp", 0, 0, stallMs, "term_kill");
             }
             running.destroy();
             if (awaitExit(running, 3_000)) {
@@ -258,7 +262,7 @@ public class ProcessSupervisor {
         }
     }
 
-    private String sendPowerdownWithTimeout(long timeoutMs) {
+    private QmpAttemptResult sendPowerdownWithTimeout(long timeoutMs) {
         Future<String> future = EXECUTORS.submitProcessSupervisorQmp(new Callable<String>() {
             @Override
             public String call() {
@@ -266,16 +270,71 @@ public class ProcessSupervisor {
             }
         });
         try {
-            return future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            return QmpAttemptResult.fromAck(ProcessRuntimeOps.isQmpAck(future.get(timeoutMs, TimeUnit.MILLISECONDS)));
         } catch (TimeoutException e) {
             future.cancel(true);
-            return null;
+            return QmpAttemptResult.timeout();
         } catch (ExecutionException e) {
-            return null;
+            Throwable rootCause = e.getCause();
+            if (qmpExecutionFailureLogLimiter.tryAcquire()) {
+                Log.w(TAG, "sendPowerdownWithTimeout execution failure vmId=" + vmId
+                        + " cause=" + (rootCause == null ? "unknown" : rootCause.getClass().getSimpleName()),
+                        rootCause == null ? e : rootCause);
+            }
+            return QmpAttemptResult.executionFailure();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             future.cancel(true);
-            return null;
+            return QmpAttemptResult.interrupted();
+        }
+    }
+
+    private static final class QmpAttemptResult {
+        enum Status {
+            ACK,
+            REJECT,
+            TIMEOUT,
+            EXECUTION_FAILURE,
+            INTERRUPTED
+        }
+
+        private final Status status;
+
+        private QmpAttemptResult(Status status) {
+            this.status = status;
+        }
+
+        static QmpAttemptResult fromAck(boolean ack) {
+            return new QmpAttemptResult(ack ? Status.ACK : Status.REJECT);
+        }
+
+        static QmpAttemptResult timeout() {
+            return new QmpAttemptResult(Status.TIMEOUT);
+        }
+
+        static QmpAttemptResult executionFailure() {
+            return new QmpAttemptResult(Status.EXECUTION_FAILURE);
+        }
+
+        static QmpAttemptResult interrupted() {
+            return new QmpAttemptResult(Status.INTERRUPTED);
+        }
+
+        boolean isAck() {
+            return status == Status.ACK;
+        }
+
+        String failoverCause() {
+            if (status == Status.TIMEOUT) {
+                return "qmp_timeout";
+            }
+            if (status == Status.EXECUTION_FAILURE) {
+                return "qmp_exec_failure";
+            }
+            if (status == Status.INTERRUPTED) {
+                return "qmp_interrupted";
+            }
+            return "qmp_reject";
         }
     }
 
