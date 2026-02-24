@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.Objects;
 
 public class StartVM {
-    public static String cdrompath;
+    public static String cdrompath = "";
     public static volatile String lastResolvedProfile = "BALANCED";
     public static volatile boolean lastKvmEnabled = false;
     public static volatile String lastKvmReason = "unknown";
@@ -84,7 +84,7 @@ public class StartVM {
                 params.add(hdd0);
             }
 
-            if (cdrompath.isEmpty()) {
+            if (cdrompath == null || cdrompath.isEmpty()) {
                 File cdromFile = new File(filesDir + "/data/Vectras/drive.iso");
 
                 if (cdromFile.exists()) {
