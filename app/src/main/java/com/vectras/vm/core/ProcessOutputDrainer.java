@@ -1,10 +1,7 @@
 package com.vectras.vm.core;
 
-import android.content.Context;
 import android.util.Log;
 
-import com.vectras.vm.audit.AuditEvent;
-import com.vectras.vm.audit.AuditLedger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -29,6 +26,8 @@ public class ProcessOutputDrainer {
     private static final int IO_ERROR_LOG_BURST = 2;
     private static final double IO_ERROR_SUPPRESSED_LOG_REFILL_PER_SEC = 0.1d;
     private static final int IO_ERROR_SUPPRESSED_LOG_BURST = 1;
+    private static final double CLOSE_ERROR_LOG_REFILL_PER_SEC = 0.1d;
+    private static final int CLOSE_ERROR_LOG_BURST = 1;
     public interface OutputLineConsumer {
         void onLine(String stream, String line);
     }
@@ -45,7 +44,12 @@ public class ProcessOutputDrainer {
             new TokenBucketRateLimiter(IO_ERROR_LOG_REFILL_PER_SEC, IO_ERROR_LOG_BURST);
     private final TokenBucketRateLimiter ioErrorSuppressedLogLimiter =
             new TokenBucketRateLimiter(IO_ERROR_SUPPRESSED_LOG_REFILL_PER_SEC, IO_ERROR_SUPPRESSED_LOG_BURST);
+    private final TokenBucketRateLimiter closeErrorLogLimiter =
+            new TokenBucketRateLimiter(CLOSE_ERROR_LOG_REFILL_PER_SEC, CLOSE_ERROR_LOG_BURST);
     private final ErrorReporter errorReporter;
+    private final Object activeStreamsLock = new Object();
+    private InputStream activeStdout;
+    private InputStream activeStderr;
 
     public ProcessOutputDrainer() {
         this(new LogcatErrorReporter());
@@ -57,6 +61,16 @@ public class ProcessOutputDrainer {
 
     public void cancel() {
         cancelled.set(true);
+
+        InputStream stdoutToClose;
+        InputStream stderrToClose;
+        synchronized (activeStreamsLock) {
+            stdoutToClose = activeStdout;
+            stderrToClose = activeStderr;
+        }
+
+        closeActiveStream("stdout", stdoutToClose);
+        closeActiveStream("stderr", stderrToClose);
     }
 
     public void drain(Process process, OutputLineConsumer consumer) throws InterruptedException {
@@ -64,8 +78,21 @@ public class ProcessOutputDrainer {
     }
 
     public void drain(Process process, String vmContext, OutputLineConsumer consumer) throws InterruptedException {
-        Future<?> out = streamExecutor.submit(() -> readStream("stdout", process.getInputStream(), vmContext, consumer));
-        Future<?> err = streamExecutor.submit(() -> readStream("stderr", process.getErrorStream(), vmContext, consumer));
+        cancelled.set(false);
+        Future<?> out = streamExecutor.submit(() -> {
+            InputStream stdout = process.getInputStream();
+            synchronized (activeStreamsLock) {
+                activeStdout = stdout;
+            }
+            readStream("stdout", stdout, vmContext, consumer);
+        });
+        Future<?> err = streamExecutor.submit(() -> {
+            InputStream stderr = process.getErrorStream();
+            synchronized (activeStreamsLock) {
+                activeStderr = stderr;
+            }
+            readStream("stderr", stderr, vmContext, consumer);
+        });
 
         try {
             waitFuture(out);
@@ -102,6 +129,33 @@ public class ProcessOutputDrainer {
                 errorReporter.onReadError(name, vmContext, e);
             } else if (ioErrorSuppressedLogLimiter.tryAcquire()) {
                 errorReporter.onReadErrorSuppressed(name, vmContext, e);
+            }
+        } finally {
+            synchronized (activeStreamsLock) {
+                if ("stdout".equals(name)) {
+                    if (activeStdout == stream) {
+                        activeStdout = null;
+                    }
+                } else if ("stderr".equals(name)) {
+                    if (activeStderr == stream) {
+                        activeStderr = null;
+                    }
+                }
+            }
+        }
+    }
+
+    private void closeActiveStream(String streamName, InputStream stream) {
+        if (stream == null) {
+            return;
+        }
+
+        try {
+            stream.close();
+        } catch (IOException e) {
+            if (closeErrorLogLimiter.tryAcquire()) {
+                Log.w(TAG, "cancel close failure on " + streamName
+                        + " [" + e.getClass().getSimpleName() + "]: " + e.getMessage(), e);
             }
         }
     }
