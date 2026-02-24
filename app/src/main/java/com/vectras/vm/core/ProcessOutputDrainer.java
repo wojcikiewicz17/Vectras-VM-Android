@@ -41,6 +41,9 @@ public class ProcessOutputDrainer {
 
     private final ExecutorService streamExecutor = Executors.newFixedThreadPool(2);
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
+    private final Object activeStreamLock = new Object();
+    private InputStream activeStdout;
+    private InputStream activeStderr;
     private final TokenBucketRateLimiter ioErrorLogLimiter =
             new TokenBucketRateLimiter(IO_ERROR_LOG_REFILL_PER_SEC, IO_ERROR_LOG_BURST);
     private final TokenBucketRateLimiter ioErrorSuppressedLogLimiter =
@@ -64,8 +67,8 @@ public class ProcessOutputDrainer {
     }
 
     public void drain(Process process, String vmContext, OutputLineConsumer consumer) throws InterruptedException {
-        Future<?> out = streamExecutor.submit(() -> readStream("stdout", process.getInputStream(), vmContext, consumer));
-        Future<?> err = streamExecutor.submit(() -> readStream("stderr", process.getErrorStream(), vmContext, consumer));
+        Future<?> out = submitWorker("stdout", process.getInputStream(), vmContext, consumer);
+        Future<?> err = submitWorker("stderr", process.getErrorStream(), vmContext, consumer);
 
         try {
             waitFuture(out);
@@ -79,6 +82,39 @@ public class ProcessOutputDrainer {
             err.cancel(true);
             Log.w(TAG, "drain failed", e);
             throw e;
+        }
+    }
+
+    private Future<?> submitWorker(String streamName, InputStream stream, String vmContext, OutputLineConsumer consumer) {
+        return streamExecutor.submit(() -> {
+            registerActiveStream(streamName, stream);
+            try {
+                readStream(streamName, stream, vmContext, consumer);
+            } finally {
+                clearActiveStream(streamName, stream);
+            }
+        });
+    }
+
+    private void registerActiveStream(String streamName, InputStream stream) {
+        synchronized (activeStreamLock) {
+            if ("stderr".equals(streamName)) {
+                activeStderr = stream;
+            } else {
+                activeStdout = stream;
+            }
+        }
+    }
+
+    private void clearActiveStream(String streamName, InputStream stream) {
+        synchronized (activeStreamLock) {
+            if ("stderr".equals(streamName)) {
+                if (activeStderr == stream) {
+                    activeStderr = null;
+                }
+            } else if (activeStdout == stream) {
+                activeStdout = null;
+            }
         }
     }
 
