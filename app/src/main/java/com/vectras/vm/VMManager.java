@@ -1073,7 +1073,7 @@ public class VMManager {
         }
 
         if (_command.contains("qemu-system") && _result.contains("Killed")) {
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         }
@@ -1090,13 +1090,13 @@ public class VMManager {
                         _activity.startActivity(intent);
                     },
                     null, null);
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else if (_result.contains(") exists") && _result.contains("drive with bus")) {
             //Error code: DRIVE_INDEX_0_EXISTS
             DialogUtils.oneDialog(_activity, _activity.getString(R.string.problem_has_been_detected), _activity.getString(R.string.error_DRIVE_INDEX_0_EXISTS) + "\n\n" + _result, R.drawable.hard_drive_24px);
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else if (_result.contains("gtk initialization failed") || _result.contains("x11 not available")) {
@@ -1107,14 +1107,14 @@ public class VMManager {
                         DialogUtils.oneDialog(_activity, _activity.getString(R.string.done), _activity.getString(R.string.switched_to_VNC), R.drawable.check_24px);
                     },
                     null, null);
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else if (_result.contains("Couldn't connect to XServer")) {
             if (isTryAgain) {
                 DialogUtils.oneDialog(_activity, _activity.getString(R.string.problem_has_been_detected), _activity.getString(R.string.x11_display_cannot_be_used_at_this_time_content) + "\n\n" + _result, R.drawable.cast_warning_24px);
                 _activity.stopService(new Intent(_activity, MainService.class));
-                isQemuStopedWithError = true;
+                markQemuStoppedWithError();
                 RafaeliaEventRecorder.recordCrash(_activity, _result);
                 isTryAgain = false;
             } else {
@@ -1126,14 +1126,14 @@ public class VMManager {
             //Error code: NO_SUCH_FILE_OR_DIRECTORY
             DialogUtils.oneDialog(_activity, _activity.getString(R.string.problem_has_been_detected), _activity.getString(R.string.error_NO_SUCH_FILE_OR_DIRECTORY) + "\n\n" + _result, R.drawable.file_copy_24px);
             _activity.stopService(new Intent(_activity, MainService.class));
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else if (_result.contains("another process using")) {
             //Error code: ANOTHER_PROCESS_USING_IMAGE
             DialogUtils.oneDialog(_activity, _activity.getString(R.string.problem_has_been_detected), _activity.getString(R.string.error_ANOTHER_PROCESS_USING_IMAGE) + "\n\n" + _result, R.drawable.file_copy_24px);
             _activity.stopService(new Intent(_activity, MainService.class));
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else if (_result.contains("mesapt: invalid sdl display")) {
@@ -1156,13 +1156,24 @@ public class VMManager {
             //Error code: UNKNOW_ERROR
             DialogUtils.oneDialog(_activity, _activity.getString(R.string.problem_has_been_detected), _activity.getString(R.string.vm_could_not_be_run_content) + "\n\n" + _result, R.drawable.error_96px);
             _activity.stopService(new Intent(_activity, MainService.class));
-            isQemuStopedWithError = true;
+            markQemuStoppedWithError();
             RafaeliaEventRecorder.recordCrash(_activity, _result);
             return true;
         } else {
             isQemuStopedWithError = false;
             return false;
         }
+    }
+
+    private static void closeVmFdsOnStop() {
+        String vmId = MainStartVM.ensureLastVmIdInitialized(MainStartVM.lastVMID);
+        FileUtils.closeFdsForVm(vmId);
+        com.vectras.qemu.utils.FileUtils.close_fds();
+    }
+
+    private static void markQemuStoppedWithError() {
+        isQemuStopedWithError = true;
+        closeVmFdsOnStop();
     }
 
     public static boolean isRomsDataJsonValid(Boolean _needfix, Activity _context) {
@@ -1484,10 +1495,14 @@ public class VMManager {
         if (!MainStartVM.lastVMName.isEmpty()) {
             RafaeliaEventRecorder.recordStop(context, MainStartVM.lastVMName);
         }
+        closeVmFdsOnStop();
     }
 
     public static void shutdownCurrentVM() {
-        new Thread(() -> QmpClient.sendCommand("{ \"execute\": \"quit\" }")).start();
+        new Thread(() -> {
+            QmpClient.sendCommand("{ \"execute\": \"quit\" }");
+            closeVmFdsOnStop();
+        }).start();
     }
 
     public static void resetCurrentVM() {
