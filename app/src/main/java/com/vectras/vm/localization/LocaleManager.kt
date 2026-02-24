@@ -6,6 +6,8 @@ import android.content.res.Configuration
 import android.content.res.Resources
 import android.os.Build
 import android.os.LocaleList
+import com.vectras.vm.network.EndpointFeature
+import com.vectras.vm.network.EndpointValidator
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.json.JSONObject
@@ -79,7 +81,7 @@ class LocaleManager private constructor(private val context: Context) {
     ): Boolean = withContext(Dispatchers.IO) {
         val module = LanguageModule.getByCode(languageCode) ?: return@withContext false
 
-        if (!isValidModuleDownloadUrl(module.downloadUrl)) {
+        if (!EndpointValidator.isAllowed(module.downloadUrl, EndpointFeature.LANGUAGE_MODULE_DOWNLOAD)) {
             android.util.Log.e(
                 "LocaleManager",
                 "Invalid module download URL for language module: $languageCode"
@@ -270,17 +272,5 @@ class LocaleManager private constructor(private val context: Context) {
             out[key] = json.optString(key, "")
         }
         return out
-    }
-
-    private fun isValidModuleDownloadUrl(downloadUrl: String): Boolean {
-        return try {
-            val url = URL(downloadUrl)
-            val isHttps = url.protocol.equals("https", ignoreCase = true)
-            val hasHost = !url.host.isNullOrBlank()
-            val hasExpectedPath = url.path?.endsWith(".json", ignoreCase = true) == true
-            isHttps && hasHost && hasExpectedPath
-        } catch (_: Exception) {
-            false
-        }
     }
 }
