@@ -1,10 +1,7 @@
 package com.vectras.vm.core;
 
-import android.content.Context;
 import android.util.Log;
 
-import com.vectras.vm.audit.AuditEvent;
-import com.vectras.vm.audit.AuditLedger;
 
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -31,6 +28,8 @@ public class ProcessOutputDrainer {
     private static final int IO_ERROR_LOG_BURST = 2;
     private static final double IO_ERROR_SUPPRESSED_LOG_REFILL_PER_SEC = 0.1d;
     private static final int IO_ERROR_SUPPRESSED_LOG_BURST = 1;
+    private static final double CLOSE_ERROR_LOG_REFILL_PER_SEC = 0.1d;
+    private static final int CLOSE_ERROR_LOG_BURST = 1;
     public interface OutputLineConsumer {
         void onLine(String stream, String line);
     }
@@ -43,10 +42,15 @@ public class ProcessOutputDrainer {
 
     private final ExecutorService streamExecutor = Executors.newFixedThreadPool(2);
     private final AtomicBoolean cancelled = new AtomicBoolean(false);
+    private final Object activeStreamLock = new Object();
+    private InputStream activeStdout;
+    private InputStream activeStderr;
     private final TokenBucketRateLimiter ioErrorLogLimiter =
             new TokenBucketRateLimiter(IO_ERROR_LOG_REFILL_PER_SEC, IO_ERROR_LOG_BURST);
     private final TokenBucketRateLimiter ioErrorSuppressedLogLimiter =
             new TokenBucketRateLimiter(IO_ERROR_SUPPRESSED_LOG_REFILL_PER_SEC, IO_ERROR_SUPPRESSED_LOG_BURST);
+    private final TokenBucketRateLimiter closeErrorLogLimiter =
+            new TokenBucketRateLimiter(CLOSE_ERROR_LOG_REFILL_PER_SEC, CLOSE_ERROR_LOG_BURST);
     private final ErrorReporter errorReporter;
     private final Set<InputStream> activeStreams = ConcurrentHashMap.newKeySet();
 
@@ -74,8 +78,8 @@ public class ProcessOutputDrainer {
     }
 
     public void drain(Process process, String vmContext, OutputLineConsumer consumer) throws InterruptedException {
-        Future<?> out = streamExecutor.submit(() -> readStream("stdout", process.getInputStream(), vmContext, consumer));
-        Future<?> err = streamExecutor.submit(() -> readStream("stderr", process.getErrorStream(), vmContext, consumer));
+        Future<?> out = submitWorker("stdout", process.getInputStream(), vmContext, consumer);
+        Future<?> err = submitWorker("stderr", process.getErrorStream(), vmContext, consumer);
 
         try {
             waitFuture(out);
@@ -87,8 +91,43 @@ public class ProcessOutputDrainer {
         } catch (RuntimeException e) {
             out.cancel(true);
             err.cancel(true);
-            Log.w(TAG, "drain failed", e);
-            throw e;
+            if (!cancelled.get()) {
+                Log.w(TAG, "drain failed", e);
+                throw e;
+            }
+        }
+    }
+
+    private Future<?> submitWorker(String streamName, InputStream stream, String vmContext, OutputLineConsumer consumer) {
+        return streamExecutor.submit(() -> {
+            registerActiveStream(streamName, stream);
+            try {
+                readStream(streamName, stream, vmContext, consumer);
+            } finally {
+                clearActiveStream(streamName, stream);
+            }
+        });
+    }
+
+    private void registerActiveStream(String streamName, InputStream stream) {
+        synchronized (activeStreamLock) {
+            if ("stderr".equals(streamName)) {
+                activeStderr = stream;
+            } else {
+                activeStdout = stream;
+            }
+        }
+    }
+
+    private void clearActiveStream(String streamName, InputStream stream) {
+        synchronized (activeStreamLock) {
+            if ("stderr".equals(streamName)) {
+                if (activeStderr == stream) {
+                    activeStderr = null;
+                }
+            } else if (activeStdout == stream) {
+                activeStdout = null;
+            }
         }
     }
 
@@ -140,15 +179,22 @@ public class ProcessOutputDrainer {
         }
     }
 
-    private static void waitFuture(Future<?> future) throws InterruptedException {
+    private void waitFuture(Future<?> future) throws InterruptedException {
         try {
             future.get();
         } catch (InterruptedException e) {
             Thread.currentThread().interrupt();
             throw e;
         } catch (ExecutionException e) {
-            throw new IllegalStateException("stream drain failed", e.getCause());
+            Throwable cause = e.getCause();
+            if (cancelled.get() && cause instanceof CancellationException) {
+                return;
+            }
+            throw new IllegalStateException("stream drain failed", cause != null ? cause : e);
         } catch (CancellationException e) {
+            if (cancelled.get()) {
+                return;
+            }
             throw new IllegalStateException("stream drain cancelled", e);
         }
     }
