@@ -393,7 +393,14 @@ public class QmpClient {
 	}
 
 	public static String save_snapshot(String snapshot_name) {
-		return "{\"execute\": \"snapshot-create\", \"arguments\": {\"name\": \""+ snapshot_name+"\"} }";
+		JSONObject arguments = new JSONObject();
+		arguments.put("name", snapshot_name);
+
+		JSONObject jsonObject = new JSONObject();
+		jsonObject.put("execute", "snapshot-create");
+		jsonObject.put("arguments", arguments);
+
+		return jsonObject.toString();
 
 	}
 

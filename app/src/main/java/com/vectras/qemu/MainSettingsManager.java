@@ -1158,16 +1158,28 @@ public class MainSettingsManager extends AppCompatActivity
         return prefs.getInt("vncScaleMode", 0);
     }
 
-    public static void setForceRefeshVNCDisplay(Context context, Boolean _boolean) {
+    public static void setForceRefreshVNCDisplay(Context context, Boolean enabled) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         SharedPreferences.Editor edit = prefs.edit();
-        edit.putBoolean("forceRefeshVNCDisplay", _boolean);
+        edit.putBoolean("forceRefeshVNCDisplay", enabled);
         edit.apply();
     }
 
-    public static Boolean getForceRefeshVNCDisplay(Context context) {
+    public static Boolean getForceRefreshVNCDisplay(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         return prefs.getBoolean("forceRefeshVNCDisplay", true);
+    }
+
+    /** @deprecated Use {@link #setForceRefreshVNCDisplay(Context, Boolean)} instead. */
+    @Deprecated
+    public static void setForceRefeshVNCDisplay(Context context, Boolean _boolean) {
+        setForceRefreshVNCDisplay(context, _boolean);
+    }
+
+    /** @deprecated Use {@link #getForceRefreshVNCDisplay(Context)} instead. */
+    @Deprecated
+    public static Boolean getForceRefeshVNCDisplay(Context context) {
+        return getForceRefreshVNCDisplay(context);
     }
 
     public static void setQuickStart(Context context, Boolean _boolean) {

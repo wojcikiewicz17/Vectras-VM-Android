@@ -48,7 +48,6 @@ import com.vectras.vm.settings.X11DisplaySettingsActivity;
 import com.vectras.vm.utils.DialogUtils;
 import com.vectras.vm.utils.FileUtils;
 import com.vectras.vm.utils.JSONUtils;
-import com.vectras.vm.utils.TextUtils;
 import com.vectras.vm.utils.UIUtils;
 import com.vectras.vterm.Terminal;
 
@@ -61,12 +60,12 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.io.Writer;
+import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
-import java.util.Random;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
@@ -636,84 +635,51 @@ public class VMManager {
     }
 
     public static String idGenerator() {
-        String _result = startRamdomVMID();
-
-        if (isFileExists(AppConfig.maindirpath + "/roms/" + _result)) {
-            _result = startRamdomVMID();
+        final int attempts = 512;
+        for (int attempt = 0; attempt < attempts; attempt++) {
+            String candidate = startRandomVMID();
+            if (!isFileExists(AppConfig.maindirpath + "/roms/" + candidate)) {
+                return candidate;
+            }
         }
 
-        if (isFileExists(AppConfig.maindirpath + "/roms/" + _result)) {
-            _result = startRamdomVMID();
-        }
-
-        return _result;
+        throw new IllegalStateException("Unable to allocate unique VM id after " + attempts + " attempts");
     }
 
+    private static final SecureRandom SECURE_RANDOM = new SecureRandom();
+
     @NonNull
-    public static String startRamdomVMID() {
-        Random random = new Random();
-        StringBuilder result = new StringBuilder();
+    public static String startRandomVMID() {
+        StringBuilder result = new StringBuilder(10);
 
         for (int i = 0; i < 10; i++) {
-            result.append(random.nextInt(2) > 0 ? TextUtils.randomALetter() : String.valueOf(random.nextInt(10)));
+            if (SECURE_RANDOM.nextBoolean()) {
+                result.append((char) ('a' + SECURE_RANDOM.nextInt(26)));
+            } else {
+                result.append((char) ('0' + SECURE_RANDOM.nextInt(10)));
+            }
         }
 
         return result.toString();
     }
 
-
-    public static ServerSocket reserveRandomPort() {
-        final Random random = new Random();
-        final int min = 10_000;
-        final int max = 65_535;
-        final int attempts = 128;
-        Set<Integer> reservedPorts = readReservedPortsFromVmDb();
-
-        for (int attempt = 0; attempt < attempts; attempt++) {
-            int candidate = random.nextInt(max - min + 1) + min;
-            if (reservedPorts.contains(candidate)) {
-                continue;
-            }
-            try {
-                ServerSocket socket = new ServerSocket(candidate);
-                socket.setReuseAddress(false);
-                return socket;
-            } catch (IOException ignored) {
-                // Busy port, keep searching.
-            }
-        }
-
-        try {
-            ServerSocket socket = new ServerSocket(0);
-            socket.setReuseAddress(false);
-            return socket;
-        } catch (IOException ioException) {
-            return null;
-        }
-    }
-
-    public static void releaseReservedPort(ServerSocket socket) {
-        if (socket == null) {
-            return;
-        }
-        try {
-            socket.close();
-        } catch (IOException ignored) {
-            // Best effort release.
-        }
+    /** @deprecated Use {@link #startRandomVMID()} instead. */
+    @Deprecated
+    @NonNull
+    public static String startRamdomVMID() {
+        return startRandomVMID();
     }
 
     //This can be removed because QMP currently uses sockets instead of open ports.
     @Deprecated
     public static int startRandomPort() {
-        final Random random = new Random();
         final int min = 10_000;
         final int max = 65_535;
         final int attempts = 128;
         Set<Integer> reservedPorts = readReservedPortsFromVmDb();
 
         for (int attempt = 0; attempt < attempts; attempt++) {
-            int candidate = random.nextInt(max - min + 1) + min;
+            int candidate = SECURE_RANDOM.nextInt(max - min + 1) + min;
             if (reservedPorts.contains(candidate)) {
                 continue;
             }
@@ -727,7 +693,7 @@ public class VMManager {
 
     private static Set<Integer> readReservedPortsFromVmDb() {
         Set<Integer> ports = new HashSet<>();
-        if (!FileUtils.isFileExists(AppConfig.romsdatajson) && !FileUtils.canRead(AppConfig.romsdatajson)) {
+        if (!FileUtils.isFileExists(AppConfig.romsdatajson) || !FileUtils.canRead(AppConfig.romsdatajson)) {
             return ports;
         }
         String content = FileUtils.readAFile(AppConfig.romsdatajson);

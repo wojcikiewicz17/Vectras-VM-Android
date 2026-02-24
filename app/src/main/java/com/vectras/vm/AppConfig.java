@@ -160,4 +160,33 @@ public class AppConfig {
 
     public static String patreonLink = "https://www.patreon.com/VectrasTeam";
 
+    public static synchronized void ensureStoragePaths(Context context) {
+        if (context != null) {
+            String resolvedMainDir = datadirpath(context);
+            if (resolvedMainDir != null && !resolvedMainDir.trim().isEmpty()) {
+                maindirpath = withTrailingSeparator(resolvedMainDir);
+            }
+        }
+
+        if (maindirpath == null || maindirpath.isEmpty()) {
+            maindirpath = LEGACY_FALLBACK_MAIN_DIR;
+        }
+
+        basefiledir = maindirpath + ".qemu/";
+        recyclebin = maindirpath + ".recyclebin/";
+        sharedFolder = maindirpath + "SharedFolder/";
+        downloadsFolder = maindirpath + "Downloads/";
+        romsdatajson = maindirpath + "roms-data.json";
+        vmFolder = maindirpath + "roms/";
+        importedDriveFolder = maindirpath + "drive/";
+        cvbiFolder = maindirpath + "cvbi/";
+    }
+
+    private static String withTrailingSeparator(String path) {
+        if (path.endsWith(File.separator)) {
+            return path;
+        }
+        return path + File.separator;
+    }
+
 }

@@ -330,8 +330,9 @@ public class StartVM {
             params.add("vc");
             //}
         } else if (MainSettingsManager.getVmUi(activity).equals("SPICE")) {
-            params.add("-spice");
-            params.add("addr=127.0.0.1,port=" + SPICE_PORT_PLACEHOLDER);
+            String spiceStr = "-spice ";
+            spiceStr += "port=" + Config.getSpicePortForCurrentVm() + ",disable-ticketing=on";
+            params.add(spiceStr);
         } else if (MainSettingsManager.getVmUi(activity).equals("X11")) {
             params.add("-display");
             params.add(MainSettingsManager.getUseSdl(activity) ? "sdl" : "gtk" + ",gl=on");
