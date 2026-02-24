@@ -3362,3 +3362,202 @@ Mapa arquivo-a-arquivo em três linhas por item: papel, ligação e comando de i
 - **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
 - **Inspeção**: `file "app/src/test/java/com/vectras/vm/vectra/VectraDeterministicContainerTest.kt"` e, quando texto, `sed -n "1,80p" "app/src/test/java/com/vectras/vm/vectra/VectraDeterministicContainerTest.kt"`.
 
+## `app/src/main/java/com/vectras/vm/VmProcessGuard.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/VmProcessGuard.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/VmProcessGuard.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/ExecutionBudget.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/ExecutionBudget.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/ExecutionBudget.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/ExecutionBudgetPolicy.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/ExecutionBudgetPolicy.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/ExecutionBudgetPolicy.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/ExecutionGovernance.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/ExecutionGovernance.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/ExecutionGovernance.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/ExecutionPolicyCenter.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/ExecutionPolicyCenter.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/ExecutionPolicyCenter.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/LogcatRuntime.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/LogcatRuntime.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/LogcatRuntime.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/LowLevelBridge.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/LowLevelBridge.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/LowLevelBridge.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/LowLevelDeterminism.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/LowLevelDeterminism.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/LowLevelDeterminism.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/LowLevelVector.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/LowLevelVector.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/LowLevelVector.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/NativeLogcatBridge.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/NativeLogcatBridge.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/NativeLogcatBridge.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/ProcessRuntimeOps.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/ProcessRuntimeOps.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/ProcessRuntimeOps.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/ProotCommandBuilder.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/ProotCommandBuilder.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/ProotCommandBuilder.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/QemuCpuBudget.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/QemuCpuBudget.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/QemuCpuBudget.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/ThreadPoolBudget.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/ThreadPoolBudget.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/ThreadPoolBudget.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/VmFlowNativeBridge.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/VmFlowNativeBridge.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/VmFlowNativeBridge.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/VmFlowState.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/VmFlowState.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/VmFlowState.java"`.
+
+## `app/src/main/java/com/vectras/vm/core/VmFlowTracker.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/core/VmFlowTracker.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/core/VmFlowTracker.java"`.
+
+## `app/src/main/java/com/vectras/vm/download/DownloadCoordinator.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/download/DownloadCoordinator.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/download/DownloadCoordinator.java"`.
+
+## `app/src/main/java/com/vectras/vm/download/DownloadItemState.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/download/DownloadItemState.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/download/DownloadItemState.java"`.
+
+## `app/src/main/java/com/vectras/vm/download/DownloadPathResolver.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/download/DownloadPathResolver.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/download/DownloadPathResolver.java"`.
+
+## `app/src/main/java/com/vectras/vm/download/DownloadStateReconciler.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/download/DownloadStateReconciler.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/download/DownloadStateReconciler.java"`.
+
+## `app/src/main/java/com/vectras/vm/download/DownloadStateStore.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/download/DownloadStateStore.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/download/DownloadStateStore.java"`.
+
+## `app/src/main/java/com/vectras/vm/download/DownloadStatus.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/download/DownloadStatus.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/download/DownloadStatus.java"`.
+
+## `app/src/main/java/com/vectras/vm/download/DownloadViewModel.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/download/DownloadViewModel.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/download/DownloadViewModel.java"`.
+
+## `app/src/main/java/com/vectras/vm/download/DownloadWorker.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/download/DownloadWorker.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/download/DownloadWorker.java"`.
+
+## `app/src/main/java/com/vectras/vm/importer/ImportSessionWorker.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/importer/ImportSessionWorker.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/importer/ImportSessionWorker.java"`.
+
+## `app/src/main/java/com/vectras/vm/importer/ImportStateStore.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/importer/ImportStateStore.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/importer/ImportStateStore.java"`.
+
+## `app/src/main/java/com/vectras/vm/localization/EndpointValidator.kt`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/localization/EndpointValidator.kt"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/localization/EndpointValidator.kt"`.
+
+## `app/src/main/java/com/vectras/vm/localization/NetworkEndpoints.kt`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/localization/NetworkEndpoints.kt"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/localization/NetworkEndpoints.kt"`.
+
+## `app/src/main/java/com/vectras/vm/main/MainUiStateViewModel.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/main/MainUiStateViewModel.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/main/MainUiStateViewModel.java"`.
+
+## `app/src/main/java/com/vectras/vm/network/EndpointFeature.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/network/EndpointFeature.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/network/EndpointFeature.java"`.
+
+## `app/src/main/java/com/vectras/vm/network/EndpointPolicy.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/network/EndpointPolicy.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/network/EndpointPolicy.java"`.
+
+## `app/src/main/java/com/vectras/vm/network/EndpointValidator.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/network/EndpointValidator.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/network/EndpointValidator.java"`.
+
+## `app/src/main/java/com/vectras/vm/network/NetworkEndpoints.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/network/NetworkEndpoints.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/network/NetworkEndpoints.java"`.
+
+## `app/src/main/java/com/vectras/vm/qemu/ExecutionBudgetPolicy.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/qemu/ExecutionBudgetPolicy.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/qemu/ExecutionBudgetPolicy.java"`.
+
+## `app/src/main/java/com/vectras/vm/rafaelia/RafaeliaMethodPaths.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/rafaelia/RafaeliaMethodPaths.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/rafaelia/RafaeliaMethodPaths.java"`.
+
+## `app/src/main/java/com/vectras/vm/rafaelia/RafaeliaPathValidator.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/rafaelia/RafaeliaPathValidator.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/rafaelia/RafaeliaPathValidator.java"`.
+
+## `app/src/main/java/com/vectras/vm/setupwizard/SetupFeatureCoreKtBridge.kt`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/setupwizard/SetupFeatureCoreKtBridge.kt"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/setupwizard/SetupFeatureCoreKtBridge.kt"`.
+
+## `app/src/main/java/com/vectras/vm/setupwizard/SetupStateValidator.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/setupwizard/SetupStateValidator.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/setupwizard/SetupStateValidator.java"`.
+
+## `app/src/main/java/com/vectras/vm/utils/SafeFileName.java`
+- **Papel**: código-fonte ou automação executável.
+- **Liga com**: ver [`app/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
+- **Inspeção**: `file "app/src/main/java/com/vectras/vm/utils/SafeFileName.java"` e, quando texto, `sed -n "1,80p" "app/src/main/java/com/vectras/vm/utils/SafeFileName.java"`.
