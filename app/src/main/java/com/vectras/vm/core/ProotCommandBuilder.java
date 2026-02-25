@@ -199,13 +199,13 @@ public class ProotCommandBuilder {
         }
         command.add("-w");
         command.add(workDir);
-        command.add("/bin/sh");
+        command.add(firstNotBlank(shell, "/bin/sh"));
         command.add("--login");
 
         return command;
     }
 
-    static List<String> buildDefaultBinds(String filesDir) {
+    static List<String> buildDefaultBinds(String filesDir, String rootfsPath) {
         List<String> binds = new ArrayList<>();
         binds.add(BIND_DEV);
         binds.add(BIND_PROC);
@@ -213,7 +213,7 @@ public class ProotCommandBuilder {
         binds.add(BIND_SDCARD);
         binds.add(BIND_STORAGE);
         binds.add(BIND_DATA);
-        binds.add(devShmBind(filesDir));
+        binds.add(devShmBind(rootfsPath));
         binds.add(tmpBind(filesDir));
         return binds;
     }
@@ -225,7 +225,7 @@ public class ProotCommandBuilder {
                 && bindDevShmEnabled
                 && bindTmpEnabled;
 
-        List<String> binds = allBaselineEnabled ? buildDefaultBinds(filesDir) : new ArrayList<>();
+        List<String> binds = allBaselineEnabled ? buildDefaultBinds(filesDir, rootfsPath) : new ArrayList<>();
 
         if (!allBaselineEnabled) {
             binds.add(BIND_DEV);
@@ -242,7 +242,7 @@ public class ProotCommandBuilder {
                 binds.add(BIND_DATA);
             }
             if (bindDevShmEnabled) {
-                binds.add(devShmBind(filesDir));
+                binds.add(devShmBind(rootfsPath));
             }
             if (bindTmpEnabled) {
                 binds.add(tmpBind(filesDir));
@@ -253,8 +253,8 @@ public class ProotCommandBuilder {
         return binds;
     }
 
-    private static String devShmBind(String filesDir) {
-        return filesDir + "/distro/root:/dev/shm";
+    private static String devShmBind(String rootfsPath) {
+        return rootfsPath + "/root:/dev/shm";
     }
 
     private static String tmpBind(String filesDir) {

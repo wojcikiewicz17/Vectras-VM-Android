@@ -123,6 +123,34 @@ public class ProotCommandBuilderTest {
         Assert.assertEquals("/tmp", environment.get("XDG_RUNTIME_DIR"));
     }
 
+
+    @Test
+    public void buildCommandShouldBindDevShmAgainstConfiguredRootfsPath() {
+        Context context = Mockito.mock(Context.class);
+        Mockito.when(context.getFilesDir()).thenReturn(new File("/data/user/0/com.vectras.vm/files"));
+
+        ProotCommandBuilder builder = new ProotCommandBuilder(context, "/opt/custom-rootfs", "/root");
+
+        List<String> command = builder.buildCommand();
+
+        assertHasPair(command, "-b", "/opt/custom-rootfs/root:/dev/shm");
+        assertMissingPair(command, "-b", "/data/user/0/com.vectras.vm/files/distro/root:/dev/shm");
+    }
+
+    @Test
+    public void buildCommandShouldUseConfiguredShell() {
+        Context context = Mockito.mock(Context.class);
+        Mockito.when(context.getFilesDir()).thenReturn(new File("/data/user/0/com.vectras.vm/files"));
+
+        ProotCommandBuilder builder = new ProotCommandBuilder(context, "/data/user/0/com.vectras.vm/files/distro", "/root")
+                .setShell("/bin/bash");
+
+        List<String> command = builder.buildCommand();
+
+        Assert.assertEquals("/bin/bash", command.get(command.size() - 2));
+        Assert.assertEquals("--login", command.get(command.size() - 1));
+    }
+
     private static void assertHasPair(List<String> values, String key, String expectedValue) {
         for (int i = 0; i < values.size() - 1; i++) {
             if (key.equals(values.get(i)) && expectedValue.equals(values.get(i + 1))) {
