@@ -84,6 +84,7 @@ public class ProcessSupervisor {
     private final QmpTransport qmpTransport;
     private final TransitionSink transitionSink;
     private final Clock clock;
+    private final Object processStopLock = new Object();
     private final TokenBucketRateLimiter qmpExecutionFailureLogLimiter =
             new TokenBucketRateLimiter(QMP_EXECUTION_FAILURE_LOG_REFILL_PER_SEC, QMP_EXECUTION_FAILURE_LOG_BURST);
     private volatile Process process;
@@ -203,58 +204,47 @@ public class ProcessSupervisor {
      * @param tryQmp quando true, tenta desligamento limpo via QMP antes de TERM/KILL
      * @return true se o processo foi finalizado durante a janela de timeout
      */
-    public boolean stopGracefully(boolean tryQmp) {
-        Process running;
-        State currentState;
-        long stallMs;
-        synchronized (this) {
-            running = process;
-            currentState = state;
-            stallMs = Math.max(0L, clock.monoMs() - startMonoMs);
+    public synchronized boolean stopGracefully(boolean tryQmp) {
+        synchronized (processStopLock) {
+            Process running = process;
+            State currentState = state;
+            long stallMs = Math.max(0L, clock.monoMs() - startMonoMs);
             if (running == null) {
-                transition(currentState, State.STOP, "missing_process", 0, 0, 0, "no_op");
+                if (currentState != State.STOP) {
+                    transition(currentState, State.STOP, "missing_process", 0, 0, 0, "no_op");
+                }
                 return true;
             }
-        }
 
-        boolean stopped = false;
-        boolean qmpRequested = false;
-        String qmpFailoverCause = "qmp_reject";
-        try {
-            if (tryQmp) {
-                qmpRequested = true;
-                QmpAttemptResult attemptResult = sendPowerdownWithTimeout(EXECUTORS.qmpGraceTimeoutMs());
-                qmpFailoverCause = attemptResult.failoverCause();
-                if (attemptResult.isAck() && awaitExit(running, 3_000)) {
-                    synchronized (this) {
+            boolean stopped = false;
+            boolean qmpRequested = false;
+            String qmpFailoverCause = "qmp_reject";
+            try {
+                if (tryQmp) {
+                    qmpRequested = true;
+                    QmpAttemptResult attemptResult = sendPowerdownWithTimeout(EXECUTORS.qmpGraceTimeoutMs());
+                    qmpFailoverCause = attemptResult.failoverCause();
+                    if (attemptResult.isAck() && awaitExit(running, 3_000)) {
                         transition(state, State.STOP, "qmp_shutdown", 0, 0, stallMs, "qmp");
+                        stopped = true;
+                        return true;
                     }
+                }
+
+                transition(state, State.FAILOVER, qmpRequested ? qmpFailoverCause : "no_qmp", 0, 0, stallMs, "term_kill");
+                running.destroy();
+                if (awaitExit(running, 3_000)) {
+                    transition(State.FAILOVER, State.STOP, "term_success", 0, 0, stallMs, "term");
                     stopped = true;
                     return true;
                 }
-            }
 
-            synchronized (this) {
-                transition(state, State.FAILOVER, qmpRequested ? qmpFailoverCause : "no_qmp", 0, 0, stallMs, "term_kill");
-            }
-            running.destroy();
-            if (awaitExit(running, 3_000)) {
-                synchronized (this) {
-                    transition(State.FAILOVER, State.STOP, "term_success", 0, 0, stallMs, "term");
-                }
-                stopped = true;
-                return true;
-            }
-
-            running.destroyForcibly();
-            boolean killed = awaitExit(running, 2_000);
-            synchronized (this) {
+                running.destroyForcibly();
+                boolean killed = awaitExit(running, 2_000);
                 transition(State.FAILOVER, State.STOP, killed ? "kill_success" : "kill_timeout", 0, 0, stallMs, "kill");
-            }
-            stopped = killed;
-            return killed;
-        } finally {
-            synchronized (this) {
+                stopped = killed;
+                return killed;
+            } finally {
                 if (stopped || (process != null && !process.isAlive())) {
                     process = null;
                 }
