@@ -981,7 +981,7 @@ Impacto: Garante processo termina sempre, nenhum QEMU órfão.
 
 CORREÇÃO #16: BuildConfig.VECTRA_CORE_ENABLED - Remover de Public API
 ───────────────────────────────────────────────────────────────────
-Arquivo: app/src/main/build.gradle
+Arquivo: app/build.gradle
 Linhas Afetadas: 75, 80
 Tipo: Information leakage via reflection
 
@@ -1018,7 +1018,7 @@ Impacto: Elimina information leakage, força acesso através de API controlada.
 
 CORREÇÃO #17: ProGuard Release Build - Obfuscação de BuildConfig
 ────────────────────────────────────────────────────────────────
-Arquivo: app/src/main/build.gradle e app/proguard-rules.pro
+Arquivo: app/build.gradle e app/proguard-rules.pro
 Linhas Afetadas: 79
 Tipo: Bytecode exposure de lógica sensível
 

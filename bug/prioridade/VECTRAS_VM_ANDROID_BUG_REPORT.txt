@@ -143,7 +143,7 @@ Impacto: QEMU process nunca termina, consuma CPU indefinidamente até manual kil
 
 BUG #16 [LOW] | Gradle buildConfigField VECTRA_CORE_ENABLED Reflection Exposure
 ────────────────────────────────────────────────────────────────────────────
-Arquivo: app/src/main/build.gradle
+Arquivo: app/build.gradle
 Linhas: 75, 80
 Descrição: BuildConfig.VECTRA_CORE_ENABLED exposto como public constant. App malicioso
 pode verificar valor via reflection sem permissão. Não security-critical mas viola
@@ -152,7 +152,7 @@ Impacto: Feature flag detection por malware, adaptive payload generation.
 
 BUG #17 [LOW] | ProGuard Release Build Debug Methods Retention
 ────────────────────────────────────────────────────────────────────────────
-Arquivo: app/src/main/build.gradle + proguard-rules.pro
+Arquivo: app/build.gradle + proguard-rules.pro
 Linha: 79
 Descrição: Debug build minified mas methods ainda kept (line 79 false). Lógica sensível
 como VM argument construction visível em bytecode. Considerar obfuscação de BuildConfig
