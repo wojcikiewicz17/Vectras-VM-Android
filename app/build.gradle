@@ -27,8 +27,9 @@ android {
                 def rmrEnablePolicyModule = providers.gradleProperty("RMR_ENABLE_POLICY_MODULE").orElse("ON").get()
                 def rmrEnableBitrafModule = providers.gradleProperty("RMR_ENABLE_BITRAF_MODULE").orElse("ON").get()
                 def nativeMcpu = providers.gradleProperty("nativeMcpu").orNull
-                def arm64CppFlags = ["-O3", "-ffast-math", "-fno-exceptions", "-fno-rtti", "-DRMR_JNI_BUILD=1"]
+                def arm64CppFlags = ["-O3", "-ffast-math", "-fno-exceptions", "-fno-rtti", "-march=armv8-a", "-DRMR_JNI_BUILD=1"]
                 if (nativeMcpu) {
+                    // -mcpu complementa o baseline de -march sem substituí-lo.
                     arm64CppFlags += "-mcpu=${nativeMcpu}"
                 }
                 cppFlags arm64CppFlags.join(" ")
