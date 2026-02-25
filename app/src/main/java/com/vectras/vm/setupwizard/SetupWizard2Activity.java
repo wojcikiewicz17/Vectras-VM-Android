@@ -151,6 +151,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     String installStateDetail = "";
     String normalizedLastError = "";
     String activeSetupTimestamp = "";
+    String lastProotSelfCheckBlock = "";
     boolean rollbackAvailable = false;
     final ArrayList<HashMap<String, String>> mirrorList = new ArrayList<>();
     ExecutorService executor = Executors.newSingleThreadExecutor();
@@ -472,6 +473,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
                     runOnUiThread(() -> new Handler(Looper.getMainLooper()).postDelayed(() -> {
                         if (result) {
+                            runAndDisplayProotSelfCheck();
                             SetupFeatureCore.PostInstallCheckResult postInstallCheckResult = SetupFeatureCore.runPostInstallCheck(this);
                             if (postInstallCheckResult.ok) {
                                 getDataForStandardSetup();
@@ -1231,6 +1233,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
         transitionInstallState(InstallState.INIT, "Retry requested by user.");
         if (SetupFeatureCore.isInstalledSystemFiles(this)) {
+            runAndDisplayProotSelfCheck();
             SetupFeatureCore.PostInstallCheckResult postInstallCheckResult = SetupFeatureCore.runPostInstallCheck(this);
             if (postInstallCheckResult.ok) {
                 getDataForStandardSetup();
@@ -1242,12 +1245,40 @@ public class SetupWizard2Activity extends AppCompatActivity {
         }
     }
 
+    private void runAndDisplayProotSelfCheck() {
+        try {
+            java.lang.reflect.Method runSelfCheckMethod = SetupFeatureCore.class.getMethod("runProotSelfCheck", Context.class);
+            Object result = runSelfCheckMethod.invoke(null, this);
+            if (result == null) {
+                lastProotSelfCheckBlock = "prootSelfCheck=unavailable\nreason=result-null";
+            } else {
+                java.lang.reflect.Method structuredTextMethod = result.getClass().getMethod("toStructuredText");
+                Object structuredTextValue = structuredTextMethod.invoke(result);
+                lastProotSelfCheckBlock = structuredTextValue == null
+                        ? "prootSelfCheck=unavailable\nreason=structured-text-null"
+                        : structuredTextValue.toString();
+            }
+        } catch (Exception e) {
+            lastProotSelfCheckBlock = "prootSelfCheck=unavailable\nreason=" + e.getClass().getSimpleName() + ":" + e.getMessage();
+        }
+
+        for (String line : lastProotSelfCheckBlock.split("\\R")) {
+            if (!line.trim().isEmpty()) {
+                Log.i(PROOT_SELF_CHECK_TAG, line);
+            }
+        }
+        appendTextAndScroll("\n[PROOT_SELF_CHECK]\n" + lastProotSelfCheckBlock + "\n");
+    }
+
     private void exportSetupDiagnostic() {
         String diagnostic = "state=" + installState + "\n"
                 + "detail=" + installStateDetail + "\n"
                 + "lastError=" + normalizedLastError + "\n"
                 + "setupSource=" + setupSource + "\n"
-                + "timestamp=" + activeSetupTimestamp + "\n\n"
+                + "timestamp=" + activeSetupTimestamp + "\n"
+                + "prootSelfCheck=" + (lastProotSelfCheckBlock.isEmpty() ? "not-run" : "captured") + "\n"
+                + (lastProotSelfCheckBlock.isEmpty() ? "" : "\n[PROOT_SELF_CHECK]\n" + lastProotSelfCheckBlock + "\n")
+                + "\n"
                 + logs;
         ClipboardUltils.copyToClipboard(this, diagnostic);
         UIUtils.toastShort(this, getString(R.string.export_results));

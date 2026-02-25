@@ -49,6 +49,7 @@ public class VncCanvasHoverMouseTest {
             assertEquals(100, historicalCall.x);
             assertEquals(200, historicalCall.y);
             assertEquals(MotionEvent.ACTION_HOVER_MOVE, historicalCall.action);
+            assertEquals(event.getMetaState(), historicalCall.modifiers);
             assertFalse(historicalCall.mouseIsDown);
             assertFalse(historicalCall.useRightButton);
             assertFalse(historicalCall.useMiddleButton);
@@ -58,6 +59,7 @@ public class VncCanvasHoverMouseTest {
             assertEquals(110, currentCall.x);
             assertEquals(210, currentCall.y);
             assertEquals(MotionEvent.ACTION_HOVER_MOVE, currentCall.action);
+            assertEquals(event.getMetaState(), currentCall.modifiers);
             assertFalse(currentCall.mouseIsDown);
             assertFalse(currentCall.useRightButton);
             assertFalse(currentCall.useMiddleButton);
@@ -80,7 +82,7 @@ public class VncCanvasHoverMouseTest {
         @Override
         boolean processPointerEvent(int x, int y, int action, int modifiers, boolean mouseIsDown,
                                     boolean useRightButton, boolean useMiddleButton, boolean scrollUp) {
-            pointerCalls.add(new PointerCall(x, y, action, mouseIsDown, useRightButton, useMiddleButton, scrollUp));
+            pointerCalls.add(new PointerCall(x, y, action, modifiers, mouseIsDown, useRightButton, useMiddleButton, scrollUp));
             return true;
         }
     }
@@ -89,16 +91,18 @@ public class VncCanvasHoverMouseTest {
         final int x;
         final int y;
         final int action;
+        final int modifiers;
         final boolean mouseIsDown;
         final boolean useRightButton;
         final boolean useMiddleButton;
         final boolean scrollUp;
 
-        PointerCall(int x, int y, int action, boolean mouseIsDown, boolean useRightButton,
+        PointerCall(int x, int y, int action, int modifiers, boolean mouseIsDown, boolean useRightButton,
                     boolean useMiddleButton, boolean scrollUp) {
             this.x = x;
             this.y = y;
             this.action = action;
+            this.modifiers = modifiers;
             this.mouseIsDown = mouseIsDown;
             this.useRightButton = useRightButton;
             this.useMiddleButton = useMiddleButton;

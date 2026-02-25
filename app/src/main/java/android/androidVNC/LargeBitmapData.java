@@ -24,6 +24,7 @@ import android.util.Log;
 class LargeBitmapData extends AbstractBitmapData {
 	private static final String TAG = "LargeBitmapData";
 	private static final int FRAMEBUFFER_UPDATE_MAX_BACKOFF_MS = 4000;
+	private static final int FRAMEBUFFER_UPDATE_RECONNECT_THRESHOLD = 5;
 	
 	/**
 	 * Multiply this times total number of pixels to get estimate of process size with all buffers plus
@@ -42,6 +43,7 @@ class LargeBitmapData extends AbstractBitmapData {
 	private int framebufferUpdateFailureCount;
 	private long nextFramebufferUpdateRetryAtMs;
 	private boolean forceFullRefreshOnNextSync;
+	private boolean reconnectSuggested;
 	
 	/**
 	 * Pool of temporary rectangle objects.  Need to synchronize externally access from
@@ -387,13 +389,14 @@ class LargeBitmapData extends AbstractBitmapData {
 		return nextFramebufferUpdateRetryAtMs > currentTimeMs();
 	}
 
-	private long currentTimeMs() {
+	long currentTimeMs() {
 		return System.currentTimeMillis();
 	}
 
 	private void resetFramebufferUpdateFailureTracking() {
 		framebufferUpdateFailureCount = 0;
 		nextFramebufferUpdateRetryAtMs = 0;
+		reconnectSuggested = false;
 	}
 
 	private void handleFramebufferUpdateFailure(String operation, Rect rect, IOException ioe) {
@@ -402,6 +405,12 @@ class LargeBitmapData extends AbstractBitmapData {
 		long backoffMs = Math.min(FRAMEBUFFER_UPDATE_MAX_BACKOFF_MS, 250L << exponentialStep);
 		nextFramebufferUpdateRetryAtMs = currentTimeMs() + backoffMs;
 		forceFullRefreshOnNextSync = true;
+		if (framebufferUpdateFailureCount >= FRAMEBUFFER_UPDATE_RECONNECT_THRESHOLD) {
+			reconnectSuggested = true;
+			if (vncCanvas != null) {
+				vncCanvas.closeConnection();
+			}
+		}
 		String rectLog = rect == null ? "none" : rect.toShortString();
 		Log.e(TAG,
 				"writeFramebufferUpdateRequest failed"
@@ -415,6 +424,9 @@ class LargeBitmapData extends AbstractBitmapData {
 						+ ",invalid=" + invalidList.getSize()
 						+ ",failureCount=" + framebufferUpdateFailureCount
 						+ ",nextRetryAtMs=" + nextFramebufferUpdateRetryAtMs
+						+ ",waitingForInput=" + waitingForInput
+						+ ",forceFullRefresh=" + forceFullRefreshOnNextSync
+						+ ",reconnectSuggested=" + reconnectSuggested
 						+ "}",
 				ioe);
 	}

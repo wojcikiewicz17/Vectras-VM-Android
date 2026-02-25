@@ -151,6 +151,34 @@ public class ProotCommandBuilderTest {
         Assert.assertEquals("--login", command.get(command.size() - 1));
     }
 
+    @Test
+    public void buildCommandShouldFallbackToDefaultShellWhenConfiguredShellIsBlank() {
+        Context context = Mockito.mock(Context.class);
+        Mockito.when(context.getFilesDir()).thenReturn(new File("/data/user/0/com.vectras.vm/files"));
+
+        ProotCommandBuilder builder = new ProotCommandBuilder(context, "/data/user/0/com.vectras.vm/files/distro", "/root")
+                .setShell("  ");
+
+        List<String> command = builder.buildCommand();
+
+        Assert.assertEquals("/bin/sh", command.get(command.size() - 2));
+        Assert.assertEquals("--login", command.get(command.size() - 1));
+    }
+
+    @Test
+    public void buildCommandShouldFallbackToContextFilesDirWhenOverrideIsBlank() {
+        Context context = Mockito.mock(Context.class);
+        Mockito.when(context.getFilesDir()).thenReturn(new File("/data/user/0/com.vectras.vm/files"));
+
+        ProotCommandBuilder builder = new ProotCommandBuilder(context, "/rootfs", "/root")
+                .setFilesDirPath("   ");
+
+        List<String> command = builder.buildCommand();
+
+        assertHasPair(command, "-b", "/data/user/0/com.vectras.vm/files/usr/tmp:/tmp");
+        assertMissingPair(command, "-b", "   /usr/tmp:/tmp");
+    }
+
     private static void assertHasPair(List<String> values, String key, String expectedValue) {
         for (int i = 0; i < values.size() - 1; i++) {
             if (key.equals(values.get(i)) && expectedValue.equals(values.get(i + 1))) {
