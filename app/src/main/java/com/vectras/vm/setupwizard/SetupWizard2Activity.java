@@ -1350,7 +1350,14 @@ public class SetupWizard2Activity extends AppCompatActivity {
         if (raw == null || raw.trim().isEmpty()) {
             return getString(R.string.something_went_wrong);
         }
-        String lowered = raw.toLowerCase();
+        String trimmed = raw.trim();
+        if (trimmed.startsWith(SetupFeatureCore.POST_CHECK_FAIL_PREFIX)
+                || trimmed.startsWith(SetupFeatureCore.COPY_FAIL_PREFIX)
+                || trimmed.startsWith(SetupFeatureCore.INTEGRITY_FAIL_PREFIX)
+                || trimmed.startsWith(SetupFeatureCore.EXTRACTION_FAIL_PREFIX)) {
+            return trimmed;
+        }
+        String lowered = trimmed.toLowerCase();
         if (lowered.contains("timeout")) {
             return "timeout";
         }
@@ -1363,7 +1370,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
         if (lowered.contains("segmentation fault") || lowered.contains("libproot")) {
             return "runtime-failure";
         }
-        return raw.trim();
+        return trimmed;
     }
 
     private void persistSetupSnapshot() {
