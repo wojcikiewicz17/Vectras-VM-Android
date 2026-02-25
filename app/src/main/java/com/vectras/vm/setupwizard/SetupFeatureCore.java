@@ -49,6 +49,9 @@ public class SetupFeatureCore {
     public static String TAG = "SetupFeatureCore";
     public static final String ABI_RESOLVE_TAG = "SETUP_ABI_RESOLVE";
     public static String lastErrorLog = "";
+    public static final String COPY_FAIL_PREFIX = "COPY_FAIL:";
+    public static final String INTEGRITY_FAIL_PREFIX = "INTEGRITY_FAIL:";
+    public static final String EXTRACTION_FAIL_PREFIX = "EXTRACTION_FAIL:";
     public static final String POST_CHECK_FAIL_PREFIX = "POST_CHECK_FAIL:";
     private static final String BOOTSTRAP_LOG_PREFIX = "PROOT_BOOTSTRAP";
 
@@ -773,6 +776,10 @@ public class SetupFeatureCore {
         final String[] selectedAssetHolder = new String[1];
         String assetPath = resolveAssetPath(context, fromAsset, selectedAssetHolder);
         if (assetPath == null) {
+            String detail = lastErrorLog == null || lastErrorLog.trim().isEmpty()
+                    ? "asset-path-resolution-failed fromAsset=" + fromAsset
+                    : lastErrorLog;
+            lastErrorLog = formatErrorCode(INTEGRITY_FAIL_PREFIX, detail);
             return false;
         }
         Log.i(TAG, BOOTSTRAP_LOG_PREFIX + " ABI_SELECTED candidates="
@@ -788,16 +795,16 @@ public class SetupFeatureCore {
             extractTargetPath = filesDirRealPath.resolve(extractTo).normalize();
             extractedTarPath = filesDirRealPath.resolve(randomFileName + ".tar").normalize();
         } catch (IOException | InvalidPathException e) {
-            lastErrorLog = "Invalid extraction path configuration: " + e;
+            lastErrorLog = formatErrorCode(INTEGRITY_FAIL_PREFIX, "Invalid extraction path configuration: " + e);
             Log.e(TAG, lastErrorLog, e);
             return false;
         }
 
         if (!extractTargetPath.startsWith(filesDirRealPath) || !extractedTarPath.startsWith(filesDirRealPath)) {
-            lastErrorLog = "Rejected extraction paths outside app files directory"
+            lastErrorLog = formatErrorCode(INTEGRITY_FAIL_PREFIX, "Rejected extraction paths outside app files directory"
                     + " filesDir=" + filesDirRealPath
                     + " extractTo=" + extractTargetPath
-                    + " extractedFilePath=" + extractedTarPath;
+                    + " extractedFilePath=" + extractedTarPath);
             Log.e(TAG, lastErrorLog);
             return false;
         }
@@ -822,13 +829,19 @@ public class SetupFeatureCore {
         if (isCompleted) {
             File extractedTarFile = extractedTarPath.toFile();
             if (!extractedTarPath.toString().endsWith(".tar") || !extractedTarFile.exists() || !extractedTarFile.isFile()) {
-                lastErrorLog = "Invalid tar file before extraction"
+                lastErrorLog = formatErrorCode(INTEGRITY_FAIL_PREFIX, "Invalid tar file before extraction"
                         + " path=" + extractedTarPath
                         + " exists=" + extractedTarFile.exists()
-                        + " isFile=" + extractedTarFile.isFile();
+                        + " isFile=" + extractedTarFile.isFile());
                 Log.e(TAG, lastErrorLog);
                 return false;
             }
+        } else {
+            String detail = lastErrorLog == null || lastErrorLog.trim().isEmpty()
+                    ? "copy-asset-failed asset=" + assetPath + " output=" + extractedTarPath
+                    : lastErrorLog;
+            lastErrorLog = formatErrorCode(COPY_FAIL_PREFIX, detail);
+            return false;
         }
 
         // Step 2: Run tar extraction
@@ -866,9 +879,9 @@ public class SetupFeatureCore {
                     stdoutCollector.join();
                 } catch (InterruptedException e) {
                     Thread.currentThread().interrupt();
-                    lastErrorLog = "Extraction output collector interrupted ["
+                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "OUTPUT_COLLECTOR_INTERRUPTED ["
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                            + "] asset=" + assetPath;
+                            + "] asset=" + assetPath);
                     Log.e(TAG, lastErrorLog, e);
                     return false;
                 }
@@ -879,34 +892,34 @@ public class SetupFeatureCore {
                     stderrSummary = errorOutput.toString().trim();
                 }
                 if (waitResult.status == ProcessRuntimeOps.TimeoutExecutionResult.Status.TIMEOUT) {
-                    lastErrorLog = "Timeout during extraction ["
+                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_TIMEOUT ["
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " detail=" + waitResult.message
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary);
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
 
                 if (waitResult.status == ProcessRuntimeOps.TimeoutExecutionResult.Status.ERROR) {
-                    lastErrorLog = "Extraction execution error ["
+                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_EXECUTION_ERROR ["
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " detail=" + waitResult.message
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary);
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
 
                 if (waitResult.exitCode != 0 || !stderrSummary.isEmpty()) {
-                    lastErrorLog = "Extraction failed ["
+                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_NON_ZERO_OR_OUTPUT_VALIDATION_FAIL ["
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " exit=" + waitResult.exitCode
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary);
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -943,14 +956,17 @@ public class SetupFeatureCore {
                 Log.i(TAG, BOOTSTRAP_LOG_PREFIX + " EXTRACT_OK asset=" + assetPath + " target=" + extractTargetPath);
                 return true;
             } catch (IOException e) {
-                lastErrorLog = lastErrorLog.isEmpty() ? e.toString() : lastErrorLog + "\n" + e;
+                lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_EXECUTION_IO_EXCEPTION " + e);
                 Log.e(TAG, "extractSystemFiles: ", e);
+                return false;
             } finally {
                 if (process != null) {
                     process.destroy();
                 }
             }
         }
+        lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX,
+                "UNEXPECTED_EXTRACTION_STATE asset=" + assetPath + " output=" + extractedTarPath);
         return false;
     }
 
@@ -992,10 +1008,23 @@ public class SetupFeatureCore {
             out.flush();
             return true;
         } catch (IOException e) {
-            lastErrorLog = e.toString();
+            lastErrorLog = formatErrorCode(COPY_FAIL_PREFIX,
+                    "asset=" + assetPath + " output=" + outputPath + " detail=" + e);
             Log.e(TAG, "copyAssetToFile: ", e);
             return false;
         }
+    }
+
+    public static String formatErrorCode(String prefix, String detail) {
+        String safePrefix = prefix == null || prefix.trim().isEmpty() ? EXTRACTION_FAIL_PREFIX : prefix.trim();
+        String safeDetail = detail == null ? "unknown" : detail.trim();
+        if (safeDetail.isEmpty()) {
+            safeDetail = "unknown";
+        }
+        if (safeDetail.startsWith(safePrefix)) {
+            return safeDetail;
+        }
+        return safePrefix + safeDetail;
     }
 
     public static void setDNS(Context context) {
