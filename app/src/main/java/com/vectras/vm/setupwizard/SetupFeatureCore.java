@@ -170,6 +170,66 @@ public class SetupFeatureCore {
         return POST_CHECK_FAIL_PREFIX + compactItems;
     }
 
+    public static boolean runProotSelfCheck(Context context) {
+        if (context == null) {
+            Log.w(TAG, "runProotSelfCheck: context is null");
+            return false;
+        }
+
+        String prootPath = context.getFilesDir().getAbsolutePath() + "/usr/bin/proot";
+        if (!FileUtils.isFileExists(prootPath)) {
+            Log.w(TAG, "runProotSelfCheck: missing proot binary at " + prootPath);
+            return false;
+        }
+
+        Process process = null;
+        try {
+            ProcessBuilder processBuilder = new ProcessBuilder(prootPath, "--help");
+            processBuilder.redirectErrorStream(true);
+            processBuilder.environment().remove("LD_LIBRARY_PATH");
+            process = processBuilder.start();
+
+            StringBuilder output = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(process.getInputStream()))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (output.length() < 4096) {
+                        output.append(line).append("\n");
+                    }
+                }
+            }
+
+            ProcessRuntimeOps.TimeoutExecutionResult waitResult = ProcessRuntimeOps.waitForByCategory(
+                    process,
+                    ProcessRuntimeOps.ExecutionCategory.QUICK_QUERY
+            );
+
+            boolean ok = waitResult.status == ProcessRuntimeOps.TimeoutExecutionResult.Status.SUCCESS
+                    && waitResult.exitCode == 0;
+            String outputSummary = output.toString().trim();
+            if (outputSummary.length() > 1024) {
+                outputSummary = outputSummary.substring(0, 1024);
+            }
+            if (ok) {
+                Log.i(TAG, "runProotSelfCheck: success detail=" + waitResult.message
+                        + (outputSummary.isEmpty() ? "" : " output=" + outputSummary));
+            } else {
+                Log.e(TAG, "runProotSelfCheck: failed status=" + waitResult.status
+                        + " exitCode=" + waitResult.exitCode
+                        + " detail=" + waitResult.message
+                        + (outputSummary.isEmpty() ? "" : " output=" + outputSummary));
+            }
+            return ok;
+        } catch (IOException e) {
+            Log.e(TAG, "runProotSelfCheck: ", e);
+            return false;
+        } finally {
+            if (process != null) {
+                process.destroy();
+            }
+        }
+    }
+
     public static SetupPostCheckResult runSetupPostCheck(Context context) {
         ArrayList<String> failedItems = new ArrayList<>();
         if (!isInstalledProot(context)) {

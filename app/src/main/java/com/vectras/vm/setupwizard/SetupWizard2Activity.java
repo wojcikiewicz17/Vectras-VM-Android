@@ -78,6 +78,8 @@ import java.util.regex.Pattern;
 
 public class SetupWizard2Activity extends AppCompatActivity {
     private static final String TAG = "SetupWizard2Activity";
+    public static final String ACTION_DEBUG_PROOT_SELF_CHECK = "com.vectras.vm.action.DEBUG_PROOT_SELF_CHECK";
+    public static final String EXTRA_DEBUG_PROOT_SELF_CHECK = "debug_proot_self_check";
     private static final String BOOTSTRAP_PREFIX_ARIA2 = " aria2c -x 4 --async-dns=false --disable-ipv6 -o setup.tar.gz ";
     private static final String BOOTSTRAP_PREFIX_CURL = " curl -o setup.tar.gz -L ";
     private static final String[] BOOTSTRAP_COMPATIBLE_ABI_PREFIXES = new String[]{"arm64-v8a", "aarch64", "armeabi-v7a", "arm", "armhf", "x86_64", "amd64", "x86", "i686"};
@@ -256,6 +258,10 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 VTERM.showVterm();
             }
         });
+        binding.ivOpenTerminal.setOnLongClickListener(v -> {
+            triggerDebugProotSelfCheck("ui-long-press");
+            return true;
+        });
 
         binding.btnRetrySetup.setOnClickListener(v -> retrySetupIdempotent());
 
@@ -303,12 +309,26 @@ public class SetupWizard2Activity extends AppCompatActivity {
             }).start();
         });
 
-        if (getIntent().hasExtra("action")) {
-            if (getIntent().getIntExtra("action", -1) == ACTION_SYSTEM_UPDATE) {
+        Intent launchIntent = getIntent();
+        if (ACTION_DEBUG_PROOT_SELF_CHECK.equals(launchIntent.getAction())
+                || launchIntent.getBooleanExtra(EXTRA_DEBUG_PROOT_SELF_CHECK, false)
+                ) {
+            triggerDebugProotSelfCheck("intent");
+        }
+
+        if (launchIntent.hasExtra("action")) {
+            if (launchIntent.getIntExtra("action", -1) == ACTION_SYSTEM_UPDATE) {
                 isSystemUpdateMode = true;
                 uiController(STEP_SYSTEM_UPDATE);
             }
         }
+    }
+
+    private void triggerDebugProotSelfCheck(String triggerOrigin) {
+        executor.execute(() -> {
+            boolean checkOk = SetupFeatureCore.runProotSelfCheck(this);
+            Log.i(TAG, "runProotSelfCheck trigger=" + triggerOrigin + " ok=" + checkOk);
+        });
     }
 
     private void uiController(int step) {
