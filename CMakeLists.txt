@@ -30,6 +30,7 @@ add_library(rmr STATIC
   engine/rmr/src/rmr_lowlevel_mix.c
   engine/rmr/src/rmr_lowlevel_reduce.c
   engine/rmr/src/rmr_neon_simd.c
+  engine/rmr/src/bitomega.c
 )
 
 target_include_directories(rmr PUBLIC engine/rmr/include)
