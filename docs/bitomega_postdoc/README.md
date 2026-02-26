@@ -1,31 +1,6 @@
 # BITΩ Postdoc Pack (skeleton)
 Este diretório é o “pacote acadêmico” do BITΩ, mantendo a linguagem formal e executável.
 
-## Convenção oficial de nomes (fonte de verdade)
-Os nomes esperados pelo processo de validação são os nomes **reais** publicados no
-`BITOMEGA_OVERLAY__V1.zip`:
-
-- `01_FORMALISM_BITOMEGA.md`
-- `02_TRANSITION_GRAPH.md`
-- `03_IMPLEMENTATION_MAP.md`
-- `04_EXPERIMENTS.md`
-- `05_RESULTS_TABLES.md`
-
-Decisão adotada: **Estratégia A** (atualizar a checagem para os nomes atuais do ZIP).
-Não existe etapa de renomeação pós-extração para os aliases
-`01_FOUNDATIONS.md`, `02_METHODS.md`, `03_RESULTS.md`, `04_IMPL_DETAILS.md`,
-`05_VALIDATION.md`.
-
-## Validação local
-Executar:
-
-```bash
-docs/bitomega_postdoc/validate_pack.sh
-```
-
-O script valida o conjunto completo do pacote (`00` até `06`) usando a mesma
-convenção de nomes do ZIP.
-
 ## Ordem sugerida
 1. 00_THESIS_OVERVIEW.md
 2. 01_FORMALISM_BITOMEGA.md
