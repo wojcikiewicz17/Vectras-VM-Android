@@ -16,6 +16,20 @@ Não existe etapa de renomeação pós-extração para os aliases
 `01_FOUNDATIONS.md`, `02_METHODS.md`, `03_RESULTS.md`, `04_IMPL_DETAILS.md`,
 `05_VALIDATION.md`.
 
+## Compatibilidade com aliases antigos
+Aliases históricos podem aparecer em rascunhos internos, mas **não** fazem parte da
+validação automática atual.
+
+| Alias antigo | Nome canônico (ZIP) |
+| --- | --- |
+| `01_FOUNDATIONS.md` | `01_FORMALISM_BITOMEGA.md` |
+| `02_METHODS.md` | `02_TRANSITION_GRAPH.md` |
+| `03_RESULTS.md` | `03_IMPLEMENTATION_MAP.md` |
+| `04_IMPL_DETAILS.md` | `04_EXPERIMENTS.md` |
+| `05_VALIDATION.md` | `05_RESULTS_TABLES.md` |
+
+Se um fluxo externo exigir os aliases, a conversão deve acontecer fora deste diretório.
+
 ## Validação local
 Executar:
 
