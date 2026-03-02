@@ -1,0 +1,43 @@
+name: proof-build-process
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  host-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build python3 graphviz
+
+      - name: Print build config
+        run: make print-build-config
+
+      - name: Make build
+        run: make -j"$(nproc)"
+
+      - name: Selftests
+        run: make run-selftest
+
+      - name: Root CMake configure + build
+        run: |
+          cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
+          cmake --build build-cmake -j"$(nproc)"
+
+      - name: Upload host logs if failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-proof-logs
+          path: |
+            build
+            build-cmake
+            bench/results

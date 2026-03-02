@@ -1,0 +1,43 @@
+name: vectras-ci
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  host-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install host build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential cmake ninja-build python3 graphviz
+
+      - name: Show hosted engine config
+        run: make print-build-config
+
+      - name: Build engine with Makefile
+        run: make -j"$(nproc)"
+
+      - name: Run engine selftests
+        run: make run-selftest
+
+      - name: Build engine with root CMake
+        run: |
+          cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
+          cmake --build build-cmake -j"$(nproc)"
+
+      - name: Upload host logs if failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-engine-logs
+          path: |
+            build
+            build-cmake
+            bench/results
