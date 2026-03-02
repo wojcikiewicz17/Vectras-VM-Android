@@ -1,4 +1,4 @@
-name: vectras-ci
+name: proof-build-process
 
 on:
   push:
@@ -6,28 +6,28 @@ on:
   workflow_dispatch:
 
 jobs:
-  host-engine:
+  host-proof:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install host build deps
+      - name: Install deps
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential cmake ninja-build python3 graphviz
 
-      - name: Show hosted engine config
+      - name: Print build config
         run: make print-build-config
 
-      - name: Build engine with Makefile
+      - name: Make build
         run: make -j"$(nproc)"
 
-      - name: Run engine selftests
+      - name: Selftests
         run: make run-selftest
 
-      - name: Build engine with root CMake
+      - name: Root CMake configure + build
         run: |
           cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
           cmake --build build-cmake -j"$(nproc)"
@@ -36,7 +36,7 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: host-engine-logs
+          name: host-proof-logs
           path: |
             build
             build-cmake
