@@ -240,7 +240,14 @@ checkNativeMatrixTasks = checkNativeMatrixTasks.sort()
 
 tasks.register('checkNativeAllMatrix') {
     group = "verification"
-    description = "Valida a matriz completa de APP_ABI_POLICY (arm64-only, with-32bit) e variants (debug, release, perfRelease)."
+    description = "Executa a matriz dinâmica de APP_ABI_POLICY/variants e as verificações de compatibilidade nativa do projeto raiz."
+
+    // Verificações de compatibilidade registradas no build.gradle raiz.
+    dependsOn(":verifyMinApiAbiCompatibility")
+    dependsOn(":verifyArm64ToolchainCompatibility")
+    dependsOn(":verifyGradleRuntimeJvm")
+
+    // Matriz dinâmica de assemble da app.
     dependsOn(checkNativeMatrixTasks)
 }
 tasks.register("printNativeVariantConfig") {
@@ -264,22 +271,6 @@ tasks.register("printNativeVariantConfig") {
         }
     }
 }
-
-tasks.register("checkNativeAllMatrix") {
-    group = "verification"
-    description = "Executa verificações nativas de raiz e a matriz de assemble da app (debug/release/perfRelease)."
-
-    // Verificações de compatibilidade registradas no build.gradle raiz.
-    dependsOn(":verifyMinApiAbiCompatibility")
-    dependsOn(":verifyArm64ToolchainCompatibility")
-    dependsOn(":verifyGradleRuntimeJvm")
-
-    // Matriz de assemble da app.
-    dependsOn(":app:assembleDebug")
-    dependsOn(":app:assembleRelease")
-    dependsOn(":app:assemblePerfRelease")
-}
-
 
 def ciTestFocus = providers.gradleProperty("CI_TEST_FOCUS").orNull
 
