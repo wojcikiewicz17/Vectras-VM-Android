@@ -379,7 +379,7 @@ jobs:
         echo "build_debug=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_debug || 'true' }}"
         echo "build_release=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_release || 'true' }}"
         echo "sign_release=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release || 'true' }}"
-        echo "upload_telegram=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram || 'true' }}"
+        echo "upload_telegram=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram || 'false' }}"
         echo "compile_api=${COMPILE_API}"
         echo "tools_version=${TOOLS_VERSION}"
         echo "ndk_version=${NDK_VERSION}"
@@ -548,23 +548,6 @@ jobs:
         print(f'Validated local markdown links in {len(md_files)} files.')
         PY
 
-    - name: Send notification to Telegram
-      if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.upload_telegram == 'true' }}
-      run: |
-        set -euo pipefail
-        if [[ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]]; then
-          message=$'New update available on GitHub repository and building APK.\nPlease wait about 5 minutes.\nRun ID: '${GITHUB_RUN_ID}
-
-          curl --fail --silent --show-error --retry 3 --retry-all-errors -o /dev/null -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-              -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-              -d "message_thread_id=8" \
-              -d "text=${message}"
-
-          curl --fail --silent --show-error --retry 3 --retry-all-errors -o /dev/null -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendMessage" \
-               -d "chat_id=${{ secrets.TELEGRAM_CHAT_ID_VEC }}" \
-               -d "text=${message}"
-        fi
-
     - name: Build Debug APK
       if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_debug == 'true' }}
       env:
@@ -720,30 +703,57 @@ jobs:
         name: android-release-apk
         path: ${{ steps.release_artifact.outputs.path }}
 
-    - name: Upload to Telegram
-      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_telegram == 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true') }}
+    - name: Stage Release APKs for Telegram upload
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && github.event.inputs.build_release == 'true' }}
+      shell: bash
       run: |
-          set -euo pipefail
-          shopt -s nullglob
-          release_apks=(artifacts/release/*.apk)
-          if [ ${#release_apks[@]} -eq 0 ]; then
-            echo "No release APK found to upload." >&2
-            exit 1
-          fi
+        set -euo pipefail
+        shopt -s nullglob
+        mkdir -p artifacts/release
+        release_apks=(app/build/outputs/apk/release/*.apk)
+        if [[ ${#release_apks[@]} -eq 0 ]]; then
+          echo "No APK files found under app/build/outputs/apk/release for Telegram staging." >&2
+          exit 1
+        fi
+        cp app/build/outputs/apk/release/*.apk artifacts/release/
 
-          caption=$'Done! Note that this is a version that is automatically built when there are changes in the GitHub repository, not the official version. Please only install it if you really want to see what is new.\nExplore beta releases here: https://github.com/AnBui2004/Vectras-VM-Emu-Android/releases\nRun ID: '${GITHUB_RUN_ID}
+    - name: Upload to Telegram
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && github.event.inputs.build_release == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
 
-          for file in "${release_apks[@]}"; do
+        if [[ -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" || ( -z "${{ secrets.TELEGRAM_CHAT_ID }}" && -z "${{ secrets.TELEGRAM_CHAT_ID_VEC }}" ) ]]; then
+          echo "Telegram secrets/chat IDs are not configured; skipping Telegram upload gracefully."
+          exit 0
+        fi
+
+        shopt -s nullglob
+        release_apks=(artifacts/release/*.apk)
+        if [[ ${#release_apks[@]} -eq 0 ]]; then
+          echo "Upload requested but no staged release APK found in artifacts/release/*.apk." >&2
+          exit 1
+        fi
+
+        caption="Done! Note that this is a version that is automatically built when there are changes in the GitHub repository, not the official version. Please only install it if you really want to see what is new.
+Explore beta releases here: https://github.com/AnBui2004/Vectras-VM-Emu-Android/releases
+Run ID: ${GITHUB_RUN_ID}"
+
+        for file in "${release_apks[@]}"; do
+          if [[ -n "${{ secrets.TELEGRAM_CHAT_ID }}" ]]; then
             curl --fail --silent --show-error --retry 3 --retry-all-errors -o /dev/null \
               -F "document=@${file}" \
               -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
               -F "message_thread_id=8" \
               -F "caption=${caption}" \
               "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
+          fi
 
+          if [[ -n "${{ secrets.TELEGRAM_CHAT_ID_VEC }}" ]]; then
             curl --fail --silent --show-error --retry 3 --retry-all-errors -o /dev/null \
               -F "document=@${file}" \
               -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID_VEC }}" \
               -F "caption=${caption}" \
               "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
-          done
+          fi
+        done
