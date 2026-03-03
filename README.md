@@ -111,6 +111,13 @@ source <(./tools/configure_java_home.sh --print)
 ./tools/gradle_with_jdk21.sh verifyGradleRuntimeJvm
 ```
 
+### Validação canônica de setup/CI/build
+```bash
+./tools/gradle_with_jdk21.sh checkNativeAllMatrix
+```
+
+Essa task já encadeia `verifyMinApiAbiCompatibility`, `verifyArm64ToolchainCompatibility`, `verifyGradleRuntimeJvm` e executa `assembleDebug`, `assembleRelease`, `assemblePerfRelease` nas políticas de ABI suportadas.
+
 Para fixar por usuário (sem depender de shell):
 ```properties
 # ~/.gradle/gradle.properties
