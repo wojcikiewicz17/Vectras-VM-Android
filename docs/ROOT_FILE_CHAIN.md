@@ -2,11 +2,6 @@
 
 Cada item abaixo segue reflexão técnica em três linhas: papel, ligação e comando de inspeção.
 
-## `.firebaserc`
-- **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
-- **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
-- **Inspeção**: `sed -n "1,120p" .firebaserc` (texto) ou `file .firebaserc` (binário).
-
 ## `.gitignore`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.

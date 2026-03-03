@@ -42,5 +42,3 @@
 -keepnames class com.vectras.vm.settings.UpdaterActivity
 -keepnames class com.vectras.vm.x11.LoriePreferences
 
-# Firebase Realtime Database generic mapper.
--keep class * extends com.google.firebase.database.GenericTypeIndicator { *; }

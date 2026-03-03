@@ -27,5 +27,6 @@ Veja `FIXES_SUMMARY.md` para tabela completa.
 - `docs/SETUP_SDK_NDK.md` — setup local
 - `tools/qemu_launch.yml` — QEMU configuration
 - `archive/root-history/IMPLEMENTATION_COMPLETE.md`
+- Política de overlays: ZIPs na raiz não são fonte de verdade; somente a árvore Git é oficial, com bloqueio em CI para conteúdo duplicado.
 
 > Atualize este arquivo sempre que o estado do projeto mudar.
