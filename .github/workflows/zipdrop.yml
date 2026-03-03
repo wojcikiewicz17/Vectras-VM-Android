@@ -1,11 +1,18 @@
 name: zipdrop-overlay
 
 on:
+  # ✅ Drop a zip into _incoming/ and push.
+  # This workflow will safely apply it and self-commit the extracted delta.
   push:
-    branches: [ "main" ]
+    # Don't lock to a single default branch: many repos still use master/dev.
     paths:
-      - "_incoming1/*.zip"
+      - "_incoming/**/*.zip"
       - "*.zip"
+  workflow_dispatch:
+
+concurrency:
+  group: zipdrop-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   apply:
@@ -19,6 +26,8 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          # keep auth so we can push back using GITHUB_TOKEN
+          persist-credentials: true
 
       - name: Apply incoming zip(s)
         shell: bash
@@ -26,7 +35,7 @@ jobs:
           set -euo pipefail
           shopt -s nullglob
 
-          zips=( _incoming/*.zip ./*.zip )
+          zips=( _incoming/**/*.zip ./*.zip )
           for z in "${zips[@]}"; do
             [[ -f "$z" ]] || continue
 
@@ -83,4 +92,7 @@ PY
           git config user.email "zipdrop-bot@users.noreply.github.com"
           git add -A
           git commit -m "[zipdrop] apply delta"
-          git push
+
+          # Avoid non-fast-forward if multiple zips land close together.
+          git pull --rebase origin "${GITHUB_REF_NAME}" || true
+          git push origin "HEAD:${GITHUB_REF_NAME}"

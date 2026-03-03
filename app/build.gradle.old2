@@ -3,8 +3,6 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
-import groovy.json.JsonSlurper
-
 android {
     namespace = 'com.vectras.vm'
     compileSdk = rootProject.ext.compileApi
@@ -166,83 +164,6 @@ tasks.register("checkGradleCmakeConfig") {
     }
 }
 
-def firebaseConfigFile = file("${project.projectDir}/google-services.json")
-
-tasks.register("validateFirebaseReleaseConfig") {
-    group = "verification"
-    description = "Falha builds release quando google-services.json está ausente ou com project_id placeholder."
-
-    doLast {
-        if (!firebaseConfigFile.exists()) {
-            throw new GradleException("google-services.json ausente para variant release. Injete o arquivo real via secret/base64 no CI ou use fallback apenas para debug. Veja app/FIREBASE.md.")
-        }
-
-        def firebaseConfig
-        try {
-            firebaseConfig = new JsonSlurper().parse(firebaseConfigFile)
-        } catch (Exception e) {
-            throw new GradleException("google-services.json inválido para build release: ${e.message}")
-        }
-
-        def projectId = (firebaseConfig?.project_info?.project_id ?: "").toString().trim()
-        if (!projectId) {
-            throw new GradleException("google-services.json sem project_info.project_id para variant release.")
-        }
-
-        if (projectId.toLowerCase().contains("placeholder")) {
-            throw new GradleException("Build release bloqueado: project_id contém 'placeholder' (${projectId}). Injete o google-services.json de produção via segredo de pipeline.")
-        }
-
-        logger.lifecycle("[validateFirebaseReleaseConfig] project_id=${projectId} (ok)")
-    }
-}
-
-tasks.matching { task ->
-    task.name in ["preReleaseBuild", "prePerfReleaseBuild"]
-}.configureEach {
-    dependsOn(tasks.named("validateFirebaseReleaseConfig"))
-}
-
-
-
-def nativeCheckAbiPolicies = ['arm64-only', 'with-32bit'].sort()
-def nativeCheckBuildVariants = ['debug', 'release', 'perfRelease'].sort()
-
-def abiPolicyTaskPart = { String policy ->
-    policy.split('-').collect { token ->
-        token ? token.substring(0, 1).toUpperCase() + token.substring(1) : token
-    }.join('')
-}
-
-def variantTaskPart = { String variant ->
-    variant ? variant.substring(0, 1).toUpperCase() + variant.substring(1) : variant
-}
-
-def checkNativeMatrixTasks = []
-
-nativeCheckAbiPolicies.each { policy ->
-    nativeCheckBuildVariants.each { variant ->
-        def nativeTaskName = "checkNative${abiPolicyTaskPart(policy)}${variantTaskPart(variant)}"
-        checkNativeMatrixTasks << nativeTaskName
-
-        tasks.register(nativeTaskName, Exec) {
-            group = "verification"
-            description = "Executa :app:assemble${variantTaskPart(variant)} com APP_ABI_POLICY=${policy}."
-            workingDir rootProject.projectDir
-            commandLine rootProject.file('gradlew').absolutePath,
-                        ':app:assemble' + variantTaskPart(variant),
-                        "-PAPP_ABI_POLICY=${policy}"
-        }
-    }
-}
-
-checkNativeMatrixTasks = checkNativeMatrixTasks.sort()
-
-tasks.register('checkNativeAllMatrix') {
-    group = "verification"
-    description = "Valida a matriz completa de APP_ABI_POLICY (arm64-only, with-32bit) e variants (debug, release, perfRelease)."
-    dependsOn(checkNativeMatrixTasks)
-}
 tasks.register("printNativeVariantConfig") {
     group = "verification"
     description = "Imprime ABIs efetivas e argumentos CMake configurados por variant."
@@ -261,33 +182,6 @@ tasks.register("printNativeVariantConfig") {
             logger.lifecycle("[printNativeVariantConfig] variant=${variant.name}")
             logger.lifecycle("[printNativeVariantConfig] abiFilters=${supportedAbis}")
             logger.lifecycle("[printNativeVariantConfig] cmakeArgs=${(defaultConfigCmakeArgs + variantCmakeArgs).unique()}")
-        }
-    }
-}
-
-tasks.register("checkNativeAllMatrix") {
-    group = "verification"
-    description = "Executa verificações nativas de raiz e a matriz de assemble da app (debug/release/perfRelease)."
-
-    // Verificações de compatibilidade registradas no build.gradle raiz.
-    dependsOn(":verifyMinApiAbiCompatibility")
-    dependsOn(":verifyArm64ToolchainCompatibility")
-    dependsOn(":verifyGradleRuntimeJvm")
-
-    // Matriz de assemble da app.
-    dependsOn(":app:assembleDebug")
-    dependsOn(":app:assembleRelease")
-    dependsOn(":app:assemblePerfRelease")
-}
-
-
-def ciTestFocus = providers.gradleProperty("CI_TEST_FOCUS").orNull
-
-android.sourceSets {
-    test {
-        if (ciTestFocus == "proot") {
-            java.setSrcDirs(["src/test/java"])
-            java.include "com/vectras/vm/core/ProotCommandBuilderTest.java"
         }
     }
 }
@@ -328,6 +222,7 @@ dependencies {
     testImplementation 'org.robolectric:robolectric:4.14.1'
     testImplementation 'org.mockito:mockito-core:5.12.0'
     testImplementation 'org.mockito:mockito-inline:5.2.0'
+    testImplementation 'androidx.test:core:1.6.1'
     androidTestImplementation 'androidx.test.ext:junit:1.3.0'
     androidTestImplementation 'androidx.test.espresso:espresso-core:3.7.0'
 }
