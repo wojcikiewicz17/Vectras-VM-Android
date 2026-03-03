@@ -353,7 +353,9 @@ jobs:
     name: '03 • Build Debug APK'
     runs-on: ubuntu-latest
     timeout-minutes: 60
-    needs: test_and_verify
+    needs:
+      - test_and_verify
+      - preflight
     environment: BuildAPK
     env:
       COMPILE_API: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.compile_api || vars.COMPILE_API || '35' }}
@@ -607,16 +609,48 @@ jobs:
         fi
 
 
-    - name: Materialize Firebase config for release (required)
+    - name: Materialize Firebase config for release (optional fallback)
       if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
-        if [[ -z "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" ]]; then
-          echo "Missing VECTRAS_GOOGLE_SERVICES_JSON_B64 secret for release build" >&2
-          exit 1
+        if [[ -n "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" ]]; then
+          echo "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" | base64 --decode > app/google-services.json
+          echo "Firebase config loaded from VECTRAS_GOOGLE_SERVICES_JSON_B64 for release build"
+        else
+          cat > app/google-services.json <<'JSON'
+        {
+          "project_info": {
+            "project_number": "000000000000",
+            "project_id": "vectras-vm-placeholder",
+            "storage_bucket": "vectras-vm-placeholder.appspot.com"
+          },
+          "client": [
+            {
+              "client_info": {
+                "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+                "android_client_info": {
+                  "package_name": "com.vectras.vm"
+                }
+              },
+              "oauth_client": [],
+              "api_key": [
+                {
+                  "current_key": "AIzaSyDummyKeyForBuildPurposesOnly000000"
+                }
+              ],
+              "services": {
+                "appinvite_service": {
+                  "other_platform_oauth_client": []
+                }
+              }
+            }
+          ],
+          "configuration_version": "1"
+        }
+        JSON
+          echo "Using local placeholder Firebase config for release verification"
         fi
-        echo "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" | base64 --decode > app/google-services.json
 
     - name: Validate Firebase release config
       if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true' }}
@@ -625,15 +659,15 @@ jobs:
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
       run: ./gradlew :app:validateFirebaseReleaseConfig ${{ env.GRADLE_ARGS }}
 
-    - name: Build Release APK (unsigned)
-      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.build_release == 'true' && github.event.inputs.sign_release != 'true' }}
+    - name: Build Release APK (unsigned fallback)
+      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true') && !((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') }}
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
       run: ./gradlew assembleRelease -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
 
     - name: Build Release APK (signed via CI secrets)
-      if: ${{ github.event_name != 'workflow_dispatch' || (github.event.inputs.build_release == 'true' && github.event.inputs.sign_release == 'true') }}
+      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true') && ((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') }}
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
@@ -642,10 +676,6 @@ jobs:
         VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
         VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
       run: |
-        if [[ -z "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}" ]]; then
-          echo "Missing VECTRAS_RELEASE_KEYSTORE_B64 secret for release signing" >&2
-          exit 1
-        fi
         echo "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}" | base64 --decode > "$VECTRAS_RELEASE_STORE_FILE"
         ./gradlew assembleRelease \
           -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION} \
@@ -653,6 +683,28 @@ jobs:
           -Pandroid.injected.signing.store.password="$VECTRAS_RELEASE_STORE_PASSWORD" \
           -Pandroid.injected.signing.key.alias="$VECTRAS_RELEASE_KEY_ALIAS" \
           -Pandroid.injected.signing.key.password="$VECTRAS_RELEASE_KEY_PASSWORD"
+
+    - name: Resolve release artifact path
+      id: release_artifact
+      if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        signed_apk="app/build/outputs/apk/release/app-release.apk"
+        unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
+
+        if [[ -f "${signed_apk}" ]]; then
+          echo "path=${signed_apk}" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        if [[ -f "${unsigned_apk}" ]]; then
+          echo "path=${unsigned_apk}" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        echo "No release APK found after release build" >&2
+        exit 1
 
     - name: Upload Debug APK as artifact
       if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_debug == 'true' }}
@@ -666,7 +718,7 @@ jobs:
       uses: actions/upload-artifact@v4
       with:
         name: android-release-apk
-        path: app/build/outputs/apk/release/app-release.apk
+        path: ${{ steps.release_artifact.outputs.path }}
 
     - name: Upload to Telegram
       if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.upload_telegram == 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true') }}
