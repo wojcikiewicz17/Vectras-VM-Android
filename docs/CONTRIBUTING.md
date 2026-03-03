@@ -140,15 +140,13 @@ git checkout -b feature/your-feature-name
 ./gradlew lint
 ```
 
-### Firebase Configuration
+### Backend and Telemetry Configuration
 
-For builds that require Firebase (analytics, crashlytics):
+This repository now follows a local authorial backend strategy (Bitstack Local Pipeline).
 
-1. Create a Firebase project at https://console.firebase.google.com/
-2. Add your Android app with package name `com.vectras.vm`
-3. Download `google-services.json` to the `app/` directory
-
-For builds without Firebase, use the placeholder configuration documented in [FIREBASE.md](../app/FIREBASE.md).
+- `google-services.json` is **not required** for standard builds.
+- Build and test flow is fully local/offline-oriented.
+- Telemetry/failure tracking guidance is documented in [FIREBASE.md](../app/FIREBASE.md).
 
 ---
 

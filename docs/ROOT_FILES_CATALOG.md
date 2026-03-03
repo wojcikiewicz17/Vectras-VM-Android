@@ -40,34 +40,31 @@ Este catálogo documenta os **arquivos soltos atualmente presentes no diretório
 ## 9) `.gitignore`
 - Regras de exclusão de artefatos e arquivos sensíveis.
 
-## 10) `.firebaserc`
-- Configuração do projeto padrão no Firebase CLI.
-
-## 11) `PROJECT_STATE.md`
+## 10) `PROJECT_STATE.md`
 - Estado consolidado do projeto e marcos recentes.
 
-## 12) `CHANGELOG.md`
+## 11) `CHANGELOG.md`
 - Histórico de mudanças por versão/período.
 
-## 13) `DOC_INDEX.md`
+## 12) `DOC_INDEX.md`
 - Índice de documentação do repositório.
 
-## 14) `RELEASE_NOTES.md`
+## 13) `RELEASE_NOTES.md`
 - Notas de release e highlights por entrega.
 
-## 15) `THIRD_PARTY_NOTICES.md`
+## 14) `THIRD_PARTY_NOTICES.md`
 - Avisos e atribuições de componentes de terceiros.
 
-## 16) `VECTRAS_MEGAPROMPT_DOCS.md`
+## 15) `VECTRAS_MEGAPROMPT_DOCS.md`
 - Documento de diretrizes/prompt documental do projeto.
 
-## 17) `CMakeLists.txt`
+## 16) `CMakeLists.txt`
 - Configuração de build C/C++ (CMake) na raiz.
 
-## 18) `Makefile`
+## 17) `Makefile`
 - Alvos de automação/build auxiliares na raiz.
 
-## 19) `local.properties.example`
+## 18) `local.properties.example`
 - Exemplo de propriedades locais para configuração de ambiente.
 
 ---
@@ -93,7 +90,7 @@ A relação abaixo descreve o encadeamento funcional de alto nível **com base e
 1. **Base institucional**: `README.md` e `LICENSE`.
 2. **Build e configuração**: `build.gradle`, `settings.gradle`, `gradle.properties`, `gradlew`, `gradlew.bat`, `CMakeLists.txt`, `Makefile`, `local.properties.example`.
 3. **Governança documental**: `DOC_INDEX.md`, `PROJECT_STATE.md`, `CHANGELOG.md`, `RELEASE_NOTES.md`, `THIRD_PARTY_NOTICES.md`, `VECTRAS_MEGAPROMPT_DOCS.md`, `VECTRA_CORE.md`.
-4. **Integrações**: `.firebaserc` e regras operacionais em `.gitignore`.
+4. **Integrações**: regras operacionais em `.gitignore` e cadeia documental de build local.
 
 > Importante: este catálogo é um artefato editorial; pode ficar defasado se a raiz mudar sem atualização correspondente.
 

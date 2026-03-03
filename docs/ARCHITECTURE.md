@@ -85,6 +85,13 @@ sequenceDiagram
 - O determinismo matemático e de política (CRC32C, paridade 4x4, verificação de bloco, roteamento e transição de política de evento) reside no core C unificado em `engine/rmr` e é exposto para Android via JNI (`vectra_core_accel`).
 - O Kotlin mantém fluxo de app e integração Android (Context, lifecycle, IO de alto nível), atuando como camada de marshaling/orquestração para chamadas determinísticas do core.
 
+
+## 8) Decisão arquitetural — backend de observabilidade no `app/`
+- Direção única adotada: **remoção de Firebase no módulo `app/`**.
+- O backend operacional para telemetria/falhas passa a ser o **Bitstack Local Pipeline (autoral/local-first)**, sem dependência de `google-services.json` para o fluxo padrão de build.
+- A coleta e rastreabilidade ficam alinhadas ao desenho de supervisão/ledger já descrito neste documento (ProcessSupervisor, AuditLedger e políticas de backpressure/failover).
+- Implicação prática: onboarding e CI devem seguir fluxo Gradle local, sem provisionamento Firebase.
+
 ## Metadados
 - Versão do documento: 1.1
 - Última atualização: 2026-02-18
