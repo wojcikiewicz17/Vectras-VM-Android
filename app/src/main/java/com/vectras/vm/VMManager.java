@@ -1474,12 +1474,29 @@ public class VMManager {
         if (pid <= 0) {
             return false;
         }
+        final String feature = "vm.probe";
+        final String tag = "pid_alive_probe";
+        final String caller = "VMManager#isPidAlive";
+        ProcessRuntimeOps.TrackedProcess probe = null;
         try {
-            Process probe = new ProcessBuilder("kill", "-0", Long.toString(pid)).start();
-            boolean finished = probe.waitFor(700, TimeUnit.MILLISECONDS);
-            return !finished || probe.exitValue() == 0;
-        } catch (Exception ignored) {
+            probe = ProcessRuntimeOps.launchTrackedProcess(
+                    java.util.Arrays.asList("kill", "-0", Long.toString(pid)),
+                    feature,
+                    tag,
+                    caller
+            );
+            boolean finished = probe.process.waitFor(700, TimeUnit.MILLISECONDS);
+            boolean alive = !finished || probe.process.exitValue() == 0;
+            ProcessRuntimeOps.releaseTrackedProcess(probe, "pid_probe_success");
+            probe = null;
+            return alive;
+        } catch (Exception e) {
+            Log.w(TAG, "pid probe failed feature=" + feature + " tag=" + tag + " caller=" + caller + " pid=" + pid, e);
             return false;
+        } finally {
+            if (probe != null) {
+                ProcessRuntimeOps.releaseTrackedProcess(probe, "pid_probe_error");
+            }
         }
     }
 
@@ -1490,16 +1507,34 @@ public class VMManager {
         if (signal <= 0 || signal > 64) {
             return false;
         }
+        final String feature = "vm.probe";
+        final String tag = "pid_signal";
+        final String caller = "VMManager#signalPidAndAwait";
+        ProcessRuntimeOps.TrackedProcess signalProcess = null;
         try {
-            new ProcessBuilder("kill", "-" + signal, Long.toString(pid))
-                    .start()
-                    .waitFor(700, TimeUnit.MILLISECONDS);
-        } catch (Exception ignored) {
+            signalProcess = ProcessRuntimeOps.launchTrackedProcess(
+                    java.util.Arrays.asList("kill", "-" + signal, Long.toString(pid)),
+                    feature,
+                    tag,
+                    caller
+            );
+            signalProcess.process.waitFor(700, TimeUnit.MILLISECONDS);
+            ProcessRuntimeOps.releaseTrackedProcess(signalProcess, "pid_signal_sent");
+            signalProcess = null;
+        } catch (Exception e) {
+            Log.w(TAG, "pid signal failed feature=" + feature + " tag=" + tag + " caller=" + caller
+                    + " pid=" + pid + " signal=" + signal, e);
             return false;
+        } finally {
+            if (signalProcess != null) {
+                ProcessRuntimeOps.releaseTrackedProcess(signalProcess, "pid_signal_error");
+            }
         }
         long deadline = ProcessRuntimeOps.monoMs() + Math.max(0, timeoutMs);
         while (ProcessRuntimeOps.monoMs() < deadline) {
             if (!isPidAlive(pid)) {
+                Log.d(TAG, "pid signal completed feature=" + feature + " tag=" + tag + " caller=" + caller
+                        + " pid=" + pid + " signal=" + signal);
                 return true;
             }
             try {
@@ -1509,7 +1544,10 @@ public class VMManager {
                 break;
             }
         }
-        return !isPidAlive(pid);
+        boolean terminated = !isPidAlive(pid);
+        Log.d(TAG, "pid signal await done feature=" + feature + " tag=" + tag + " caller=" + caller
+                + " pid=" + pid + " signal=" + signal + " terminated=" + terminated);
+        return terminated;
     }
 
     private static synchronized void resetLifecycleStateAfterKillAll() {
