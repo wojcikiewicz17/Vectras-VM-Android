@@ -114,14 +114,6 @@ public class VMManager {
         STOPPING
     }
 
-    /**
-     * Android app sandboxes can hit failures near the 32-child-process ceiling.
-     * Keep VM-owned subprocesses conservatively capped while adapting to device class.
-     */
-    private static final int MIN_SUPERVISED_VM_PROCESSES = 4;
-    private static final int BASE_SUPERVISED_VM_PROCESSES = 9;
-    private static final int MAX_SUPERVISED_VM_PROCESSES = 12;
-
     private static String normalizeVmLifecycleId(String vmId) {
         if (vmId == null) return "unknown";
         String normalized = vmId.trim();
@@ -390,12 +382,7 @@ public class VMManager {
     }
 
     public static synchronized int getMaxSupervisedVmProcesses() {
-        int cpuCount = Runtime.getRuntime().availableProcessors();
-        int adaptive = BASE_SUPERVISED_VM_PROCESSES + (cpuCount >= 8 ? 2 : 0) + (cpuCount >= 12 ? 1 : 0);
-        if (adaptive < MIN_SUPERVISED_VM_PROCESSES) {
-            return MIN_SUPERVISED_VM_PROCESSES;
-        }
-        return Math.min(adaptive, MAX_SUPERVISED_VM_PROCESSES);
+        return ProcessBudgetRegistry.getMaxSupervisedVmProcesses();
     }
 
     public static synchronized boolean canRegisterAnotherVmProcess() {
