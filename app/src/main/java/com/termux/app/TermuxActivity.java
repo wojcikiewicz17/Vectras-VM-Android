@@ -51,6 +51,7 @@ import android.widget.Toast;
 
 import com.vectras.vm.AppConfig;
 import com.vectras.vm.R;
+import com.vectras.vm.utils.PermissionUtils;
 import com.termux.terminal.EmulatorDebug;
 import com.termux.terminal.TerminalColors;
 import com.termux.terminal.TerminalSession;
@@ -102,6 +103,7 @@ public final class TermuxActivity extends Activity implements ServiceConnection 
     private static final int MAX_SESSIONS = 8;
 
     private static final int REQUESTCODE_PERMISSION_STORAGE = 1234;
+    private static final int REQUESTCODE_OPEN_DOCUMENT_TREE = 1235;
 
     private static final String RELOAD_STYLE_ACTION = "com.termux.app.reload_style";
 
@@ -197,14 +199,28 @@ public final class TermuxActivity extends Activity implements ServiceConnection 
         }
     }
 
-    /** For processes to access shared internal storage (/sdcard) we need this permission. */
+    /** For processes to access shared internal storage (/sdcard) we need permissions. */
     public boolean ensureStoragePermissionGranted() {
-        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
-            return true;
-        } else {
-            requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUESTCODE_PERMISSION_STORAGE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (PermissionUtils.hasPersistedTreePermission(this)) {
+                return true;
+            }
+
+            showToast(getString(R.string.termux_storage_permission_explanation_saf), true);
+            Intent intent = new Intent(Intent.ACTION_OPEN_DOCUMENT_TREE);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION | Intent.FLAG_GRANT_WRITE_URI_PERMISSION |
+                Intent.FLAG_GRANT_PERSISTABLE_URI_PERMISSION | Intent.FLAG_GRANT_PREFIX_URI_PERMISSION);
+            startActivityForResult(intent, REQUESTCODE_OPEN_DOCUMENT_TREE);
             return false;
         }
+
+        if (checkSelfPermission(Manifest.permission.WRITE_EXTERNAL_STORAGE) == PackageManager.PERMISSION_GRANTED) {
+            return true;
+        }
+
+        showToast(getString(R.string.termux_storage_permission_explanation_legacy), true);
+        requestPermissions(new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE}, REQUESTCODE_PERMISSION_STORAGE);
+        return false;
     }
 
     @Override
@@ -948,9 +964,27 @@ public final class TermuxActivity extends Activity implements ServiceConnection 
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+
+        if (requestCode == REQUESTCODE_OPEN_DOCUMENT_TREE) {
+            Uri uri = data != null ? data.getData() : null;
+            if (resultCode == Activity.RESULT_OK && uri != null && PermissionUtils.persistTreePermission(this, uri)) {
+                TermuxInstaller.setupStorageSymlinks(this);
+            } else {
+                showToast(getString(R.string.termux_storage_permission_not_granted), true);
+            }
+        }
+    }
+
+    @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String permissions[], @NonNull int[] grantResults) {
-        if (requestCode == REQUESTCODE_PERMISSION_STORAGE && grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-            TermuxInstaller.setupStorageSymlinks(this);
+        if (requestCode == REQUESTCODE_PERMISSION_STORAGE) {
+            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
+                TermuxInstaller.setupStorageSymlinks(this);
+            } else {
+                showToast(getString(R.string.termux_storage_permission_not_granted), true);
+            }
         }
     }
 

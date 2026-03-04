@@ -3,6 +3,7 @@ package com.vectras.vm.utils;
 import android.Manifest;
 import android.app.Activity;
 import android.content.Intent;
+import android.content.UriPermission;
 import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.os.Build;
@@ -95,6 +96,15 @@ public class PermissionUtils {
             // non-fatal fallback
             return false;
         }
+    }
+
+    public static boolean hasPersistedTreePermission(Activity activity) {
+        for (UriPermission persistedPermission : activity.getContentResolver().getPersistedUriPermissions()) {
+            if (persistedPermission != null && persistedPermission.isReadPermission()) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static DocumentFile resolveTree(Activity activity, Uri uri) {
