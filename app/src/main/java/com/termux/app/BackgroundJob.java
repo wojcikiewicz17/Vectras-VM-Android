@@ -7,7 +7,9 @@ import android.os.Bundle;
 import android.util.Log;
 
 import com.vectras.vm.BuildConfig;
+import com.vectras.vm.VMManager;
 import com.vectras.vm.core.BoundedStringRingBuffer;
+import com.vectras.vm.core.ProcessRuntimeOps;
 
 import java.io.BufferedReader;
 import java.io.File;
@@ -31,8 +33,11 @@ public final class BackgroundJob {
     private static final int MAX_CAPTURE_CHARS = 256 * 1024;
     private static final int MAX_LINE_CHARS = 4096;
     private static final String CAPTURE_TRUNCATED_MARKER = BoundedStringRingBuffer.TRUNCATED_MARKER;
+    private static final String TERMUX_BG_ID_PREFIX = "termux-bg-";
 
     final Process mProcess;
+    private final String mRegistryId;
+    private final boolean mStarted;
 
     public BackgroundJob(String cwd, String fileToExecute, final String[] args, final TermuxService service){
         this(cwd, fileToExecute, args, service, null);
@@ -45,12 +50,53 @@ public final class BackgroundJob {
         final String[] progArray = setupProcessArgs(fileToExecute, args);
         final String processDescription = Arrays.toString(progArray);
 
-        Process process;
+        Process process = null;
+        String registryId = null;
+        boolean started = false;
         try {
             process = Runtime.getRuntime().exec(progArray, env, new File(cwd));
+            registryId = buildRegistryId(process);
+            VMManager.registerVmProcess(service.getApplicationContext(), registryId, process);
+            started = true;
         } catch (IOException e) {
             mProcess = null;
+            mRegistryId = null;
+            mStarted = false;
             String errorMessage = "Failed running background job: " + processDescription + ": " + e.getMessage();
+            Log.e(LOG_TAG, errorMessage, e);
+
+            Bundle result = new Bundle();
+            result.putInt("exitCode", -1);
+            result.putString("stdout", "");
+            result.putString("stderr", errorMessage);
+
+            if (pendingIntent != null) {
+                Intent data = new Intent();
+                data.putExtra("result", result);
+                try {
+                    pendingIntent.send(service.getApplicationContext(), Activity.RESULT_CANCELED, data);
+                } catch (PendingIntent.CanceledException canceledException) {
+                    // The caller doesn't want the result? That's fine, just ignore.
+                }
+            }
+
+            service.onBackgroundJobExited(this);
+            return;
+        } catch (RuntimeException e) {
+            if (process != null) {
+                process.destroy();
+            }
+            if (registryId != null && process != null) {
+                try {
+                    VMManager.unregisterVmProcess(registryId, process);
+                } catch (RuntimeException unregisterError) {
+                    Log.w(LOG_TAG, "Failed to rollback background job registration: " + registryId, unregisterError);
+                }
+            }
+            mProcess = null;
+            mRegistryId = null;
+            mStarted = false;
+            String errorMessage = "Failed registering background job: " + processDescription + ": " + e.getMessage();
             Log.e(LOG_TAG, errorMessage, e);
 
             Bundle result = new Bundle();
@@ -73,6 +119,8 @@ public final class BackgroundJob {
         }
 
         mProcess = process;
+        mRegistryId = registryId;
+        mStarted = started;
         final int pid = getPid(mProcess);
         final Bundle result = new Bundle();
         final StringBuilder outResult = new StringBuilder();
@@ -116,7 +164,6 @@ public final class BackgroundJob {
 
                 try {
                     int exitCode = mProcess.waitFor();
-                    service.onBackgroundJobExited(BackgroundJob.this);
                     if (exitCode == 0) {
                         Log.i(LOG_TAG, "[" + pid + "] exited normally");
                     } else {
@@ -149,9 +196,36 @@ public final class BackgroundJob {
                             // The caller doesn't want the result? That's fine, just ignore
                         }
                     }
+                    safeUnregisterFromGlobalRegistry();
+                    service.onBackgroundJobExited(BackgroundJob.this);
                 }
             }
         }.start();
+    }
+
+    public boolean isStarted() {
+        return mStarted && mProcess != null;
+    }
+
+    private static String buildRegistryId(Process process) {
+        long pid = ProcessRuntimeOps.safePid(process);
+        if (pid > 0L) {
+            return TERMUX_BG_ID_PREFIX + pid;
+        }
+        int reflectedPid = getPid(process);
+        if (reflectedPid > 0) {
+            return TERMUX_BG_ID_PREFIX + reflectedPid;
+        }
+        return TERMUX_BG_ID_PREFIX + "unknown-" + System.nanoTime();
+    }
+
+    private void safeUnregisterFromGlobalRegistry() {
+        if (mRegistryId == null) return;
+        try {
+            VMManager.unregisterVmProcess(mRegistryId, mProcess);
+        } catch (RuntimeException e) {
+            Log.w(LOG_TAG, "Failed to unregister background job from VM registry: " + mRegistryId, e);
+        }
     }
 
     private static String sanitizeLine(String line) {

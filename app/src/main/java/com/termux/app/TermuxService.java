@@ -1,6 +1,7 @@
 package com.termux.app;
 
 import android.annotation.SuppressLint;
+import android.app.Activity;
 import android.app.Notification;
 import android.app.NotificationChannel;
 import android.app.NotificationManager;
@@ -14,6 +15,7 @@ import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.Build;
+import android.os.Bundle;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
@@ -23,6 +25,7 @@ import android.widget.ArrayAdapter;
 
 import com.vectras.vm.AppConfig;
 import com.vectras.vm.R;
+import com.vectras.vm.VMManager;
 import com.termux.terminal.EmulatorDebug;
 import com.termux.terminal.TerminalSession;
 import com.termux.terminal.TerminalSession.SessionChangedCallback;
@@ -66,6 +69,7 @@ public final class TermuxService extends Service implements SessionChangedCallba
 
     public static final String EXTRA_CURRENT_WORKING_DIRECTORY = "com.termux.execute.cwd";
     public static final String EXTRA_EXECUTE_IN_BACKGROUND = "com.termux.execute.background";
+    private static final String BACKGROUND_PROCESS_LIMIT_MESSAGE = "Limite Android 15 atingido para processos em background. Encerre um processo ativo e tente novamente.";
 
     /** This service is only bound from inside the same process and never uses IPC. */
     class LocalBinder extends Binder {
@@ -149,7 +153,18 @@ public final class TermuxService extends Service implements SessionChangedCallba
             String cwd = intent.getStringExtra(EXTRA_CURRENT_WORKING_DIRECTORY);
 
             if (intent.getBooleanExtra(EXTRA_EXECUTE_IN_BACKGROUND, false)) {
-                BackgroundJob task = new BackgroundJob(cwd, executablePath, null, this, intent.getParcelableExtra("pendingIntent"));
+                PendingIntent pendingIntent = intent.getParcelableExtra("pendingIntent");
+                if (!VMManager.canRegisterAnotherVmProcess()) {
+                    notifyBackgroundExecBlocked(pendingIntent, BACKGROUND_PROCESS_LIMIT_MESSAGE);
+                    Log.w(EmulatorDebug.LOG_TAG, "Background spawn blocked by Android 15 process cap: "
+                            + VMManager.getActiveSupervisedVmProcessCount() + "/" + VMManager.getMaxSupervisedVmProcesses());
+                    return Service.START_NOT_STICKY;
+                }
+
+                BackgroundJob task = new BackgroundJob(cwd, executablePath, null, this, pendingIntent);
+                if (!task.isStarted()) {
+                    return Service.START_NOT_STICKY;
+                }
                 mBackgroundTasks.add(task);
                 updateNotification();
             } else {
@@ -377,6 +392,22 @@ public final class TermuxService extends Service implements SessionChangedCallba
             mBackgroundTasks.remove(task);
             updateNotification();
         });
+    }
+
+    private void notifyBackgroundExecBlocked(PendingIntent pendingIntent, String message) {
+        if (pendingIntent == null) return;
+        Bundle result = new Bundle();
+        result.putInt("exitCode", -1);
+        result.putString("stdout", "");
+        result.putString("stderr", message);
+
+        Intent data = new Intent();
+        data.putExtra("result", result);
+        try {
+            pendingIntent.send(getApplicationContext(), Activity.RESULT_CANCELED, data);
+        } catch (PendingIntent.CanceledException e) {
+            Log.w(EmulatorDebug.LOG_TAG, "PendingIntent canceled while reporting blocked background exec", e);
+        }
     }
 
     private void setupNotificationChannel() {
