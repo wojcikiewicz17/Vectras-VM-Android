@@ -10,6 +10,7 @@ import android.net.Uri;
 import android.os.Binder;
 import android.os.Build;
 import android.os.IBinder;
+import android.os.Process;
 import android.util.Log;
 
 import com.vectras.vm.R;
@@ -17,7 +18,10 @@ import com.vectras.vm.R;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStreamReader;
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 /**
@@ -71,6 +75,21 @@ public class RunCommandService extends Service {
     private static final String NOTIFICATION_CHANNEL_ID = "termux_run_command_notification_channel";
     private static final int NOTIFICATION_ID = 1338;
 
+    private static final long WINDOW_MILLIS = 60_000L;
+    private static final int MAX_REQUESTS_PER_UID_WINDOW = 10;
+    private static final int MAX_GLOBAL_REQUESTS_WINDOW = 60;
+
+    private static final Object RATE_LIMIT_LOCK = new Object();
+    private static final Map<Integer, CounterWindow> UID_WINDOWS = new HashMap<>();
+    private static final CounterWindow GLOBAL_WINDOW = new CounterWindow();
+
+    private static final String AUDIT_TAG = "termux.run_command.audit";
+
+    private static final class CounterWindow {
+        long windowStartElapsed;
+        int count;
+    }
+
     class LocalBinder extends Binder {
         public final RunCommandService service = RunCommandService.this;
     }
@@ -91,19 +110,62 @@ public class RunCommandService extends Service {
     public int onStartCommand(Intent intent, int flags, int startId) {
         // Run again in case service is already started and onCreate() is not called
         runStartForeground();
-            Uri programUri = new Uri.Builder().scheme("com.termux.file").path(parsePath(intent.getStringExtra(RUN_COMMAND_PATH))).build();
 
-            Intent execIntent = new Intent(TermuxService.ACTION_EXECUTE, programUri);
-            execIntent.setClass(this, TermuxService.class);
-            execIntent.putExtra(TermuxService.EXTRA_ARGUMENTS, intent.getStringArrayExtra(RUN_COMMAND_ARGUMENTS));
-            execIntent.putExtra(TermuxService.EXTRA_CURRENT_WORKING_DIRECTORY, parsePath(intent.getStringExtra(RUN_COMMAND_WORKDIR)));
-            execIntent.putExtra(TermuxService.EXTRA_EXECUTE_IN_BACKGROUND, intent.getBooleanExtra(RUN_COMMAND_BACKGROUND, false));
+        final int callerUid = resolveCallerUid();
+        final String callerOrigin = resolveCallerOrigin(callerUid);
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                this.startForegroundService(execIntent);
-            } else {
-                this.startService(execIntent);
-            }
+        if (intent == null) {
+            audit(callerOrigin, "<null>", "blocked:intent_null");
+            runStopForeground();
+            return Service.START_NOT_STICKY;
+        }
+
+        if (!RUN_COMMAND_ACTION.equals(intent.getAction())) {
+            audit(callerOrigin, sanitizeForAudit(intent.getStringExtra(RUN_COMMAND_PATH)), "blocked:invalid_action");
+            runStopForeground();
+            return Service.START_NOT_STICKY;
+        }
+
+        if (!allowExternalApps()) {
+            audit(callerOrigin, sanitizeForAudit(intent.getStringExtra(RUN_COMMAND_PATH)), "blocked:external_apps_not_allowed");
+            runStopForeground();
+            return Service.START_NOT_STICKY;
+        }
+
+        String executablePath = parsePath(intent.getStringExtra(RUN_COMMAND_PATH));
+        if (!isAllowedExecutablePath(executablePath)) {
+            audit(callerOrigin, sanitizeForAudit(executablePath), "blocked:invalid_executable_path");
+            runStopForeground();
+            return Service.START_NOT_STICKY;
+        }
+
+        if (!consumeUidBudget(callerUid)) {
+            audit(callerOrigin, sanitizeForAudit(executablePath), "blocked:uid_rate_limit");
+            runStopForeground();
+            return Service.START_NOT_STICKY;
+        }
+
+        if (!consumeGlobalBudget()) {
+            audit(callerOrigin, sanitizeForAudit(executablePath), "blocked:global_rate_limit");
+            runStopForeground();
+            return Service.START_NOT_STICKY;
+        }
+
+        Uri programUri = new Uri.Builder().scheme("com.termux.file").path(executablePath).build();
+
+        Intent execIntent = new Intent(TermuxService.ACTION_EXECUTE, programUri);
+        execIntent.setClass(this, TermuxService.class);
+        execIntent.putExtra(TermuxService.EXTRA_ARGUMENTS, intent.getStringArrayExtra(RUN_COMMAND_ARGUMENTS));
+        execIntent.putExtra(TermuxService.EXTRA_CURRENT_WORKING_DIRECTORY, parsePath(intent.getStringExtra(RUN_COMMAND_WORKDIR)));
+        execIntent.putExtra(TermuxService.EXTRA_EXECUTE_IN_BACKGROUND, intent.getBooleanExtra(RUN_COMMAND_BACKGROUND, false));
+
+        audit(callerOrigin, sanitizeForAudit(executablePath), "allowed");
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            this.startForegroundService(execIntent);
+        } else {
+            this.startService(execIntent);
+        }
 
 
         runStopForeground();
@@ -173,6 +235,96 @@ public class RunCommandService extends Service {
         }
 
         return props.getProperty("allow-external-apps", "false").equals("true");
+    }
+
+    private int resolveCallerUid() {
+        int uid = Binder.getCallingUid();
+        return uid > 0 ? uid : Process.myUid();
+    }
+
+    private String resolveCallerOrigin(int uid) {
+        String[] packages = getPackageManager().getPackagesForUid(uid);
+        if (packages == null || packages.length == 0) {
+            return "uid:" + uid;
+        }
+        return packages[0] + "(uid:" + uid + ")";
+    }
+
+    private boolean isAllowedExecutablePath(String path) {
+        if (path == null || path.isEmpty()) return false;
+
+        String canonicalPath;
+        try {
+            canonicalPath = new File(path).getCanonicalPath();
+        } catch (IOException e) {
+            return false;
+        }
+
+        return isWithinDirectory(canonicalPath, TermuxService.PREFIX_PATH)
+            || isWithinDirectory(canonicalPath, TermuxService.HOME_PATH)
+            || isWithinDirectory(canonicalPath, TermuxService.OPT_PATH);
+    }
+
+    private boolean isWithinDirectory(String candidatePath, String allowedRoot) {
+        try {
+            String canonicalRoot = new File(allowedRoot).getCanonicalPath();
+            return candidatePath.equals(canonicalRoot)
+                || candidatePath.startsWith(canonicalRoot + File.separator);
+        } catch (IOException e) {
+            return false;
+        }
+    }
+
+    private boolean consumeUidBudget(int uid) {
+        synchronized (RATE_LIMIT_LOCK) {
+            long now = android.os.SystemClock.elapsedRealtime();
+            CounterWindow window = UID_WINDOWS.get(uid);
+            if (window == null) {
+                window = new CounterWindow();
+                UID_WINDOWS.put(uid, window);
+            }
+
+            resetWindowIfNeeded(window, now);
+            if (window.count >= MAX_REQUESTS_PER_UID_WINDOW) {
+                return false;
+            }
+            window.count++;
+            return true;
+        }
+    }
+
+    private boolean consumeGlobalBudget() {
+        synchronized (RATE_LIMIT_LOCK) {
+            long now = android.os.SystemClock.elapsedRealtime();
+            resetWindowIfNeeded(GLOBAL_WINDOW, now);
+            if (GLOBAL_WINDOW.count >= MAX_GLOBAL_REQUESTS_WINDOW) {
+                return false;
+            }
+            GLOBAL_WINDOW.count++;
+            return true;
+        }
+    }
+
+    private void resetWindowIfNeeded(CounterWindow window, long now) {
+        if (window.windowStartElapsed == 0L || (now - window.windowStartElapsed) >= WINDOW_MILLIS) {
+            window.windowStartElapsed = now;
+            window.count = 0;
+        }
+    }
+
+    private String sanitizeForAudit(String commandPath) {
+        if (commandPath == null || commandPath.isEmpty()) {
+            return "<empty>";
+        }
+        String sanitized = commandPath.replaceAll("[\\r\\n\\t]", " ");
+        if (sanitized.length() > 200) {
+            sanitized = sanitized.substring(0, 200) + "...";
+        }
+        return sanitized;
+    }
+
+    private void audit(String origin, String command, String decision) {
+        Log.i(AUDIT_TAG, "origin=" + origin + " command=" + command + " decision=" + decision);
     }
 
     /** Replace "$PREFIX/" or "~/" prefix with termux absolute paths */
