@@ -94,6 +94,7 @@ public class VMManager {
     public static String latestUnsafeCommandReason = "";
     public static String lastQemuCommand = "";
     private static final ConcurrentHashMap<String, ProcessSupervisor> SUPERVISORS = new ConcurrentHashMap<>();
+    private static final ConcurrentHashMap<String, ProcessBudgetRegistry.SlotToken> SUPERVISOR_SLOTS = new ConcurrentHashMap<>();
     private static final ConcurrentHashMap<String, VmRuntimeState> VM_STATES = new ConcurrentHashMap<>();
     private static final AtomicLong UNKNOWN_VM_SEQUENCE = new AtomicLong(1L);
     private static final Pattern SAFE_COMMAND_CHARS = Pattern.compile("^[a-zA-Z0-9_./,:=+\\-\"' ]+$");
@@ -257,16 +258,32 @@ public class VMManager {
             return;
         }
 
+        ProcessBudgetRegistry.SlotToken slot = ProcessBudgetRegistry.get().tryAcquireSlot(
+                "vm_process",
+                "vm_manager",
+                "VMManager.registerVmProcess",
+                key
+        );
+        if (slot == null) {
+            VM_STATES.put(key, VmRuntimeState.STOPPED);
+            safeTerminateDetachedProcess(process);
+            Log.w(TAG, "registerVmProcess rejected: process budget full key=" + key);
+            return;
+        }
+
         ProcessSupervisor supervisor = new ProcessSupervisor(context, key);
         try {
             supervisor.bindProcess(process);
+            ProcessBudgetRegistry.get().bindProcess(slot, process);
             SUPERVISORS.put(key, supervisor);
+            SUPERVISOR_SLOTS.put(key, slot);
             VM_STATES.put(key, VmRuntimeState.RUNNING);
             ProcessBudgetRegistry.bind(budgetToken, process, key, processPid);
             VmFlowTracker.mark(context, key, VmFlowState.RUNNING, "process_bound", "run");
             spawnProcessExitWatcher(key, supervisor, process);
         } catch (RuntimeException registerError) {
             VM_STATES.put(key, VmRuntimeState.STOPPED);
+            ProcessBudgetRegistry.get().releaseSlot(slot, "register_exception");
             safeTerminateDetachedProcess(process);
             ProcessBudgetRegistry.release(budgetToken, key, processPid);
             String errorMessage = "registerVmProcess recoverable failure: key=" + key
@@ -326,6 +343,7 @@ public class VMManager {
             if (!supervisor.isProcessAlive() || supervisor.getState() == ProcessSupervisor.State.STOP) {
                 SUPERVISORS.remove(key, supervisor);
                 VM_STATES.put(key, VmRuntimeState.STOPPED);
+                releaseSlotForKey(key, "prune_inactive");
             }
         }
     }
@@ -359,6 +377,7 @@ public class VMManager {
             SUPERVISORS.remove(oldestKey, oldest);
             if (oldestKey != null) {
                 VM_STATES.put(oldestKey, VmRuntimeState.STOPPED);
+                releaseSlotForKey(oldestKey, "capacity_eviction");
             }
         }
 
@@ -418,6 +437,7 @@ public class VMManager {
         if (!supervisor.isProcessAlive()) {
             SUPERVISORS.remove(key, supervisor);
             VM_STATES.put(key, VmRuntimeState.STOPPED);
+            releaseSlotForKey(key, "stop_already_dead");
             return true;
         }
 
@@ -427,6 +447,7 @@ public class VMManager {
         if (stopped) {
             SUPERVISORS.remove(key, supervisor);
             VM_STATES.put(key, VmRuntimeState.STOPPED);
+            releaseSlotForKey(key, "stop_success");
             VmFlowTracker.mark(context, key, VmFlowState.STOPPED, "stop_success", "stopped");
         } else {
             boolean stillAlive = supervisor.isProcessAlive();
@@ -1540,10 +1561,22 @@ public class VMManager {
             if (terminated) {
                 SUPERVISORS.remove(vmId, supervisor);
                 VM_STATES.put(vmId, VmRuntimeState.STOPPED);
+                releaseSlotForKey(vmId, "killall_terminated");
             } else {
                 VM_STATES.put(vmId, VmRuntimeState.RUNNING);
                 Log.e(TAG, "killall could not terminate vmId=" + vmId + " pid=" + pid + " (state preserved, avoiding false STOPPED)");
             }
+        }
+    }
+
+    public static ProcessBudgetRegistry.Snapshot getProcessBudgetSnapshot() {
+        return ProcessBudgetRegistry.get().snapshot();
+    }
+
+    private static void releaseSlotForKey(String key, String reason) {
+        ProcessBudgetRegistry.SlotToken token = SUPERVISOR_SLOTS.remove(key);
+        if (token != null) {
+            ProcessBudgetRegistry.get().releaseSlot(token, reason);
         }
     }
 
