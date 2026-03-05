@@ -552,6 +552,15 @@
     <string name="custom">Custom</string>
     <string name="custom_note">If you want to manually select the bootstrap file you want to install the Qemu version you desire.</string>
     <string name="mirror_note">Choose the mirror closest to you for faster setup.</string>
+    <string name="setup_initial_benchmark_optin">Validar desempenho inicial (opcional)</string>
+    <string name="setup_initial_benchmark_optin_note">Executa um benchmark curto/smoke após concluir o setup para validar baseline de desempenho.</string>
+    <string name="setup_initial_benchmark_ok_toast">Validação inicial de desempenho concluída com sucesso.</string>
+    <string name="setup_initial_benchmark_failure_title">Falha na validação inicial de desempenho</string>
+    <string name="setup_initial_benchmark_failure_body">O benchmark curto detectou instabilidade inicial.</string>
+    <string name="setup_initial_benchmark_recommend_permissions">Revise permissões de armazenamento e execução.</string>
+    <string name="setup_initial_benchmark_recommend_power">Desative economia de energia para o app durante testes.</string>
+    <string name="setup_initial_benchmark_recommend_storage">Confirme espaço livre suficiente para setup e cache.</string>
+    <string name="setup_initial_benchmark_recommend_abi">Verifique compatibilidade de ABI/CPU do dispositivo.</string>
     <string name="please_do_not_disconnect_the_network_this_may_take_a_few_minutes">Please do not disconnect the network. This may take a few minutes.</string>
     <string name="something_went_wrong">Something went wrong</string>
     <string name="the_setup_could_not_be_completed_and_below_is_the_log">The setup could not be completed and below is the log.</string>

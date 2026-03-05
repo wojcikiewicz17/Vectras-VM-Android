@@ -105,11 +105,114 @@ public class BenchmarkManager {
         void onError(String error);
     }
 
+    public static final class SmokeBenchmarkResult {
+        public final boolean success;
+        public final long durationMs;
+        public final long integerOpsPerSec;
+        public final long memoryTouchMBps;
+        public final long freeMemoryMb;
+        public final int abiCpuMismatch;
+        public final String message;
+
+        public SmokeBenchmarkResult(boolean success,
+                                    long durationMs,
+                                    long integerOpsPerSec,
+                                    long memoryTouchMBps,
+                                    long freeMemoryMb,
+                                    int abiCpuMismatch,
+                                    String message) {
+            this.success = success;
+            this.durationMs = durationMs;
+            this.integerOpsPerSec = integerOpsPerSec;
+            this.memoryTouchMBps = memoryTouchMBps;
+            this.freeMemoryMb = freeMemoryMb;
+            this.abiCpuMismatch = abiCpuMismatch;
+            this.message = message;
+        }
+    }
+
     public enum ExecutionProfile {
         AUTO_ADAPTIVE,
         DETERMINISTIC,
         THROUGHPUT,
         LOW_LATENCY
+    }
+
+    public SmokeBenchmarkResult runSmokeBenchmark(long timeoutMs) {
+        long safeTimeoutMs = Math.max(1000L, timeoutMs);
+        long startMs = System.currentTimeMillis();
+        long deadlineNs = System.nanoTime() + (safeTimeoutMs * 1_000_000L);
+
+        try {
+            ActivityManager.MemoryInfo mi = new ActivityManager.MemoryInfo();
+            ActivityManager am = (ActivityManager) context.getSystemService(Context.ACTIVITY_SERVICE);
+            if (am != null) {
+                am.getMemoryInfo(mi);
+            }
+            long freeMemMb = Math.max(0L, mi.availMem / (1024L * 1024L));
+
+            long acc = 0L;
+            long ops = 0L;
+            long beginOpsNs = System.nanoTime();
+            while (ops < 2_000_000L) {
+                acc += (ops * 31L) ^ (acc >>> 3);
+                ops++;
+                if ((ops & 0x3FFL) == 0L && System.nanoTime() > deadlineNs) {
+                    return new SmokeBenchmarkResult(false,
+                            System.currentTimeMillis() - startMs,
+                            0L,
+                            0L,
+                            freeMemMb,
+                            detectAbiCpuMismatch() ? 1 : 0,
+                            "smoke timeout: integer phase");
+                }
+            }
+            long opsNs = Math.max(1L, System.nanoTime() - beginOpsNs);
+            long integerOpsPerSec = (ops * 1_000_000_000L) / opsNs;
+
+            byte[] buf = new byte[2 * 1024 * 1024];
+            long touchedBytes = 0L;
+            long beginMemNs = System.nanoTime();
+            for (int pass = 0; pass < 6; pass++) {
+                for (int i = 0; i < buf.length; i += 64) {
+                    buf[i] = (byte) ((buf[i] + pass + i) & 0xFF);
+                    touchedBytes += 64L;
+                }
+                if (System.nanoTime() > deadlineNs) {
+                    return new SmokeBenchmarkResult(false,
+                            System.currentTimeMillis() - startMs,
+                            integerOpsPerSec,
+                            0L,
+                            freeMemMb,
+                            detectAbiCpuMismatch() ? 1 : 0,
+                            "smoke timeout: memory phase");
+                }
+            }
+            long memNs = Math.max(1L, System.nanoTime() - beginMemNs);
+            long memoryTouchMBps = (touchedBytes * 1000L) / (memNs / 1_000_000L + 1L) / (1024L * 1024L);
+
+            int abiMismatch = detectAbiCpuMismatch() ? 1 : 0;
+            long durationMs = System.currentTimeMillis() - startMs;
+            long sink = acc + buf[0];
+            if (sink == Long.MIN_VALUE) {
+                return new SmokeBenchmarkResult(false, durationMs, integerOpsPerSec, memoryTouchMBps, freeMemMb, abiMismatch, "invalid sink state");
+            }
+            return new SmokeBenchmarkResult(true,
+                    durationMs,
+                    integerOpsPerSec,
+                    memoryTouchMBps,
+                    freeMemMb,
+                    abiMismatch,
+                    "ok");
+        } catch (Throwable t) {
+            return new SmokeBenchmarkResult(false,
+                    System.currentTimeMillis() - startMs,
+                    0L,
+                    0L,
+                    0L,
+                    0,
+                    "smoke error: " + t.getClass().getSimpleName());
+        }
     }
 
     public static final class TuningProfile {

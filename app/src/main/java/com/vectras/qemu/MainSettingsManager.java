@@ -1,14 +1,19 @@
 package com.vectras.qemu;
 
+import android.Manifest;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.net.UriPermission;
+import android.os.Build;
 import android.os.Bundle;
 import android.os.Environment;
 import android.os.Handler;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.util.Log;
@@ -19,6 +24,7 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AppCompatDelegate;
 import androidx.appcompat.widget.Toolbar;
+import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
 import androidx.preference.EditTextPreference;
 import androidx.preference.ListPreference;
@@ -32,6 +38,7 @@ import com.vectras.vm.R;
 import com.vectras.vm.SplashActivity;
 import com.vectras.vm.VectrasApp;
 import com.vectras.vm.settings.ThemeActivity;
+import com.vectras.vm.utils.UIUtils;
 
 import java.util.Locale;
 import java.util.Objects;
@@ -216,6 +223,30 @@ public class MainSettingsManager extends AppCompatActivity
             ListPreference languagePref = findPreference("language");
             if (languagePref != null) {
                 languagePref.setOnPreferenceChangeListener(this);
+            }
+
+            SwitchPreferenceCompat reviewEnabledPref = findPreference("onboardingPermissionsReviewEnabled");
+            if (reviewEnabledPref != null) {
+                reviewEnabledPref.setChecked(getOnboardingPermissionsReviewEnabled(requireContext()));
+                reviewEnabledPref.setOnPreferenceChangeListener((preference, newValue) -> {
+                    setOnboardingPermissionsReviewEnabled(requireContext(), (Boolean) newValue);
+                    return true;
+                });
+            }
+
+            Preference reviewNowPref = findPreference("reviewOnboardingPermissionsNow");
+            if (reviewNowPref != null) {
+                reviewNowPref.setOnPreferenceClickListener(preference -> {
+                    reevaluateOnboardingPermissionsSnapshot(requireContext());
+                    OnboardingPermissionsSnapshot snapshot = getOnboardingPermissionsSnapshot(requireContext());
+                    reviewNowPref.setSummary(getOnboardingPermissionsSnapshotSummary(snapshot));
+                    UIUtils.toastShort(requireContext(), getString(R.string.permissions_review_updated));
+                    return true;
+                });
+
+                reevaluateOnboardingPermissionsSnapshot(requireContext());
+                reviewNowPref.setSummary(getOnboardingPermissionsSnapshotSummary(
+                        getOnboardingPermissionsSnapshot(requireContext())));
             }
 
 //            SwitchPreferenceCompat switchPreferenceCompat = findPreference("updateVersionPrompt");
@@ -1089,6 +1120,18 @@ public class MainSettingsManager extends AppCompatActivity
         return prefs.getString("setupInstallTimestamp", "");
     }
 
+    public static void setFirstRunPermissionState(Context context, String capabilityKey, String state) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString(capabilityKey, state);
+        edit.apply();
+    }
+
+    public static String getFirstRunPermissionState(Context context, String capabilityKey) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString(capabilityKey, "PENDING");
+    }
+
     public static void clearSetupInstallSnapshot(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         SharedPreferences.Editor edit = prefs.edit();
@@ -1096,6 +1139,241 @@ public class MainSettingsManager extends AppCompatActivity
         edit.remove("setupInstallStateDetail");
         edit.remove("setupInstallTimestamp");
         edit.apply();
+    }
+
+    public static void setDontShowAgainJoinBetaUpdateChannelDialog(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("dontShowAgainJoinBetaUpdateChannelDialog", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getDontShowAgainJoinBetaUpdateChannelDialog(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("dontShowAgainJoinBetaUpdateChannelDialog", false);
+    }
+
+    public static void setuseDefaultBios(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("useDefaultBios", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getuseDefaultBios(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("useDefaultBios", true);
+    }
+
+    public static void setuseUEFI(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("useUEFI", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getuseUEFI(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("useUEFI", false);
+    }
+
+    public static void setSkipVersion(Context context, String version) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("skipVersion", version);
+        edit.apply();
+    }
+
+    public static String getSkipVersion(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("skipVersion", "");
+    }
+
+    public static void setVNCScaleMode(Context context, int mode) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putInt("vncScaleMode", mode);
+        edit.apply();
+    }
+
+    public static int getVNCScaleMode(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getInt("vncScaleMode", 0);
+    }
+
+    public static void setForceRefreshVNCDisplay(Context context, Boolean enabled) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("forceRefeshVNCDisplay", enabled);
+        edit.apply();
+    }
+
+    public static Boolean getForceRefreshVNCDisplay(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("forceRefeshVNCDisplay", true);
+    }
+
+    /** @deprecated Use {@link #setForceRefreshVNCDisplay(Context, Boolean)} instead. */
+    @Deprecated
+    public static void setForceRefeshVNCDisplay(Context context, Boolean _boolean) {
+        setForceRefreshVNCDisplay(context, _boolean);
+    }
+
+    /** @deprecated Use {@link #getForceRefreshVNCDisplay(Context)} instead. */
+    @Deprecated
+    public static Boolean getForceRefeshVNCDisplay(Context context) {
+        return getForceRefreshVNCDisplay(context);
+    }
+
+    public static void setQuickStart(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("quickStart", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getQuickStart(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("quickStart", true);
+    }
+
+    public static void setTheme(Context context, int value) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putInt("theme", value);
+        edit.apply();
+    }
+
+    public static int getTheme(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getInt("theme", 0);
+    }
+
+    public static void setDynamicColor(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("dynamicColor", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getDynamicColor(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("dynamicColor", true);
+    }
+
+    public static void setLikes(Context context, String value) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("likes", value);
+        edit.apply();
+    }
+
+    public static String getLikes(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("likes", "");
+    }
+
+    public static void setViews(Context context, String value) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("views", value);
+        edit.apply();
+    }
+
+    public static String getViews(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("views", "");
+    }
+
+    public static void setSmartSizeCalculation(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("smartSizeCalculation", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getSmartSizeCalculation(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("smartSizeCalculation", true);
+    }
+
+    public static void setCyclicRedundancyCheck(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("cyclicRedundancyCheck", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getCyclicRedundancyCheck(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("cyclicRedundancyCheck", true);
+    }
+
+    public static void setCheckBeforeExtract(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("checkBeforeExtract", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getCheckBeforeExtract(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("checkBeforeExtract", false);
+    }
+
+    public static void setRunQemuWithXterm(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("runQemuWithXterm", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getRunQemuWithXterm(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("runQemuWithXterm", true);
+    }
+
+    public static void setUseSdl(Context context, Boolean _boolean) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("useSdl", _boolean);
+        edit.apply();
+    }
+
+    public static Boolean getUseSdl(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("useSdl", false);
+    }
+
+    public static void setStandardSetupVersion(Context context, int value) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putInt("standardSetupVersion", value);
+        edit.apply();
+    }
+
+    public static void setSetupInitialBenchmarkOptIn(Context context, boolean enabled) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean("setupInitialBenchmarkOptIn", enabled);
+        edit.apply();
+    }
+
+    public static boolean getSetupInitialBenchmarkOptIn(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean("setupInitialBenchmarkOptIn", false);
+    }
+
+    public static void setSetupInitialBenchmarkLast(Context context, String summary) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString("setupInitialBenchmarkLast", summary);
+        edit.apply();
+    }
+
+    public static String getSetupInitialBenchmarkLast(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getString("setupInitialBenchmarkLast", "");
     }
 
     public static void setDontShowAgainJoinBetaUpdateChannelDialog(Context context, Boolean _boolean) {
