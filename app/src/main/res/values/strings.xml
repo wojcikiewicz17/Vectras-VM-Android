@@ -1094,4 +1094,17 @@ CPU1 %3$d%% · CPUm %4$d%% · MEM %5$d%% · IO %6$d%% · INT %7$d%% · EMU %8$d%
     <string name="setup_action_rollback">Restore previous version</string>
     <string name="setup_action_export_diagnostic">Export diagnostic</string>
     <string name="setup_rollback_not_available">Rollback is not available yet for this session.</string>
+
+    <string name="setup_profile_mode_title">Setup profile mode</string>
+    <string name="setup_profile_mode_wizard">Wizard</string>
+    <string name="setup_profile_mode_debugger">Debugger</string>
+    <string name="setup_profile_mode_wizard_summary">Guided setup with simplified prompts.</string>
+    <string name="setup_profile_mode_debugger_summary">Detailed diagnostics, self-check and advanced exports.</string>
+    <string name="setup_profile_select_title">Select setup profile</string>
+    <string name="setup_profile_select_note">Choose your profile before starting installation.</string>
+    <string name="setup_profile_wizard_note">Wizard mode uses guided UX and simplified prompts.</string>
+    <string name="setup_profile_debugger_note">Debugger mode enables self-checks, verbose logs and technical diagnostics.</string>
+
+    <string name="setup_profile_select_required">Select a setup profile before continuing.</string>
+
 </resources>

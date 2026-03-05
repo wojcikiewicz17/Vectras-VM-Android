@@ -31,6 +31,7 @@ import com.vectras.vm.rafaelia.RafaeliaMode;
 import com.vectras.vm.R;
 import com.vectras.vm.SplashActivity;
 import com.vectras.vm.VectrasApp;
+import com.vectras.vm.setupwizard.SetupProfileMode;
 import com.vectras.vm.settings.ThemeActivity;
 
 import java.util.Locale;
@@ -40,6 +41,8 @@ public class MainSettingsManager extends AppCompatActivity
         implements PreferenceFragmentCompat.OnPreferenceStartFragmentCallback {
 
     public static final String TAG = "MainSettingsManager";
+    private static final String KEY_SETUP_PROFILE_MODE = "setupProfileMode";
+    private static final String KEY_SETUP_PROFILE_FIRST_SELECTION_DONE = "setupProfileFirstSelectionDone";
 
     public static final int THEME_DEFAULT = 0;
     public static final int THEME_LIGHT = 1;
@@ -218,6 +221,17 @@ public class MainSettingsManager extends AppCompatActivity
                 languagePref.setOnPreferenceChangeListener(this);
             }
 
+            ListPreference setupProfileModePref = findPreference(KEY_SETUP_PROFILE_MODE);
+            if (setupProfileModePref != null) {
+                updateSetupProfileSummary(setupProfileModePref, setupProfileModePref.getValue());
+                setupProfileModePref.setOnPreferenceChangeListener((preference, newValue) -> {
+                    String value = String.valueOf(newValue);
+                    updateSetupProfileSummary(setupProfileModePref, value);
+                    setSetupProfileMode(requireContext(), SetupProfileMode.fromStorageValue(value));
+                    return true;
+                });
+            }
+
 //            SwitchPreferenceCompat switchPreferenceCompat = findPreference("updateVersionPrompt");
 //            assert switchPreferenceCompat != null;
 //            SwitchPreferenceCompat switchJoinBetaChannel = findPreference("checkforupdatesfromthebetachannel");
@@ -239,6 +253,15 @@ public class MainSettingsManager extends AppCompatActivity
 //                return true;
 //            });
 
+        }
+
+        private void updateSetupProfileSummary(ListPreference preference, String rawValue) {
+            SetupProfileMode mode = SetupProfileMode.fromStorageValue(rawValue);
+            if (mode == SetupProfileMode.DEBUGGER) {
+                preference.setSummary(getString(R.string.setup_profile_mode_debugger_summary));
+            } else {
+                preference.setSummary(getString(R.string.setup_profile_mode_wizard_summary));
+            }
         }
 
         @Override
@@ -1096,6 +1119,30 @@ public class MainSettingsManager extends AppCompatActivity
         edit.remove("setupInstallStateDetail");
         edit.remove("setupInstallTimestamp");
         edit.apply();
+    }
+
+    public static void setSetupProfileMode(Context context, SetupProfileMode mode) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putString(KEY_SETUP_PROFILE_MODE, mode.getStorageValue());
+        edit.apply();
+    }
+
+    public static SetupProfileMode getSetupProfileMode(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return SetupProfileMode.fromStorageValue(prefs.getString(KEY_SETUP_PROFILE_MODE, SetupProfileMode.WIZARD.getStorageValue()));
+    }
+
+    public static void setSetupProfileFirstSelectionDone(Context context, boolean done) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        SharedPreferences.Editor edit = prefs.edit();
+        edit.putBoolean(KEY_SETUP_PROFILE_FIRST_SELECTION_DONE, done);
+        edit.apply();
+    }
+
+    public static boolean isSetupProfileFirstSelectionDone(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getBoolean(KEY_SETUP_PROFILE_FIRST_SELECTION_DONE, false);
     }
 
     public static void setDontShowAgainJoinBetaUpdateChannelDialog(Context context, Boolean _boolean) {
