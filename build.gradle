@@ -33,16 +33,24 @@ allprojects {
 }
 
 ext {
-    toolsVersion = properties.get('TOOLS_VERSION', '35.0.0')
-    sdkBaselineApi = Integer.parseInt(properties.get('SDK_BASELINE_API', '35').toString())
-    compileApi = Integer.parseInt(properties.get('COMPILE_API', sdkBaselineApi.toString()).toString())
-    targetApi = Integer.parseInt(properties.get('TARGET_API', sdkBaselineApi.toString()).toString())
+    resolveProperty = { List<String> keys, String fallback ->
+        def key = keys.find { properties.containsKey(it) }
+        return properties.get(key ?: '', fallback)
+    }
+    resolveIntProperty = { List<String> keys, int fallback ->
+        return Integer.parseInt(resolveProperty(keys, fallback.toString()).toString())
+    }
+    buildStrict = Boolean.parseBoolean(resolveProperty(['buildStrict'], 'false').toString())
+    toolsVersion = resolveProperty(['TOOLS_VERSION', 'tools.version'], '35.0.0')
+    sdkBaselineApi = resolveIntProperty(['SDK_BASELINE_API', 'sdk.baseline.api'], 35)
+    compileApi = resolveIntProperty(['COMPILE_API', 'compile.api'], sdkBaselineApi)
+    targetApi = resolveIntProperty(['TARGET_API', 'target.api'], sdkBaselineApi)
     // Política atual: ARM64-only com baseline coerente para ABIs 64-bit.
-    minApi = Integer.parseInt(properties.get('MIN_API', '23').toString())
-    releaseMinTargetApi = Integer.parseInt(properties.get('RELEASE_MIN_TARGET_API', sdkBaselineApi.toString()).toString())
-    javaLanguageVersion = Integer.parseInt(properties.get('JAVA_LANGUAGE_VERSION', '17').toString())
-    ndkVersion = properties.get('NDK_VERSION', '27.2.12479018')
-    cmakeVersion = properties.get('CMAKE_VERSION', '3.22.1')
+    minApi = resolveIntProperty(['MIN_API', 'min.api'], 23)
+    releaseMinTargetApi = resolveIntProperty(['RELEASE_MIN_TARGET_API', 'release.min.target.api'], sdkBaselineApi)
+    javaLanguageVersion = resolveIntProperty(['JAVA_LANGUAGE_VERSION', 'java.language.version'], 17)
+    ndkVersion = resolveProperty(['NDK_VERSION', 'ndk.version'], '27.2.12479018')
+    cmakeVersion = resolveProperty(['CMAKE_VERSION', 'cmake.version'], '3.22.1')
     appAbiPolicy = properties.get('APP_ABI_POLICY', 'arm64-only')
     officialAbis = officiallySupportedAbis
     supportedAbis = properties.get('SUPPORTED_ABIS', defaultSupportedAbisByPolicy.get(appAbiPolicy, 'arm64-v8a'))
@@ -51,17 +59,39 @@ ext {
         .findAll { !it.isEmpty() }
 }
 
+def emitValidationMessage(String scope, String message, boolean strict) {
+    if (strict) {
+        throw new GradleException("[${scope}] ${message}")
+    }
+    logger.warn("[${scope}] ${message}")
+}
 
-
-
-
-def validateReleaseTargetApi() {
-    if (targetApi < releaseMinTargetApi) {
-        throw new GradleException("TARGET_API (${targetApi}) must be >= RELEASE_MIN_TARGET_API (${releaseMinTargetApi}) and aligned with official SDK baseline (${sdkBaselineApi}) for release builds.")
+def isReleaseLikeTaskGraph(graph) {
+    graph.allTasks.any { task ->
+        def n = task.name.toLowerCase()
+        n.contains('release') || n.contains('perfrelease')
     }
 }
 
-def validateMinApiAbiCompatibility() {
+def resolveStrictModeForApiAbi(graph = null) {
+    return buildStrict || (graph != null && isReleaseLikeTaskGraph(graph))
+}
+
+def resolveStrictModeForJvm(graph = null) {
+    return buildStrict || (graph != null && isReleaseLikeTaskGraph(graph))
+}
+
+
+
+
+
+def validateReleaseTargetApi(boolean strictMode = true) {
+    if (targetApi < releaseMinTargetApi) {
+        emitValidationMessage('validateReleaseTargetApi', "TARGET_API (${targetApi}) must be >= RELEASE_MIN_TARGET_API (${releaseMinTargetApi}) and aligned with official SDK baseline (${sdkBaselineApi}) for release builds.", strictMode)
+    }
+}
+
+def validateMinApiAbiCompatibility(boolean strictMode = true) {
     def abiMinApiRequirements = [
         'armeabi-v7a': 16,
         'arm64-v8a': 21
@@ -69,29 +99,29 @@ def validateMinApiAbiCompatibility() {
     def supportedPolicyNames = ['arm64-only', 'with-32bit'] as Set
 
     if (!supportedPolicyNames.contains(appAbiPolicy)) {
-        throw new GradleException("APP_ABI_POLICY (${appAbiPolicy}) inválida. Use uma entre ${supportedPolicyNames}.")
+        emitValidationMessage('validateMinApiAbiCompatibility', "APP_ABI_POLICY (${appAbiPolicy}) inválida. Use uma entre ${supportedPolicyNames}.", strictMode)
     }
 
     if (supportedAbis.isEmpty()) {
-        throw new GradleException('SUPPORTED_ABIS não pode ficar vazia.')
+        emitValidationMessage('validateMinApiAbiCompatibility', 'SUPPORTED_ABIS não pode ficar vazia.', strictMode)
     }
 
     def unknownAbis = supportedAbis.findAll { !abiMinApiRequirements.containsKey(it) }
     if (!unknownAbis.isEmpty()) {
-        throw new GradleException("SUPPORTED_ABIS contém ABIs não reconhecidas/oficiais: ${unknownAbis}. ABIs oficialmente suportadas: ${officialAbis}.")
+        emitValidationMessage('validateMinApiAbiCompatibility', "SUPPORTED_ABIS contém ABIs não reconhecidas/oficiais: ${unknownAbis}. ABIs oficialmente suportadas: ${officialAbis}.", strictMode)
     }
 
     if (appAbiPolicy == 'arm64-only' && supportedAbis != ['arm64-v8a']) {
-        throw new GradleException("APP_ABI_POLICY=arm64-only exige SUPPORTED_ABIS=arm64-v8a (atual: ${supportedAbis}).")
+        emitValidationMessage('validateMinApiAbiCompatibility', "APP_ABI_POLICY=arm64-only exige SUPPORTED_ABIS=arm64-v8a (atual: ${supportedAbis}).", strictMode)
     }
 
     if (appAbiPolicy == 'with-32bit' && !supportedAbis.contains('armeabi-v7a')) {
-        throw new GradleException("APP_ABI_POLICY=with-32bit exige ABI 32-bit oficial armeabi-v7a em SUPPORTED_ABIS (atual: ${supportedAbis}).")
+        emitValidationMessage('validateMinApiAbiCompatibility', "APP_ABI_POLICY=with-32bit exige ABI 32-bit oficial armeabi-v7a em SUPPORTED_ABIS (atual: ${supportedAbis}).", strictMode)
     }
 
     def requiredMinApi = supportedAbis.collect { abiMinApiRequirements[it] }.max()
     if (minApi < requiredMinApi) {
-        throw new GradleException("MIN_API (${minApi}) incompatível com SUPPORTED_ABIS (${supportedAbis}). Mínimo requerido: ${requiredMinApi}.")
+        emitValidationMessage('validateMinApiAbiCompatibility', "MIN_API (${minApi}) incompatível com SUPPORTED_ABIS (${supportedAbis}). Mínimo requerido: ${requiredMinApi}.", strictMode)
     }
 }
 
@@ -99,7 +129,7 @@ tasks.register("verifyTargetApiBaseline") {
     group = "verification"
     description = "Falha quando TARGET_API está abaixo do baseline oficial de SDK para release"
     doLast {
-        validateReleaseTargetApi()
+        validateReleaseTargetApi(true)
         println "TARGET_API=${targetApi} atende ao baseline oficial de SDK (${sdkBaselineApi}) e ao mínimo de release (${releaseMinTargetApi})."
     }
 }
@@ -108,7 +138,7 @@ tasks.register("verifyMinApiAbiCompatibility") {
     group = "verification"
     description = "Falha quando MIN_API e SUPPORTED_ABIS ficam incompatíveis"
     doLast {
-        validateMinApiAbiCompatibility()
+        validateMinApiAbiCompatibility(true)
         println "MIN_API=${minApi}, APP_ABI_POLICY=${appAbiPolicy}, SUPPORTED_ABIS=${supportedAbis} estão coerentes."
     }
 }
@@ -120,12 +150,12 @@ gradle.taskGraph.whenReady { graph ->
     }
 
     if (hasAndroidPackagingTask) {
-        validateMinApiAbiCompatibility()
+        validateMinApiAbiCompatibility(resolveStrictModeForApiAbi(graph))
         validateAndroidSdkPackages()
     }
 
     if (graph.allTasks.any { it.name.toLowerCase().contains('release') }) {
-        validateReleaseTargetApi()
+        validateReleaseTargetApi(resolveStrictModeForApiAbi(graph))
     }
 
     def hasBuildOrVerificationTask = graph.allTasks.any { task ->
@@ -133,7 +163,7 @@ gradle.taskGraph.whenReady { graph ->
         n.contains('assemble') || n.contains('bundle') || n.contains('build') || n.contains('test') || n.contains('lint') || n.contains('verify')
     }
     if (hasBuildOrVerificationTask) {
-        validateGradleRuntimeJavaVersion()
+        validateGradleRuntimeJavaVersion(resolveStrictModeForJvm(graph))
     }
 }
 
@@ -204,19 +234,19 @@ tasks.register("verifyArm64ToolchainCompatibility") {
 }
 
 
-def validateGradleRuntimeJavaVersion() {
+def validateGradleRuntimeJavaVersion(boolean strictMode = true) {
     def currentJava = JavaVersion.current()
-    def configuredRuntime = Integer.parseInt(properties.get('GRADLE_JAVA_RUNTIME_VERSION', properties.get('JAVA_LANGUAGE_VERSION', '17')).toString())
-    def maxSupportedRuntime = Integer.parseInt(properties.get('GRADLE_MAX_RUNTIME_JAVA_VERSION', '21').toString())
+    def configuredRuntime = resolveIntProperty(['GRADLE_JAVA_RUNTIME_VERSION', 'gradle.java.runtime.version'], resolveIntProperty(['JAVA_LANGUAGE_VERSION', 'java.language.version'], 17))
+    def maxSupportedRuntime = resolveIntProperty(['GRADLE_MAX_RUNTIME_JAVA_VERSION', 'gradle.max.runtime.java.version'], 21)
 
     def configuredJavaVersion = JavaVersion.toVersion(configuredRuntime)
     if (currentJava < configuredJavaVersion) {
-        throw new GradleException("Gradle runtime JVM incompatível. Mínimo requerido Java ${configuredRuntime} (JAVA_HOME/org.gradle.java.home), detectado ${currentJava}. Configure JAVA_HOME ou org.gradle.java.home para JDK ${configuredRuntime}+.")
+        emitValidationMessage('validateGradleRuntimeJavaVersion', "Gradle runtime JVM incompatível. Mínimo requerido Java ${configuredRuntime} (JAVA_HOME/org.gradle.java.home), detectado ${currentJava}. Configure JAVA_HOME ou org.gradle.java.home para JDK ${configuredRuntime}+.", strictMode)
     }
 
     def maxSupportedJavaVersion = JavaVersion.toVersion(maxSupportedRuntime)
     if (currentJava > maxSupportedJavaVersion) {
-        throw new GradleException("Gradle runtime JVM acima do máximo suportado para este baseline. Detectado ${currentJava}, máximo suportado ${maxSupportedRuntime}. Use JDK ${configuredRuntime}-${maxSupportedRuntime} ou atualize wrapper/AGP para suportar oficialmente esta JVM.")
+        emitValidationMessage('validateGradleRuntimeJavaVersion', "Gradle runtime JVM acima do máximo suportado para este baseline. Detectado ${currentJava}, máximo suportado ${maxSupportedRuntime}. Use JDK ${configuredRuntime}-${maxSupportedRuntime} ou atualize wrapper/AGP para suportar oficialmente esta JVM.", strictMode)
     }
 
     if (currentJava != configuredJavaVersion) {
@@ -230,24 +260,60 @@ tasks.register("verifyGradleRuntimeJvm") {
     group = "verification"
     description = "Valida JVM runtime usada pelo Gradle (versão fixa e limite máximo suportado)"
     doLast {
-        validateGradleRuntimeJavaVersion()
+        validateGradleRuntimeJavaVersion(true)
+    }
+}
+
+def resolvePython3Command() {
+    def pythonCommands = ['python3', 'python']
+    return pythonCommands.find { candidate ->
+        try {
+            def result = new ByteArrayOutputStream()
+            exec {
+                commandLine candidate, '--version'
+                standardOutput = result
+                errorOutput = result
+                ignoreExitValue = true
+            }
+            return true
+        } catch (Exception ignored) {
+            return false
+        }
+    }
+}
+
+def runPythonVerificationScript(String scriptPath) {
+    def pythonCmd = resolvePython3Command()
+    if (pythonCmd == null) {
+        if (buildStrict) {
+            throw new GradleException("python3/python não encontrado para executar ${scriptPath}. Em CI oficial use imagem com Python instalado ou desative estrito explicitamente (-PbuildStrict=false).")
+        }
+        logger.warn("[verification] python3/python não encontrado; task ${scriptPath} foi ignorada porque buildStrict=false.")
+        return
+    }
+
+    exec {
+        workingDir rootDir
+        commandLine pythonCmd, scriptPath
     }
 }
 
 
-tasks.register("verifyBootstrapAssets", Exec) {
+tasks.register("verifyBootstrapAssets") {
     group = "verification"
     description = "Valida presença e integridade básica dos bootstraps versionados no app"
-    workingDir rootDir
-    commandLine "python3", "tools/verify_bootstrap_assets.py"
+    doLast {
+        runPythonVerificationScript("tools/verify_bootstrap_assets.py")
+    }
 }
 
 
-tasks.register("verifyRepoFileDependencies", Exec) {
+tasks.register("verifyRepoFileDependencies") {
     group = "verification"
     description = "Verifica se dependências locais de arquivos/módulos existem no repositório"
-    workingDir rootDir
-    commandLine "python3", "tools/verify_repo_file_dependencies.py"
+    doLast {
+        runPythonVerificationScript("tools/verify_repo_file_dependencies.py")
+    }
 }
 
 

@@ -8,8 +8,10 @@ def currentJava = JavaVersion.current()
 def configuredRuntime = resolveIntProperty('GRADLE_JAVA_RUNTIME_VERSION', resolveIntProperty('JAVA_LANGUAGE_VERSION', 17))
 def maxSupportedRuntime = resolveIntProperty('GRADLE_MAX_RUNTIME_JAVA_VERSION', 21)
 
+def buildStrict = Boolean.parseBoolean((gradle.startParameter.projectProperties.get('buildStrict') ?: providers.gradleProperty('buildStrict').orNull ?: 'false').toString())
+
 if (currentJava > JavaVersion.toVersion(maxSupportedRuntime)) {
-    logger.warn("[settings.gradle] Gradle runtime JVM (${currentJava}) acima do máximo declarado (${maxSupportedRuntime}). A validação final ocorre no build.gradle raiz para evitar hard-stop duplicado.")
+    logger.warn("[settings.gradle] Gradle runtime JVM (${currentJava}) acima do máximo declarado (${maxSupportedRuntime}). buildStrict=${buildStrict}; validação final ocorre no build.gradle raiz.")
 }
 
 rootProject.name = "Vectras VM"

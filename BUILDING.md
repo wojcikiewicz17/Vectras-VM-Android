@@ -1,8 +1,8 @@
 # BUILDING
 
 ## CLI prerequisites
-- JDK 17
-- Android SDK Platform 34 + Build Tools 34.0.0
+- JDK 17 (baseline runtime)
+- Android SDK Platform 35 + Build Tools 35.0.0
 - NDK 27.2.12479018
 - CMake 3.22.1
 
@@ -34,3 +34,30 @@ To include 32-bit ARM:
 ```bash
 ./gradlew -PAPP_ABI_POLICY=with-32bit -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a :app:assembleDebug
 ```
+
+
+## Supported version matrix
+All values below are defaults from `gradle.properties` and can be overridden with `-P`.
+
+| Area | Property | Min | Default | Max/Policy |
+|---|---|---:|---:|---:|
+| Compile SDK | `compile.api` / `COMPILE_API` | 35 | 35 | follows Android baseline updates |
+| Target SDK | `target.api` / `TARGET_API` | 35 (`release.min.target.api`) | 35 | follows Android baseline updates |
+| Build Tools | `tools.version` / `TOOLS_VERSION` | 35.0.0 | 35.0.0 | keep aligned with compile SDK |
+| NDK | `ndk.version` / `NDK_VERSION` | 23.x | 27.2.12479018 | latest validated in CI |
+| CMake | `cmake.version` / `CMAKE_VERSION` | 3.22.1 | 3.22.1 | keep host+JNI parity |
+| Java language level | `java.language.version` / `JAVA_LANGUAGE_VERSION` | 17 | 17 | 21 (when toolchain validated) |
+| Gradle runtime JVM | `gradle.java.runtime.version` / `GRADLE_JAVA_RUNTIME_VERSION` | 17 | 17 | `gradle.max.runtime.java.version` (default 21) |
+
+Strictness control by pipeline context:
+- `-PbuildStrict=false` (default): local/debug mode; validations emit warnings where allowed.
+- `-PbuildStrict=true`: official CI/release mode; validations are blocking.
+
+## CI blocking checks by pipeline type
+- Official release CI (`buildStrict=true`):
+  - `verifyGradleRuntimeJvm` (blocking)
+  - API/ABI validations (`verifyMinApiAbiCompatibility`, release target checks) (blocking)
+  - `verifyBootstrapAssets` + `verifyRepoFileDependencies` (blocking; requires Python)
+- Local/dev or debug CI (`buildStrict=false`):
+  - Same checks run, but max-JVM/API-ABI non-release gates can warn.
+  - Python-dependent checks are skipped with warning if Python is unavailable.
