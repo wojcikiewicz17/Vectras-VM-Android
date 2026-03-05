@@ -673,25 +673,22 @@ public class FileUtils {
 	}
 
 	public static String readFromFile(Context context, File file) {
-		String contents = null;
-		try {
-			int length = (int) file.length();
-
-			byte[] bytes = new byte[length];
-
-			FileInputStream in = new FileInputStream(file);
-			try {
-				in.read(bytes);
-			} finally {
-				in.close();
-			}
-
-			contents = new String(bytes);
+		try (FileInputStream in = new FileInputStream(file)) {
+			return readFromInputStream(in);
 		} catch (Exception e) {
 			UIUtils.toastLong(context, e.toString());
 			return "error";
 		}
-		return contents;
+	}
+
+	static String readFromInputStream(InputStream in) throws IOException {
+		ByteArrayOutputStream out = new ByteArrayOutputStream();
+		byte[] buffer = new byte[4096];
+		int bytesRead;
+		while ((bytesRead = in.read(buffer)) != -1) {
+			out.write(buffer, 0, bytesRead);
+		}
+		return out.toString();
 	}
 
 	public static boolean moveFile(String oldfilename, String newFolderPath, String newFilename) {
