@@ -142,7 +142,11 @@ public class FileUtils {
             Uri uri = Uri.parse(importFilePath);
             String mode = resolveContentOpenMode(importFilePath, backendMode);
             ParcelFileDescriptor pfd = context.getContentResolver().openFileDescriptor(uri, mode);
-            return new FileInputStream(pfd.getFileDescriptor());
+            if (pfd == null) {
+                throw new FileNotFoundException("Content resolver returned null ParcelFileDescriptor for path: "
+                        + importFilePath);
+            }
+            return new ParcelFileDescriptor.AutoCloseInputStream(pfd);
         }
         return new FileInputStream(importFilePath);
     }
