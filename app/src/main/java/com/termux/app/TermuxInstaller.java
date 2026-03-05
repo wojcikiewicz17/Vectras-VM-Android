@@ -99,14 +99,26 @@ final class TermuxInstaller {
                                     if (parts.length != 2)
                                         throw new RuntimeException("Malformed symlink line: " + line);
                                     String oldPath = parts[0];
-                                    String newPath = STAGING_PREFIX_PATH + "/" + parts[1];
-                                    symlinks.add(Pair.create(oldPath, newPath));
+                                    File newPath;
+                                    try {
+                                        newPath = resolveWithinStaging(STAGING_PREFIX_FILE, parts[1]);
+                                    } catch (RuntimeException e) {
+                                        Log.e(EmulatorDebug.LOG_TAG, "Rejected symlink destination entry: " + line, e);
+                                        throw e;
+                                    }
+                                    symlinks.add(Pair.create(oldPath, newPath.getAbsolutePath()));
 
-                                    ensureDirectoryExists(new File(newPath).getParentFile());
+                                    ensureDirectoryExists(newPath.getParentFile());
                                 }
                             } else {
                                 String zipEntryName = zipEntry.getName();
-                                File targetFile = new File(STAGING_PREFIX_PATH, zipEntryName);
+                                File targetFile;
+                                try {
+                                    targetFile = resolveWithinStaging(STAGING_PREFIX_FILE, zipEntryName);
+                                } catch (RuntimeException e) {
+                                    Log.e(EmulatorDebug.LOG_TAG, "Rejected zip entry: " + zipEntryName, e);
+                                    throw e;
+                                }
                                 boolean isDirectory = zipEntry.isDirectory();
 
                                 ensureDirectoryExists(isDirectory ? targetFile : targetFile.getParentFile());
@@ -175,6 +187,26 @@ final class TermuxInstaller {
     private static void ensureDirectoryExists(File directory) {
         if (!directory.isDirectory() && !directory.mkdirs()) {
             throw new RuntimeException("Unable to create directory: " + directory.getAbsolutePath());
+        }
+    }
+
+    static File resolveWithinStaging(File stagingRoot, String relativePath) {
+        try {
+            File path = new File(relativePath);
+            if (path.isAbsolute()) {
+                throw new RuntimeException("Absolute path is not allowed in bootstrap archive: " + relativePath);
+            }
+
+            File target = new File(stagingRoot, relativePath);
+            String stagingRootCanonicalPath = stagingRoot.getCanonicalPath();
+            String targetCanonicalPath = target.getCanonicalPath();
+            String stagingRootWithSeparator = stagingRootCanonicalPath + File.separator;
+            if (!targetCanonicalPath.equals(stagingRootCanonicalPath) && !targetCanonicalPath.startsWith(stagingRootWithSeparator)) {
+                throw new RuntimeException("Path escapes bootstrap staging root: " + relativePath + " -> " + targetCanonicalPath);
+            }
+            return target;
+        } catch (IOException e) {
+            throw new RuntimeException("Failed to resolve bootstrap path: " + relativePath, e);
         }
     }
 
