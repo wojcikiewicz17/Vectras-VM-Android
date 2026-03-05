@@ -106,6 +106,12 @@ find . -maxdepth 2 -type d | sort
 - O build agora valida em bootstrap `GRADLE_JAVA_RUNTIME_VERSION` (padrão 17) e falha se a JVM runtime exceder `GRADLE_MAX_RUNTIME_JAVA_VERSION` (padrão 21).
 - Para override pontual, use `-P` no comando Gradle.
 
+### ABIs oficialmente suportadas
+- ABIs oficiais no build atual: `arm64-v8a` e `armeabi-v7a`.
+- Política padrão (`APP_ABI_POLICY=arm64-only`): empacota apenas `arm64-v8a`.
+- Política opcional (`APP_ABI_POLICY=with-32bit`): empacota `arm64-v8a,armeabi-v7a`.
+- Entradas condicionais para outras ABIs no CMake (ex.: `riscv64`) são apenas roadmap e não representam ABI ativa no empacotamento Gradle.
+
 ### Exemplo de configuração de Java para build
 ```bash
 source <(./tools/configure_java_home.sh --print)
