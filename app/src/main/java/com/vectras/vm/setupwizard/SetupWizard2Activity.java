@@ -20,6 +20,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.activity.OnBackPressedCallback;
@@ -163,8 +165,11 @@ public class SetupWizard2Activity extends AppCompatActivity {
                         extractSystemFiles();
                     }
                 } else {
+                    permissionOrchestrator.markFailed(FirstRunPermissionOrchestrator.CAPABILITY_STORAGE);
                     UIUtils.toastShort(this, getString(R.string.storage_permission_explanation_android11));
                 }
+                renderEssentialPermissionUi();
+                continueAfterEssentialPermissionResolution();
             });
 
 
@@ -209,8 +214,25 @@ public class SetupWizard2Activity extends AppCompatActivity {
         loadingIndicatorController(currentStep);
     }
 
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PermissionUtils.REQUEST_LEGACY_STORAGE) {
+            boolean granted = PermissionUtils.storagepermission(this, false);
+            if (!granted) {
+                permissionOrchestrator.markFailed(FirstRunPermissionOrchestrator.CAPABILITY_STORAGE);
+            } else {
+                permissionOrchestrator.refresh();
+            }
+            renderEssentialPermissionUi();
+            continueAfterEssentialPermissionResolution();
+        }
+    }
+
     private void initialize() {
         tarPath = getExternalFilesDir("data") + "/data.tar.gz";
+        permissionOrchestrator = new FirstRunPermissionOrchestrator(this);
 
         ListUtils.setupMirrorListForListmap(mirrorList);
         applySelectedMirror(MainSettingsManager.getSelectedMirror(this));
@@ -233,6 +255,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 extractSystemFiles();
             } else {
                 uiController(STEP_REQUEST_PERMISSION);
+                renderEssentialPermissionUi();
             }
         });
 
@@ -355,6 +378,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
         if (step == STEP_REQUEST_PERMISSION) {
             binding.lnAllowPermission.setVisibility(View.VISIBLE);
+            renderEssentialPermissionUi();
         } else if (step == STEP_EXTRACTING_SYSTEM_FILES) {
             binding.lnExtractingSystemFiles.setVisibility(View.VISIBLE);
         } else if (step == STEP_GETTING_DATA) {
@@ -710,6 +734,82 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 executeShellCommand(cmd, setupTimestamp);
             });
         }).start();
+    }
+
+    private boolean ensureEssentialPermissionsResolved(Runnable continuation) {
+        if (permissionOrchestrator.isEssentialResolved()) {
+            return true;
+        }
+        pendingPermissionContinuation = continuation;
+        uiController(STEP_REQUEST_PERMISSION);
+        renderEssentialPermissionUi();
+        return false;
+    }
+
+    private void continueAfterEssentialPermissionResolution() {
+        if (!permissionOrchestrator.isEssentialResolved()) {
+            return;
+        }
+        Runnable continuation = pendingPermissionContinuation;
+        pendingPermissionContinuation = null;
+        if (continuation != null) {
+            continuation.run();
+        }
+    }
+
+    private void requestEssentialPermissions() {
+        for (FirstRunPermissionOrchestrator.PermissionUiModel item : permissionOrchestrator.getUiModel()) {
+            if (!item.essential) {
+                continue;
+            }
+            if (item.status == FirstRunPermissionOrchestrator.PermissionStatus.GRANTED
+                    || item.status == FirstRunPermissionOrchestrator.PermissionStatus.SKIPPED) {
+                continue;
+            }
+            if (FirstRunPermissionOrchestrator.CAPABILITY_STORAGE.equals(item.capability)) {
+                PermissionUtils.requestStoragePermission(this, storagePermissionLauncher);
+                return;
+            }
+        }
+    }
+
+    private void renderEssentialPermissionUi() {
+        if (binding == null || permissionOrchestrator == null) {
+            return;
+        }
+        binding.lnPermissionRequirements.removeAllViews();
+        for (FirstRunPermissionOrchestrator.PermissionUiModel item : permissionOrchestrator.getUiModel()) {
+            TextView info = new TextView(this);
+            info.setText(item.title + " — " + item.status.name() + "\n" + item.description);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            lp.bottomMargin = (int) (8 * getResources().getDisplayMetrics().density);
+            info.setLayoutParams(lp);
+            binding.lnPermissionRequirements.addView(info);
+
+            if (item.status == FirstRunPermissionOrchestrator.PermissionStatus.FAILED) {
+                if (item.canRetry) {
+                    com.google.android.material.button.MaterialButton retry = new com.google.android.material.button.MaterialButton(this);
+                    retry.setText(getString(R.string.try_again));
+                    retry.setOnClickListener(v -> requestEssentialPermissions());
+                    binding.lnPermissionRequirements.addView(retry);
+                }
+                if (item.canOpenSettings) {
+                    com.google.android.material.button.MaterialButton settings = new com.google.android.material.button.MaterialButton(this);
+                    settings.setText(getString(R.string.settings));
+                    settings.setOnClickListener(v -> PermissionUtils.openAllFilesAccessSettings(this));
+                    binding.lnPermissionRequirements.addView(settings);
+                }
+            }
+        }
+
+        if (permissionOrchestrator.isEssentialResolved()) {
+            binding.btnAllowPermission.setText(getString(R.string.continuetext));
+        } else {
+            binding.btnAllowPermission.setText(getString(R.string.allow));
+        }
     }
 
     private void showStandardSetupUnavailableDialog() {
