@@ -22,16 +22,20 @@ public final class HardwareProfileBridge {
     private static final int SIMD_RVV = 1 << 4;
 
     private static final boolean LOADED;
+    private static final String LOAD_ERROR;
 
     static {
         boolean ok;
+        String error = "";
         try {
             System.loadLibrary("vectra_core_accel");
             ok = true;
         } catch (Throwable t) {
             ok = false;
+            error = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
         }
         LOADED = ok;
+        LOAD_ERROR = error;
     }
 
     public static final class Snapshot {
@@ -95,6 +99,14 @@ public final class HardwareProfileBridge {
     }
 
     private HardwareProfileBridge() {
+    }
+
+    public static boolean isNativeAvailable() {
+        return LOADED;
+    }
+
+    public static String getLoadError() {
+        return LOAD_ERROR;
     }
 
     public static Snapshot captureCurrentSnapshot() {

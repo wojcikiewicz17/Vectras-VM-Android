@@ -5,16 +5,23 @@ package com.vectras.vm.core;
  */
 public final class VmFlowNativeBridge {
     private static final boolean AVAILABLE;
+    private static final String LOAD_ERROR;
 
     static {
         boolean loaded = false;
+        String error = "";
         try {
             System.loadLibrary("vectra_core_accel");
             loaded = nativeVmFlowInit() == 1;
-        } catch (Throwable ignored) {
+            if (!loaded) {
+                error = "nativeVmFlowInit returned != 1";
+            }
+        } catch (Throwable t) {
             loaded = false;
+            error = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
         }
         AVAILABLE = loaded;
+        LOAD_ERROR = error;
     }
 
     private VmFlowNativeBridge() {
@@ -22,6 +29,10 @@ public final class VmFlowNativeBridge {
 
     public static boolean isAvailable() {
         return AVAILABLE;
+    }
+
+    public static String getLoadError() {
+        return LOAD_ERROR;
     }
 
     public static void mark(int vmHash, int stateOrdinal) {

@@ -21,6 +21,7 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.content.FileProvider;
 import androidx.work.Data;
 import androidx.work.OneTimeWorkRequest;
 import androidx.work.WorkInfo;
@@ -291,7 +292,10 @@ public class VMCreatorActivity extends AppCompatActivity {
                 } else {
                     addromnowdone = true;
                     if (!Objects.requireNonNull(getIntent().getStringExtra("rompath")).isEmpty()) {
-                        selectedDiskFile(Uri.fromFile(new File((Objects.requireNonNull(getIntent().getStringExtra("rompath"))))), false);
+                        Uri romUri = toShareableUri(Objects.requireNonNull(getIntent().getStringExtra("rompath")));
+                        if (romUri != null) {
+                            selectedDiskFile(romUri, false);
+                        }
                     }
                     if (!Objects.requireNonNull(getIntent().getStringExtra("addtodrive")).isEmpty()) {
                         binding.drive.setText(AppConfig.vmFolder + vmID + "/" + getIntent().getStringExtra("romfilename"));
@@ -846,6 +850,14 @@ public class VMCreatorActivity extends AppCompatActivity {
         }
     }
 
+
+    private Uri toShareableUri(String path) {
+        if (path == null || path.isEmpty()) return null;
+        if (path.startsWith("content://")) return Uri.parse(path);
+        File file = new File(path);
+        if (!file.exists()) return null;
+        return FileProvider.getUriForFile(this, getPackageName() + ".provider", file);
+    }
     private void selectedDiskFile(Uri _content_describer, boolean _addtodrive) {
         if (FileUtils.isValidFilePath(this, FileUtils.getPath(this, _content_describer), false)) {
             new Thread(() -> {

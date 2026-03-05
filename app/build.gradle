@@ -34,9 +34,9 @@ android {
                     // -mcpu complementa o baseline de -march sem substituí-lo.
                     arm64CppFlags += "-mcpu=${nativeMcpu}"
                 }
-                def commonCppFlags = ["-O3", "-fno-exceptions", "-fno-rtti", "-DRMR_JNI_BUILD=1"]
+                def commonCppFlags = ["-O2", "-fno-fast-math", "-fno-exceptions", "-fno-rtti", "-DRMR_JNI_BUILD=1"]
                 cppFlags commonCppFlags.join(" ")
-                cFlags "-O3 -DRMR_JNI_BUILD=1"
+                cFlags "-O2 -fno-fast-math -DRMR_JNI_BUILD=1"
                 arguments "-DRMR_ENABLE_POLICY_MODULE=${rmrEnablePolicyModule}",
                           "-DRMR_ENABLE_BITRAF_MODULE=${rmrEnableBitrafModule}",
                           "-DVECTRA_ARM64_CPP_FLAGS=${arm64CppFlags.join(' ')}"
@@ -92,7 +92,7 @@ android {
             minifyEnabled = true
             shrinkResources = true
             proguardFiles(getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro')
-            buildConfigField "boolean", "VECTRA_CORE_ENABLED", "false"
+            buildConfigField "boolean", "VECTRA_CORE_ENABLED", "true"
         }
         debug {
             minifyEnabled = false
@@ -324,13 +324,12 @@ android.sourceSets {
         }
 
         // Quarentena de testes legados incompatíveis com assinaturas/APIs atuais.
-        // Mantém o pipeline unitário determinístico enquanto os testes são migrados.
+        // Redução gradual: testes de JNI/storage estão sendo reativados primeiro.
         java.exclude "android/androidVNC/LargeBitmapDataIOExceptionRegressionTest.java"
         java.exclude "com/vectras/vterm/TerminalOutputReferenceTest.java"
         java.exclude "com/vectras/vm/core/ProcessSupervisorFailoverTest.java"
         java.exclude "com/vectras/vm/core/ProcessOutputDrainerTest.java"
         java.exclude "com/vectras/vm/rafaelia/RafaeliaMvpTest.java"
-        java.exclude "com/vectras/qemu/utils/RamInfoTest.java"
         java.exclude "com/vectras/vm/core/ExecutionExecutorsPolicyTest.java"
     }
 }

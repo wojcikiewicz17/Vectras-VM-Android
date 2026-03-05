@@ -4,17 +4,21 @@ import java.lang.ThreadLocal;
 
 public final class LowLevelBridge {
     private static final boolean LOADED;
+    private static final String LOAD_ERROR;
     private static final ThreadLocal<Boolean> LAST_NATIVE_PATH = new ThreadLocal<Boolean>();
 
     static {
         boolean ok;
+        String error = "";
         try {
             System.loadLibrary("vectra_core_accel");
             ok = true;
         } catch (Throwable t) {
             ok = false;
+            error = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
         }
         LOADED = ok;
+        LOAD_ERROR = error;
     }
 
     private LowLevelBridge() {
@@ -22,6 +26,10 @@ public final class LowLevelBridge {
 
     public static boolean isLoaded() {
         return LOADED;
+    }
+
+    public static String getLoadError() {
+        return LOAD_ERROR;
     }
 
     public static boolean wasLastCallNative() {

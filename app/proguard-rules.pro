@@ -42,3 +42,9 @@
 -keepnames class com.vectras.vm.settings.UpdaterActivity
 -keepnames class com.vectras.vm.x11.LoriePreferences
 
+
+
+# JNI signatures (native methods) must be preserved in minified release builds.
+-keepclasseswithmembernames class * {
+    native <methods>;
+}

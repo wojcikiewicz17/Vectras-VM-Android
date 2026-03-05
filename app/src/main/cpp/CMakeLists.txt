@@ -86,7 +86,7 @@ else()
 endif()
 
 # BUG#3 FIX: -ffreestanding/-fno-builtin removed — Android JNI requires bionic libc
-set(VECTRA_COMMON_COMPILE_OPTIONS -O3 -ffast-math -fvisibility=hidden -DRMR_JNI_BUILD=1)
+set(VECTRA_COMMON_COMPILE_OPTIONS -O2 -fno-fast-math -fvisibility=hidden -DRMR_JNI_BUILD=1)
 set(VECTRA_ABI_COMPILE_OPTIONS)
 
 # Flag arm64 vinda do Gradle: baseline (-march=armv8-a) e tuning opcional (-mcpu=<valor>).

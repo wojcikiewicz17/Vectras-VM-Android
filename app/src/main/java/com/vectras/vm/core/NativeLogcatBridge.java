@@ -3,16 +3,20 @@ package com.vectras.vm.core;
 public final class NativeLogcatBridge {
 
     private static final boolean NATIVE_AVAILABLE;
+    private static final String LOAD_ERROR;
 
     static {
         boolean loaded;
+        String error = "";
         try {
             System.loadLibrary("vectra_core_accel");
             loaded = true;
-        } catch (Throwable ignored) {
+        } catch (Throwable t) {
             loaded = false;
+            error = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
         }
         NATIVE_AVAILABLE = loaded;
+        LOAD_ERROR = error;
     }
 
     private NativeLogcatBridge() {
@@ -21,6 +25,10 @@ public final class NativeLogcatBridge {
 
     public static boolean isNativeAvailable() {
         return NATIVE_AVAILABLE;
+    }
+
+    public static String getLoadError() {
+        return LOAD_ERROR;
     }
 
     public static boolean init(int ringEntries, int entryBytes) {

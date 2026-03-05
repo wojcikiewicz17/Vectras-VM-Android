@@ -41,6 +41,7 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.os.ParcelFileDescriptor;
+import androidx.core.content.FileProvider;
 import androidx.documentfile.provider.DocumentFile;
 import android.text.Spannable;
 import android.util.Log;
@@ -193,8 +194,9 @@ public class FileUtils {
                     try {
                         Intent intent = new Intent(Intent.ACTION_EDIT);
                         File file = new File(Config.getLogFilePath());
-                        Uri uri = Uri.fromFile(file);
+                        Uri uri = FileProvider.getUriForFile(activity, activity.getPackageName() + ".provider", file);
                         intent.setDataAndType(uri, "text/plain");
+                        intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
                         activity.startActivity(intent);
                     } catch (Exception ex) {
 //            UIUtils.toastShort(activity, "Could not find a Text Viewer on your device");

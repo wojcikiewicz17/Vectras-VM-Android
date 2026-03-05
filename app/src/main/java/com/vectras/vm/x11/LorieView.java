@@ -23,6 +23,7 @@ import android.view.SurfaceView;
 import androidx.annotation.Keep;
 import androidx.annotation.NonNull;
 
+
 import com.vectras.vm.x11.input.InputStub;
 
 import java.nio.charset.StandardCharsets;
@@ -230,8 +231,8 @@ public class LorieView extends SurfaceView implements InputStub {
 
     /** @noinspection unused*/ // It is used in native code
     void requestClipboard() {
-        if (!clipboardSyncEnabled) {
-            sendClipboardEvent("".getBytes(StandardCharsets.UTF_8));
+        if (!clipboardSyncEnabled || !NATIVE_AVAILABLE) {
+            if (NATIVE_AVAILABLE) sendClipboardEvent("".getBytes(StandardCharsets.UTF_8));
             return;
         }
 
@@ -249,7 +250,7 @@ public class LorieView extends SurfaceView implements InputStub {
 
     public void checkForClipboardChange() {
         ClipDescription desc = clipboard.getPrimaryClipDescription();
-        if (clipboardSyncEnabled && desc != null &&
+        if (NATIVE_AVAILABLE && clipboardSyncEnabled && desc != null &&
                 lastClipboardTimestamp < desc.getTimestamp() &&
                 desc.getMimeTypeCount() == 1 &&
                 desc.hasMimeType(ClipDescription.MIMETYPE_TEXT_PLAIN)) {
@@ -274,6 +275,10 @@ public class LorieView extends SurfaceView implements InputStub {
             clipboard.removePrimaryClipChangedListener(clipboardListener);
     }
 
+    private static final String TAG = "LorieView";
+    private static final boolean NATIVE_AVAILABLE;
+    private static final String NATIVE_LOAD_ERROR;
+
     static native void connect(int fd);
     native void handleXEvents();
     static native void startLogcat(int fd);
@@ -287,7 +292,26 @@ public class LorieView extends SurfaceView implements InputStub {
     public native void sendTextEvent(byte[] text);
     public native void sendUnicodeEvent(int code);
 
+    public static boolean isNativeAvailable() {
+        return NATIVE_AVAILABLE;
+    }
+
+    public static String getNativeLoadError() {
+        return NATIVE_LOAD_ERROR;
+    }
+
     static {
-        System.loadLibrary("Xlorie");
+        boolean loaded;
+        String error = "";
+        try {
+            System.loadLibrary("Xlorie");
+            loaded = true;
+        } catch (Throwable t) {
+            loaded = false;
+            error = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
+            Log.e(TAG, "Xlorie native bridge unavailable, Java fallback active", t);
+        }
+        NATIVE_AVAILABLE = loaded;
+        NATIVE_LOAD_ERROR = error;
     }
 }

@@ -213,13 +213,42 @@ final class TermuxInstaller {
         }
     }
 
+    private static final String TERMUX_BOOTSTRAP_LIB = "termux-bootstrap";
+    private static volatile boolean bootstrapNativeLoadAttempted = false;
+    private static volatile boolean bootstrapNativeLoaded = false;
+    private static volatile String bootstrapNativeLoadError = "";
+
     public static byte[] loadZipBytes() {
-        // Only load the shared library when necessary to save memory usage.
-        //System.loadLibrary("termux-bootstrap");
-        return getZip();
+        if (ensureBootstrapNativeLoaded()) {
+            try {
+                return nativeGetZip();
+            } catch (Throwable t) {
+                bootstrapNativeLoadError = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
+                Log.e(EmulatorDebug.LOG_TAG, "Failed to read bootstrap archive from JNI", t);
+            }
+        }
+        return new byte[0];
     }
 
-    public static native byte[] getZip();
+    private static synchronized boolean ensureBootstrapNativeLoaded() {
+        if (bootstrapNativeLoadAttempted) return bootstrapNativeLoaded;
+        bootstrapNativeLoadAttempted = true;
+        try {
+            System.loadLibrary(TERMUX_BOOTSTRAP_LIB);
+            bootstrapNativeLoaded = true;
+        } catch (Throwable t) {
+            bootstrapNativeLoaded = false;
+            bootstrapNativeLoadError = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
+            Log.e(EmulatorDebug.LOG_TAG, "Unable to load " + TERMUX_BOOTSTRAP_LIB + "; bootstrap JNI path disabled", t);
+        }
+        return bootstrapNativeLoaded;
+    }
+
+    public static String getBootstrapNativeLoadError() {
+        return bootstrapNativeLoadError;
+    }
+
+    private static native byte[] nativeGetZip();
 
     /** Delete a folder and all its content or throw. Don't follow symlinks. */
     static void deleteFolder(File fileOrDirectory) throws IOException {
@@ -262,20 +291,11 @@ final class TermuxInstaller {
                     File sharedDir = Environment.getExternalStorageDirectory();
                     Os.symlink(sharedDir.getAbsolutePath(), new File(storageDir, "shared").getAbsolutePath());
 
-                    File downloadsDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DOWNLOADS);
-                    Os.symlink(downloadsDir.getAbsolutePath(), new File(storageDir, "downloads").getAbsolutePath());
-
-                    File dcimDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_DCIM);
-                    Os.symlink(dcimDir.getAbsolutePath(), new File(storageDir, "dcim").getAbsolutePath());
-
-                    File picturesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_PICTURES);
-                    Os.symlink(picturesDir.getAbsolutePath(), new File(storageDir, "pictures").getAbsolutePath());
-
-                    File musicDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MUSIC);
-                    Os.symlink(musicDir.getAbsolutePath(), new File(storageDir, "music").getAbsolutePath());
-
-                    File moviesDir = Environment.getExternalStoragePublicDirectory(Environment.DIRECTORY_MOVIES);
-                    Os.symlink(moviesDir.getAbsolutePath(), new File(storageDir, "movies").getAbsolutePath());
+                    linkAppScopedDirectory(context, storageDir, Environment.DIRECTORY_DOWNLOADS, "downloads");
+                    linkAppScopedDirectory(context, storageDir, Environment.DIRECTORY_DCIM, "dcim");
+                    linkAppScopedDirectory(context, storageDir, Environment.DIRECTORY_PICTURES, "pictures");
+                    linkAppScopedDirectory(context, storageDir, Environment.DIRECTORY_MUSIC, "music");
+                    linkAppScopedDirectory(context, storageDir, Environment.DIRECTORY_MOVIES, "movies");
 
                     final File[] dirs = context.getExternalFilesDirs(null);
                     if (dirs != null && dirs.length > 1) {
@@ -291,6 +311,18 @@ final class TermuxInstaller {
                 }
             }
         }.start();
+    }
+
+    private static void linkAppScopedDirectory(Context context, File storageDir, String type, String alias) throws IOException {
+        File target = context.getExternalFilesDir(type);
+        if (target == null) {
+            Log.w("termux-storage", "External files dir unavailable for " + type + "; skipping link " + alias);
+            return;
+        }
+        if (!target.exists() && !target.mkdirs()) {
+            throw new IOException("Unable to create app-scoped external dir for " + type + ": " + target.getAbsolutePath());
+        }
+        Os.symlink(target.getAbsolutePath(), new File(storageDir, alias).getAbsolutePath());
     }
 
 }
