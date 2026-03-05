@@ -50,19 +50,19 @@ android {
         buildConfigField "int", "PROCESS_BUDGET_MAX_ANDROID15", "6"
     }
 
+    def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
+    def officialAbis = (rootProject.ext.officialAbis ?: []) as List<String>
+    def allKnownAndroidAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64', 'riscv64']
+
+    if (!supportedAbis.every { it in officialAbis }) {
+        throw new GradleException("supportedAbis (${supportedAbis}) precisa permanecer estritamente coerente com ABIs oficiais (${officialAbis}).")
+    }
+
     packaging {
         jniLibs {
-            if (rootProject.ext.appAbiPolicy == 'arm64-only') {
-                excludes += [
-                        "lib/armeabi-v7a/**",
-                        "lib/x86/**",
-                        "lib/x86_64/**"
-                ]
-            } else if (rootProject.ext.appAbiPolicy == 'with-32bit') {
-                excludes += [
-                        "lib/x86_64/**"
-                ]
-            }
+            excludes += allKnownAndroidAbis
+                .findAll { !(it in supportedAbis) }
+                .collect { "lib/${it}/**" }
         }
     }
 
