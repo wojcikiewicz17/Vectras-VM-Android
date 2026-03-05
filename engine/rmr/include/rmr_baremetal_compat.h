@@ -143,17 +143,44 @@ struct stat { int st_size; };
 #  define RMR_NORETURN
 #endif
 
+/* Permite desativar instruções que dependem de privilégio em alguns alvos. */
+#ifndef RMR_ABORT_USE_RISCV_WFI
+#define RMR_ABORT_USE_RISCV_WFI 1
+#endif
+
+#ifndef RMR_ABORT_USE_X86_HLT
+#define RMR_ABORT_USE_X86_HLT 1
+#endif
+
 /* Portabilidade: cada arquitetura usa a instrução de idle/halt mais apropriada
    quando disponível; fallback mantém loop puro com barreira de memória para
-   evitar otimizações agressivas e preservar comportamento seguro sem libc. */
+   evitar otimizações agressivas e preservar comportamento seguro sem libc.
+   Cobertura multi-arquitetura (8+ famílias): ARM/AArch64, x86, RISC-V,
+   MIPS, PowerPC, SPARC, LoongArch e fallback genérico. */
 static inline RMR_NORETURN void rmr_abort(void) {
     for (;;) {
 #if defined(__aarch64__) || defined(__arm__)
         __asm__ __volatile__("wfi");
 #elif defined(__x86_64__) || defined(__i386__)
+#if RMR_ABORT_USE_X86_HLT
         __asm__ __volatile__("hlt");
+#else
+        __asm__ __volatile__("pause");
+#endif
 #elif defined(__riscv)
+#if RMR_ABORT_USE_RISCV_WFI
         __asm__ __volatile__("wfi");
+#else
+        __asm__ __volatile__("" ::: "memory");
+#endif
+#elif defined(__mips__)
+        __asm__ __volatile__("wait");
+#elif defined(__powerpc__) || defined(__ppc__) || defined(__PPC__)
+        __asm__ __volatile__("or 27,27,27");
+#elif defined(__sparc__)
+        __asm__ __volatile__("nop");
+#elif defined(__loongarch__)
+        __asm__ __volatile__("idle 0");
 #else
         __asm__ __volatile__("" ::: "memory");
 #endif
