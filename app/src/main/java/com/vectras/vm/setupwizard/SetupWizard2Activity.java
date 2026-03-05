@@ -11,6 +11,8 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.transition.TransitionManager;
 import android.text.TextUtils;
 import android.util.Log;
@@ -18,6 +20,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.BaseAdapter;
+import android.widget.LinearLayout;
+import android.widget.TextView;
 import android.widget.Toast;
 import android.content.pm.PackageManager;
 
@@ -153,18 +157,21 @@ public class SetupWizard2Activity extends AppCompatActivity {
     boolean rollbackAvailable = false;
     final ArrayList<HashMap<String, String>> mirrorList = new ArrayList<>();
     ExecutorService executor = Executors.newSingleThreadExecutor();
+    private SetupCapabilityOrchestrator orchestrator;
     private final ActivityResultLauncher<Uri> storagePermissionLauncher =
             PermissionUtils.registerOpenDocumentTreeLauncher(this, uri -> {
                 if (uri != null) {
                     MainSettingsManager.setOnboardingPermStorageSaf(this, MainSettingsManager.ONBOARDING_PERMISSION_GRANTED);
                     Toast.makeText(this, getString(R.string.done), Toast.LENGTH_SHORT).show();
-                    if (currentStep == STEP_REQUEST_PERMISSION) {
+                    if (currentStep == STEP_REQUEST_PERMISSION && ensureEssentialCapabilitiesOrReturnPermission()) {
                         extractSystemFiles();
                     }
                 } else {
                     MainSettingsManager.setOnboardingPermStorageSaf(this, MainSettingsManager.ONBOARDING_PERMISSION_SKIPPED);
                     UIUtils.toastShort(this, getString(R.string.storage_permission_explanation_android11));
                 }
+                renderEssentialPermissionUi();
+                continueAfterEssentialPermissionResolution();
             });
 
 
@@ -176,6 +183,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
         bindingFinalSteps = binding.layoutFinalSteps;
         setContentView(binding.getRoot());
         UIUtils.setOnApplyWindowInsetsListener(findViewById(R.id.main));
+        orchestrator = new SetupCapabilityOrchestrator();
 
         getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
             @Override
@@ -222,8 +230,25 @@ public class SetupWizard2Activity extends AppCompatActivity {
         loadingIndicatorController(currentStep);
     }
 
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == PermissionUtils.REQUEST_LEGACY_STORAGE) {
+            boolean granted = PermissionUtils.storagepermission(this, false);
+            if (!granted) {
+                permissionOrchestrator.markFailed(FirstRunPermissionOrchestrator.CAPABILITY_STORAGE);
+            } else {
+                permissionOrchestrator.refresh();
+            }
+            renderEssentialPermissionUi();
+            continueAfterEssentialPermissionResolution();
+        }
+    }
+
     private void initialize() {
         tarPath = getExternalFilesDir("data") + "/data.tar.gz";
+        permissionOrchestrator = new FirstRunPermissionOrchestrator(this);
 
         ListUtils.setupMirrorListForListmap(mirrorList);
         applySelectedMirror(MainSettingsManager.getSelectedMirror(this));
@@ -241,14 +266,16 @@ public class SetupWizard2Activity extends AppCompatActivity {
         if (!DeviceUtils.is64bit()) binding.ln32BitWarning.setVisibility(View.VISIBLE);
 
         binding.btnLetStart.setOnClickListener(v -> {
-            if (PermissionUtils.storagepermission(this, false)) {
+            orchestrator.evaluateAll();
+            if (ensureEssentialCapabilitiesOrReturnPermission()) {
                 extractSystemFiles();
             } else {
                 uiController(STEP_REQUEST_PERMISSION);
+                renderEssentialPermissionUi();
             }
         });
 
-        binding.btnAllowPermission.setOnClickListener(v -> PermissionUtils.requestStoragePermission(this, storagePermissionLauncher));
+        binding.btnAllowPermission.setOnClickListener(v -> requestNextCapabilityPermission());
 
         binding.standardSetupOption.setOnClickListener(v -> {
             if (downloadBootstrapsCommand.isEmpty()) {
@@ -377,6 +404,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
         if (step == STEP_REQUEST_PERMISSION) {
             binding.lnAllowPermission.setVisibility(View.VISIBLE);
+            renderEssentialPermissionUi();
         } else if (step == STEP_EXTRACTING_SYSTEM_FILES) {
             binding.lnExtractingSystemFiles.setVisibility(View.VISIBLE);
         } else if (step == STEP_GETTING_DATA) {
@@ -483,6 +511,10 @@ public class SetupWizard2Activity extends AppCompatActivity {
     }
 
     private void extractSystemFiles() {
+        if (!ensureEssentialCapabilitiesOrReturnPermission()) {
+            return;
+        }
+
         uiController(STEP_EXTRACTING_SYSTEM_FILES);
 
         executor.execute(() -> {
@@ -575,6 +607,10 @@ public class SetupWizard2Activity extends AppCompatActivity {
     }
 
     private void startSetup() {
+        if (!ensureEssentialCapabilitiesOrReturnPermission()) {
+            return;
+        }
+
         if (!isCustomSetupMode && downloadBootstrapsCommand.isEmpty()) {
             pendingStandardSetupStart = false;
             uiController(STEP_SETUP_OPTIONS);
@@ -724,6 +760,82 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 executeShellCommand(cmd, setupTimestamp);
             });
         }).start();
+    }
+
+    private boolean ensureEssentialPermissionsResolved(Runnable continuation) {
+        if (permissionOrchestrator.isEssentialResolved()) {
+            return true;
+        }
+        pendingPermissionContinuation = continuation;
+        uiController(STEP_REQUEST_PERMISSION);
+        renderEssentialPermissionUi();
+        return false;
+    }
+
+    private void continueAfterEssentialPermissionResolution() {
+        if (!permissionOrchestrator.isEssentialResolved()) {
+            return;
+        }
+        Runnable continuation = pendingPermissionContinuation;
+        pendingPermissionContinuation = null;
+        if (continuation != null) {
+            continuation.run();
+        }
+    }
+
+    private void requestEssentialPermissions() {
+        for (FirstRunPermissionOrchestrator.PermissionUiModel item : permissionOrchestrator.getUiModel()) {
+            if (!item.essential) {
+                continue;
+            }
+            if (item.status == FirstRunPermissionOrchestrator.PermissionStatus.GRANTED
+                    || item.status == FirstRunPermissionOrchestrator.PermissionStatus.SKIPPED) {
+                continue;
+            }
+            if (FirstRunPermissionOrchestrator.CAPABILITY_STORAGE.equals(item.capability)) {
+                PermissionUtils.requestStoragePermission(this, storagePermissionLauncher);
+                return;
+            }
+        }
+    }
+
+    private void renderEssentialPermissionUi() {
+        if (binding == null || permissionOrchestrator == null) {
+            return;
+        }
+        binding.lnPermissionRequirements.removeAllViews();
+        for (FirstRunPermissionOrchestrator.PermissionUiModel item : permissionOrchestrator.getUiModel()) {
+            TextView info = new TextView(this);
+            info.setText(item.title + " — " + item.status.name() + "\n" + item.description);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT
+            );
+            lp.bottomMargin = (int) (8 * getResources().getDisplayMetrics().density);
+            info.setLayoutParams(lp);
+            binding.lnPermissionRequirements.addView(info);
+
+            if (item.status == FirstRunPermissionOrchestrator.PermissionStatus.FAILED) {
+                if (item.canRetry) {
+                    com.google.android.material.button.MaterialButton retry = new com.google.android.material.button.MaterialButton(this);
+                    retry.setText(getString(R.string.try_again));
+                    retry.setOnClickListener(v -> requestEssentialPermissions());
+                    binding.lnPermissionRequirements.addView(retry);
+                }
+                if (item.canOpenSettings) {
+                    com.google.android.material.button.MaterialButton settings = new com.google.android.material.button.MaterialButton(this);
+                    settings.setText(getString(R.string.settings));
+                    settings.setOnClickListener(v -> PermissionUtils.openAllFilesAccessSettings(this));
+                    binding.lnPermissionRequirements.addView(settings);
+                }
+            }
+        }
+
+        if (permissionOrchestrator.isEssentialResolved()) {
+            binding.btnAllowPermission.setText(getString(R.string.continuetext));
+        } else {
+            binding.btnAllowPermission.setText(getString(R.string.allow));
+        }
     }
 
     private void showStandardSetupUnavailableDialog() {
@@ -1429,7 +1541,105 @@ public class SetupWizard2Activity extends AppCompatActivity {
         rollbackAvailable = !TextUtils.isEmpty(activeSetupTimestamp)
                 && installState != InstallState.COMPLETED
                 && installState != InstallState.INIT;
+        if (!orchestrator.isEssentialResolved()) {
+            uiController(STEP_REQUEST_PERMISSION);
+        }
         updateStructuredStatusUi();
+    }
+
+    private boolean ensureEssentialCapabilitiesOrReturnPermission() {
+        orchestrator.evaluateAll();
+        if (orchestrator.isEssentialResolved()) {
+            return true;
+        }
+        uiController(STEP_REQUEST_PERMISSION);
+        return false;
+    }
+
+    private void requestNextCapabilityPermission() {
+        orchestrator.evaluateAll();
+        if (orchestrator.isEssentialResolved()) {
+            extractSystemFiles();
+            return;
+        }
+
+        if (!orchestrator.hasAllFilesAccess()) {
+            PermissionUtils.openAllFilesAccessSettings(this);
+            return;
+        }
+
+        if (!orchestrator.isBatteryOptimizationIgnored() && orchestrator.isBatteryEssential()) {
+            Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS,
+                    Uri.parse("package:" + getPackageName()));
+            if (intent.resolveActivity(getPackageManager()) != null) {
+                startActivity(intent);
+            } else {
+                startActivity(new Intent(Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS));
+            }
+            return;
+        }
+
+        if (!orchestrator.canDrawOverlay() && orchestrator.isOverlayEssential()) {
+            Intent intent = new Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                    Uri.parse("package:" + getPackageName()));
+            startActivity(intent);
+            return;
+        }
+
+        PermissionUtils.requestStoragePermission(this, storagePermissionLauncher);
+    }
+
+    private final class SetupCapabilityOrchestrator {
+        private boolean hasAllFilesAccess;
+        private boolean canDrawOverlay;
+        private boolean batteryOptimizationIgnored;
+        private boolean batteryEssential;
+        private boolean overlayEssential;
+
+        void evaluateAll() {
+            String vmUi = MainSettingsManager.getVmUi(SetupWizard2Activity.this);
+            boolean isVnc = "VNC".equalsIgnoreCase(vmUi);
+
+            hasAllFilesAccess = PermissionUtils.isAllFilesAccessGranted();
+            canDrawOverlay = Build.VERSION.SDK_INT < Build.VERSION_CODES.M || Settings.canDrawOverlays(SetupWizard2Activity.this);
+
+            PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+            batteryOptimizationIgnored = Build.VERSION.SDK_INT < Build.VERSION_CODES.M
+                    || (powerManager != null && powerManager.isIgnoringBatteryOptimizations(getPackageName()));
+
+            batteryEssential = !isVnc;
+            overlayEssential = false;
+        }
+
+        boolean isEssentialResolved() {
+            if (!hasAllFilesAccess) {
+                return false;
+            }
+            if (batteryEssential && !batteryOptimizationIgnored) {
+                return false;
+            }
+            return !overlayEssential || canDrawOverlay;
+        }
+
+        boolean hasAllFilesAccess() {
+            return hasAllFilesAccess;
+        }
+
+        boolean canDrawOverlay() {
+            return canDrawOverlay;
+        }
+
+        boolean isBatteryOptimizationIgnored() {
+            return batteryOptimizationIgnored;
+        }
+
+        boolean isBatteryEssential() {
+            return batteryEssential;
+        }
+
+        boolean isOverlayEssential() {
+            return overlayEssential;
+        }
     }
 
     private void clearSetupSnapshot() {
