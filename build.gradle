@@ -8,7 +8,7 @@ def officiallySupportedAbis = ['arm64-v8a', 'armeabi-v7a']
 
 buildscript {
     ext {
-        kotlin_version = properties.get('KOTLIN_VERSION', '2.0.21')
+        kotlin_version = properties.get('KOTLIN_VERSION', '1.9.24')
         agp_version = properties.get('AGP_VERSION', '8.5.2')
     }
     repositories {
