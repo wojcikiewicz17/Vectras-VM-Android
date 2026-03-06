@@ -48,6 +48,16 @@ Cada documento técnico deve conter, quando aplicável:
 - Alinhar versões com a versão do projeto quando possível.
 - Toda mudança em caminhos críticos (app, engine, tools, web, runtime e docs de governança) deve atualizar os metadados e os links de rastreabilidade do documento correspondente.
 
+### 6.1) Regra operacional para metadados de rastreabilidade
+
+- Atualização **obrigatória em toda PR que altere qualquer arquivo em `docs/`**.
+- `Commit de referência`:
+  - usar o **commit atual de `HEAD`** quando a revisão documental for publicada sem tag de release.
+  - usar a **tag de release** (e o commit apontado por ela) quando a documentação fizer parte de corte formal de versão.
+- `Última atualização`: usar data ISO (`YYYY-MM-DD`) da revisão efetiva da PR.
+- `Versão do documento`: incrementar em `+0.1` para ajustes editoriais/estruturais e em `+1.0` para reestruturação completa de escopo.
+- Em documentos relacionados (ex.: `docs/README.md`, `docs/navigation/INDEX.md` e guias de navegação vinculados), atualizar metadados em bloco na mesma PR para manter coerência de rastreabilidade.
+
 ## 7) Padrões para Arquivos de Navegação
 
 - Atualizar [docs/README.md](README.md) e [docs/navigation/INDEX.md](navigation/INDEX.md) ao criar ou mover documentos.

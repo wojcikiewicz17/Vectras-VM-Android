@@ -16,58 +16,68 @@ Este catálogo documenta os **arquivos soltos atualmente presentes no diretório
 ## 1) `README.md`
 - Documento principal de apresentação do projeto e navegação inicial.
 
-## 2) `VECTRA_CORE.md`
-- Documento técnico do Vectra Core MVP.
+## 2) `DOC_INDEX.md`
+- Índice canônico da documentação e governança documental da raiz.
 
-## 3) `LICENSE`
-- Licença GPL v2.0 e termos de atribuição.
-
-## 4) `build.gradle`
-- Configuração Gradle de nível raiz (plugins, versões e propriedades globais).
-
-## 5) `settings.gradle`
-- Declara módulos incluídos no build.
-
-## 6) `gradle.properties`
-- Propriedades globais do Gradle/Android.
-
-## 7) `gradlew`
-- Wrapper Gradle para Unix-like.
-
-## 8) `gradlew.bat`
-- Wrapper Gradle para Windows.
-
-## 9) `.gitignore`
-- Regras de exclusão de artefatos e arquivos sensíveis.
-
-## 10) `PROJECT_STATE.md`
+## 3) `PROJECT_STATE.md`
 - Estado consolidado do projeto e marcos recentes.
 
-## 11) `CHANGELOG.md`
+## 4) `CHANGELOG.md`
 - Histórico de mudanças por versão/período.
 
-## 12) `DOC_INDEX.md`
-- Índice de documentação do repositório.
-
-## 13) `RELEASE_NOTES.md`
+## 5) `RELEASE_NOTES.md`
 - Notas de release e highlights por entrega.
 
-## 14) `THIRD_PARTY_NOTICES.md`
-- Avisos e atribuições de componentes de terceiros.
+## 6) `BUILDING.md`
+- Guia operacional de pré-requisitos e comandos de build.
 
-## 15) `VECTRAS_MEGAPROMPT_DOCS.md`
+## 7) `TROUBLESHOOTING.md`
+- Guia de diagnóstico para problemas recorrentes de setup/build/bootstrap.
+
+## 8) `FIXES_SUMMARY.md`
+- Sumário de correções aplicadas e impactos técnicos.
+
+## 9) `VERSION_STABILITY.md`
+- Manifesto/checklist de estabilidade metodológica da versão.
+
+## 10) `VECTRA_CORE.md`
+- Documento técnico do Vectra Core MVP.
+
+## 11) `VECTRAS_MEGAPROMPT_DOCS.md`
 - Documento de diretrizes/prompt documental do projeto.
 
-## 16) `CMakeLists.txt`
+## 12) `THIRD_PARTY_NOTICES.md`
+- Avisos e atribuições de componentes de terceiros.
+
+## 13) `LICENSE`
+- Licença GPL v2.0 e termos de atribuição.
+
+## 14) `.gitignore`
+- Regras de exclusão de artefatos e arquivos sensíveis.
+
+## 15) `build.gradle`
+- Configuração Gradle de nível raiz (plugins, versões e propriedades globais).
+
+## 16) `settings.gradle`
+- Declara módulos incluídos no build.
+
+## 17) `gradle.properties`
+- Propriedades globais do Gradle/Android.
+
+## 18) `gradlew`
+- Wrapper Gradle para Unix-like.
+
+## 19) `gradlew.bat`
+- Wrapper Gradle para Windows.
+
+## 20) `CMakeLists.txt`
 - Configuração de build C/C++ (CMake) na raiz.
 
-## 17) `Makefile`
+## 21) `Makefile`
 - Alvos de automação/build auxiliares na raiz.
 
-## 18) `local.properties.example`
+## 22) `local.properties.example`
 - Exemplo de propriedades locais para configuração de ambiente.
-
----
 
 ## Itens históricos (fora da lista de arquivos raiz)
 
@@ -89,7 +99,7 @@ A relação abaixo descreve o encadeamento funcional de alto nível **com base e
 
 1. **Base institucional**: `README.md` e `LICENSE`.
 2. **Build e configuração**: `build.gradle`, `settings.gradle`, `gradle.properties`, `gradlew`, `gradlew.bat`, `CMakeLists.txt`, `Makefile`, `local.properties.example`.
-3. **Governança documental**: `DOC_INDEX.md`, `PROJECT_STATE.md`, `CHANGELOG.md`, `RELEASE_NOTES.md`, `THIRD_PARTY_NOTICES.md`, `VECTRAS_MEGAPROMPT_DOCS.md`, `VECTRA_CORE.md`.
+3. **Governança documental**: `DOC_INDEX.md`, `PROJECT_STATE.md`, `CHANGELOG.md`, `RELEASE_NOTES.md`, `BUILDING.md`, `TROUBLESHOOTING.md`, `FIXES_SUMMARY.md`, `VERSION_STABILITY.md`, `THIRD_PARTY_NOTICES.md`, `VECTRAS_MEGAPROMPT_DOCS.md`, `VECTRA_CORE.md`.
 4. **Integrações**: regras operacionais em `.gitignore` e cadeia documental de build local.
 
 > Importante: este catálogo é um artefato editorial; pode ficar defasado se a raiz mudar sem atualização correspondente.

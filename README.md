@@ -14,6 +14,10 @@ Esta revisão consolida a documentação em três camadas por diretório (propó
 - Avisos de terceiros/licenciamento: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
 - Referência do runtime: [`VECTRA_CORE.md`](VECTRA_CORE.md)
 - Guia macro de documentação: [`VECTRAS_MEGAPROMPT_DOCS.md`](VECTRAS_MEGAPROMPT_DOCS.md)
+- Guia operacional de build: [`BUILDING.md`](BUILDING.md)
+- Troubleshooting operacional: [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
+- Sumário de correções: [`FIXES_SUMMARY.md`](FIXES_SUMMARY.md)
+- Manifesto de estabilidade: [`VERSION_STABILITY.md`](VERSION_STABILITY.md)
 
 ## Política de overlays ZIP
 - Arquivos `*.zip` de overlay na raiz são apenas artefatos transitórios de transporte e **não** são fonte de verdade.

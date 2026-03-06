@@ -2,6 +2,8 @@
 
 Cada item abaixo segue reflexão técnica em três linhas: papel, ligação e comando de inspeção.
 
+> Taxonomia de classificação (Ativo/Histórico/Arquivado) é mantida em `DOC_INDEX.md`; este arquivo foca no encadeamento técnico de inspeção para evitar duplicidade editorial.
+
 ## `.gitignore`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
@@ -26,6 +28,16 @@ Cada item abaixo segue reflexão técnica em três linhas: papel, ligação e co
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
 - **Inspeção**: `sed -n "1,120p" CHANGELOG.md` (texto) ou `file CHANGELOG.md` (binário).
+
+## `BUILDING.md`
+- **Papel**: guia operacional de pré-requisitos e comandos de build no escopo raiz.
+- **Liga com**: setup/CI em `README.md`, baseline de versões em `gradle.properties` e índice documental em `DOC_INDEX.md`.
+- **Inspeção**: `sed -n "1,120p" BUILDING.md` (texto) ou `file BUILDING.md` (binário).
+
+## `FIXES_SUMMARY.md`
+- **Papel**: sumário técnico das correções aplicadas e impactos por subsistema.
+- **Liga com**: estabilidade de versão (`VERSION_STABILITY.md`) e rastreabilidade de mudanças (`CHANGELOG.md`).
+- **Inspeção**: `sed -n "1,120p" FIXES_SUMMARY.md` (texto) ou `file FIXES_SUMMARY.md` (binário).
 
 ## `CMakeLists.txt`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
@@ -77,6 +89,21 @@ Cada item abaixo segue reflexão técnica em três linhas: papel, ligação e co
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
 - **Inspeção**: `sed -n "1,120p" THIRD_PARTY_NOTICES.md` (texto) ou `file THIRD_PARTY_NOTICES.md` (binário).
 
+## `TROUBLESHOOTING.md`
+- **Papel**: runbook de troubleshooting para erros frequentes de setup/build/bootstrap.
+- **Liga com**: guia de build (`BUILDING.md`) e seção de governança no `README.md`.
+- **Inspeção**: `sed -n "1,120p" TROUBLESHOOTING.md` (texto) ou `file TROUBLESHOOTING.md` (binário).
+
+## `VERSION_STABILITY.md`
+- **Papel**: manifesto/checklist de estabilidade metodológica por versão.
+- **Liga com**: correções consolidadas (`FIXES_SUMMARY.md`) e estado atual (`PROJECT_STATE.md`).
+- **Inspeção**: `sed -n "1,120p" VERSION_STABILITY.md` (texto) ou `file VERSION_STABILITY.md` (binário).
+
+## `VECTRAS_MEGAPROMPT_DOCS.md`
+- **Papel**: guia macro de governança documental e direcionadores editoriais.
+- **Liga com**: índice canônico (`DOC_INDEX.md`) e documentação central (`docs/README.md`).
+- **Inspeção**: `sed -n "1,120p" VECTRAS_MEGAPROMPT_DOCS.md` (texto) ou `file VECTRAS_MEGAPROMPT_DOCS.md` (binário).
+
 ## `VECTRA_CORE.md`
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
@@ -106,9 +133,4 @@ Cada item abaixo segue reflexão técnica em três linhas: papel, ligação e co
 - **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
 - **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
 - **Inspeção**: `sed -n "1,120p" settings.gradle` (texto) ou `file settings.gradle` (binário).
-
-## `vectras.jks`
-- **Papel**: arquivo de controle/documentação/build no escopo raiz do repositório.
-- **Liga com**: documentação global (`README.md`, `DOC_INDEX.md`) e módulos declarados em `settings.gradle`/`build.gradle` quando aplicável.
-- **Inspeção**: `sed -n "1,120p" vectras.jks` (texto) ou `file vectras.jks` (binário).
 
