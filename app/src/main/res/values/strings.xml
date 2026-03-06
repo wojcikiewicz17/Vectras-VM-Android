@@ -1116,4 +1116,12 @@ CPU1 %3$d%% · CPUm %4$d%% · MEM %5$d%% · IO %6$d%% · INT %7$d%% · EMU %8$d%
 
     <string name="setup_profile_select_required">Select a setup profile before continuing.</string>
 
+
+    <string name="permissions_review_flag_title">Enable permission review reminder</string>
+    <string name="permissions_review_flag_summary">Shows setup reminders to review missing Android permissions.</string>
+    <string name="permissions_review_now_title">Review permissions now</string>
+    <string name="permissions_review_now_summary">Open permission settings and check required permissions now.</string>
+    <string name="setup_open_terminal">Open terminal</string>
+    <string name="setup_step_status_default">Setup progress</string>
+    <string name="setup_stepper_progress_content_description">Setup progress indicator</string>
 </resources>

@@ -2,6 +2,7 @@ package com.vectras.vm.setupwizard
 
 import android.app.Activity
 import android.os.Build
+import androidx.preference.PreferenceManager
 import com.vectras.qemu.MainSettingsManager
 import com.vectras.vm.utils.PermissionUtils
 
@@ -126,14 +127,15 @@ class FirstRunPermissionOrchestrator(private val activity: Activity) {
     }
 
     private fun persistState(capability: Capability, state: StepState) {
-        MainSettingsManager.setFirstRunPermissionState(activity, keyFor(capability), state.name)
+        PreferenceManager.getDefaultSharedPreferences(activity).edit().putString(keyFor(capability), state.name).apply()
     }
 
     private fun getPersistedState(capability: Capability): StepState {
-        val persisted = MainSettingsManager.getFirstRunPermissionState(activity, keyFor(capability))
+        val persisted = PreferenceManager.getDefaultSharedPreferences(activity).getString(keyFor(capability), StepState.PENDING.name) ?: StepState.PENDING.name
         return try {
             StepState.valueOf(persisted)
         } catch (_: IllegalArgumentException) {
             StepState.PENDING
         }
     }
+}

@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.22.1)
-project(vectra_core_accel C)
+project(vectra_core_accel C ASM)
 
 option(RMR_ENABLE_POLICY_MODULE "Enable RMR policy module" ON)
 option(RMR_ENABLE_BITRAF_MODULE "Enable BITRAF module" ON)
@@ -44,6 +44,7 @@ add_library(vectra_core_accel SHARED
     ../../../../engine/rmr/src/rmr_baremetal_compat.c
     ../../../../engine/rmr/src/rmr_casm_bridge.c
     ../../../../engine/rmr/src/rmr_unified_kernel.c
+    ../../../../engine/rmr/src/rmr_zipraf_core.c
     ../../../../engine/rmr/src/rmr_hw_detect.c
     ../../../../engine/rmr/src/rmr_corelib.c
     ../../../../engine/rmr/src/rmr_ll_ops.c
