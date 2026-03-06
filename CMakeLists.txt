@@ -80,6 +80,8 @@ set(RMR_SOURCES
   engine/rmr/src/rmr_ll_tuning.c
   engine/rmr/src/rmr_casm_bridge.c
   engine/rmr/src/rmr_unified_kernel.c
+  engine/rmr/src/rmr_unified_jni_bridge.c
+  engine/rmr/src/rmr_host_compat.c
   engine/rmr/src/rmr_zipraf_core.c
   engine/rmr/src/rmr_lowlevel_portable.c
   engine/rmr/src/rmr_lowlevel_mix.c

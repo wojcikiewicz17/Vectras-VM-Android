@@ -142,7 +142,7 @@ static void choose_route(const RmR_TriadStatus *triad,
 static int vec_push(ChunkVec *vec, const RmR_ChunkMeta *m) {
   if (vec->n == vec->cap) {
     size_t next = vec->cap ? vec->cap * 2u : 64u;
-    RmR_ChunkMeta *nv = (RmR_ChunkMeta *)realloc(vec->v, next * sizeof(*nv));
+    RmR_ChunkMeta *nv = (RmR_ChunkMeta *)rmr_realloc(vec->v, next * sizeof(*nv));
     if (!nv) return -1;
     vec->v = nv;
     vec->cap = next;
@@ -151,26 +151,28 @@ static int vec_push(ChunkVec *vec, const RmR_ChunkMeta *m) {
   return 0;
 }
 
-static int append_event(FILE *logf, uint64_t event_idx, RmR_Stage stage, const RmR_ChunkMeta *m) {
-  int written = fprintf(logf,
-                        "event=%llu stage=%u off=%llu size=%u route=%u target=%s crc32c=%08x hash64=%016llx stage_sig=%016llx entropy_milli=%u math_sig=%08x domain=%u decision=%u flags=%u:%u:%u\n",
-                        (unsigned long long)event_idx,
-                        (unsigned int)stage,
-                        (unsigned long long)m->offset,
-                        m->size,
-                        (unsigned int)m->route_id,
-                        m->route_target,
-                        m->crc32c,
-                        (unsigned long long)m->hash64,
-                        (unsigned long long)m->stage_signature,
-                        m->entropy_milli,
-                        m->math_signature,
-                        (unsigned int)m->domain_hint,
-                        (unsigned int)m->decision_mode,
-                        (unsigned int)m->flags.bad_event,
-                        (unsigned int)m->flags.miss,
-                        (unsigned int)m->flags.temp_hint);
-  return (written > 0) ? 0 : -1;
+static int append_event(rmr_file_t *logf, uint64_t event_idx, RmR_Stage stage, const RmR_ChunkMeta *m) {
+  char line[512];
+  int len = rmr_snprintf(line, sizeof(line),
+                         "event=%llu stage=%u off=%llu size=%u route=%u target=%s crc32c=%08x hash64=%016llx stage_sig=%016llx entropy_milli=%u math_sig=%08x domain=%u decision=%u flags=%u:%u:%u\n",
+                         (unsigned long long)event_idx,
+                         (unsigned int)stage,
+                         (unsigned long long)m->offset,
+                         m->size,
+                         (unsigned int)m->route_id,
+                         m->route_target,
+                         m->crc32c,
+                         (unsigned long long)m->hash64,
+                         (unsigned long long)m->stage_signature,
+                         m->entropy_milli,
+                         m->math_signature,
+                         (unsigned int)m->domain_hint,
+                         (unsigned int)m->decision_mode,
+                         (unsigned int)m->flags.bad_event,
+                         (unsigned int)m->flags.miss,
+                         (unsigned int)m->flags.temp_hint);
+  if (len <= 0) return -1;
+  return (rmr_fwrite(line, 1u, (size_t)len, logf) == (size_t)len) ? 0 : -1;
 }
 
 static uint32_t g_crc32c_table[256];
@@ -308,9 +310,9 @@ static int paths_refer_same_file(const char *a, const char *b) {
     if (al == bl && rmr_mem_eq(a, b, al)) return 1;
   }
 
-  struct stat sa;
-  struct stat sb;
-  if (stat(a, &sa) != 0 || stat(b, &sb) != 0) return 0;
+  rmr_stat_t sa;
+  rmr_stat_t sb;
+  if (rmr_stat(a, &sa) != 0 || rmr_stat(b, &sb) != 0) return 0;
   return (sa.st_dev == sb.st_dev && sa.st_ino == sb.st_ino) ? 1 : 0;
 }
 
@@ -330,10 +332,10 @@ int RmR_RunPolicyPipeline(const char *input_path,
   uint32_t commit_quantum;
   uint32_t commit_counter = 0u;
   const uint8_t decision_mode = RMR_DECISION_MODE_BRANCHLESS;
-  memset(&local_summary, 0, sizeof(local_summary));
+  rmr_memset(&local_summary, 0, sizeof(local_summary));
   local_summary.exec_signature = 1469598103934665603ull;
-  memset(&hw, 0, sizeof(hw));
-  memset(&math_plan, 0, sizeof(math_plan));
+  rmr_memset(&hw, 0, sizeof(hw));
+  rmr_memset(&math_plan, 0, sizeof(math_plan));
   RmR_HW_Detect(&hw);
   RmR_MathFabric_AutodetectPlan(&hw, &math_plan);
   RmR_LL_ApplyTuneDefaults(&hw, &tune);
@@ -345,24 +347,24 @@ int RmR_RunPolicyPipeline(const char *input_path,
   if (io_batch_size == 0u) io_batch_size = config->chunk_size;
   commit_quantum = tune.policy_commit_quantum ? tune.policy_commit_quantum : 16u;
 
-  FILE *in = fopen(input_path, "rb");
+  rmr_file_t *in = rmr_fopen(input_path, "rb");
   if (!in) return -2;
-  FILE *out = fopen(output_path, "wb");
-  if (!out) { fclose(in); return -3; }
-  FILE *logf = fopen(audit_log_path, "ab");
-  if (!logf) { fclose(in); fclose(out); return -4; }
+  rmr_file_t *out = rmr_fopen(output_path, "wb");
+  if (!out) { rmr_fclose(in); return -3; }
+  rmr_file_t *logf = rmr_fopen(audit_log_path, "ab");
+  if (!logf) { rmr_fclose(in); rmr_fclose(out); return -4; }
 
   ChunkVec plan = {0}, applied = {0};
-  uint8_t *buf = (uint8_t *)malloc(io_batch_size);
+  uint8_t *buf = (uint8_t *)rmr_malloc(io_batch_size);
   if (!buf) {
-    fclose(in); fclose(out); fclose(logf);
+    rmr_fclose(in); rmr_fclose(out); rmr_fclose(logf);
     return -5;
   }
 
   uint64_t event_idx = 1;
   uint64_t offset = 0;
   size_t rd;
-  while ((rd = fread(buf, 1, io_batch_size, in)) > 0) {
+  while ((rd = rmr_fread(buf, 1, io_batch_size, in)) > 0) {
     RmR_ChunkMeta m;
     rmr_mem_set(&m, 0, sizeof(m));
     m.offset = offset;
@@ -392,15 +394,15 @@ int RmR_RunPolicyPipeline(const char *input_path,
     if (append_event(logf, event_idx++, RMR_STAGE_APPLY, &am) != 0 || vec_push(&applied, &am) != 0) goto fail;
     local_summary.chunks_applied++;
 
-    if (fwrite(buf, 1, rd, out) != rd) goto fail;
+    if (rmr_fwrite(buf, 1, rd, out) != rd) goto fail;
     commit_counter++;
     if (commit_counter >= commit_quantum) {
-      if (fflush(out) != 0 || fflush(logf) != 0) goto fail;
+      if (rmr_fflush(out) != 0 || rmr_fflush(logf) != 0) goto fail;
       commit_counter = 0u;
     }
     offset += rd;
   }
-  fflush(out);
+  rmr_fflush(out);
 
   for (size_t i = 0; i < plan.n && i < applied.n; ++i) {
     RmR_ChunkMeta d = applied.v[i];
@@ -411,14 +413,14 @@ int RmR_RunPolicyPipeline(const char *input_path,
     local_summary.chunks_diff++;
   }
 
-  fclose(out);
+  rmr_fclose(out);
   out = NULL;
 
-  FILE *verify = fopen(output_path, "rb");
+  rmr_file_t *verify = rmr_fopen(output_path, "rb");
   if (!verify) goto fail;
   offset = 0;
   size_t idx = 0;
-  while ((rd = fread(buf, 1, io_batch_size, verify)) > 0 && idx < applied.n) {
+  while ((rd = rmr_fread(buf, 1, io_batch_size, verify)) > 0 && idx < applied.n) {
     RmR_ChunkMeta vm = applied.v[idx];
     vm.offset = offset;
     vm.size = (uint32_t)rd;
@@ -435,14 +437,14 @@ int RmR_RunPolicyPipeline(const char *input_path,
       local_summary.verify_failures++;
     }
     if (append_event(logf, event_idx++, RMR_STAGE_VERIFY, &vm) != 0) {
-      fclose(verify);
+      rmr_fclose(verify);
       goto fail;
     }
     local_summary.chunks_verified++;
     commit_counter++;
     if (commit_counter >= commit_quantum) {
-      if (fflush(logf) != 0) {
-        fclose(verify);
+      if (rmr_fflush(logf) != 0) {
+        rmr_fclose(verify);
         goto fail;
       }
       commit_counter = 0u;
@@ -450,7 +452,7 @@ int RmR_RunPolicyPipeline(const char *input_path,
     offset += rd;
     idx++;
   }
-  fclose(verify);
+  rmr_fclose(verify);
 
   {
     RmR_ChunkMeta final_meta;
@@ -469,20 +471,20 @@ int RmR_RunPolicyPipeline(const char *input_path,
     if (append_event(logf, event_idx++, RMR_STAGE_AUDIT, &final_meta) != 0) goto fail;
   }
 
-  free(buf);
-  free(plan.v);
-  free(applied.v);
-  fclose(logf);
-  fclose(in);
+  rmr_free(buf);
+  rmr_free(plan.v);
+  rmr_free(applied.v);
+  rmr_fclose(logf);
+  rmr_fclose(in);
   if (summary) *summary = local_summary;
   return (local_summary.verify_failures == 0) ? 0 : 1;
 
 fail:
-  free(buf);
-  free(plan.v);
-  free(applied.v);
-  if (logf) fclose(logf);
-  if (in) fclose(in);
-  if (out) fclose(out);
+  rmr_free(buf);
+  rmr_free(plan.v);
+  rmr_free(applied.v);
+  if (logf) rmr_fclose(logf);
+  if (in) rmr_fclose(in);
+  if (out) rmr_fclose(out);
   return -6;
 }
