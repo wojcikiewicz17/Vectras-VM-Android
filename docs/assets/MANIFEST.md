@@ -20,8 +20,8 @@ Formato canônico aceito no repositório: **híbrido controlado**.
 | `vectra-mystical-ui-concept` | `ascii/vectra-mystical-ui-concept.ascii.md` | `local_ascii` | https://github.com/user-attachments/assets/aa58501e-263c-47fe-91b6-406b373cb3f6 | 2026-02-15 | `f7bd76f8251aa7b1554b1dc3ae5c1b345c42cac02766b472496060d150a494ce` | complete |
 | `ziprafa-integrity-architecture` | `ascii/ziprafa-integrity-architecture.ascii.md` | `local_ascii` | https://github.com/user-attachments/assets/97010343-3677-4766-b070-9fece88ba754 | 2026-02-15 | `cf80bf70c0e5ebaedb7897be817a1ced7c5abe8b666378765193251b59b28e4c` | complete |
 | `additional-image-01` | `ascii/additional-image-01.ascii.md` | `local_ascii` | https://github.com/user-attachments/assets/2123ec50-7240-490a-8975-bd675ca1fa92 | 2026-02-15 | `d2775ebaae74ec6b24070dde7139513479724db1dab1e5209a4f0699782ce6c4` | complete |
-| `rafaelia-eye-toroid-ia` | `ascii/rafaelia-core-eye-toroid.ascii.md` | `local_ascii` | Provided via chat prompt (canonicalized in-repo) | 2026-02-18 | `8095ca6bece487527f72527fafd21ad4c7847f670d3f9b4701b6d269eae32e6a` | complete |
-| `rafaelia-coherence-stability` | `ascii/rafaelia-coherence-layers.ascii.md` | `local_ascii` | Provided via chat prompt (canonicalized in-repo) | 2026-02-18 | `1a7ceb64cbf5689a6ffe4e3e3a29aa445917638f3e238330e199c60fb18765dd` | complete |
+| `rafaelia-toroid-recursive-container` | `ascii/rafaelia-toroid-recursive-container.ascii.md` | `local_ascii` | Provided via chat prompt (canonicalized in-repo; concept renamed to canonical ID) | 2026-02-18 | `9104bec83cd74b77b942ade0b177f1488260e504a8013b4ba24dffee62194a7f` | complete |
+| `rafaelia-vazio-verbo-axis` | `ascii/rafaelia-vazio-verbo-axis.ascii.md` | `local_ascii` | Provided via chat prompt (canonicalized in-repo; concept renamed to canonical ID) | 2026-02-18 | `08c9fb6b85c824e936fa1eeef2c23fa30bb9a6046abae890bbbb5b1b3300e3f1` | complete |
 
 ## Ativos externos (binário não versionado localmente)
 
