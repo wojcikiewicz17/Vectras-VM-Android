@@ -80,4 +80,38 @@ public final class RafaeliaMethodPaths {
             default:             return "?";
         }
     }
+
+    /** Returns symbolic area label linked to the path. */
+    public static String areaSymbolicLabel(int pathId) {
+        RafaeliaDirectionalMatrix.AreaSpec area = RafaeliaDirectionalMatrix.areaByPath(pathId);
+        return area == null ? "?" : area.symbolicLabel;
+    }
+
+    /** Returns technical area label linked to the path. */
+    public static String areaTechnicalLabel(int pathId) {
+        RafaeliaDirectionalMatrix.AreaSpec area = RafaeliaDirectionalMatrix.areaByPath(pathId);
+        return area == null ? "AREA_UNKNOWN[" + pathId + "]" : area.technicalLabel;
+    }
+
+    /** Returns primary direction id for the path area. */
+    public static int primaryDirectionId(int pathId) {
+        RafaeliaDirectionalMatrix.AreaSpec area = RafaeliaDirectionalMatrix.areaByPath(pathId);
+        return area == null ? -1 : area.primaryDirectionId;
+    }
+
+    /** Returns primary direction symbolic label for the path area. */
+    public static String primaryDirectionSymbolicLabel(int pathId) {
+        int directionId = primaryDirectionId(pathId);
+        RafaeliaDirectionalMatrix.DirectionSpec direction =
+            RafaeliaDirectionalMatrix.directionById(directionId);
+        return direction == null ? "?" : direction.symbolicLabel;
+    }
+
+    /** Returns primary direction technical label for the path area. */
+    public static String primaryDirectionTechnicalLabel(int pathId) {
+        int directionId = primaryDirectionId(pathId);
+        RafaeliaDirectionalMatrix.DirectionSpec direction =
+            RafaeliaDirectionalMatrix.directionById(directionId);
+        return direction == null ? "DIRECTION_UNKNOWN[" + pathId + "]" : direction.technicalLabel;
+    }
 }

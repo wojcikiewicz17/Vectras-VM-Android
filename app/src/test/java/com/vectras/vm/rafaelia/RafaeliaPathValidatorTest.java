@@ -85,4 +85,73 @@ public class RafaeliaPathValidatorTest {
             Assert.assertTrue("Label must be unique: " + label, labels.add(label));
         }
     }
+
+    @Test
+    public void directionalMatrix_hasNoOrphanIdsAndNoMissingDirection() {
+        for (int pathId = 1; pathId <= RafaeliaDirectionalMatrix.AREA_COUNT; pathId++) {
+            RafaeliaDirectionalMatrix.AreaSpec area = RafaeliaDirectionalMatrix.areaByPath(pathId);
+            Assert.assertNotNull("Area must exist for path " + pathId, area);
+            Assert.assertEquals(pathId, area.pathId);
+            Assert.assertTrue(
+                "Primary direction must be valid for path " + pathId,
+                area.primaryDirectionId >= 1
+                    && area.primaryDirectionId <= RafaeliaDirectionalMatrix.DIRECTION_COUNT
+            );
+
+            int active = 0;
+            for (int dirId = 1; dirId <= RafaeliaDirectionalMatrix.DIRECTION_COUNT; dirId++) {
+                int rel = RafaeliaDirectionalMatrix.relation(pathId, dirId);
+                Assert.assertTrue("Relation must be binary", rel == 0 || rel == 1);
+                if (rel == 1) {
+                    active++;
+                }
+            }
+            Assert.assertTrue("No direction linked for path " + pathId, active > 0);
+            Assert.assertEquals(
+                "Primary direction relation must be active for path " + pathId,
+                1,
+                RafaeliaDirectionalMatrix.relation(pathId, area.primaryDirectionId)
+            );
+        }
+    }
+
+    @Test
+    public void methodPaths_exposesAreaAndPrimaryDirectionBinding() {
+        for (int pathId = 1; pathId <= 8; pathId++) {
+            String areaSymbolic = RafaeliaMethodPaths.areaSymbolicLabel(pathId);
+            String areaTechnical = RafaeliaMethodPaths.areaTechnicalLabel(pathId);
+            int primaryDirectionId = RafaeliaMethodPaths.primaryDirectionId(pathId);
+            String directionTechnical = RafaeliaMethodPaths.primaryDirectionTechnicalLabel(pathId);
+
+            Assert.assertNotNull(areaSymbolic);
+            Assert.assertNotEquals("?", areaSymbolic);
+            Assert.assertNotNull(areaTechnical);
+            Assert.assertFalse(areaTechnical.startsWith("AREA_UNKNOWN"));
+            Assert.assertTrue(primaryDirectionId >= 1 && primaryDirectionId <= 7);
+            Assert.assertNotNull(directionTechnical);
+            Assert.assertFalse(directionTechnical.startsWith("DIRECTION_UNKNOWN"));
+        }
+    }
+
+    @Test
+    public void directionalEvidence_containsAllDirectionKeys() {
+        String evidence = RafaeliaPathValidator.directionalEvidence(
+            RafaeliaMethodPaths.PATH_COHERENCE,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true,
+            true
+        );
+        Assert.assertTrue(evidence.contains("input="));
+        Assert.assertTrue(evidence.contains("output="));
+        Assert.assertTrue(evidence.contains("storage="));
+        Assert.assertTrue(evidence.contains("processing="));
+        Assert.assertTrue(evidence.contains("inference="));
+        Assert.assertTrue(evidence.contains("control="));
+        Assert.assertTrue(evidence.contains("audit="));
+        Assert.assertTrue(evidence.contains("/m1"));
+    }
 }

@@ -12,6 +12,7 @@ import com.vectras.vm.core.VmFlowNativeBridge;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Locale;
 import java.util.List;
 
 /**
@@ -130,7 +131,17 @@ public final class RafaeliaPathValidator {
             boolean nativeOk = NativeFastPath.isNativeAvailable();
             boolean vmflowOk = VmFlowNativeBridge.isAvailable();
             boolean ok = nativeOk; // VmFlow is optional
-            String detail = "NativeFastPath=" + nativeOk + " VmFlowBridge=" + vmflowOk;
+            String detail = "NativeFastPath=" + nativeOk + " VmFlowBridge=" + vmflowOk
+                + directionalEvidence(
+                    RafaeliaMethodPaths.PATH_INIT,
+                    nativeOk,
+                    vmflowOk,
+                    false,
+                    nativeOk,
+                    vmflowOk,
+                    true,
+                    true
+                );
             return new PathResult(RafaeliaMethodPaths.PATH_INIT, ok, detail,
                 SystemClock.elapsedRealtime() - t);
         } catch (Throwable e) {
@@ -146,7 +157,17 @@ public final class RafaeliaPathValidator {
             long cacheHz  = 0L; // tsc_hz not publicly exposed - ok for validation
             boolean ok    = archBits == 32 || archBits == 64;
             String detail = "pointerBits=" + archBits + " tscHz=" + cacheHz
-                            + " feat=0x" + Integer.toHexString(NativeFastPath.getFeatureMask());
+                            + " feat=0x" + Integer.toHexString(NativeFastPath.getFeatureMask())
+                            + directionalEvidence(
+                                RafaeliaMethodPaths.PATH_OBSERVE,
+                                archBits > 0,
+                                true,
+                                false,
+                                true,
+                                archBits == 32 || archBits == 64,
+                                false,
+                                true
+                            );
             return new PathResult(RafaeliaMethodPaths.PATH_OBSERVE, ok, detail,
                 SystemClock.elapsedRealtime() - t);
         } catch (Throwable e) {
@@ -166,7 +187,17 @@ public final class RafaeliaPathValidator {
             if (created) tmpProbe.delete();
             boolean ok = writable && created;
             String detail = "filesDir=" + (logDir != null ? logDir.getPath() : "null")
-                            + " writable=" + writable + " probeCreate=" + created;
+                            + " writable=" + writable + " probeCreate=" + created
+                            + directionalEvidence(
+                                RafaeliaMethodPaths.PATH_DENOISE,
+                                writable,
+                                created,
+                                writable,
+                                true,
+                                false,
+                                true,
+                                true
+                            );
             return new PathResult(RafaeliaMethodPaths.PATH_DENOISE, ok, detail,
                 SystemClock.elapsedRealtime() - t);
         } catch (Throwable e) {
@@ -194,7 +225,17 @@ public final class RafaeliaPathValidator {
             }
             boolean ok = cpuPressure > 0;
             String detail = "cpuCores=" + cpuPressure + " ramPressure=" +
-                String.format("%.2f", ramPressure) + " route=" + route;
+                String.format(Locale.US, "%.2f", ramPressure) + " route=" + route
+                + directionalEvidence(
+                    RafaeliaMethodPaths.PATH_TRANSMUTE,
+                    true,
+                    true,
+                    "DISK".equals(route),
+                    true,
+                    true,
+                    true,
+                    false
+                );
             return new PathResult(RafaeliaMethodPaths.PATH_TRANSMUTE, ok, detail,
                 SystemClock.elapsedRealtime() - t);
         } catch (Throwable e) {
@@ -213,7 +254,17 @@ public final class RafaeliaPathValidator {
             boolean ok    = ledgerOk && heapMax > 0;
             String detail = "ledger=" + ledgerOk
                 + " heapUsedKb=" + (heapUsed / 1024)
-                + " heapMaxKb=" + (heapMax / 1024);
+                + " heapMaxKb=" + (heapMax / 1024)
+                + directionalEvidence(
+                    RafaeliaMethodPaths.PATH_MEMORY,
+                    true,
+                    true,
+                    ledgerOk,
+                    true,
+                    heapUsed <= heapMax,
+                    true,
+                    ledgerOk
+                );
             return new PathResult(RafaeliaMethodPaths.PATH_MEMORY, ok, detail,
                 SystemClock.elapsedRealtime() - t);
         } catch (Throwable e) {
@@ -235,7 +286,17 @@ public final class RafaeliaPathValidator {
             String json = probe.toJson();
             boolean jsonOk = json != null && json.contains("path_complete");
             boolean ok = supervisorReachable && jsonOk;
-            String detail = "supervisorOk=" + supervisorReachable + " auditJsonOk=" + jsonOk;
+            String detail = "supervisorOk=" + supervisorReachable + " auditJsonOk=" + jsonOk
+                + directionalEvidence(
+                    RafaeliaMethodPaths.PATH_COMPLETE,
+                    true,
+                    jsonOk,
+                    true,
+                    true,
+                    true,
+                    supervisorReachable,
+                    jsonOk
+                );
             return new PathResult(RafaeliaMethodPaths.PATH_COMPLETE, ok, detail,
                 SystemClock.elapsedRealtime() - t);
         } catch (Throwable e) {
@@ -261,7 +322,17 @@ public final class RafaeliaPathValidator {
             // Deterministic: state must be non-zero and non-trivial
             boolean ok = state != 0 && state != 0xFFFFFFFFL;
             String detail = "spiralState=0x" + Long.toHexString(state)
-                + " steps=" + steps + " seed=Trinity633";
+                + " steps=" + steps + " seed=Trinity633"
+                + directionalEvidence(
+                    RafaeliaMethodPaths.PATH_SPIRAL,
+                    true,
+                    true,
+                    false,
+                    true,
+                    ok,
+                    true,
+                    true
+                );
             return new PathResult(RafaeliaMethodPaths.PATH_SPIRAL, ok, detail,
                 SystemClock.elapsedRealtime() - t);
         } catch (Throwable e) {
@@ -288,7 +359,17 @@ public final class RafaeliaPathValidator {
             String detail = "magic=0x" + Integer.toHexString(magic)
                 + " magicOk=" + magicOk
                 + " featsOk=" + featsOk
-                + " Φ_ethica=" + String.format("%.2f", coherence);
+                + " Φ_ethica=" + String.format(Locale.US, "%.2f", coherence)
+                + directionalEvidence(
+                    RafaeliaMethodPaths.PATH_COHERENCE,
+                    true,
+                    true,
+                    true,
+                    true,
+                    coherence > 0.0,
+                    true,
+                    true
+                );
             return new PathResult(RafaeliaMethodPaths.PATH_COHERENCE, ok, detail,
                 SystemClock.elapsedRealtime() - t);
         } catch (Throwable e) {
@@ -301,5 +382,39 @@ public final class RafaeliaPathValidator {
         String msg = e.getClass().getSimpleName() + ": " + e.getMessage();
         Log.w(TAG, "Path " + RafaeliaMethodPaths.label(pathId) + " FAIL: " + msg, e);
         return new PathResult(pathId, false, msg, SystemClock.elapsedRealtime() - startMs);
+    }
+
+    static String directionalEvidence(
+        int pathId,
+        boolean input,
+        boolean output,
+        boolean storage,
+        boolean processing,
+        boolean inference,
+        boolean control,
+        boolean audit
+    ) {
+        return " dirs={"
+            + directionToken(pathId, RafaeliaDirectionalMatrix.DIRECTION_INPUT, input)
+            + ","
+            + directionToken(pathId, RafaeliaDirectionalMatrix.DIRECTION_OUTPUT, output)
+            + ","
+            + directionToken(pathId, RafaeliaDirectionalMatrix.DIRECTION_STORAGE, storage)
+            + ","
+            + directionToken(pathId, RafaeliaDirectionalMatrix.DIRECTION_PROCESSING, processing)
+            + ","
+            + directionToken(pathId, RafaeliaDirectionalMatrix.DIRECTION_INFERENCE, inference)
+            + ","
+            + directionToken(pathId, RafaeliaDirectionalMatrix.DIRECTION_CONTROL, control)
+            + ","
+            + directionToken(pathId, RafaeliaDirectionalMatrix.DIRECTION_AUDIT, audit)
+            + "}";
+    }
+
+    private static String directionToken(int pathId, int directionId, boolean present) {
+        RafaeliaDirectionalMatrix.DirectionSpec direction = RafaeliaDirectionalMatrix.directionById(directionId);
+        int relation = RafaeliaDirectionalMatrix.relation(pathId, directionId);
+        String key = direction != null ? direction.technicalLabel : ("d" + directionId);
+        return key + "=" + (present ? "1" : "0") + "/m" + relation;
     }
 }
