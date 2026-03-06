@@ -36,6 +36,6 @@ Testes de regressão associados:
 - [SOURCE_CODE_TRACEABILITY.md](SOURCE_CODE_TRACEABILITY.md)
 - [STATUS_CORRECOES_VERIFICADAS.md](STATUS_CORRECOES_VERIFICADAS.md)
 - [issues/README.md](issues/README.md)
-- [prioridade/readme.md](prioridade/readme.md)
-- [fazer hotfix/readme.md](fazer hotfix/readme.md)
+- [prioridade/README.md](prioridade/README.md)
+- [fazer hotfix/README.md](fazer hotfix/README.md)
 - [feito/README.md](feito/README.md)

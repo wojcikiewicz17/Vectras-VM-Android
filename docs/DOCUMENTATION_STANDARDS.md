@@ -55,7 +55,16 @@ Cada documento técnico deve conter, quando aplicável:
 
 ---
 
-## 8) Metadados Mínimos para Novos Diagramas ASCII
+## 8) Naming Canônico de Arquivos de Navegação
+
+- O nome canônico para arquivos de entrada em diretórios é **`README.md`** (maiúsculo).
+- Não usar variantes como `readme.md`, `Readme.md` ou equivalentes.
+- Ao renomear ou mover qualquer `README.md`, atualizar imediatamente os links internos em mapas de navegação (ex.: `FILES_MAP.md`, `docs/navigation/INDEX.md` e índices locais).
+- Em sistemas case-sensitive, considerar divergência de caixa como quebra de navegação e tratar como regressão documental.
+
+---
+
+## 9) Metadados Mínimos para Novos Diagramas ASCII
 
 Todo novo diagrama ASCII adicionado em `docs/assets/` deve ter metadados mínimos no manifesto único (`docs/assets/MANIFEST.md`) antes de ser referenciado em índices ou documentação:
 
@@ -94,6 +103,6 @@ Regras adicionais:
 
 ---
 
-**Última atualização / Last updated**: 2026-02-15
+**Última atualização / Last updated**: 2026-03-06
 
 © 2024-2026 Vectras VM Development Team — Licensed under GPL-2.0.

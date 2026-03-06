@@ -2,7 +2,7 @@
 
 | Arquivo | Função |
 |---|---|
-| `readme.md` | Define política e critério de priorização. |
+| `README.md` | Define política e critério de priorização. |
 | `VECTRAS_VM_ANDROID_BUG_REPORT.txt` | Relato consolidado de bugs Android. |
 | `VECTRAS_VM_ANDROID_CORRECTIONS.txt` | Correções planejadas/aplicadas para Android. |
 | `VECTRAS_VM_ADDITIONAL_56_BUGS.txt` | Backlog adicional de bugs. |

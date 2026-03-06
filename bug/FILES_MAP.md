@@ -51,6 +51,6 @@ Inventário do diretório `bug/` e subdiretórios operacionais.
 | Diretório | Função | Arquivos de entrada |
 |---|---|---|
 | `issues/` | Issues técnicas por bug. | `issues/README.md`, `issues/FILES_MAP.md` |
-| `prioridade/` | Triagem/priorização de correções. | `prioridade/readme.md`, `prioridade/FILES_MAP.md` |
-| `fazer hotfix/` | Fila de correção imediata. | `fazer hotfix/readme.md`, `fazer hotfix/FILES_MAP.md` |
+| `prioridade/` | Triagem/priorização de correções. | `prioridade/README.md`, `prioridade/FILES_MAP.md` |
+| `fazer hotfix/` | Fila de correção imediata. | `fazer hotfix/README.md`, `fazer hotfix/FILES_MAP.md` |
 | `feito/` | Histórico de hotfix concluído. | `feito/README.md`, `feito/FILES_MAP.md` |
