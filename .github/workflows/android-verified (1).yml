@@ -256,7 +256,7 @@ jobs:
 
           if [[ -z "${VECTRAS_RELEASE_STORE_PASSWORD}" || -z "${VECTRAS_RELEASE_KEY_ALIAS}" || -z "${VECTRAS_RELEASE_KEY_PASSWORD}" ]]; then
             echo "Release signing secrets unavailable; running unsigned internal validation build."
-            EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
+            EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true"
           fi
 
           # Decode keystore if base64-encoded secret provided
@@ -265,21 +265,17 @@ jobs:
             export VECTRAS_RELEASE_STORE_FILE=/tmp/release.keystore
           fi
 
-          ./gradlew checkNativeAllMatrix --no-daemon --stacktrace -PAPP_ABI_POLICY=${{ env.ABI_POLICY }} -PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ env.NDK_VERSION }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} ${EXTRA_RELEASE_FLAGS}
+          CHECK_NATIVE_CMD="./gradlew checkNativeAllMatrix --no-daemon --stacktrace -PAPP_ABI_POLICY=${{ env.ABI_POLICY }} -PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ env.NDK_VERSION }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} ${EXTRA_RELEASE_FLAGS}"
+          ASSEMBLE_RELEASE_CMD="./gradlew assembleRelease --no-daemon --stacktrace -PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ env.NDK_VERSION }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ env.ABI_POLICY }} -PRMR_ENABLE_POLICY_MODULE=${{ env.RMR_POLICY }} -PRMR_ENABLE_BITRAF_MODULE=${{ env.RMR_BITRAF }} ${EXTRA_RELEASE_FLAGS}"
 
-          ./gradlew assembleRelease \
-            --no-daemon \
-            --stacktrace \
-            -PCOMPILE_API=${{ env.COMPILE_API }} \
-            -PTARGET_API=${{ env.TARGET_API }} \
-            -PMIN_API=${{ env.MIN_API }} \
-            -PNDK_VERSION=${{ env.NDK_VERSION }} \
-            -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} \
-            -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} \
-            -PAPP_ABI_POLICY=${{ env.ABI_POLICY }} \
-            -PRMR_ENABLE_POLICY_MODULE=${{ env.RMR_POLICY }} \
-            -PRMR_ENABLE_BITRAF_MODULE=${{ env.RMR_BITRAF }} \
-            ${EXTRA_RELEASE_FLAGS}
+          if [[ "${CHECK_NATIVE_CMD}" == *"ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"* || "${ASSEMBLE_RELEASE_CMD}" == *"ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"* ]]; then
+            echo "::error::Forbidden release bypass detected: ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
+            exit 1
+          fi
+
+          eval "$CHECK_NATIVE_CMD"
+
+          eval "$ASSEMBLE_RELEASE_CMD"
 
           rm -f /tmp/release.keystore
 
