@@ -434,73 +434,74 @@ static int rmr_unified_slot_lookup(const RmR_UnifiedKernel *kernel, uint32_t han
   return RMR_UK_OK;
 }
 
+static int rmr_unified_collect_active_sorted(const RmR_UnifiedKernel *kernel,
+                                             uint32_t *sorted_slots,
+                                             uint32_t *active_count,
+                                             uint32_t *free_slot) {
+  uint32_t i;
+  uint32_t count = 0u;
+  uint32_t first_free = RMR_UK_MAX_SLOTS;
+  if (!kernel || !sorted_slots || !active_count || !free_slot) return RMR_KERNEL_ERR_ARG;
+
+  for (i = 0; i < RMR_UK_MAX_SLOTS; ++i) {
+    if (kernel->slots[i].in_use) {
+      uint32_t j;
+      if (count >= RMR_UK_MAX_SLOTS) return RMR_KERNEL_ERR_STATE;
+      sorted_slots[count] = i;
+      j = count;
+      while (j > 0u && kernel->slots[sorted_slots[j - 1u]].offset > kernel->slots[sorted_slots[j]].offset) {
+        uint32_t swap = sorted_slots[j - 1u];
+        sorted_slots[j - 1u] = sorted_slots[j];
+        sorted_slots[j] = swap;
+        --j;
+      }
+      count += 1u;
+    } else if (first_free == RMR_UK_MAX_SLOTS) {
+      first_free = i;
+    }
+  }
+
+  *active_count = count;
+  *free_slot = first_free;
+  return RMR_UK_OK;
+}
+
 int RmR_UnifiedKernel_ArenaAlloc(RmR_UnifiedKernel *kernel, uint32_t bytes, uint32_t *out_handle) {
   uint32_t i;
-  uint32_t slot = RMR_UK_MAX_SLOTS;
-  uint32_t active_count = 0u;
-  uint32_t active_offsets[RMR_UK_MAX_SLOTS];
-  uint32_t active_ends[RMR_UK_MAX_SLOTS];
-  uint32_t alloc_offset = UINT32_MAX;
+  uint32_t sorted_slots[RMR_UK_MAX_SLOTS];
+  uint32_t active_count;
+  uint32_t slot;
+  uint32_t alloc_offset = 0u;
+  uint32_t prev_end = 0u;
+  int rc;
   if (!kernel || !out_handle || !kernel->initialized || bytes == 0u) return RMR_KERNEL_ERR_ARG;
-  for (i = 0; i < RMR_UK_MAX_SLOTS; ++i) {
-    if (!kernel->slots[i].in_use && slot == RMR_UK_MAX_SLOTS) slot = i;
-    if (kernel->slots[i].in_use) {
-      uint32_t s_end;
-      if (kernel->slots[i].size > UINT32_MAX - kernel->slots[i].offset) return RMR_KERNEL_ERR_STATE;
-      s_end = kernel->slots[i].offset + kernel->slots[i].size;
-      if (s_end > kernel->arena_capacity) return RMR_KERNEL_ERR_STATE;
-      active_offsets[active_count] = kernel->slots[i].offset;
-      active_ends[active_count] = s_end;
-      active_count += 1u;
-    }
-  }
+  rc = rmr_unified_collect_active_sorted(kernel, sorted_slots, &active_count, &slot);
+  if (rc != RMR_UK_OK) return rc;
+
   if (slot == RMR_UK_MAX_SLOTS) return RMR_KERNEL_ERR_STATE;
 
-  if (active_count == 0u) {
-    if (bytes > kernel->arena_capacity) return RMR_KERNEL_ERR_STATE;
-    alloc_offset = 0u;
-  } else {
-    uint32_t sorted = 0u;
-    while (sorted < active_count) {
-      uint32_t k;
-      uint32_t min_idx = sorted;
-      for (k = sorted + 1u; k < active_count; ++k) {
-        if (active_offsets[k] < active_offsets[min_idx]) min_idx = k;
-      }
-      if (min_idx != sorted) {
-        uint32_t tmp;
-        tmp = active_offsets[sorted];
-        active_offsets[sorted] = active_offsets[min_idx];
-        active_offsets[min_idx] = tmp;
-        tmp = active_ends[sorted];
-        active_ends[sorted] = active_ends[min_idx];
-        active_ends[min_idx] = tmp;
-      }
-      sorted += 1u;
+  for (i = 0; i < active_count; ++i) {
+    const RmR_UnifiedArenaSlot *active = &kernel->slots[sorted_slots[i]];
+    uint32_t active_end;
+
+    if (active->size > UINT32_MAX - active->offset) return RMR_KERNEL_ERR_STATE;
+    active_end = active->offset + active->size;
+
+    if (active_end > kernel->arena_capacity || active->offset < prev_end) return RMR_KERNEL_ERR_STATE;
+
+    if (bytes <= active->offset - prev_end) {
+      alloc_offset = prev_end;
+      break;
     }
 
-    if (active_offsets[0] >= bytes) {
-      alloc_offset = 0u;
-    } else {
-      uint32_t prev_end = active_ends[0];
-      for (i = 1u; i < active_count; ++i) {
-        if (active_offsets[i] < prev_end) return RMR_KERNEL_ERR_STATE;
-        if (active_offsets[i] - prev_end >= bytes) {
-          alloc_offset = prev_end;
-          break;
-        }
-        if (active_ends[i] > prev_end) prev_end = active_ends[i];
-      }
-      if (alloc_offset == UINT32_MAX) {
-        if (prev_end > kernel->arena_capacity || bytes > kernel->arena_capacity - prev_end) {
-          return RMR_KERNEL_ERR_STATE;
-        }
-        alloc_offset = prev_end;
-      }
-    }
+    prev_end = active_end;
   }
 
-  if (alloc_offset == UINT32_MAX) return RMR_KERNEL_ERR_STATE;
+  if (i == active_count) {
+    if (prev_end > kernel->arena_capacity || bytes > kernel->arena_capacity - prev_end) return RMR_KERNEL_ERR_STATE;
+    alloc_offset = prev_end;
+  }
+
   kernel->slots[slot].offset = alloc_offset;
   kernel->slots[slot].size = bytes;
   kernel->slots[slot].generation += 1u;
