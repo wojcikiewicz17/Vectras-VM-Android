@@ -35,6 +35,37 @@ size_t bitraf_reconstruct(const uint8_t *in, size_t in_len,
                           uint8_t *out, size_t out_cap,
                           uint64_t seed);
 
+enum {
+  BITRAF_RECON_MODE_STRICT = 0,
+  BITRAF_RECON_MODE_REPORT = 1
+};
+
+enum {
+  BITRAF_RECON_STATUS_OK = 0,
+  BITRAF_RECON_STATUS_FRAME = 1,
+  BITRAF_RECON_STATUS_CHUNK = 2,
+  BITRAF_RECON_STATUS_HASH = 3
+};
+
+typedef struct bitraf_diag {
+  uint32_t status;
+  size_t error_offset;
+  size_t chunk_index;
+  size_t bad_chunk_count;
+  uint32_t expected_checksum;
+  uint32_t actual_checksum;
+} bitraf_diag;
+
+/*
+ * Extended decode with diagnostics.
+ * strict: first chunk/hash failure returns 0.
+ * report: reconstructs buffer and reports chunk/hash failures via diag.
+ */
+size_t bitraf_reconstruct_ex(const uint8_t *in, size_t in_len,
+                             uint8_t *out, size_t out_cap,
+                             uint64_t seed, int mode,
+                             bitraf_diag *diag);
+
 /*
  * Verifies content hash against expected hash.
  * Returns 1 when valid, 0 otherwise.
