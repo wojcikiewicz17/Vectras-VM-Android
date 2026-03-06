@@ -17,6 +17,10 @@
 | `THIRD_PARTY_NOTICES.md` | Registro legal/licenças de terceiros. | Compliance, jurídico, segurança. | **Ativo** | Raiz | [`README.md`](README.md#governança-e-estado---navegação-rápida) |
 | `VECTRA_CORE.md` | Referência conceitual do runtime Vectra Core MVP. | Engenharia de runtime e arquitetura. | **Ativo** | Raiz | [`README.md`](README.md#governança-e-estado---navegação-rápida) |
 | `VECTRAS_MEGAPROMPT_DOCS.md` | Guia estratégico de documentação técnica ampla do projeto. | Documentação técnica, enablement e coordenação. | **Ativo** | Raiz | [`README.md`](README.md#governança-e-estado---navegação-rápida) |
+| `BUILDING.md` | Guia operacional de pré-requisitos e comandos de build (CLI/Gradle/ABI). | Engenharia, integração contínua, mantenedores de build. | **Ativo** | Raiz | [`README.md`](README.md#governança-e-estado---navegação-rápida) |
+| `TROUBLESHOOTING.md` | Runbook de diagnóstico para falhas de setup/build/bootstrap. | Engenharia, QA, suporte técnico. | **Ativo** | Raiz | [`README.md`](README.md#governança-e-estado---navegação-rápida) |
+| `FIXES_SUMMARY.md` | Sumário operacional das correções aplicadas e impactos técnicos. | Engenharia, auditoria técnica, manutenção corretiva. | **Ativo** | Raiz | [`README.md`](README.md#governança-e-estado---navegação-rápida) |
+| `VERSION_STABILITY.md` | Manifesto e checklist de estabilidade por versão/metodologia. | Arquitetura, release managers, governança técnica. | **Ativo** | Raiz | [`README.md`](README.md#governança-e-estado---navegação-rápida) |
 | `archive/root-history/1.md` | Registro pontual de ajuste de compatibilidade/chaves. | Auditoria histórica. | **Arquivado** | `archive/root-history/` | [`README.md`](README.md#histórico-arquivado-raiz) |
 | `archive/root-history/ADVANCED_OPTIMIZATIONS.md` | Catálogo histórico de módulos avançados de otimização. | Engenharia/performance (consulta histórica). | **Arquivado** | `archive/root-history/` | [`README.md`](README.md#histórico-arquivado-raiz) |
 | `archive/root-history/BENCHMARK_REFACTORING_SUMMARY.md` | Sumário histórico da etapa de refatoração de benchmark. | Performance, engenharia de validação. | **Arquivado** | `archive/root-history/` | [`README.md`](README.md#histórico-arquivado-raiz) |
@@ -24,6 +28,10 @@
 | `archive/root-history/IMPLEMENTATION_SUMMARY.md` | Resumo histórico de implementação por evidências. | Auditoria técnica e documentação histórica. | **Arquivado** | `archive/root-history/` | [`README.md`](README.md#histórico-arquivado-raiz) |
 | `archive/root-history/VECTRAS_ANALYSIS_COMPLETE.md` | Relato histórico de análise consolidada. | Pesquisa histórica e auditoria. | **Arquivado** | `archive/root-history/` | [`README.md`](README.md#histórico-arquivado-raiz) |
 | `archive/root-history/VECTRAS_DEEP_EVIDENCE.md` | Evidências históricas detalhadas de revisão/validação. | Auditoria e governança histórica. | **Arquivado** | `archive/root-history/` | [`README.md`](README.md#histórico-arquivado-raiz) |
+
+## Regra de manutenção do índice
+- Todo novo arquivo Markdown na raiz (`./*.md`) deve ser incluído na tabela **Documentos de raiz** no mesmo commit/PR em que for criado ou movido.
+- Antes de concluir mudanças na raiz, validar consistência com [`docs/ROOT_FILES_CATALOG.md`](docs/ROOT_FILES_CATALOG.md) e [`docs/ROOT_FILE_CHAIN.md`](docs/ROOT_FILE_CHAIN.md).
 
 ## Diretórios com documentação completa
 Cada diretório tem:
