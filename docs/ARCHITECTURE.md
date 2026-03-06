@@ -93,7 +93,7 @@ sequenceDiagram
 - Implicação prática: onboarding e CI devem seguir fluxo Gradle local, sem provisionamento Firebase.
 
 ## Metadados
-- Versão do documento: 1.1
-- Última atualização: 2026-02-18
-- Commit de referência: `8a378fa`
+- Versão do documento: 1.2
+- Última atualização: 2026-03-06
+- Commit de referência: `f16c52a`
 - Domínio de código coberto: Arquitetura operacional VM (app Android + supervisor/runtime + engine C/JNI).

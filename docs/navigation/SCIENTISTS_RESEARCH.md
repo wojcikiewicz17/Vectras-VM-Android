@@ -29,7 +29,7 @@ Guia de pesquisa alinhado ao código do projeto, com foco em reprodutibilidade e
 4. Publicar método e limitações do ambiente de teste.
 
 ## Metadados
-- Versão do documento: 1.2
-- Última atualização: 2026-02-18
-- Commit de referência: `8a378fa`
+- Versão do documento: 1.3
+- Última atualização: 2026-03-06
+- Commit de referência: `f16c52a`
 - Domínio de código coberto: Pesquisa reproduzível sobre benchmark, core e integração JNI/app.
