@@ -74,6 +74,7 @@ set(RMR_SOURCES
   engine/rmr/src/rmr_apk_module.c
   engine/rmr/src/rmr_qemu_bridge.c
   engine/rmr/src/rmr_math_fabric.c
+  engine/rmr/src/rafaelia_formulas_core.c
   engine/rmr/src/rmr_corelib.c
   engine/rmr/src/rmr_ll_ops.c
   engine/rmr/src/rmr_ll_tuning.c
