@@ -15,6 +15,20 @@ make all
 - API pública mínima consolidada: `rmr_kernel_init`, `rmr_kernel_shutdown`, `rmr_kernel_ingest`, `rmr_kernel_process`, `rmr_kernel_route`, `rmr_kernel_verify`, `rmr_kernel_audit`, `rmr_kernel_autodetect`, `rmr_kernel_get_capabilities`.
 - Este header é o único ponto de verdade para orquestração do core (lifecycle + I/O descriptors + capacidades de hardware).
 
+## Constantes canônicas
+- Header canônico de constantes: `include/zero.h`
+- Escopo consolidado das constantes canônicas:
+  - policy kernel
+  - bitraf
+  - bitomega
+  - hw detect
+  - zipraf
+  - qemu bridge
+- Regra de manutenção: todo novo literal hexadecimal deve nascer em `include/zero.h` com prefixo `RMR_ZERO_*`.
+- Distinção obrigatória de responsabilidades:
+  - orquestração do core: `include/rmr_unified_kernel.h`
+  - constantes canônicas: `include/zero.h`
+
 ## Artefatos
 - `build/engine/librmr.a`
 - `build/engine/libbitraf.a`
