@@ -40,7 +40,7 @@ static const char *route_target_from_id(uint8_t id) {
 }
 
 static uint64_t mix_u64(uint64_t acc, uint64_t x) {
-  acc ^= x + 0x9E3779B97F4A7C15ull + (acc << 6) + (acc >> 2);
+  acc ^= x + RMR_ZERO_POLICY_KERNEL_SIG_MIX64_U64 + (acc << 6) + (acc >> 2);
   return acc;
 }
 
@@ -48,7 +48,7 @@ static uint64_t stage_signature(RmR_Stage stage,
                                 uint32_t matrix_seed,
                                 const RmR_MathFabricPlan *plan,
                                 const RmR_ChunkMeta *m) {
-  uint64_t sig = 1469598103934665603ull;
+  uint64_t sig = RMR_ZERO_POLICY_KERNEL_FNV1A_BASIS_U64;
   sig = mix_u64(sig, (uint64_t)(unsigned)stage);
   sig = mix_u64(sig, (uint64_t)matrix_seed);
   sig = mix_u64(sig, (uint64_t)plan->matrix_seed);
@@ -183,7 +183,7 @@ static void init_crc32c_table(void) {
   for (uint32_t i = 0; i < 256; ++i) {
     uint32_t c = i;
     for (uint32_t b = 0; b < 8; ++b) {
-      c = (c & 1u) ? (0x82F63B78u ^ (c >> 1)) : (c >> 1);
+      c = (c & 1u) ? (RMR_ZERO_POLICY_KERNEL_CRC32C_POLY_U32 ^ (c >> 1)) : (c >> 1);
     }
     g_crc32c_table[i] = c;
   }
@@ -235,14 +235,14 @@ uint32_t RmR_CRC32C_RawUpdate(uint32_t initial, const uint8_t *buf, size_t len) 
 }
 
 uint32_t RmR_CRC32C(const uint8_t *buf, size_t len) {
-  return ~RmR_CRC32C_RawUpdate(0xFFFFFFFFu, buf, len);
+  return ~RmR_CRC32C_RawUpdate(RMR_ZERO_POLICY_KERNEL_CRC32C_INIT_U32, buf, len);
 }
 
 uint64_t RmR_Hash64_FNV1a(const uint8_t *buf, size_t len) {
-  uint64_t h = 1469598103934665603ull;
+  uint64_t h = RMR_ZERO_POLICY_KERNEL_FNV1A_BASIS_U64;
   for (size_t i = 0; i < len; ++i) {
     h ^= (uint64_t)buf[i];
-    h *= 1099511628211ull;
+    h *= RMR_ZERO_POLICY_KERNEL_FNV1A_PRIME_U64;
   }
   return h;
 }
@@ -332,10 +332,10 @@ int RmR_RunPolicyPipeline(const char *input_path,
   uint32_t commit_quantum;
   uint32_t commit_counter = 0u;
   const uint8_t decision_mode = RMR_DECISION_MODE_BRANCHLESS;
-  rmr_memset(&local_summary, 0, sizeof(local_summary));
-  local_summary.exec_signature = 1469598103934665603ull;
-  rmr_memset(&hw, 0, sizeof(hw));
-  rmr_memset(&math_plan, 0, sizeof(math_plan));
+  memset(&local_summary, 0, sizeof(local_summary));
+  local_summary.exec_signature = RMR_ZERO_POLICY_KERNEL_FNV1A_BASIS_U64;
+  memset(&hw, 0, sizeof(hw));
+  memset(&math_plan, 0, sizeof(math_plan));
   RmR_HW_Detect(&hw);
   RmR_MathFabric_AutodetectPlan(&hw, &math_plan);
   RmR_LL_ApplyTuneDefaults(&hw, &tune);

@@ -42,7 +42,7 @@ void RmR_QemuPlan_Autotune(const RmR_HW_Info *hw,
   }
 
   if (hw) {
-    plan->use_kvm = (hw->arch == 2u || hw->arch == 4u) ? 1u : 0u;
+    plan->use_kvm = (hw->arch == RMR_ZERO_HW_ARCH_X86_64_U32 || hw->arch == RMR_ZERO_HW_ARCH_ARM64_U32) ? 1u : 0u;
     if (hw->cache_hint_l2 >= (512u * 1024u)) {
       plan->preset = RMR_QEMU_PRESET_PERFORMANCE;
     }
