@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════
    rmr_casm_riscv64.S — RMR CASM BRIDGE RISCV64
    Ficheiro FALTANDO no zip original — adicionado aqui.
-   RISC-V 64-bit base ISA (RV64I) — zero extensões obrigatórias
+   RISC-V 64-bit base ISA (RV64I sem extensões obrigatórias)
    ═══════════════════════════════════════════════════════ */
 
 .section .text
@@ -60,14 +60,51 @@ rmr_casm_xor_fold32_riscv64:
     ret
 .size rmr_casm_xor_fold32_riscv64, .-rmr_casm_xor_fold32_riscv64
 
+.macro rmr_mul_phi_rv64i dst, src, acc, tmp
+    /* 0x9E3779B9 = 2^32 - 0x61C88647 */
+    slli    \dst, \src, 32
+
+    mv      \acc, \src
+    slli    \tmp, \src, 1
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 2
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 6
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 9
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 10
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 15
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 19
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 22
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 23
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 24
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 29
+    add     \acc, \acc, \tmp
+    slli    \tmp, \src, 30
+    add     \acc, \acc, \tmp
+
+    sub     \dst, \dst, \acc
+.endm
+
 /* ─── rmr_casm_phi_step_riscv64 ─────────────────────── */
 .global rmr_casm_phi_step_riscv64
 .type   rmr_casm_phi_step_riscv64, @function
 rmr_casm_phi_step_riscv64:
     /* a0=state, a1=coherence */
-    li      t0, 0x9E3779B9
-    mul     a0, a0, t0
-    mulw    a1, a1, t0          /* coherence × PHI (32-bit) */
+    /* rotina RV64I: evita extensão M por compatibilidade ISA */
+    mv      t2, a0
+    mv      t3, a1
+    rmr_mul_phi_rv64i a0, t2, t0, t1
+    rmr_mul_phi_rv64i a1, t3, t0, t1
+    slli    a1, a1, 32          /* equivalência de mulw (sign-extend do low32) */
+    srai    a1, a1, 32
     xor     a0, a0, a1
     bnez    a0, .Lphi_ok_rv
     li      a0, 1
