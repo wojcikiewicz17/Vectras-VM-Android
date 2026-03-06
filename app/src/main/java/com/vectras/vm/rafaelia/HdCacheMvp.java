@@ -58,6 +58,8 @@ public final class HdCacheMvp {
     public static final long L2_BUDGET = 16L * 1024 * 1024;
     /** L3 cache budget (128MB) - large, slowest RAM tier */
     public static final long L3_BUDGET = 128L * 1024 * 1024;
+    /** L4 cache budget (512MB) - cold persistent tier */
+    public static final long L4_BUDGET = 512L * 1024 * 1024;
     
     /** Default TTL in seconds */
     public static final int DEFAULT_TTL_SEC = 30;
@@ -505,23 +507,29 @@ public final class HdCacheMvp {
         }
     }
 
-    // ========== L1/L2/L3 Cache ==========
+    // ========== L1/L2/L3/L4 Cache ==========
     /**
-     * Three-level cache with automatic promotion and demotion.
+     * Four-level cache with automatic promotion and demotion.
      */
-    public static final class L123Cache {
+    public static class L1234Cache implements Closeable {
         private final TierCache l1;
         private final TierCache l2;
         private final TierCache l3;
+        private final MappedTierCache l4;
 
-        public L123Cache() {
-            this(L1_BUDGET, L2_BUDGET, L3_BUDGET);
+        public L1234Cache() {
+            this(L1_BUDGET, L2_BUDGET, L3_BUDGET, L4_BUDGET);
         }
 
-        public L123Cache(long l1Budget, long l2Budget, long l3Budget) {
+        public L1234Cache(long l1Budget, long l2Budget, long l3Budget) {
+            this(l1Budget, l2Budget, l3Budget, L4_BUDGET);
+        }
+
+        public L1234Cache(long l1Budget, long l2Budget, long l3Budget, long l4Budget) {
             this.l1 = new TierCache(l1Budget);
             this.l2 = new TierCache(l2Budget);
             this.l3 = new TierCache(l3Budget);
+            this.l4 = new MappedTierCache(l4Budget);
         }
 
         /**
@@ -531,6 +539,7 @@ public final class HdCacheMvp {
             l1.putNoEvict(k, v);
             l2.remove(k);
             l3.remove(k);
+            l4.remove(k);
             demoteCycle();
         }
 
@@ -546,6 +555,7 @@ public final class HdCacheMvp {
             if (v != null) {
                 l2.remove(k);
                 l3.remove(k);
+                l4.remove(k);
                 l1.putNoEvict(k, v); // Promote to L1
                 demoteCycle();
                 return v;
@@ -554,7 +564,17 @@ public final class HdCacheMvp {
             if (v != null) {
                 l3.remove(k);
                 l2.remove(k);
+                l4.remove(k);
                 l1.putNoEvict(k, v); // Promote to L1
+                demoteCycle();
+                return v;
+            }
+            v = l4.get(k);
+            if (v != null) {
+                l4.remove(k);
+                l2.remove(k);
+                l3.remove(k);
+                l1.putNoEvict(k, v); // Promote cold tier directly to L1
                 demoteCycle();
                 return v;
             }
@@ -570,23 +590,206 @@ public final class HdCacheMvp {
                 Map.Entry<EventKey, byte[]> item = l1.popOldest();
                 if (item == null) break;
                 l3.remove(item.getKey());
+                l4.remove(item.getKey());
                 l2.putNoEvict(item.getKey(), item.getValue());
             }
             // Move overflow from L2 -> L3
             while (l2.getUsed() > l2.getBudget()) {
                 Map.Entry<EventKey, byte[]> item = l2.popOldest();
                 if (item == null) break;
+                l4.remove(item.getKey());
                 l3.putNoEvict(item.getKey(), item.getValue());
             }
-            // Evict from L3 if over budget
+            // Move overflow from L3 -> L4
             while (l3.getUsed() > l3.getBudget()) {
-                if (l3.popOldest() == null) break;
+                Map.Entry<EventKey, byte[]> item = l3.popOldest();
+                if (item == null) break;
+                l4.putNoEvict(item.getKey(), item.getValue());
+            }
+            // Evict from L4 if over budget
+            while (l4.getUsed() > l4.getBudget()) {
+                if (l4.popOldest() == null) break;
             }
         }
 
         public TierCache getL1() { return l1; }
         public TierCache getL2() { return l2; }
         public TierCache getL3() { return l3; }
+        public MappedTierCache getL4() { return l4; }
+
+        @Override
+        public void close() throws IOException {
+            l4.close();
+        }
+    }
+
+    /**
+     * Backward-compatible alias used by Engine API.
+     */
+    public static final class L123Cache extends L1234Cache {
+        public L123Cache() {
+            super();
+        }
+
+        public L123Cache(long l1Budget, long l2Budget, long l3Budget) {
+            super(l1Budget, l2Budget, l3Budget, L4_BUDGET);
+        }
+    }
+
+    /**
+     * L4 cold tier: append-only memory-mapped backing file + deterministic FIFO tracking.
+     */
+    public static final class MappedTierCache implements Closeable {
+        private static final class ColdEntry {
+            long offset;
+            int length;
+
+            ColdEntry(long offset, int length) {
+                this.offset = offset;
+                this.length = length;
+            }
+        }
+
+        private final long budget;
+        private long used;
+        private final Map<EventKey, ColdEntry> items;
+        private final Deque<EventKey> queue;
+        private final ReentrantLock lock = new ReentrantLock();
+        private final File file;
+        private final RandomAccessFile raf;
+        private final FileChannel channel;
+        private long size;
+
+        public MappedTierCache(long budget) {
+            this.budget = budget;
+            this.used = 0;
+            this.items = new HashMap<>();
+            this.queue = new ArrayDeque<>();
+            try {
+                File dir = new File(System.getProperty("java.io.tmpdir"), "rafaelia_l4");
+                Files.createDirectories(dir.toPath());
+                this.file = new File(dir, "l4-" + UUID.randomUUID() + ".cache");
+                this.raf = new RandomAccessFile(file, "rw");
+                this.channel = raf.getChannel();
+                this.size = 0;
+            } catch (IOException e) {
+                throw new IllegalStateException("Unable to initialize L4 mapped cache", e);
+            }
+        }
+
+        public void putNoEvict(EventKey k, byte[] v) {
+            lock.lock();
+            try {
+                if (items.containsKey(k)) {
+                    used -= items.get(k).length;
+                } else {
+                    queue.addLast(k);
+                }
+                long offset = size;
+                ensureCapacity(offset + v.length);
+                MappedByteBuffer mapped = channel.map(FileChannel.MapMode.READ_WRITE, offset, v.length);
+                mapped.put(v);
+                items.put(k, new ColdEntry(offset, v.length));
+                used += v.length;
+                size = offset + v.length;
+            } catch (IOException e) {
+                throw new IllegalStateException("L4 put failed", e);
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public byte[] get(EventKey k) {
+            lock.lock();
+            try {
+                ColdEntry entry = items.get(k);
+                if (entry == null) {
+                    return null;
+                }
+                MappedByteBuffer mapped = channel.map(FileChannel.MapMode.READ_ONLY, entry.offset, entry.length);
+                byte[] out = new byte[entry.length];
+                mapped.get(out);
+                return out;
+            } catch (IOException e) {
+                throw new IllegalStateException("L4 get failed", e);
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public byte[] remove(EventKey k) {
+            lock.lock();
+            try {
+                ColdEntry entry = items.remove(k);
+                if (entry == null) {
+                    return null;
+                }
+                used -= entry.length;
+                MappedByteBuffer mapped = channel.map(FileChannel.MapMode.READ_ONLY, entry.offset, entry.length);
+                byte[] out = new byte[entry.length];
+                mapped.get(out);
+                return out;
+            } catch (IOException e) {
+                throw new IllegalStateException("L4 remove failed", e);
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public Map.Entry<EventKey, byte[]> popOldest() {
+            lock.lock();
+            try {
+                while (!queue.isEmpty()) {
+                    EventKey k = queue.pollFirst();
+                    ColdEntry entry = items.remove(k);
+                    if (entry != null) {
+                        used -= entry.length;
+                        MappedByteBuffer mapped = channel.map(FileChannel.MapMode.READ_ONLY, entry.offset, entry.length);
+                        byte[] out = new byte[entry.length];
+                        mapped.get(out);
+                        return new java.util.AbstractMap.SimpleEntry<>(k, out);
+                    }
+                }
+                return null;
+            } catch (IOException e) {
+                throw new IllegalStateException("L4 popOldest failed", e);
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        private void ensureCapacity(long desired) throws IOException {
+            if (channel.size() >= desired) {
+                return;
+            }
+            channel.position(desired - 1);
+            channel.write(ByteBuffer.wrap(new byte[]{0}));
+        }
+
+        public long getUsed() {
+            lock.lock();
+            try {
+                return used;
+            } finally {
+                lock.unlock();
+            }
+        }
+
+        public long getBudget() {
+            return budget;
+        }
+
+        @Override
+        public void close() throws IOException {
+            lock.lock();
+            try {
+                channel.close();
+                raf.close();
+                Files.deleteIfExists(file.toPath());
+            } finally {
+                lock.unlock();
+            }
+        }
     }
 
     // ========== Harmonic Scheduler ==========
@@ -803,8 +1006,9 @@ public final class HdCacheMvp {
                 throw new IllegalArgumentException("Unknown event: " + k);
             }
             v = store.readBlock(m.getDiskOff());
-            // Warm into L3 cache
-            cache.getL3().put(k, v);
+            // Warm into cold tier first; promotion happens on demand
+            cache.getL4().putNoEvict(k, v);
+            cache.demoteCycle();
             return v;
         }
 
@@ -944,6 +1148,7 @@ public final class HdCacheMvp {
 
         @Override
         public void close() throws IOException {
+            cache.close();
             store.close();
         }
 
