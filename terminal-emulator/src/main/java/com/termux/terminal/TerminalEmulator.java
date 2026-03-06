@@ -859,13 +859,38 @@ public final class TerminalEmulator {
                     // respond, as well as http://www.freebsd.org/cgi/man.cgi?query=termcap&sektion=5#CAPABILITIES for
                     // the meaning of e.g. "ku", "kd", "kr", "kl"
 
-                    for (String part : dcs.substring(2).split(";")) {
-                        if (part.length() % 2 == 0) {
-                            StringBuilder transBuffer = new StringBuilder();
-                            for (int i = 0; i < part.length(); i += 2) {
-                                char c = (char) Long.decode("0x" + part.charAt(i) + "" + part.charAt(i + 1)).longValue();
-                                transBuffer.append(c);
+                    final int dcsLength = dcs.length();
+                    StringBuilder transBuffer = new StringBuilder();
+                    StringBuilder hexEncoded = new StringBuilder();
+                    int partStart = 2;
+                    while (partStart <= dcsLength) {
+                        int partEnd = partStart;
+                        while (partEnd < dcsLength && dcs.charAt(partEnd) != ';') {
+                            partEnd++;
+                        }
+
+                        int partLength = partEnd - partStart;
+                        if (partLength % 2 == 0) {
+                            transBuffer.setLength(0);
+                            boolean validHex = true;
+                            for (int i = partStart; i < partEnd; i += 2) {
+                                int highNibble = hexNibble(dcs.charAt(i));
+                                int lowNibble = hexNibble(dcs.charAt(i + 1));
+                                if (highNibble < 0 || lowNibble < 0) {
+                                    validHex = false;
+                                    break;
+                                }
+                                transBuffer.append((char) ((highNibble << 4) | lowNibble));
                             }
+
+                            if (!validHex) {
+                                Log.e(EmulatorDebug.LOG_TAG,
+                                    "Invalid device termcap/terminfo name with non-hex character: " + dcs.substring(partStart, partEnd));
+                                partStart = partEnd + 1;
+                                continue;
+                            }
+
+                            String part = dcs.substring(partStart, partEnd);
                             String trans = transBuffer.toString();
                             String responseValue;
                             switch (trans) {
@@ -893,15 +918,18 @@ public final class TerminalEmulator {
                                 // Respond with invalid request:
                                 mSession.write("\033P0+r" + part + "\033\\");
                             } else {
-                                StringBuilder hexEncoded = new StringBuilder();
+                                hexEncoded.setLength(0);
                                 for (int j = 0; j < responseValue.length(); j++) {
                                     hexEncoded.append(String.format("%02X", (int) responseValue.charAt(j)));
                                 }
                                 mSession.write("\033P1+r" + part + "=" + hexEncoded + "\033\\");
                             }
                         } else {
-                            Log.e(EmulatorDebug.LOG_TAG, "Invalid device termcap/terminfo name of odd length: " + part);
+                            Log.e(EmulatorDebug.LOG_TAG,
+                                "Invalid device termcap/terminfo name of odd length: " + dcs.substring(partStart, partEnd));
                         }
+
+                        partStart = partEnd + 1;
                     }
                 } else {
                     if (LOG_ESCAPE_SEQUENCES)
@@ -920,6 +948,13 @@ public final class TerminalEmulator {
                     continueSequence(mEscapeState);
                 }
         }
+    }
+
+    private static int hexNibble(char c) {
+        if (c >= '0' && c <= '9') return c - '0';
+        if (c >= 'a' && c <= 'f') return c - 'a' + 10;
+        if (c >= 'A' && c <= 'F') return c - 'A' + 10;
+        return -1;
     }
 
     private int nextTabStop(int numTabs) {

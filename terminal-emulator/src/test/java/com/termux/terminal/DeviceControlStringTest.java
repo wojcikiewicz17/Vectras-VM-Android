@@ -39,6 +39,36 @@ public class DeviceControlStringTest extends TerminalTestCase {
 		assertCapabilityResponse("kB", "\033[Z");
 	}
 
+	public void testInvalidOrUnsupportedItemsRespondAsInvalid() {
+		withTerminalSized(3, 3);
+		assertEnteringStringGivesResponse("\033P+q6b7G\033\\", "");
+		assertEnteringStringGivesResponse("\033P+q41\033\\", "\033P0+r41\033\\");
+		assertEnteringStringGivesResponse("\033P+q2531\033\\", "\033P0+r2531\033\\");
+		assertEnteringStringGivesResponse("\033P+q2638\033\\", "\033P0+r2638\033\\");
+	}
+
+	public void testMultipleCapabilityItemsIncludingEmpty() {
+		withTerminalSized(3, 3);
+		assertEnteringStringGivesResponse("\033P+q436f;6e616d65;;6b42\033\\",
+			"\033P1+r436f=323536\033\\" +
+			"\033P1+r6e616d65=787465726D\033\\" +
+			"\033P0+r\033\\" +
+			"\033P1+r6b42=1B5B5A\033\\");
+	}
+
+	public void testHighCardinalityCapabilityItems() {
+		withTerminalSized(3, 3);
+		StringBuilder request = new StringBuilder("\033P+q");
+		StringBuilder expected = new StringBuilder();
+		for (int i = 0; i < 128; i++) {
+			if (i > 0) request.append(';');
+			request.append("434f");
+			expected.append("\033P1+r434f=323536\033\\");
+		}
+		request.append("\033\\");
+		assertEnteringStringGivesResponse(request.toString(), expected.toString());
+	}
+
 	public void testReallyLongDeviceControlString() {
 		withTerminalSized(3, 3).enterString("\033P");
 		for (int i = 0; i < 10000; i++) {
