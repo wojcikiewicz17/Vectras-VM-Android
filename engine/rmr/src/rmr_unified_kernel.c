@@ -442,11 +442,13 @@ int RmR_UnifiedKernel_ArenaAlloc(RmR_UnifiedKernel *kernel, uint32_t bytes, uint
   for (i = 0; i < RMR_UK_MAX_SLOTS; ++i) {
     if (!kernel->slots[i].in_use && slot == RMR_UK_MAX_SLOTS) slot = i;
     if (kernel->slots[i].in_use) {
-      uint32_t s_end = kernel->slots[i].offset + kernel->slots[i].size;
+      uint32_t s_end;
+      if (kernel->slots[i].size > UINT32_MAX - kernel->slots[i].offset) return RMR_KERNEL_ERR_STATE;
+      s_end = kernel->slots[i].offset + kernel->slots[i].size;
       if (s_end > end) end = s_end;
     }
   }
-  if (slot == RMR_UK_MAX_SLOTS || end + bytes > kernel->arena_capacity) return RMR_KERNEL_ERR_STATE;
+  if (slot == RMR_UK_MAX_SLOTS || bytes > kernel->arena_capacity - end) return RMR_KERNEL_ERR_STATE;
   kernel->slots[slot].offset = end;
   kernel->slots[slot].size = bytes;
   kernel->slots[slot].generation += 1u;
@@ -477,11 +479,16 @@ int RmR_UnifiedKernel_ArenaCopy(RmR_UnifiedKernel *kernel,
   if (rc != RMR_UK_OK) return rc;
   rc = rmr_unified_slot_lookup(kernel, dst_handle, &dst_slot);
   if (rc != RMR_UK_OK) return rc;
-  if (src_offset + len > kernel->slots[src_slot].size || dst_offset + len > kernel->slots[dst_slot].size) {
+  if (len > kernel->slots[src_slot].size || src_offset > kernel->slots[src_slot].size - len ||
+      len > kernel->slots[dst_slot].size || dst_offset > kernel->slots[dst_slot].size - len) {
     return RMR_KERNEL_ERR_ARG;
   }
-  rmr_mem_copy(kernel->arena_base + kernel->slots[dst_slot].offset + dst_offset,
-               kernel->arena_base + kernel->slots[src_slot].offset + src_offset,
+  if (dst_offset > UINT32_MAX - kernel->slots[dst_slot].offset ||
+      src_offset > UINT32_MAX - kernel->slots[src_slot].offset) {
+    return RMR_KERNEL_ERR_STATE;
+  }
+  rmr_mem_copy(kernel->arena_base + (kernel->slots[dst_slot].offset + dst_offset),
+               kernel->arena_base + (kernel->slots[src_slot].offset + src_offset),
                len);
   return RMR_UK_OK;
 }
@@ -497,10 +504,11 @@ int RmR_UnifiedKernel_ArenaXorChecksum(RmR_UnifiedKernel *kernel,
   if (!kernel || !out_checksum || !kernel->initialized) return RMR_KERNEL_ERR_ARG;
   rc = rmr_unified_slot_lookup(kernel, handle, &slot);
   if (rc != RMR_UK_OK) return rc;
-  if (offset + len > kernel->slots[slot].size) return RMR_KERNEL_ERR_ARG;
+  if (len > kernel->slots[slot].size || offset > kernel->slots[slot].size - len) return RMR_KERNEL_ERR_ARG;
+  if (offset > UINT32_MAX - kernel->slots[slot].offset) return RMR_KERNEL_ERR_STATE;
   *out_checksum = 0u;
   for (i = 0; i < len; ++i) {
-    *out_checksum ^= (uint32_t)kernel->arena_base[kernel->slots[slot].offset + offset + i];
+    *out_checksum ^= (uint32_t)kernel->arena_base[kernel->slots[slot].offset + (offset + i)];
   }
   return RMR_UK_OK;
 }
@@ -515,8 +523,9 @@ int RmR_UnifiedKernel_ArenaFill(RmR_UnifiedKernel *kernel,
   if (!kernel || !kernel->initialized) return RMR_KERNEL_ERR_ARG;
   rc = rmr_unified_slot_lookup(kernel, handle, &slot);
   if (rc != RMR_UK_OK) return rc;
-  if (offset + len > kernel->slots[slot].size) return RMR_KERNEL_ERR_ARG;
-  rmr_mem_set(kernel->arena_base + kernel->slots[slot].offset + offset, value, len);
+  if (len > kernel->slots[slot].size || offset > kernel->slots[slot].size - len) return RMR_KERNEL_ERR_ARG;
+  if (offset > UINT32_MAX - kernel->slots[slot].offset) return RMR_KERNEL_ERR_STATE;
+  rmr_mem_set(kernel->arena_base + (kernel->slots[slot].offset + offset), value, len);
   return RMR_UK_OK;
 }
 
@@ -530,8 +539,9 @@ int RmR_UnifiedKernel_ArenaWrite(RmR_UnifiedKernel *kernel,
   if (!kernel || !kernel->initialized || (!src && len != 0u)) return RMR_KERNEL_ERR_ARG;
   rc = rmr_unified_slot_lookup(kernel, handle, &slot);
   if (rc != RMR_UK_OK) return rc;
-  if (offset + len > kernel->slots[slot].size) return RMR_KERNEL_ERR_ARG;
-  rmr_mem_copy(kernel->arena_base + kernel->slots[slot].offset + offset, src, len);
+  if (len > kernel->slots[slot].size || offset > kernel->slots[slot].size - len) return RMR_KERNEL_ERR_ARG;
+  if (offset > UINT32_MAX - kernel->slots[slot].offset) return RMR_KERNEL_ERR_STATE;
+  rmr_mem_copy(kernel->arena_base + (kernel->slots[slot].offset + offset), src, len);
   return RMR_UK_OK;
 }
 
