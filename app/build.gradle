@@ -285,9 +285,16 @@ nativeCheckAbiPolicies.each { policy ->
 
         tasks.register(nativeTaskName, Exec) {
             group = "verification"
-            description = "Executa :app:assemble${variantTaskPart(variant)} com APP_ABI_POLICY=${policy}."
+            def isInternalValidationVariant = (variant == 'debug')
+            description = "Executa :app:assemble${variantTaskPart(variant)} com APP_ABI_POLICY=${policy}; bypass de Firebase placeholder é restrito à validação interna (debug) e não deve ser usado para publicação."
             workingDir rootProject.projectDir
-            commandLine(resolveGradleWrapperCommandLine(':app:assemble' + variantTaskPart(variant), ["-PAPP_ABI_POLICY=${policy}", "-PALLOW_UNSIGNED_RELEASE=true", "-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"]))
+            def gradleArgs = ["-PAPP_ABI_POLICY=${policy}", "-PALLOW_UNSIGNED_RELEASE=true"]
+            if (isInternalValidationVariant) {
+                gradleArgs << "-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
+            } else {
+                gradleArgs << "-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=false"
+            }
+            commandLine(resolveGradleWrapperCommandLine(':app:assemble' + variantTaskPart(variant), gradleArgs))
         }
     }
 }
