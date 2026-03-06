@@ -51,6 +51,11 @@ void RmR_LL_ApplyTuneDefaults(const RmR_HW_Info *hw, RmR_LL_TunePlan *plan) {
     plan->policy_lane_width = clamp_u32(plan->policy_lane_width, 4u, 32u);
 
     plan->policy_batch_size = line * plan->policy_lane_width;
+    if (l4_mib >= 64u) {
+      plan->policy_batch_size <<= 2u;
+    } else if (l4_mib >= 16u) {
+      plan->policy_batch_size <<= 1u;
+    }
     if (hw->cache_hint_l1 > 0u && hw->cache_hint_l1 < plan->policy_batch_size) {
       plan->policy_batch_size = hw->cache_hint_l1;
     }
@@ -58,11 +63,14 @@ void RmR_LL_ApplyTuneDefaults(const RmR_HW_Info *hw, RmR_LL_TunePlan *plan) {
 
     plan->policy_commit_quantum = (hw->cache_hint_l3 >= (2u * 1024u * 1024u)) ? 64u : 24u;
     if (l4_mib >= 16u) plan->policy_commit_quantum = 96u;
+    if (l4_mib >= 64u) plan->policy_commit_quantum = 128u;
     if (!native_64) plan->policy_commit_quantum = 12u;
 
     plan->cti_chunk_size = clamp_u32(line * 64u, 1024u, 65536u);
     if (hw->page_bytes >= 4096u) plan->cti_chunk_size = clamp_u32(hw->page_bytes, 1024u, 65536u);
     plan->cti_stride = (hw->gpio_pin_stride > 1u) ? clamp_u32(hw->gpio_pin_stride, 1u, 64u) : 1u;
     plan->cti_prefetch = clamp_u32(line * 4u, 64u, 2048u);
+    if (l4_mib >= 16u) plan->cti_prefetch = clamp_u32(plan->cti_prefetch << 1u, 64u, 4096u);
+    if (l4_mib >= 64u) plan->cti_prefetch = clamp_u32(plan->cti_prefetch + (line * 8u), 64u, 8192u);
   }
 }

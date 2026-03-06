@@ -258,6 +258,31 @@ public class HdCacheMvpTest {
         assertNull(cache.getL3().get(k));
     }
 
+
+    @Test
+    public void l123CacheDemoteCycleSpillsUntilL4WithoutPrematureEvict() {
+        HdCacheMvp.L123Cache cache = new HdCacheMvp.L123Cache(10, 10, 10);
+
+        HdCacheMvp.EventKey k1 = new HdCacheMvp.EventKey("layer", "eid1");
+        HdCacheMvp.EventKey k2 = new HdCacheMvp.EventKey("layer", "eid2");
+        HdCacheMvp.EventKey k3 = new HdCacheMvp.EventKey("layer", "eid3");
+        HdCacheMvp.EventKey k4 = new HdCacheMvp.EventKey("layer", "eid4");
+
+        cache.putHot(k1, new byte[10]);
+        cache.putHot(k2, new byte[10]);
+        cache.putHot(k3, new byte[10]);
+        cache.putHot(k4, new byte[10]);
+
+        assertNotNull(cache.getL1().get(k4));
+        assertNotNull(cache.getL2().get(k3));
+        assertNotNull(cache.getL3().get(k2));
+        assertNotNull(cache.getL4().get(k1));
+
+        assertNull(cache.getL1().get(k1));
+        assertNull(cache.getL2().get(k1));
+        assertNull(cache.getL3().get(k1));
+    }
+
     // ========== HarmonicScheduler Tests ==========
     
     @Test
@@ -505,6 +530,7 @@ public class HdCacheMvpTest {
         engine.getCache().getL1().remove(key);
         engine.getCache().getL2().remove(key);
         engine.getCache().getL3().remove(key);
+        engine.getCache().getL4().remove(key);
     }
 
     private void corruptMagic(long offset) throws IOException {
