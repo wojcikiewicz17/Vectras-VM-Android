@@ -90,18 +90,26 @@ public final class ExecutionExecutors {
         }
     }
 
-    private static final class TimedRunnable implements Runnable {
-        final Runnable delegate;
-        final long enqueuedAtNs;
+    private interface QueueTimedTask {
+        long enqueuedAtNs();
+    }
 
-        TimedRunnable(Runnable delegate) {
-            this.delegate = delegate;
+    private static final class TimedFutureTask<T> extends java.util.concurrent.FutureTask<T> implements QueueTimedTask {
+        private final long enqueuedAtNs;
+
+        TimedFutureTask(Callable<T> callable) {
+            super(callable);
+            this.enqueuedAtNs = System.nanoTime();
+        }
+
+        TimedFutureTask(Runnable runnable, T value) {
+            super(runnable, value);
             this.enqueuedAtNs = System.nanoTime();
         }
 
         @Override
-        public void run() {
-            delegate.run();
+        public long enqueuedAtNs() {
+            return enqueuedAtNs;
         }
     }
 
@@ -132,13 +140,13 @@ public final class ExecutionExecutors {
             if (getQueue().remainingCapacity() == 0) {
                 saturations.incrementAndGet();
             }
-            super.execute(new TimedRunnable(command));
+            super.execute(command);
         }
 
         @Override
         protected void beforeExecute(Thread t, Runnable r) {
-            if (r instanceof TimedRunnable) {
-                long delta = System.nanoTime() - ((TimedRunnable) r).enqueuedAtNs;
+            if (r instanceof QueueTimedTask) {
+                long delta = System.nanoTime() - ((QueueTimedTask) r).enqueuedAtNs();
                 if (delta > 0) {
                     queueLatencyNs.addAndGet(delta);
                     queueLatencySamples.incrementAndGet();
@@ -149,7 +157,12 @@ public final class ExecutionExecutors {
 
         @Override
         protected <T> RunnableFuture<T> newTaskFor(Callable<T> callable) {
-            return super.newTaskFor(callable);
+            return new TimedFutureTask<>(callable);
+        }
+
+        @Override
+        protected <T> RunnableFuture<T> newTaskFor(Runnable runnable, T value) {
+            return new TimedFutureTask<>(runnable, value);
         }
 
         @Override
