@@ -15,6 +15,9 @@ export ANDROID_SDK_ROOT=/workspace/android-sdk
 printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
 ```
 
+If `local.properties` is missing, `./tools/gradle_with_jdk21.sh` now auto-writes `sdk.dir`
+from `ANDROID_SDK_ROOT` (or `ANDROID_HOME`) when the directory exists.
+
 ## Build commands
 ```bash
 ./gradlew --version
