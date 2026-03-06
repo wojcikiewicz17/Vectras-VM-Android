@@ -42,3 +42,12 @@ das alavancas reais de performance e as ações já integradas no app.
 
 As melhorias de core (TCG/SoftMMU/BQL) serão aplicadas no fork QEMU, e este diretório
 serve como trilha de decisões e controle do que já foi implementado via app.
+
+
+## Alinhamento com ciclo recursivo toroidal
+
+Para correlacionar performance com operação contínua, o manifesto do container determinístico
+publica o ciclo `S_n/R_n/P_n` e o fechamento `C(...)` com fase observável (`CRESCE/SATURA/RECOLAPSA`).
+A leitura operacional desse ciclo está detalhada em `docs/OPERATIONS.md` na seção
+**Ciclo Toroidal Recursivo**, usando `writeIops/readIops` como gatilho de saturação e
+reconsolidação para troubleshooting.

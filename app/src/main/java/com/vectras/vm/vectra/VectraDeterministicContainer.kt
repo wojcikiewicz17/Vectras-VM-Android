@@ -5,6 +5,8 @@ import kotlin.math.min
 private const val CONTAINER_BASE60_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx"
 private const val CONTAINER_STATE_COUNT = 10
 private const val CONTAINER_MATRIX_GRANULARITY = 1024
+private const val CONTAINER_SATURATION_IOPS_THRESHOLD = 4096L
+private const val CONTAINER_RECONSOLIDATION_IOPS_DELTA = 192L
 
 data class VectraContainerEntry(
     val path: String,
@@ -27,7 +29,15 @@ data class VectraContainerManifest(
     val totalLayers: Int,
     val deterministicTag: Long,
     val writeIops: Long,
-    val readIops: Long
+    val readIops: Long,
+    val cycleStateSn: String,
+    val cycleRoutesRn: String,
+    val cyclePoliciesPn: String,
+    val cycleClosureC: String,
+    val cyclePhase: String,
+    val saturationSignal: Boolean,
+    val reconsolidationSignal: Boolean,
+    val troubleshootingSignals: List<String>
 )
 
 /**
@@ -60,6 +70,7 @@ class VectraDeterministicContainer(
     private var manifestSequence = 0L
     private var writeOps = 0L
     private var readOps = 0L
+    private var lastManifestTag = 0L
 
     fun put(path: String, payload: ByteArray, preferredLayer: Int = 0): VectraContainerEntry {
         val normalized = normalizePath(path)
@@ -136,16 +147,88 @@ class VectraDeterministicContainer(
         }
 
         manifestTag = mix64(manifestTag xor manifestSequence xor totalBytes)
+        val cycle = deriveCycleMetrics(
+            totalChunks = totalChunks,
+            totalLayers = (ordered.maxOfOrNull { it.layer } ?: -1) + 1,
+            deterministicTag = manifestTag
+        )
         manifestSequence++
+        lastManifestTag = manifestTag
 
         return VectraContainerManifest(
             entries = outEntries,
             totalBytes = totalBytes,
             totalChunks = totalChunks,
-            totalLayers = (ordered.maxOfOrNull { it.layer } ?: -1) + 1,
+            totalLayers = cycle.totalLayers,
             deterministicTag = manifestTag,
             writeIops = writeOps,
-            readIops = readOps
+            readIops = readOps,
+            cycleStateSn = cycle.stateSn,
+            cycleRoutesRn = cycle.routesRn,
+            cyclePoliciesPn = cycle.policiesPn,
+            cycleClosureC = cycle.closureC,
+            cyclePhase = cycle.phase,
+            saturationSignal = cycle.saturationSignal,
+            reconsolidationSignal = cycle.reconsolidationSignal,
+            troubleshootingSignals = cycle.troubleshootingSignals
+        )
+    }
+
+
+    private data class CycleMetrics(
+        val totalLayers: Int,
+        val stateSn: String,
+        val routesRn: String,
+        val policiesPn: String,
+        val closureC: String,
+        val phase: String,
+        val saturationSignal: Boolean,
+        val reconsolidationSignal: Boolean,
+        val troubleshootingSignals: List<String>
+    )
+
+    private fun deriveCycleMetrics(
+        totalChunks: Int,
+        totalLayers: Int,
+        deterministicTag: Long
+    ): CycleMetrics {
+        val ioTotal = writeOps + readOps
+        val ioDelta = kotlin.math.abs(writeOps - readOps)
+        val saturationSignal = ioTotal >= CONTAINER_SATURATION_IOPS_THRESHOLD
+        val reconsolidationSignal = !saturationSignal && ioDelta <= CONTAINER_RECONSOLIDATION_IOPS_DELTA
+
+        val phase = when {
+            saturationSignal -> "SATURA"
+            reconsolidationSignal -> "RECOLAPSA"
+            else -> "CRESCE"
+        }
+
+        val stateSn = "S_${manifestSequence}"
+        val routesRn = "R_${totalLayers}L_${totalChunks}C"
+        val policiesPn = "P_${laneCount}x${chunkSize}_io(${writeOps}:${readOps})"
+        val closureC = "C(${stateSn},${routesRn},${policiesPn})=${toBase60(deterministicTag xor lastManifestTag xor ioTotal)}"
+
+        val signals = ArrayList<String>(3)
+        if (saturationSignal) {
+            signals.add("saturacao_iops>=${CONTAINER_SATURATION_IOPS_THRESHOLD}")
+        }
+        if (reconsolidationSignal) {
+            signals.add("reconsolidacao_delta<=${CONTAINER_RECONSOLIDATION_IOPS_DELTA}")
+        }
+        if (!saturationSignal && !reconsolidationSignal) {
+            signals.add("crescimento_estavel")
+        }
+
+        return CycleMetrics(
+            totalLayers = totalLayers,
+            stateSn = stateSn,
+            routesRn = routesRn,
+            policiesPn = policiesPn,
+            closureC = closureC,
+            phase = phase,
+            saturationSignal = saturationSignal,
+            reconsolidationSignal = reconsolidationSignal,
+            troubleshootingSignals = signals
         )
     }
 

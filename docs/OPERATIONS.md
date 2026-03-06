@@ -39,3 +39,32 @@
 | Dependências de arquivos de repositório | Bloquear divergências entre documentação, mapeamentos e cadeia de arquivos essenciais | Etapa explícita `./tools/gradle_with_jdk21.sh verifyRepoFileDependencies` executada antes das etapas de build. | Log da etapa `Verify repository file dependencies` no job de CI. |
 | Documentação crítica (links locais markdown) | Detectar referências quebradas em `README.md` e `docs/**/*.md` | Etapa opcional `Validate local markdown links` em Python (com `continue-on-error`) verifica caminhos locais não-HTTP. | Relatório no log da etapa, com lista de links inválidos quando detectados. |
 | Artefatos de distribuição | Assegurar rastreabilidade de binários gerados na pipeline | Upload automatizado dos APKs de debug/release via `actions/upload-artifact@v4`. | Artefatos versionados por run no GitHub Actions + upload Telegram condicionado a segredo. |
+
+
+## Ciclo Toroidal Recursivo
+
+O container determinístico passa a publicar metadados de ciclo para fechar o loop entre
+estado, roteamento, política e troubleshooting operacional:
+
+- `S_n`: estado recursivo da sequência de manifesto (`manifestSequence`).
+- `R_n`: rota compactada por camadas/chunks (`totalLayers` + `totalChunks`).
+- `P_n`: política aplicada por configuração + IOPS (`laneCount`, `chunkSize`, `writeIops/readIops`).
+- `C(S_n,R_n,P_n)`: operação de fechamento por manifesto (`cycleClosureC`) para validar
+  reconciliação determinística entre ciclos consecutivos.
+
+### Fases observáveis do ciclo
+
+| Fase | Critério observável | Sinal de troubleshooting |
+|---|---|---|
+| `CRESCE` | `writeIops + readIops` abaixo do limiar de saturação e delta de IOPS ainda elevado | `crescimento_estavel` |
+| `SATURA` | `writeIops + readIops >= 4096` | `saturacao_iops>=4096` |
+| `RECOLAPSA` | fora de saturação com `abs(writeIops - readIops) <= 192` | `reconsolidacao_delta<=192` |
+
+### Campos no manifesto para operação
+
+- `cycleStateSn`, `cycleRoutesRn`, `cyclePoliciesPn`, `cycleClosureC`
+- `cyclePhase` (`CRESCE`, `SATURA`, `RECOLAPSA`)
+- `saturationSignal`, `reconsolidationSignal`, `troubleshootingSignals`
+
+Esses campos fecham o vínculo entre o diagrama toroidal e a telemetria real (`writeIops/readIops`)
+para inspeção de gargalo e reconsolidação no troubleshooting.
