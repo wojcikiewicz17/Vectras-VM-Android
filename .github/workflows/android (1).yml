@@ -565,48 +565,17 @@ jobs:
         fi
 
 
-    - name: Materialize Firebase config for release (optional fallback)
+    - name: Materialize Firebase config for release (required secret)
       if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
-        if [[ -n "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" ]]; then
-          echo "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" | base64 --decode > app/google-services.json
-          echo "Firebase config loaded from VECTRAS_GOOGLE_SERVICES_JSON_B64 for release build"
-        else
-          cat > app/google-services.json <<'JSON'
-        {
-          "project_info": {
-            "project_number": "000000000000",
-            "project_id": "vectras-vm-placeholder",
-            "storage_bucket": "vectras-vm-placeholder.appspot.com"
-          },
-          "client": [
-            {
-              "client_info": {
-                "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
-                "android_client_info": {
-                  "package_name": "com.vectras.vm"
-                }
-              },
-              "oauth_client": [],
-              "api_key": [
-                {
-                  "current_key": "AIzaSyDummyKeyForBuildPurposesOnly000000"
-                }
-              ],
-              "services": {
-                "appinvite_service": {
-                  "other_platform_oauth_client": []
-                }
-              }
-            }
-          ],
-          "configuration_version": "1"
-        }
-        JSON
-          echo "Using local placeholder Firebase config for release verification"
+        if [[ -z "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" ]]; then
+          echo "Missing required secret: VECTRAS_GOOGLE_SERVICES_JSON_B64 (release build requires a real Firebase config)." >&2
+          exit 1
         fi
+        echo "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" | base64 --decode > app/google-services.json
+        echo "Firebase config loaded from VECTRAS_GOOGLE_SERVICES_JSON_B64 for release build"
 
     - name: Validate Firebase release config
       if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true' }}
