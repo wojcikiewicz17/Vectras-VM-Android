@@ -27,6 +27,11 @@ struct rmr_legacy_kernel {
   rmr_legacy_capabilities_t capabilities;
 };
 
+#define RMR_LEGACY_KERNEL_POOL_CAPACITY 8u
+
+static rmr_legacy_kernel_t g_rmr_legacy_kernel_pool[RMR_LEGACY_KERNEL_POOL_CAPACITY];
+static uint8_t g_rmr_legacy_kernel_pool_in_use[RMR_LEGACY_KERNEL_POOL_CAPACITY];
+
 static int rmr_legacy_is_ready(const rmr_legacy_kernel_t *kernel) {
   return kernel && kernel->lifecycle == RMR_LEGACY_STATE_READY;
 }
@@ -245,6 +250,7 @@ rmr_status_t rmr_legacy_kernel_autodetect(rmr_legacy_capabilities_t *out_capabil
 rmr_status_t rmr_legacy_kernel_init(rmr_legacy_kernel_t **out_kernel,
                                     const rmr_legacy_kernel_init_desc_t *desc) {
   rmr_legacy_kernel_t *kernel;
+  uint32_t slot_index;
   if (!out_kernel || !desc) return RMR_STATUS_ERR_ARG;
   if (*out_kernel) {
     if ((*out_kernel)->lifecycle == RMR_LEGACY_STATE_READY) return RMR_STATUS_ERR_ALREADY_INITIALIZED;
@@ -252,8 +258,8 @@ rmr_status_t rmr_legacy_kernel_init(rmr_legacy_kernel_t **out_kernel,
     return RMR_STATUS_ERR_STATE;
   }
 
-  kernel = (rmr_legacy_kernel_t *)rmr_malloc(sizeof(*kernel));
-  if (!kernel) return RMR_STATUS_ERR_NOMEM;
+  if (!rmr_legacy_pool_acquire_slot(&slot_index)) return RMR_STATUS_ERR_NOMEM;
+  kernel = &g_rmr_legacy_kernel_pool[slot_index];
 
   rmr_mem_set(kernel, 0u, sizeof(*kernel));
   kernel->lifecycle = RMR_LEGACY_STATE_NEW;
@@ -262,7 +268,7 @@ rmr_status_t rmr_legacy_kernel_init(rmr_legacy_kernel_t **out_kernel,
   kernel->rolling_bitraf_hash = (uint64_t)desc->seed;
 
   if (rmr_legacy_kernel_autodetect(&kernel->capabilities) != RMR_STATUS_OK) {
-    rmr_free(kernel);
+    rmr_legacy_pool_release_slot(slot_index);
     return RMR_STATUS_ERR_STATE;
   }
 
@@ -273,19 +279,20 @@ rmr_status_t rmr_legacy_kernel_init(rmr_legacy_kernel_t **out_kernel,
 
 rmr_status_t rmr_legacy_kernel_shutdown(rmr_legacy_kernel_t **kernel) {
   rmr_legacy_kernel_t *ctx;
+  uint32_t slot_index;
   if (!kernel) return RMR_STATUS_ERR_ARG;
   if (!*kernel) return RMR_STATUS_ERR_ALREADY_SHUTDOWN;
 
   ctx = *kernel;
+  if (!rmr_legacy_pool_index_from_ptr(ctx, &slot_index)) return RMR_STATUS_ERR_ARG;
   if (ctx->lifecycle == RMR_LEGACY_STATE_SHUTDOWN) {
-    rmr_free(ctx);
+    rmr_legacy_pool_release_slot(slot_index);
     *kernel = NULL;
     return RMR_STATUS_ERR_ALREADY_SHUTDOWN;
   }
 
   ctx->lifecycle = RMR_LEGACY_STATE_SHUTDOWN;
-  rmr_mem_set(ctx, 0u, sizeof(*ctx));
-  rmr_free(ctx);
+  rmr_legacy_pool_release_slot(slot_index);
   *kernel = NULL;
   return RMR_STATUS_OK;
 }
