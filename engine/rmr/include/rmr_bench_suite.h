@@ -8,6 +8,14 @@ typedef unsigned long long u64;
 
 #define RMR_BENCH_COUNT 50u
 
+/*
+ * Canonical bench score formula (v1):
+ *   score = ((((u64)ops) << 8) / cycles) ^ checksum
+ * Special case for cycles == 0:
+ *   score = checksum ^ ops
+ */
+#define RMR_BENCH_SCORE_FORMULA_ID "rmr_score_v1_ops_shift8_div_cycles_xor_checksum"
+
 typedef struct {
   u32 score;
   u32 variance;

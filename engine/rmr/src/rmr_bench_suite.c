@@ -30,9 +30,15 @@ static u64 RmR_BuildStageSignature(u32 seed, u32 tune_plan, u32 path_id, u32 out
   return sig;
 }
 
+/*
+ * Canonical score formula (RMR_BENCH_SCORE_FORMULA_ID):
+ *   score = ((((u64)ops) << 8) / cycles) ^ checksum
+ * When cycles == 0:
+ *   score = checksum ^ ops
+ */
 static u32 RmR_Score(u64 cycles, u32 ops, u32 checksum){
-  if(cycles == 0u) return checksum ^ ops;
-  return (u32)((((u64)ops) << 8) / cycles) ^ checksum;
+  if(cycles == 0u) return (checksum ^ ops);
+  return (u32)(((((u64)ops) << 8) / cycles) ^ checksum);
 }
 
 static u32 RmR_Bench_Alu(u32 iters){

@@ -44,6 +44,7 @@ static void write_json(
   fprintf(f, "],\n");
   fprintf(f, "  \"total_score\": %u,\n", r->total_score);
   fprintf(f, "  \"total_error\": %u,\n", r->total_error);
+  fprintf(f, "  \"score_formula_id\": \"%s\",\n", RMR_BENCH_SCORE_FORMULA_ID);
   fprintf(f, "  \"metrics\": [\n");
   for (unsigned i = 0; i < RMR_BENCH_COUNT; ++i) {
     const char *comma = (i + 1u < RMR_BENCH_COUNT) ? "," : "";
