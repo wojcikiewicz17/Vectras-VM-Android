@@ -188,6 +188,10 @@ rmr_apply_common_flags(rmr_asm_equivalence_selftest)
 
 add_executable(rmr_unified_arena_selftest demo_cli/src/rmr_unified_arena_selftest.c)
 
+add_executable(rmr_legacy_kernel_selftest demo_cli/src/rmr_legacy_kernel_selftest.c)
+target_link_libraries(rmr_legacy_kernel_selftest PRIVATE rmr)
+rmr_apply_common_flags(rmr_legacy_kernel_selftest)
+
 add_executable(rmr_hw_detect_selftest engine/rmr/src/rmr_hw_detect_selftest.c)
 target_link_libraries(rmr_hw_detect_selftest PRIVATE rmr)
 rmr_apply_common_flags(rmr_hw_detect_selftest)
@@ -207,6 +211,7 @@ set(RMR_RUN_SELFTEST_COMMANDS
   policy_kernel_selftest
   rmr_qemu_bridge_selftest
   rmr_unified_arena_selftest
+  rmr_legacy_kernel_selftest
   rmr_hw_detect_selftest
   zipraf_core_selftest
   bitomega_smoketest
@@ -219,6 +224,7 @@ set(RMR_RUN_SELFTEST_DEPENDS
   policy_kernel_selftest
   rmr_qemu_bridge_selftest
   rmr_unified_arena_selftest
+  rmr_legacy_kernel_selftest
   rmr_hw_detect_selftest
   zipraf_core_selftest
   bitomega_smoketest

@@ -32,6 +32,38 @@ struct rmr_legacy_kernel {
 static rmr_legacy_kernel_t g_rmr_legacy_kernel_pool[RMR_LEGACY_KERNEL_POOL_CAPACITY];
 static uint8_t g_rmr_legacy_kernel_pool_in_use[RMR_LEGACY_KERNEL_POOL_CAPACITY];
 
+static int rmr_legacy_pool_acquire_slot(uint32_t *out_slot_index) {
+  uint32_t i;
+  if (!out_slot_index) return 0;
+  for (i = 0u; i < RMR_LEGACY_KERNEL_POOL_CAPACITY; ++i) {
+    if (g_rmr_legacy_kernel_pool_in_use[i] == 0u) {
+      g_rmr_legacy_kernel_pool_in_use[i] = 1u;
+      *out_slot_index = i;
+      return 1;
+    }
+  }
+  return 0;
+}
+
+static void rmr_legacy_pool_release_slot(uint32_t slot_index) {
+  if (slot_index >= RMR_LEGACY_KERNEL_POOL_CAPACITY) return;
+  rmr_mem_set(&g_rmr_legacy_kernel_pool[slot_index], 0u, sizeof(g_rmr_legacy_kernel_pool[slot_index]));
+  g_rmr_legacy_kernel_pool[slot_index].lifecycle = RMR_LEGACY_STATE_SHUTDOWN;
+  g_rmr_legacy_kernel_pool_in_use[slot_index] = 0u;
+}
+
+static int rmr_legacy_pool_index_from_ptr(const rmr_legacy_kernel_t *kernel, uint32_t *out_slot_index) {
+  uint32_t i;
+  if (!kernel || !out_slot_index) return 0;
+  for (i = 0u; i < RMR_LEGACY_KERNEL_POOL_CAPACITY; ++i) {
+    if (kernel == &g_rmr_legacy_kernel_pool[i]) {
+      *out_slot_index = i;
+      return 1;
+    }
+  }
+  return 0;
+}
+
 static int rmr_legacy_is_ready(const rmr_legacy_kernel_t *kernel) {
   return kernel && kernel->lifecycle == RMR_LEGACY_STATE_READY;
 }
@@ -253,6 +285,7 @@ rmr_status_t rmr_legacy_kernel_init(rmr_legacy_kernel_t **out_kernel,
   uint32_t slot_index;
   if (!out_kernel || !desc) return RMR_STATUS_ERR_ARG;
   if (*out_kernel) {
+    if (!rmr_legacy_pool_index_from_ptr(*out_kernel, &slot_index)) return RMR_STATUS_ERR_ARG;
     if ((*out_kernel)->lifecycle == RMR_LEGACY_STATE_READY) return RMR_STATUS_ERR_ALREADY_INITIALIZED;
     if ((*out_kernel)->lifecycle == RMR_LEGACY_STATE_SHUTDOWN) return RMR_STATUS_ERR_ALREADY_SHUTDOWN;
     return RMR_STATUS_ERR_STATE;

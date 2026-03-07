@@ -108,6 +108,10 @@ typedef struct {
   uint32_t align_bytes;
 } rmr_legacy_capabilities_t;
 
+/* Legacy kernel lifecycle contract:
+ * - Implementation uses only static pool resources (no heap allocation).
+ * - Pool/resource exhaustion returns RMR_STATUS_ERR_NOMEM.
+ */
 rmr_status_t rmr_legacy_kernel_init(rmr_legacy_kernel_t **out_kernel, const rmr_legacy_kernel_init_desc_t *desc);
 rmr_status_t rmr_legacy_kernel_shutdown(rmr_legacy_kernel_t **kernel);
 rmr_status_t rmr_legacy_kernel_ingest(rmr_legacy_kernel_t *kernel,
