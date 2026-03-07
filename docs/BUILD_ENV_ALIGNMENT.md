@@ -38,6 +38,8 @@ org.gradle.java.home=/usr/lib/jvm/java-17-openjdk
 Política explicitada no build raiz (`build.gradle`):
 
 - `APP_ABI_POLICY=arm64-only` (padrão atual de distribuição).
+- `APP_ABI_POLICY=with-32bit` (distribuição oficial com 32-bit ARM).
+- `APP_ABI_POLICY=all` (somente validação interna; não distribuição oficial).
 - `SUPPORTED_ABIS=arm64-v8a` quando `arm64-only`.
 - `MIN_API` deve ser compatível com a maior exigência mínima das ABIs empacotadas.
 
@@ -47,6 +49,7 @@ Política explicitada no build raiz (`build.gradle`):
 |---|---|---:|---|
 | `arm64-only` | `arm64-v8a` | `MIN_API >= 21` | Padrão recomendado para footprint menor e foco em dispositivos modernos |
 | `with-32bit` | inclui ao menos uma ABI 32-bit (`armeabi-v7a` ou `x86`) | `MIN_API >= 21` se incluir `arm64-v8a`/`x86_64`; caso só 32-bit, `>= 16` | Usar apenas quando houver necessidade explícita de legado 32-bit |
+| `all` | `arm64-v8a,armeabi-v7a,x86,x86_64` | `MIN_API >= 21` | Cobertura técnica interna completa de ABI; não usar para distribuição oficial |
 
 > No estado atual do projeto, a distribuição oficial permanece em **ARM64-only**, com `MIN_API=23`, portanto compatível com `arm64-v8a`.
 

@@ -29,13 +29,21 @@ from `ANDROID_SDK_ROOT` (or `ANDROID_HOME`) when the directory exists.
 
 ## ABI policy
 Configured by `APP_ABI_POLICY` and `SUPPORTED_ABIS` in `gradle.properties`.
-Default is arm64-only:
-- `APP_ABI_POLICY=arm64-only`
-- `SUPPORTED_ABIS=arm64-v8a`
+Accepted policies in code and docs are exactly:
+- `APP_ABI_POLICY=arm64-only` → `SUPPORTED_ABIS=arm64-v8a` (official minimum distribution)
+- `APP_ABI_POLICY=with-32bit` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (official distribution with 32-bit ARM)
+- `APP_ABI_POLICY=all` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64` (**internal validation only; not for official distribution**)
+
+Default is arm64-only.
 
 To include 32-bit ARM:
 ```bash
 ./gradlew -PAPP_ABI_POLICY=with-32bit -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a :app:assembleDebug
+```
+
+To run full internal ABI validation coverage:
+```bash
+./gradlew -PAPP_ABI_POLICY=all -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64 :app:assembleDebug
 ```
 
 

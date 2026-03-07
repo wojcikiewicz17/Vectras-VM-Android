@@ -116,7 +116,7 @@ find . -maxdepth 2 -type d | sort
   - `APP_ABI_POLICY=arm64-only`: empacota apenas `arm64-v8a` (distribuição mínima).
   - `APP_ABI_POLICY=with-32bit`: empacota `arm64-v8a,armeabi-v7a` (distribuição completa).
 - **Suporte de validação interna**:
-  - `APP_ABI_POLICY=all`: valida/empacota toda a matriz oficial (`arm64-v8a,armeabi-v7a,x86,x86_64`) para cobertura técnica interna.
+  - `APP_ABI_POLICY=all`: valida/empacota toda a matriz oficial (`arm64-v8a,armeabi-v7a,x86,x86_64`) para cobertura técnica interna (**não usar para distribuição oficial**).
 - Entradas condicionais para ABIs fora dessa matriz no CMake (ex.: `riscv64`) são apenas roadmap e não representam ABI ativa no empacotamento Gradle.
 
 ### Exemplo de configuração de Java para build

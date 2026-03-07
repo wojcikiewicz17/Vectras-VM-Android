@@ -263,6 +263,7 @@ def resolveGradleWrapperCommandLine(String taskPath, List<String> extraArgs = []
     return [wrapperFile.absolutePath, taskPath] + extraArgs
 }
 
+// 'all' permanece apenas para validação interna de cobertura ABI (não para distribuição oficial).
 def nativeCheckAbiPolicies = ['arm64-only', 'with-32bit', 'all'].sort()
 def nativeCheckBuildVariants = ['debug', 'release', 'perfRelease'].sort()
 
