@@ -58,3 +58,10 @@
 ## 7) Nota operacional
 Este cabeçalho existe para impedir desvio de direção técnica:  
 **pipeline de startup simples, núcleo forte em C, execução crítica em ASM bare-metal**.
+
+## 8) Implementação inicial C/ASM/HEX no repositório
+- Base prática disponível em `tools/baremetal/rafcode_phi/`:
+  - ABI C↔ASM: `tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h`
+  - Casca em C: `tools/baremetal/rafcode_phi/c/rafcode_phi_front_shell.c`
+  - Núcleo ASM de emissão: `tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S`
+- Política da base: token em C -> opcode em hexadecimal -> gravação determinística via ASM.
