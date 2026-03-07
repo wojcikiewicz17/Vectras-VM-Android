@@ -19,10 +19,17 @@ typedef unsigned long long uintptr_t;
 #define SIZE_MAX  ((size_t)-1)
 #endif
 
+#ifndef RMR_ARENA_SIZE
 #define RMR_ARENA_SIZE (1024u * 1024u)
+#endif
+
+#define RMR_BAREMETAL_ARENA_BYTES ((uint32_t)RMR_ARENA_SIZE)
 
 extern uint8_t  rmr_arena[RMR_ARENA_SIZE];
 extern uint32_t rmr_arena_ptr;
+
+void rmr_baremetal_arena_reset(void);
+uint32_t rmr_baremetal_arena_used(void);
 
 static inline void* rmr_malloc(size_t bytes) {
     bytes = (bytes + 7u) & ~7u;
@@ -194,12 +201,6 @@ static inline RMR_NORETURN void rmr_abort(void) {
 #define strlen(s)            rmr_strlen(s)
 #define snprintf(...)       rmr_snprintf(__VA_ARGS__)
 #define strstr(s,n)          rmr_strstr(s,n)
-
-#ifndef RMR_BAREMETAL_COMPAT_IMPL
-extern uint8_t  rmr_arena[];
-extern uint32_t rmr_arena_ptr;
-#endif
-
 
 #ifdef RMR_USE_ISORF_ALLOCATOR
 #include "rmr_isorf.h"

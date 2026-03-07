@@ -6,6 +6,7 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(RMR_JNI_BUILD "Use hosted/JNI libc path for root builds" OFF)
+option(RMR_BUILD_HOST_TOOLING "Force host-tooling compatibility path" OFF)
 option(RMR_ENABLE_POLICY_MODULE "Enable RMR policy module for root builds" ON)
 option(RMR_ASM_CORE_EXPERIMENTAL "Enable experimental ASM core hot paths" ON)
 option(RMR_ASM_CORE_X86_64_VALIDATED "Enable ASM hot paths on x86_64 (validated ABI)" ON)
@@ -16,6 +17,12 @@ if(RMR_JNI_BUILD)
   set(RMR_JNI_BUILD_VALUE 1)
 else()
   set(RMR_JNI_BUILD_VALUE 0)
+endif()
+
+if(RMR_BUILD_HOST_TOOLING)
+  set(RMR_BUILD_HOST_TOOLING_VALUE 1)
+else()
+  set(RMR_BUILD_HOST_TOOLING_VALUE ${RMR_JNI_BUILD_VALUE})
 endif()
 
 if(RMR_ENABLE_POLICY_MODULE)
@@ -55,6 +62,7 @@ function(rmr_apply_common_flags target_name)
   )
   target_compile_definitions(${target_name} PRIVATE
     RMR_JNI_BUILD=${RMR_JNI_BUILD_VALUE}
+    RMR_BUILD_HOST_TOOLING=${RMR_BUILD_HOST_TOOLING_VALUE}
     RMR_ENABLE_POLICY_MODULE=${RMR_ENABLE_POLICY_MODULE_VALUE}
     RMR_ASM_CORE_EXPERIMENTAL=${RMR_ASM_CORE_EXPERIMENTAL_VALUE}
     RMR_ASM_CORE_X86_64_VALIDATED=${RMR_ASM_CORE_X86_64_VALIDATED_VALUE}
@@ -66,6 +74,7 @@ endfunction()
 
 set(RMR_SOURCES
   engine/rmr/src/bitomega.c
+  engine/rmr/src/rmr_baremetal_compat.c
   engine/rmr/src/rmr_cycles.c
   engine/rmr/src/rmr_hw_detect.c
   engine/rmr/src/rmr_bench.c

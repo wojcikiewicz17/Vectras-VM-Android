@@ -122,6 +122,16 @@
 #define RMR_ZERO_QEMU_GUEST_ARCH_ARM64_U8      0x02u
 #define RMR_ZERO_QEMU_GUEST_ARCH_PPC_U8        0x03u
 
+
+/* Build classifier: host tooling (bench/tests/JNI-hosted) vs target runtime. */
+#ifndef RMR_BUILD_HOST_TOOLING
+  #if defined(RMR_JNI_BUILD) && RMR_JNI_BUILD
+    #define RMR_BUILD_HOST_TOOLING 1
+  #else
+    #define RMR_BUILD_HOST_TOOLING 0
+  #endif
+#endif
+
 /* Optional hard override. */
 #ifndef RMR_ZERO_ENV_ACTIVE
   #if defined(RMR_JNI_BUILD) && RMR_JNI_BUILD

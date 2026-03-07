@@ -69,18 +69,14 @@ static int rmr_legacy_is_ready(const rmr_legacy_kernel_t *kernel) {
 }
 
 #define RMR_UNIFIED_ARENA_MIN_BYTES 4096u
-#if defined(RMR_ARENA_SIZE)
-#define RMR_UNIFIED_FALLBACK_ARENA_BYTES ((uint32_t)RMR_ARENA_SIZE)
-#else
-#define RMR_UNIFIED_FALLBACK_ARENA_BYTES (64u * 1024u * 1024u)
-#endif
 
-#if defined(RMR_ARENA_SIZE)
-extern uint8_t rmr_arena[RMR_ARENA_SIZE];
-#define RMR_UNIFIED_FALLBACK_ARENA_PTR rmr_arena
+#if defined(RMR_BUILD_HOST_TOOLING) && (RMR_BUILD_HOST_TOOLING)
+#define RMR_UNIFIED_FALLBACK_ARENA_BYTES (64u * 1024u * 1024u)
+static __attribute__((aligned(64))) uint8_t rmr_unified_host_arena[RMR_UNIFIED_FALLBACK_ARENA_BYTES];
+#define RMR_UNIFIED_FALLBACK_ARENA_PTR rmr_unified_host_arena
 #else
-static __attribute__((aligned(64))) uint8_t rmr_unified_fallback_arena[RMR_UNIFIED_FALLBACK_ARENA_BYTES];
-#define RMR_UNIFIED_FALLBACK_ARENA_PTR rmr_unified_fallback_arena
+#define RMR_UNIFIED_FALLBACK_ARENA_BYTES RMR_BAREMETAL_ARENA_BYTES
+#define RMR_UNIFIED_FALLBACK_ARENA_PTR rmr_arena
 #endif
 
 
@@ -567,14 +563,13 @@ int RmR_UnifiedKernel_Init(RmR_UnifiedKernel *kernel, const RmR_UnifiedConfig *c
 
   kernel->arena_base = arena_base;
   kernel->arena_capacity = arena_bytes;
-  kernel->arena_is_external = 1u;
+  kernel->arena_is_external = config->arena_ptr ? 1u : 0u;
   return RMR_UK_OK;
 }
 
 int RmR_UnifiedKernel_Shutdown(RmR_UnifiedKernel *kernel) {
   if (!kernel) return RMR_KERNEL_ERR_ARG;
   if (!kernel->initialized) return RMR_KERNEL_ERR_STATE;
-  if (kernel->arena_base && !kernel->arena_is_external) rmr_free(kernel->arena_base);
   rmr_mem_set(kernel, 0u, sizeof(*kernel));
   return RMR_UK_OK;
 }

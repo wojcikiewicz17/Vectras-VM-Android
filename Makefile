@@ -1,8 +1,9 @@
 CC ?= cc
 AR ?= ar
 RMR_JNI_BUILD ?= 1
+RMR_BUILD_HOST_TOOLING ?= $(RMR_JNI_BUILD)
 RMR_ENABLE_POLICY_MODULE ?= 1
-CPPFLAGS ?= -Iengine/rmr/include -DRMR_JNI_BUILD=$(RMR_JNI_BUILD) -DRMR_ENABLE_POLICY_MODULE=$(RMR_ENABLE_POLICY_MODULE)
+CPPFLAGS ?= -Iengine/rmr/include -DRMR_JNI_BUILD=$(RMR_JNI_BUILD) -DRMR_BUILD_HOST_TOOLING=$(RMR_BUILD_HOST_TOOLING) -DRMR_ENABLE_POLICY_MODULE=$(RMR_ENABLE_POLICY_MODULE)
 CFLAGS ?= -O3 -std=c11 -Wall -Wextra -pedantic
 LDFLAGS ?=
 
@@ -16,6 +17,7 @@ endif
 
 ENGINE_CORE_SRCS := \
 	engine/rmr/src/bitomega.c \
+	engine/rmr/src/rmr_baremetal_compat.c \
 	engine/rmr/src/rmr_cycles.c \
 	engine/rmr/src/rmr_hw_detect.c \
 	engine/rmr/src/rmr_bench.c \
