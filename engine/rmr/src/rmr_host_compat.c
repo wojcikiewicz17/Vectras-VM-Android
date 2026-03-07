@@ -1,3 +1,5 @@
+#define _POSIX_C_SOURCE 200809L
+
 #include "rmr_host_compat.h"
 
 #include <stdarg.h>

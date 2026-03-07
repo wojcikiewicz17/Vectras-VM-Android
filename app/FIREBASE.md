@@ -6,7 +6,7 @@ A política oficial do módulo `app/` é:
 
 - **BLP (Bitstack Local Pipeline)** é o caminho padrão para desenvolvimento local.
 - **Debug não depende de Firebase** e pode compilar/rodar sem `app/google-services.json`.
-- **perfRelease e release exigem configuração Firebase real**, com exceção controlada apenas para validação interna via flag Gradle.
+- **perfRelease e release exigem configuração Firebase real**; no CI, esses jobs só executam quando o segredo de Firebase está disponível.
 
 Essa política evita ambiguidade: BLP é o padrão de desenvolvimento, mas o pipeline de release ainda protege compatibilidade de telemetria de produção.
 
@@ -15,8 +15,8 @@ Essa política evita ambiguidade: BLP é o padrão de desenvolvimento, mas o pip
 | Variante | Requisito de Firebase | Regra prática |
 |---|---|---|
 | `debug` | Opcional | Sem `google-services.json`, build local continua usando fallback sem Firebase. |
-| `perfRelease` | Obrigatório (ou exceção controlada) | Falha sem JSON real; para validação interna, usar `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true`. |
-| `release` | Obrigatório (ou exceção controlada) | Falha sem JSON real; para validação interna, usar `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true`. |
+| `perfRelease` | Obrigatório | Falha sem JSON real. |
+| `release` | Obrigatório | Falha sem JSON real. |
 
 ## Regras validadas no Gradle
 
@@ -26,7 +26,7 @@ A task `validateFirebaseReleaseConfig` em `app/build.gradle` aplica as seguintes
 2. Falha se o JSON for inválido.
 3. Falha se `project_info.project_id` estiver vazio.
 4. Falha se `project_id` contiver `placeholder`.
-5. Permite exceção **somente** com `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true` (uso interno/controlado).
+5. A flag `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true` existe apenas para validação interna controlada, não para release de produção.
 
 ## CI/CD (segredo para produção)
 
@@ -37,3 +37,9 @@ echo "$GOOGLE_SERVICES_JSON_B64" | base64 --decode > app/google-services.json
 ```
 
 Para pipelines de release/perfRelease, a recomendação oficial é sempre usar JSON real do projeto de produção.
+
+## Comportamento no CI sem secret de Firebase
+
+Quando `VECTRAS_GOOGLE_SERVICES_JSON_B64` não existe, o workflow Android **não gera placeholder para release**.
+Nesse cenário, ele registra skip explícito e pula `validateFirebaseReleaseConfig` + build `release/perfRelease`.
+O fluxo padrão (`debug`/local) continua independente de Firebase.

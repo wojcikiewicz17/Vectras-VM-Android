@@ -87,10 +87,10 @@ sequenceDiagram
 
 
 ## 8) Decisão arquitetural — backend de observabilidade no `app/`
-- Direção única adotada: **remoção de Firebase no módulo `app/`**.
-- O backend operacional para telemetria/falhas passa a ser o **Bitstack Local Pipeline (autoral/local-first)**, sem dependência de `google-services.json` para o fluxo padrão de build.
-- A coleta e rastreabilidade ficam alinhadas ao desenho de supervisão/ledger já descrito neste documento (ProcessSupervisor, AuditLedger e políticas de backpressure/failover).
-- Implicação prática: onboarding e CI devem seguir fluxo Gradle local, sem provisionamento Firebase.
+- Direção adotada: **BLP local-first para desenvolvimento**, preservando **Firebase real para compatibilidade de release/perfRelease**.
+- O fluxo padrão (`debug`/local) não depende de `google-services.json`.
+- Para `perfRelease`/`release`, o arquivo `app/google-services.json` real continua obrigatório e validado por `validateFirebaseReleaseConfig`.
+- No CI, builds de release/perfRelease só rodam quando o segredo `VECTRAS_GOOGLE_SERVICES_JSON_B64` está configurado; sem segredo, o pipeline pula essa trilha explicitamente.
 
 ## Metadados
 - Versão do documento: 1.2

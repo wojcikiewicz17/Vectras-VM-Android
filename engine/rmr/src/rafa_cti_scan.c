@@ -9,6 +9,7 @@
 
 #include "zero_compat.h"
 #include "rmr_hw_detect.h"
+#include "rmr_ll_ops.h"
 #include "rmr_ll_tuning.h"
 
 #define ZERO_BLOCK_BYTES 4096u

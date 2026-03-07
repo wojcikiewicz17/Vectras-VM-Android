@@ -156,6 +156,8 @@ This repository follows a hybrid policy:
 
 Telemetry/failure tracking details and release guardrails are documented in [FIREBASE.md](../app/FIREBASE.md) and enforced in `app/build.gradle` (`validateFirebaseReleaseConfig`).
 
+CI (`.github/workflows/android.yml`) executa validação/build de `perfRelease`/`release` apenas quando o secret `VECTRAS_GOOGLE_SERVICES_JSON_B64` está presente; sem esse secret, a trilha de release é pulada de forma explícita e o fluxo debug/local permanece válido.
+
 ---
 
 ## 5. Contribution Process

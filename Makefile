@@ -78,6 +78,7 @@ BITOMEGA_SMOKETEST_BIN := build/demo/bitomega_smoketest
 UNIFIED_ARENA_SELFTEST_BIN := build/demo/rmr_unified_arena_selftest
 HW_DETECT_SELFTEST_BIN := build/demo/rmr_hw_detect_selftest
 RMR_REQUIRED_SYMBOLS := RmR_MathFabric_AutodetectPlan RmR_MathFabric_VectorMix
+RMR_LINK_LIBS := $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 
 CASM_SELFTEST_TARGETS :=
 ifneq ($(strip $(CASM_ASM_SRCS)),)
@@ -106,30 +107,30 @@ $(LIB_BITRAF_SHARED): $(BITRAF_API_SRC)
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) -fPIC -shared $< $(LDFLAGS) -o $@
 
-$(DEMO_BIN): demo_cli/src/main.c $(LIB_STATIC) verify-librmr-symbols
+$(DEMO_BIN): demo_cli/src/main.c $(LIB_STATIC) $(LIB_BITRAF_STATIC) verify-librmr-symbols
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
-$(BENCH_BIN): bench/src/rmr_benchmark_main.c $(LIB_STATIC)
+$(BENCH_BIN): bench/src/rmr_benchmark_main.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
 $(SELFTEST_BIN): demo_cli/src/bitraf_selftest.c $(LIB_BITRAF_STATIC) $(LIB_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LIB_BITRAF_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
-$(BITRAF_BIN): engine/rmr/src/rafaelia_bitraf_core.c $(LIB_STATIC)
+$(BITRAF_BIN): engine/rmr/src/rafaelia_bitraf_core.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) -DRAF_HOSTED_TEST=1 $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) -DRAF_HOSTED_TEST=1 $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
-$(APK_MODULE_BIN): demo_cli/src/apk_module_demo.c $(LIB_STATIC)
+$(APK_MODULE_BIN): demo_cli/src/apk_module_demo.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
 
-$(MATH_FABRIC_SELFTEST_BIN): demo_cli/src/math_fabric_selftest.c $(LIB_STATIC) verify-librmr-symbols
+$(MATH_FABRIC_SELFTEST_BIN): demo_cli/src/math_fabric_selftest.c $(LIB_STATIC) $(LIB_BITRAF_STATIC) verify-librmr-symbols
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
 verify-librmr-symbols: $(LIB_STATIC)
 	@for sym in $(RMR_REQUIRED_SYMBOLS); do \
@@ -140,46 +141,46 @@ verify-librmr-symbols: $(LIB_STATIC)
 	done
 	@echo "[link-contract] verified required symbols in $(LIB_STATIC)"
 
-$(CTI_SCAN_BIN): engine/rmr/src/rafa_cti_scan.c $(LIB_STATIC)
+$(CTI_SCAN_BIN): engine/rmr/src/rafa_cti_scan.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -lm -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -lm -o $@
 
 
-$(POLICY_DEMO_BIN): demo_cli/src/policy_kernel_demo.c $(LIB_STATIC)
+$(POLICY_DEMO_BIN): demo_cli/src/policy_kernel_demo.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
-$(POLICY_SELFTEST_BIN): demo_cli/src/policy_kernel_selftest.c $(LIB_STATIC)
+$(POLICY_SELFTEST_BIN): demo_cli/src/policy_kernel_selftest.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
-$(QEMU_BRIDGE_DEMO_BIN): demo_cli/src/rmr_qemu_bridge_demo.c $(LIB_STATIC)
+$(QEMU_BRIDGE_DEMO_BIN): demo_cli/src/rmr_qemu_bridge_demo.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
-$(QEMU_BRIDGE_SELFTEST_BIN): demo_cli/src/rmr_qemu_bridge_selftest.c $(LIB_STATIC)
+$(QEMU_BRIDGE_SELFTEST_BIN): demo_cli/src/rmr_qemu_bridge_selftest.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
-$(DETERMINISM_SIGNATURE_SELFTEST_BIN): demo_cli/src/determinism_signature_selftest.c $(LIB_STATIC)
+$(DETERMINISM_SIGNATURE_SELFTEST_BIN): demo_cli/src/determinism_signature_selftest.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
-$(CASM_BRIDGE_SELFTEST_BIN): demo_cli/src/rmr_casm_bridge_selftest.c $(LIB_STATIC)
+$(CASM_BRIDGE_SELFTEST_BIN): demo_cli/src/rmr_casm_bridge_selftest.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
-$(BITOMEGA_SMOKETEST_BIN): demo_cli/src/bitomega_smoketest.c $(LIB_STATIC)
+$(BITOMEGA_SMOKETEST_BIN): demo_cli/src/bitomega_smoketest.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
 $(UNIFIED_ARENA_SELFTEST_BIN): demo_cli/src/rmr_unified_arena_selftest.c $(LIB_BITRAF_STATIC) $(LIB_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LIB_BITRAF_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
-$(HW_DETECT_SELFTEST_BIN): demo_cli/src/rmr_hw_detect_selftest.c $(LIB_STATIC)
+$(HW_DETECT_SELFTEST_BIN): demo_cli/src/rmr_hw_detect_selftest.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
 run-bitomega-smoketest: $(BITOMEGA_SMOKETEST_BIN)
 	@mkdir -p bench/results
@@ -223,9 +224,9 @@ clean:
 
 # ── NEON SIMD selftest (BUG#45 addition) ──
 NEON_SIMD_SELFTEST_BIN := build/demo/rmr_neon_simd_selftest
-$(NEON_SIMD_SELFTEST_BIN): demo_cli/src/neon_simd_selftest.c $(LIB_STATIC)
+$(NEON_SIMD_SELFTEST_BIN): demo_cli/src/neon_simd_selftest.c $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 	@mkdir -p $(dir $@)
-	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(LIB_STATIC) $(LDFLAGS) -o $@
+	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
 print-build-config:
 	@echo "RMR_JNI_BUILD=$(RMR_JNI_BUILD)"

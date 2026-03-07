@@ -7,9 +7,10 @@
 #include "rmr_math_fabric.h"
 #include "rmr_ll_tuning.h"
 
+#include <string.h>
+
 /* BUG FIX baremetal: removido #include <stdio.h> */
 /* BUG FIX baremetal: removido #include <stdlib.h> */
-/* BUG FIX baremetal: removido #include <string.h> */
 /* BUG FIX baremetal: removido #include <sys/stat.h> */
 
 #if defined(__aarch64__) && defined(__ARM_FEATURE_CRC32)

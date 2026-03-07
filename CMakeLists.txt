@@ -134,6 +134,8 @@ add_library(bitraf_static STATIC engine/rmr/src/bitraf.c)
 set_target_properties(bitraf_static PROPERTIES OUTPUT_NAME bitraf)
 rmr_apply_common_flags(bitraf_static)
 
+target_link_libraries(rmr PUBLIC bitraf_static)
+
 add_library(bitraf_shared SHARED engine/rmr/src/bitraf.c)
 set_target_properties(bitraf_shared PROPERTIES OUTPUT_NAME bitraf)
 rmr_apply_common_flags(bitraf_shared)
