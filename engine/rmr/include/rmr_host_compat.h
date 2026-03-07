@@ -4,6 +4,10 @@
 #include <stddef.h>
 #include "zero.h"
 
+#ifndef RMR_BUILD_HOST_TOOLING
+#define RMR_BUILD_HOST_TOOLING 0
+#endif
+
 typedef struct rmr_file rmr_file_t;
 
 typedef struct {
