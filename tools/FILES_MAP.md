@@ -104,3 +104,48 @@ Mapa arquivo-a-arquivo em três linhas por item: papel, ligação e comando de i
 - **Papel**: script de auditoria forense para inventariar todos os arquivos não-Markdown com hash SHA-256.
 - **Liga com**: gera [`reports/NON_MD_AUDIT_REPORT.md`](../reports/NON_MD_AUDIT_REPORT.md) e [`reports/non_md_inventory.tsv`](../reports/non_md_inventory.tsv).
 - **Inspeção**: `python3 tools/audit_non_md_inventory.py` e `sed -n "1,80p" "reports/NON_MD_AUDIT_REPORT.md"`.
+
+## `tools/baremetal/rafcode_phi/README.md`
+- **Papel**: guia local da base RAFCODE❤️PHI C→ASM com emissão de opcodes em hexadecimal.
+- **Liga com**: ver [`docs/RAFCODE_PHI_COMPILER_HEADER.md`](../docs/RAFCODE_PHI_COMPILER_HEADER.md) para contrato técnico e [`tools/baremetal/`](baremetal/) para contexto low-level.
+- **Inspeção**: `file "tools/baremetal/rafcode_phi/README.md"` e, quando texto, `sed -n "1,200p" "tools/baremetal/rafcode_phi/README.md"`.
+
+## `tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h`
+- **Papel**: contrato ABI autoral C↔ASM (tipos fixos, opcodes hex e assinaturas de emissão).
+- **Liga com**: ver [`tools/baremetal/rafcode_phi/c/rafcode_phi_front_shell.c`](baremetal/rafcode_phi/c/rafcode_phi_front_shell.c) e [`tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S`](baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S).
+- **Inspeção**: `file "tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h"` e, quando texto, `sed -n "1,220p" "tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h"`.
+
+## `tools/baremetal/rafcode_phi/c/rafcode_phi_front_shell.c`
+- **Papel**: casca C determinística para converter tokens em opcodes hex e consolidar CRC32C do bloco emitido.
+- **Liga com**: usa ABI em [`tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h`](baremetal/rafcode_phi/include/rafcode_phi_abi.h) e hook ASM `rafphi_emit_word_asm`.
+- **Inspeção**: `file "tools/baremetal/rafcode_phi/c/rafcode_phi_front_shell.c"` e, quando texto, `sed -n "1,260p" "tools/baremetal/rafcode_phi/c/rafcode_phi_front_shell.c"`.
+
+## `tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S`
+- **Papel**: rotina ASM bare-metal para serializar palavra `opcode_hex` no buffer de saída com retorno de sucesso/falha.
+- **Liga com**: implementa contrato de [`tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h`](baremetal/rafcode_phi/include/rafcode_phi_abi.h) para caminhos `__aarch64__` e `__x86_64__`.
+- **Inspeção**: `file "tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S"` e, quando texto, `sed -n "1,220p" "tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S"`.
+
+## `tools/baremetal/rafcode_phi/c/rafcode_phi_cli.c`
+- **Papel**: front-end executável mínimo para emitir opcodes hex e métricas (`accepted/rejected/crc32c`) via CLI.
+- **Liga com**: usa [`tools/baremetal/rafcode_phi/c/rafcode_phi_front_shell.c`](baremetal/rafcode_phi/c/rafcode_phi_front_shell.c) e ABI em [`tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h`](baremetal/rafcode_phi/include/rafcode_phi_abi.h).
+- **Inspeção**: `file "tools/baremetal/rafcode_phi/c/rafcode_phi_cli.c"` e, quando texto, `sed -n "1,220p" "tools/baremetal/rafcode_phi/c/rafcode_phi_cli.c"`.
+
+## `tools/baremetal/rafcode_phi/build_rafcode_phi.sh`
+- **Papel**: casca de build para compilar C + ASM e linkar binário `build/rafcode_phi_cli`.
+- **Liga com**: compila [`tools/baremetal/rafcode_phi/c/rafcode_phi_front_shell.c`](baremetal/rafcode_phi/c/rafcode_phi_front_shell.c), [`tools/baremetal/rafcode_phi/c/rafcode_phi_cli.c`](baremetal/rafcode_phi/c/rafcode_phi_cli.c) e [`tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S`](baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S).
+- **Inspeção**: `file "tools/baremetal/rafcode_phi/build_rafcode_phi.sh"` e, quando texto, `sed -n "1,220p" "tools/baremetal/rafcode_phi/build_rafcode_phi.sh"`.
+
+## `tools/baremetal/rafcode_phi/demo_emit_hex.sh`
+- **Papel**: execução rápida de demonstração de emissão hex (`NOP RET BRK HLT`) para validação operacional.
+- **Liga com**: chama [`tools/baremetal/rafcode_phi/build_rafcode_phi.sh`](baremetal/rafcode_phi/build_rafcode_phi.sh) e o binário `build/rafcode_phi_cli`.
+- **Inspeção**: `file "tools/baremetal/rafcode_phi/demo_emit_hex.sh"` e, quando texto, `sed -n "1,160p" "tools/baremetal/rafcode_phi/demo_emit_hex.sh"`.
+
+## `tools/baremetal/rafcode_phi/c/rafcode_phi_emit_word_c.c`
+- **Papel**: backend fallback C para serialização de palavra quando backend ASM não é selecionado no host.
+- **Liga com**: contrato em [`tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h`](baremetal/rafcode_phi/include/rafcode_phi_abi.h) e seleção em [`tools/baremetal/rafcode_phi/build_rafcode_phi.sh`](baremetal/rafcode_phi/build_rafcode_phi.sh).
+- **Inspeção**: `file "tools/baremetal/rafcode_phi/c/rafcode_phi_emit_word_c.c"` e, quando texto, `sed -n "1,180p" "tools/baremetal/rafcode_phi/c/rafcode_phi_emit_word_c.c"`.
+
+## `tools/baremetal/rafcode_phi/test_regression_crc32c.sh`
+- **Papel**: valida regressão de CRC32C, tabela de tokens por arquitetura e layout fixo dos artefatos `.hex/.bin`.
+- **Liga com**: chama [`tools/baremetal/rafcode_phi/build_rafcode_phi.sh`](baremetal/rafcode_phi/build_rafcode_phi.sh) e [`tools/baremetal/rafcode_phi/c/rafcode_phi_cli.c`](baremetal/rafcode_phi/c/rafcode_phi_cli.c).
+- **Inspeção**: `file "tools/baremetal/rafcode_phi/test_regression_crc32c.sh"` e, quando texto, `sed -n "1,260p" "tools/baremetal/rafcode_phi/test_regression_crc32c.sh"`.
