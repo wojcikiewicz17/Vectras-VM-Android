@@ -1,17 +1,20 @@
-def resolveIntProperty = { String key, int defaultValue ->
-    def fromCli = gradle.startParameter.projectProperties.get(key)
-    def fromGradleProperties = providers.gradleProperty(key).orNull
-    Integer.parseInt((fromCli ?: fromGradleProperties ?: defaultValue).toString())
+def resolveIntProperty = { List<String> keys, int defaultValue ->
+    def resolvedValue = keys.collect { key ->
+        gradle.startParameter.projectProperties.get(key) ?: providers.gradleProperty(key).orNull
+    }.find { it != null }
+
+    Integer.parseInt((resolvedValue ?: defaultValue).toString())
 }
 
 def currentJava = JavaVersion.current()
-def configuredRuntime = resolveIntProperty('GRADLE_JAVA_RUNTIME_VERSION', resolveIntProperty('JAVA_LANGUAGE_VERSION', 17))
-def maxSupportedRuntime = resolveIntProperty('GRADLE_MAX_RUNTIME_JAVA_VERSION', 21)
+def configuredRuntime = resolveIntProperty(['GRADLE_JAVA_RUNTIME_VERSION', 'gradle.java.runtime.version'],
+    resolveIntProperty(['JAVA_LANGUAGE_VERSION', 'java.language.version'], 17))
+def maxSupportedRuntime = resolveIntProperty(['GRADLE_MAX_RUNTIME_JAVA_VERSION', 'gradle.max.runtime.java.version'], 21)
 
 def buildStrict = Boolean.parseBoolean((gradle.startParameter.projectProperties.get('buildStrict') ?: providers.gradleProperty('buildStrict').orNull ?: 'false').toString())
 
 if (currentJava > JavaVersion.toVersion(maxSupportedRuntime)) {
-    logger.warn("[settings.gradle] Gradle runtime JVM (${currentJava}) acima do máximo declarado (${maxSupportedRuntime}). buildStrict=${buildStrict}; validação final ocorre no build.gradle raiz.")
+    logger.warn("[settings.gradle] Gradle runtime JVM (${currentJava}) acima do máximo suportado (${maxSupportedRuntime}) para o baseline configurado (${configuredRuntime}). buildStrict=${buildStrict}; validação final ocorre no build.gradle raiz.")
 }
 
 rootProject.name = "Vectras VM"

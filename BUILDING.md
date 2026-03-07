@@ -67,6 +67,7 @@ Property precedence rule (to avoid config drift):
 - When a legacy alias is used, the Gradle bootstrap emits a deprecation warning and continues.
 
 Strictness control by pipeline context:
+- A validação de bootstrap (`verifyBootstrapAssets`) e a validação final (`verifyGradleRuntimeJvm` + gates de API/ABI) compartilham a mesma política de `buildStrict` (warning em modo local, bloqueante em CI/release).
 - `-PbuildStrict=false` (default): local/debug mode; validations emit warnings where allowed.
 - `-PbuildStrict=true`: official CI/release mode; validations are blocking.
 
