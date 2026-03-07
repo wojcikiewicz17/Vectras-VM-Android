@@ -1,10 +1,13 @@
 #include <errno.h>
 #include <inttypes.h>
 #include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
 #include <stdint.h>
-#include "zero_compat.h"
+#include <string.h>
 #include <time.h>
 
+#include "zero_compat.h"
 #include "rmr_hw_detect.h"
 #include "rmr_ll_tuning.h"
 
