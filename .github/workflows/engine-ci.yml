@@ -87,6 +87,12 @@ jobs:
       - name: Build with Make
         run: make clean && make all CC="$CC" CXX="$CXX"
 
+      - name: Run selftests (Make)
+        run: |
+          set -euo pipefail
+          mkdir -p bench/results
+          make run-selftest 2>&1 | tee bench/results/make-selftest.log
+
       - name: Build with CMake
         run: |
           cmake -S . -B build-cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"
@@ -128,6 +134,7 @@ jobs:
           path: |
             bench/results/summary.json
             bench/results/release-gate.log
+            bench/results/make-selftest.log
           if-no-files-found: warn
 
       - name: Upload baremetal reports artifact
