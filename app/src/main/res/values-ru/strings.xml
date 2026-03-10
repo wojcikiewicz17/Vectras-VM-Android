@@ -315,10 +315,10 @@
     <string name="pro_tools_estimated_time_item_placeholder">Недоступно для этого профиля</string>
     <string name="pro_tools_estimated_time_item_format">~%1$ds</string>
     <string name="pro_tools_stat_placeholder">Ожидание запуска</string>
-    <string name="pro_tools_confidence_placeholder">95%%: Ожидание запуска</string>
+    <string name="pro_tools_confidence_placeholder">95%: Ожидание запуска</string>
     <string name="pro_tools_stat_no_data">Данные не собраны</string>
     <string name="pro_tools_stat_error">Бенчмарк прерван</string>
-    <string name="pro_tools_confidence_unavailable">95%%: Доверительный интервал недоступен</string>
+    <string name="pro_tools_confidence_unavailable">95%: Доверительный интервал недоступен</string>
     <string name="pro_tools_confidence_template">%1$d%%: %2$s</string>
     <string name="pro_tools_reproducibility_template">%1$.1f%%</string>
 

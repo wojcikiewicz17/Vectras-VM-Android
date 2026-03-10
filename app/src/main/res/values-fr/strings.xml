@@ -151,10 +151,10 @@
     <string name="pro_tools_estimated_time_item_placeholder">Non disponible pour ce profil</string>
     <string name="pro_tools_estimated_time_item_format">~%1$ds</string>
     <string name="pro_tools_stat_placeholder">En attente d’exécution</string>
-    <string name="pro_tools_confidence_placeholder">95%% : En attente d’exécution</string>
+    <string name="pro_tools_confidence_placeholder">95% : En attente d’exécution</string>
     <string name="pro_tools_stat_no_data">Aucune donnée collectée</string>
     <string name="pro_tools_stat_error">Benchmark interrompu</string>
-    <string name="pro_tools_confidence_unavailable">95%% : Intervalle de confiance indisponible</string>
+    <string name="pro_tools_confidence_unavailable">95% : Intervalle de confiance indisponible</string>
     <string name="pro_tools_confidence_template">%1$d%% : %2$s</string>
     <string name="pro_tools_reproducibility_template">%1$.1f%%</string>
 

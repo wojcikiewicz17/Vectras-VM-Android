@@ -1016,7 +1016,7 @@
     <string name="pro_tools_summary_categories">Category Performance:</string>
     <string name="pro_tools_summary_methodologies">Methodologies Applied: %s</string>
     <string name="pro_tools_summary_reproducibility">Reproducibility Assessment: %s</string>
-    <string name="pro_tools_grade_scientific_justification">SCIENTIFIC-GRADE: All 6 categories measured with >95%% reproducibility and 4+ methodology standards. Suitable for peer-reviewed publications and expert testimony.</string>
+    <string name="pro_tools_grade_scientific_justification">SCIENTIFIC-GRADE: All 6 categories measured with >95% reproducibility and 4+ methodology standards. Suitable for peer-reviewed publications and expert testimony.</string>
     <string name="pro_tools_grade_academic_justification">ACADEMIC-GRADE: 5+ categories measured with >85%% reproducibility and 3+ methodology standards. Suitable for research reports and university submissions.</string>
     <string name="pro_tools_grade_industry_justification">INDUSTRY-GRADE: 3+ categories measured with >70%% reproducibility and 2+ methodology standards. Suitable for engineering benchmarks and technical documentation.</string>
     <string name="pro_tools_grade_informal_justification">INFORMAL engineering-grade. Additional metrics, methodologies, or reproducibility improvements are recommended to achieve formal validation.</string>
@@ -1089,10 +1089,10 @@ CPU1 %3$d%% · CPUm %4$d%% · MEM %5$d%% · IO %6$d%% · INT %7$d%% · EMU %8$d%
     <string name="pro_tools_estimated_time_item_placeholder">Not available for this profile</string>
     <string name="pro_tools_estimated_time_item_format">~%1$ds</string>
     <string name="pro_tools_stat_placeholder">Awaiting execution</string>
-    <string name="pro_tools_confidence_placeholder">95%%: Awaiting execution</string>
+    <string name="pro_tools_confidence_placeholder">95%: Awaiting execution</string>
     <string name="pro_tools_stat_no_data">No data collected</string>
     <string name="pro_tools_stat_error">Benchmark interrupted</string>
-    <string name="pro_tools_confidence_unavailable">95%%: Confidence interval unavailable</string>
+    <string name="pro_tools_confidence_unavailable">95%: Confidence interval unavailable</string>
     <string name="pro_tools_confidence_template">%1$d%%: %2$s</string>
     <string name="pro_tools_reproducibility_template">%1$.1f%%</string>
 
