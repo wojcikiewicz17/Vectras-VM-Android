@@ -7,7 +7,7 @@ CPPFLAGS ?= -Iengine/rmr/include -DRMR_JNI_BUILD=$(RMR_JNI_BUILD) -DRMR_BUILD_HO
 CFLAGS ?= -O3 -std=c11 -Wall -Wextra -pedantic
 LDFLAGS ?=
 
-include engine/rmr/sources_rmr_core.mk
+include engine/rmr/sources.mk
 
 UNAME_S := $(shell uname -s 2>/dev/null || echo Unknown)
 SHARED_EXT := so
@@ -17,41 +17,7 @@ else ifeq ($(UNAME_S),Darwin)
   SHARED_EXT := dylib
 endif
 
-ENGINE_CORE_COMMON_SRCS := \
-	engine/rmr/src/bitomega.c \
-	engine/rmr/src/rmr_baremetal_compat.c \
-	engine/rmr/src/rmr_cycles.c \
-	engine/rmr/src/rmr_hw_detect.c \
-	engine/rmr/src/rmr_bench.c \
-	engine/rmr/src/rmr_bench_suite.c \
-	engine/rmr/src/rmr_isorf.c \
-	engine/rmr/src/rmr_apk_module.c \
-	engine/rmr/src/rmr_qemu_bridge.c \
-	engine/rmr/src/rmr_math_fabric.c \
-	engine/rmr/src/rafaelia_formulas_core.c \
-	engine/rmr/src/rmr_corelib.c \
-	engine/rmr/src/rmr_ll_ops.c \
-	engine/rmr/src/rmr_ll_tuning.c \
-	engine/rmr/src/rmr_casm_bridge.c \
-	engine/rmr/src/rmr_unified_kernel.c \
-	engine/rmr/src/rmr_unified_jni_bridge.c \
-	engine/rmr/src/rmr_host_compat.c \
-	engine/rmr/src/rmr_zipraf_core.c \
-	engine/rmr/src/rmr_lowlevel_portable.c \
-	engine/rmr/src/rmr_lowlevel_mix.c \
-	engine/rmr/src/rmr_lowlevel_reduce.c \
-	engine/rmr/src/rmr_neon_simd.c
-
-ENGINE_EXTENDED_SRCS := \
-	engine/rmr/src/rmr_tcg_cache.c \
-	engine/rmr/src/rmr_virtio_blk.c \
-	engine/rmr/src/rmr_attractor.c \
-	engine/rmr/src/rmr_vhw_model.c \
-	engine/rmr/src/rmr_ethica_loss.c
-
-ENGINE_POLICY_SRCS := engine/rmr/src/rmr_policy_kernel.c
-
-ENGINE_SRCS := $(ENGINE_CORE_COMMON_SRCS) $(ENGINE_EXTENDED_SRCS)
+ENGINE_SRCS := $(ENGINE_CORE_SRCS)
 ifeq ($(RMR_ENABLE_POLICY_MODULE),1)
 ENGINE_SRCS += $(ENGINE_POLICY_SRCS)
 endif
@@ -60,11 +26,9 @@ ENGINE_OBJS := $(patsubst %.c,build/%.o,$(ENGINE_SRCS))
 CASM_ASM_SRCS :=
 ifeq ($(UNAME_S),Linux)
 ifeq ($(shell uname -m 2>/dev/null),x86_64)
-  CASM_ASM_SRCS += $(RMR_SOURCE_GROUP_ASM_X86_64)
+  CASM_ASM_SRCS += $(ENGINE_ASM_X86_64_LOWLEVEL_SRCS) $(ENGINE_ASM_X86_64_CASM_SRCS)
 else ifeq ($(shell uname -m 2>/dev/null),riscv64)
-  CASM_ASM_SRCS += engine/rmr/interop/rmr_casm_riscv64.S
-else ifeq ($(shell uname -m 2>/dev/null),aarch64)
-  CASM_ASM_SRCS += engine/rmr/interop/rmr_casm_arm64.S
+  CASM_ASM_SRCS += $(ENGINE_ASM_RISCV64_SRCS)
 endif
 endif
 CASM_ASM_OBJS := $(patsubst %.S,build/%.o,$(CASM_ASM_SRCS))
@@ -287,10 +251,13 @@ run-baremetal-gate:
 run-release-gate: run-selftest run-bench run-baremetal-gate
 	bench/scripts/run_bench.sh 7 bench/results
 
+check-engine-source-manifest:
+	python3 tools/sync_engine_sources.py --check
+
 clean:
 	rm -rf build
 
-.PHONY: all clean verify-rmr-source-alignment verify-librmr-symbols run-demo run-casm-selftest run-selftest run-bitomega-smoketest run-bench run-baremetal-gate run-release-gate
+.PHONY: all clean verify-librmr-symbols run-demo run-casm-selftest run-selftest run-bitomega-smoketest run-bench run-baremetal-gate run-release-gate check-engine-source-manifest
 
 print-build-config:
 	@echo "RMR_JNI_BUILD=$(RMR_JNI_BUILD)"

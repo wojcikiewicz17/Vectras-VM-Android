@@ -8,6 +8,9 @@ on:
       - 'demo_cli/**'
       - 'Makefile'
       - 'CMakeLists.txt'
+      - 'engine/rmr/sources.cmake'
+      - 'engine/rmr/sources.mk'
+      - 'tools/sync_engine_sources.py'
       - '.github/workflows/engine-ci.yml'
   pull_request:
     paths:
@@ -16,6 +19,9 @@ on:
       - 'demo_cli/**'
       - 'Makefile'
       - 'CMakeLists.txt'
+      - 'engine/rmr/sources.cmake'
+      - 'engine/rmr/sources.mk'
+      - 'tools/sync_engine_sources.py'
       - '.github/workflows/engine-ci.yml'
   workflow_dispatch:
 
@@ -83,6 +89,9 @@ jobs:
         run: |
           mkdir -p bench/results
           mkdir -p reports/baremetal
+
+      - name: Validate engine source manifest sync
+        run: make check-engine-source-manifest
 
       - name: Build with Make
         run: make clean && make all CC="$CC" CXX="$CXX"
