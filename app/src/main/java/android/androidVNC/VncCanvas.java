@@ -2135,12 +2135,17 @@ public class VncCanvas extends AppCompatImageView {
 
         @Override
         public boolean onTouch(View v, MotionEvent event) {
-            // TODO Auto-generated method stub
-            //Log.i("VNCOnTouchListener", "onTouch");
-            if(Config.mouseMode == Config.MouseMode.Trackpad) {
+            final int action = event.getActionMasked();
+            if (Config.mouseMode == Config.MouseMode.Trackpad) {
+                logInputFallback("touch", "trackpad_mode_passthrough", event, action, false);
                 return false;
             }
-            return processPointerEvent(event, event.getAction() == MotionEvent.ACTION_DOWN);
+
+            final boolean handled = processPointerEvent(event, action == MotionEvent.ACTION_DOWN);
+            if (!handled) {
+                logInputFallback("touch", "pointer_not_ready", event, action, false);
+            }
+            return handled;
         }
 
 
@@ -2152,74 +2157,62 @@ public class VncCanvas extends AppCompatImageView {
         // Generic Motion (mouse hover, joystick...) events go here
         @Override
         public boolean onGenericMotion(View v, MotionEvent event) {
-            float x, y;
-            int action;
+            final int source = event.getSource();
+            final int action = event.getActionMasked();
 
-            switch (event.getSource()) {
-                case InputDevice.SOURCE_JOYSTICK:
-                case InputDevice.SOURCE_GAMEPAD:
-                case InputDevice.SOURCE_DPAD:
-                    return true;
-                case InputDevice.SOURCE_MOUSE:
-                    if(Config.mouseMode == Config.MouseMode.Trackpad)
-                        break;
-
-                    action = event.getActionMasked();
-                    //Log.d("SDL", "onGenericMotion, action = " + action + "," + event.getX() + ", " + event.getY());
-                    switch (action) {
-                        case MotionEvent.ACTION_SCROLL:
-                            x = event.getAxisValue(MotionEvent.AXIS_HSCROLL, 0);
-                            y = event.getAxisValue(MotionEvent.AXIS_VSCROLL, 0);
-                            //Log.d("SDL", "Mouse Scroll: " +event.getX() + ":" + event.getY() + " => " +  x + "," + y);
-
-                            //TODO:
-                            //SDLActivity.onSDLNativeMouse(0, action, x, y);
-                            //processPointerEvent(event,false);
-
-                            // Log.v("Vectras", "Button Up");
-                            boolean scrollUp=false;
-                            if (y > 0)
-                                scrollUp = true;
-                            else if (y < 0)
-                                scrollUp = false;
-
-                            return processPointerEvent((int) event.getX(), (int) event.getY(), event.getAction(), event.getMetaState(), false,
-                                    false, false, scrollUp);
-                            //return true;
-
-                        case MotionEvent.ACTION_HOVER_MOVE:
-                            if(Config.processMouseHistoricalEvents) {
-                                final int historySize = event.getHistorySize();
-                                for (int h = 0; h < historySize; h++) {
-                                    float hx = event.getHistoricalX(h);
-                                    float hy = event.getHistoricalY(h);
-                                    float hp = event.getHistoricalPressure(h);
-                                    processHoverMouse(event, hx, hy, hp, MotionEvent.ACTION_HOVER_MOVE);
-                                }
-                            }
-
-                            float currentX = event.getX();
-                            float currentY = event.getY();
-                            float currentPressure = event.getPressure();
-                            processHoverMouse(event, currentX, currentY, currentPressure, MotionEvent.ACTION_HOVER_MOVE);
-                            return true;
-
-                        case MotionEvent.ACTION_UP:
-
-                        default:
-                            break;
-                    }
-                    break;
-
-                default:
-                    break;
+            if ((source & (InputDevice.SOURCE_JOYSTICK | InputDevice.SOURCE_GAMEPAD | InputDevice.SOURCE_DPAD)) != 0) {
+                logInputFallback("generic_motion", "non_pointer_source", event, action, false);
+                return false;
             }
 
-            // Event was not managed
-            return false;
+            if ((source & InputDevice.SOURCE_MOUSE) == 0) {
+                logInputFallback("generic_motion", "unsupported_source", event, action, false);
+                return false;
+            }
+
+            if (Config.mouseMode == Config.MouseMode.Trackpad) {
+                logInputFallback("generic_motion", "trackpad_mode_passthrough", event, action, false);
+                return false;
+            }
+
+            switch (action) {
+                case MotionEvent.ACTION_SCROLL:
+                    final float vertical = event.getAxisValue(MotionEvent.AXIS_VSCROLL, 0);
+                    if (vertical == 0f) {
+                        logInputFallback("generic_motion", "scroll_without_vertical_delta", event, action, false);
+                        return false;
+                    }
+                    final boolean handledScroll = processPointerEvent((int) event.getX(), (int) event.getY(),
+                            MotionEvent.ACTION_SCROLL, event.getMetaState(), false, false, false, vertical > 0f);
+                    if (!handledScroll) {
+                        logInputFallback("generic_motion", "scroll_pointer_not_ready", event, action, false);
+                    }
+                    return handledScroll;
+
+                case MotionEvent.ACTION_HOVER_MOVE:
+                    boolean hoverHandled = false;
+                    if (Config.processMouseHistoricalEvents) {
+                        final int historySize = event.getHistorySize();
+                        for (int h = 0; h < historySize; h++) {
+                            hoverHandled |= processHoverMouse(event, event.getHistoricalX(h),
+                                    event.getHistoricalY(h), event.getHistoricalPressure(h),
+                                    MotionEvent.ACTION_HOVER_MOVE);
+                        }
+                    }
+                    hoverHandled |= processHoverMouse(event, event.getX(), event.getY(), event.getPressure(),
+                            MotionEvent.ACTION_HOVER_MOVE);
+                    if (!hoverHandled) {
+                        logInputFallback("generic_motion", "hover_not_consumed", event, action, false);
+                    }
+                    return hoverHandled;
+
+                default:
+                    logInputFallback("generic_motion", "unsupported_mouse_action", event, action, false);
+                    return false;
+            }
         }
 
-        private void processHoverMouse(MotionEvent event, float x,float y,float p, int action) {
+        private boolean processHoverMouse(MotionEvent event, float x,float y,float p, int action) {
 
             //Log.d("VncCanvas", "Mouse Hover: " + x + "," + y);
 
@@ -2232,14 +2225,28 @@ public class VncCanvas extends AppCompatImageView {
 //                    return;
 //                }
 
-                //TODO:
-                //SDLActivity.onSDLNativeMouse(0, action, x, y);
-                processPointerEvent((int) x, (int) y, action, event.getMetaState(), false,
+                final boolean handled = processPointerEvent((int) x, (int) y, action, event.getMetaState(), false,
                         false, false, false);
+                if (!handled) {
+                    logInputFallback("hover", "pointer_not_ready", event, action, false);
+                }
+                return handled;
             }
-//            else if (Config.mouseMode == Config.MouseMode.External_Alt){
-//                processHoverMouseAlt(x, y, p, action);
-//            }
+            logInputFallback("hover", "unsupported_mouse_mode", event, action, false);
+            return false;
+        }
+
+        private void logInputFallback(String handler, String reason, MotionEvent event, int action, boolean consumed) {
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "input_fallback handler=" + handler
+                        + " reason=" + reason
+                        + " source=0x" + Integer.toHexString(event.getSource())
+                        + " action=" + action
+                        + " mode=" + Config.mouseMode
+                        + " x=" + event.getX()
+                        + " y=" + event.getY()
+                        + " consumed=" + consumed);
+            }
         }
 
     }
