@@ -318,22 +318,21 @@ jobs:
             build-essential cmake ninja-build
 
       - name: "Build RMR engine (portable, no Android)"
-        working-directory: engine/rmr
         run: |
-          cmake -S ../.. -B build -G Ninja \
+          cmake -S . -B build-engine -G Ninja \
             -DCMAKE_BUILD_TYPE=Release \
-            -DCMAKE_C_FLAGS="-Wall -Wextra" \
-            -DRMR_JNI_BUILD=OFF
-          cmake --build build --parallel $(nproc)
+            -DRMR_JNI_BUILD=OFF \
+            -DRMR_BUILD_HOST_TOOLING=ON
+          cmake --build build-engine --parallel $(nproc)
           echo "✅ RMR engine build complete"
-          ls build/
+          ls build-engine/
 
       - name: "Upload engine libs"
         uses: actions/upload-artifact@v4
         if: always()
         with:
           name: "rmr-engine-linux-x86_64"
-          path: engine/rmr/build/
+          path: build-engine/
           retention-days: 7
 
   # ── 4. SUMMARY ────────────────────────────────────────────────────────────
