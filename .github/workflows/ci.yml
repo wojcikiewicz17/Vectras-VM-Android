@@ -57,6 +57,9 @@ jobs:
           cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
           cmake --build build-cmake -j"$(nproc)"
 
+      - name: Run engine selftests (CMake)
+        run: cmake --build build-cmake --target run_selftest
+
       - name: Upload host logs
         if: always()
         uses: actions/upload-artifact@v4

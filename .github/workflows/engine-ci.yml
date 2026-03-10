@@ -98,6 +98,9 @@ jobs:
       - name: Run BitΩ smoke test (CMake)
         run: cmake --build build-cmake --target run_bitomega_smoketest
 
+      - name: Run selftests (CMake)
+        run: cmake --build build-cmake --target run_selftest
+
       - name: Generate BitΩ transition graph
         run: cmake --build build-cmake --target bitomega_transition_graph
       - name: Run release gate (selftest + bench + summary)
