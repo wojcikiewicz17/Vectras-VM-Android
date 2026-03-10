@@ -4,11 +4,16 @@ apply plugin: 'com.android.application'
 android {
     compileSdk rootProject.ext.compileApi
     buildToolsVersion rootProject.ext.toolsVersion
+
+    buildTypes {
+        debug {
+            signingConfig = null
+        }
+    }
 }
 
 android.namespace 'com.vectras.vm'
 android.defaultConfig.minSdkVersion rootProject.ext.minApi
-android.buildTypes.debug.signingConfig null
 android.buildFeatures.buildConfig true
 android.testOptions.unitTests.includeAndroidResources = true
 android.compileOptions.sourceCompatibility JavaVersion.toVersion(rootProject.ext.javaLanguageVersion)
