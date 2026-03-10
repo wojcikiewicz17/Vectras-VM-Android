@@ -5,8 +5,11 @@ project(rafaelia_rmr C ASM)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
+include(${CMAKE_SOURCE_DIR}/engine/rmr/sources_rmr_core.cmake)
+
 option(RMR_JNI_BUILD "Use hosted/JNI libc path for root builds" ON)
-option(RMR_BUILD_HOST_TOOLING "Force host-tooling compatibility path" ON)
+set(RMR_BUILD_HOST_TOOLING "AUTO" CACHE STRING "Host-tooling compatibility path (AUTO mirrors RMR_JNI_BUILD)" )
+set_property(CACHE RMR_BUILD_HOST_TOOLING PROPERTY STRINGS AUTO ON OFF)
 option(RMR_ENABLE_POLICY_MODULE "Enable RMR policy module for root builds" ON)
 option(RMR_ASM_CORE_EXPERIMENTAL "Enable experimental ASM core hot paths" ON)
 option(RMR_ASM_CORE_X86_64_VALIDATED "Enable ASM hot paths on x86_64 (validated ABI)" ON)
@@ -19,10 +22,12 @@ else()
   set(RMR_JNI_BUILD_VALUE 0)
 endif()
 
-if(RMR_BUILD_HOST_TOOLING)
+if(RMR_BUILD_HOST_TOOLING STREQUAL "AUTO")
+  set(RMR_BUILD_HOST_TOOLING_VALUE ${RMR_JNI_BUILD_VALUE})
+elseif(RMR_BUILD_HOST_TOOLING)
   set(RMR_BUILD_HOST_TOOLING_VALUE 1)
 else()
-  set(RMR_BUILD_HOST_TOOLING_VALUE ${RMR_JNI_BUILD_VALUE})
+  set(RMR_BUILD_HOST_TOOLING_VALUE 0)
 endif()
 
 if(RMR_ENABLE_POLICY_MODULE)
@@ -30,6 +35,16 @@ if(RMR_ENABLE_POLICY_MODULE)
 else()
   set(RMR_ENABLE_POLICY_MODULE_VALUE 0)
 endif()
+
+message(STATUS "RMR_JNI_BUILD resolved to ${RMR_JNI_BUILD_VALUE}")
+message(STATUS "RMR_BUILD_HOST_TOOLING input=${RMR_BUILD_HOST_TOOLING} resolved=${RMR_BUILD_HOST_TOOLING_VALUE}")
+message(STATUS "RMR_ENABLE_POLICY_MODULE resolved to ${RMR_ENABLE_POLICY_MODULE_VALUE}")
+
+file(WRITE "${CMAKE_BINARY_DIR}/rmr_build_config.env"
+  "RMR_JNI_BUILD=${RMR_JNI_BUILD_VALUE}\n"
+  "RMR_BUILD_HOST_TOOLING=${RMR_BUILD_HOST_TOOLING_VALUE}\n"
+  "RMR_ENABLE_POLICY_MODULE=${RMR_ENABLE_POLICY_MODULE_VALUE}\n"
+)
 
 if(RMR_ASM_CORE_EXPERIMENTAL)
   set(RMR_ASM_CORE_EXPERIMENTAL_VALUE 1)
@@ -72,34 +87,12 @@ function(rmr_apply_common_flags target_name)
   target_include_directories(${target_name} PRIVATE ${CMAKE_SOURCE_DIR}/engine/rmr/include)
 endfunction()
 
-set(RMR_SOURCES
-  engine/rmr/src/bitomega.c
-  engine/rmr/src/rmr_baremetal_compat.c
-  engine/rmr/src/rmr_cycles.c
-  engine/rmr/src/rmr_hw_detect.c
-  engine/rmr/src/rmr_bench.c
-  engine/rmr/src/rmr_bench_suite.c
-  engine/rmr/src/rmr_isorf.c
-  engine/rmr/src/rmr_apk_module.c
-  engine/rmr/src/rmr_qemu_bridge.c
-  engine/rmr/src/rmr_math_fabric.c
-  engine/rmr/src/rafaelia_formulas_core.c
-  engine/rmr/src/rmr_corelib.c
-  engine/rmr/src/rmr_ll_ops.c
-  engine/rmr/src/rmr_ll_tuning.c
-  engine/rmr/src/rmr_casm_bridge.c
-  engine/rmr/src/rmr_unified_kernel.c
-  engine/rmr/src/rmr_unified_jni_bridge.c
-  engine/rmr/src/rmr_host_compat.c
-  engine/rmr/src/rmr_zipraf_core.c
-  engine/rmr/src/rmr_lowlevel_portable.c
-  engine/rmr/src/rmr_lowlevel_mix.c
-  engine/rmr/src/rmr_lowlevel_reduce.c
-  engine/rmr/src/rmr_neon_simd.c
-)
+include(${CMAKE_SOURCE_DIR}/engine/rmr/sources.cmake)
+
+set(RMR_SOURCES ${RMR_ENGINE_CORE_SOURCES})
 
 if(RMR_ENABLE_POLICY_MODULE)
-  list(APPEND RMR_SOURCES engine/rmr/src/rmr_policy_kernel.c)
+  list(APPEND RMR_SOURCES ${RMR_ENGINE_POLICY_SOURCES})
 endif()
 
 set(RMR_HAS_CASM FALSE)
@@ -107,15 +100,15 @@ set(RMR_HAS_NEON_SELFTEST FALSE)
 
 if(RMR_ASM_CORE_EXPERIMENTAL AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64" AND RMR_ASM_CORE_X86_64_VALIDATED)
   list(APPEND RMR_SOURCES
-    engine/rmr/interop/rmr_lowlevel_x86_64.S
-    engine/rmr/interop/rmr_casm_x86_64.S
+    ${RMR_ENGINE_ASM_X86_64_LOWLEVEL_SOURCES}
+    ${RMR_ENGINE_ASM_X86_64_CASM_SOURCES}
   )
   set(RMR_HAS_CASM TRUE)
 endif()
 
 if(RMR_ASM_CORE_EXPERIMENTAL AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "riscv64" AND RMR_ASM_CORE_RISCV64_VALIDATED)
   list(APPEND RMR_SOURCES
-    engine/rmr/interop/rmr_casm_riscv64.S
+    ${RMR_ENGINE_ASM_RISCV64_SOURCES}
   )
   set(RMR_HAS_CASM TRUE)
 endif()
@@ -126,6 +119,29 @@ endif()
 
 add_library(rmr STATIC ${RMR_SOURCES})
 rmr_apply_common_flags(rmr)
+
+set(RMR_REQUIRED_SYMBOLS
+  RmR_MathFabric_AutodetectPlan
+  RmR_MathFabric_VectorMix
+)
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/verify_librmr_symbols.stamp
+  COMMAND ${CMAKE_SOURCE_DIR}/tools/verify_librmr_symbols.sh
+          $<TARGET_FILE:rmr>
+          ${RMR_REQUIRED_SYMBOLS}
+  COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/verify_librmr_symbols.stamp
+  DEPENDS rmr ${CMAKE_SOURCE_DIR}/tools/verify_librmr_symbols.sh
+  VERBATIM
+)
+
+add_custom_target(verify_librmr_symbols
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/verify_librmr_symbols.stamp
+)
+
+add_custom_target(verify_contracts
+  DEPENDS verify_librmr_symbols
+)
 
 add_executable(rafaelia_demo demo_cli/src/main.c)
 target_link_libraries(rafaelia_demo PRIVATE rmr)
@@ -265,7 +281,7 @@ endif()
 add_custom_target(run_selftest
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/bench/results
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  DEPENDS ${RMR_RUN_SELFTEST_DEPENDS}
+  DEPENDS verify_contracts ${RMR_RUN_SELFTEST_DEPENDS}
 )
 
 foreach(RMR_SELFTEST_CMD IN LISTS RMR_RUN_SELFTEST_COMMANDS)
@@ -281,9 +297,9 @@ add_custom_target(run_bitomega_smoketest
   DEPENDS bitomega_smoketest
 )
 
-find_package(Python3 COMPONENTS Interpreter REQUIRED)
+find_package(Python3 COMPONENTS Interpreter QUIET)
 find_program(GRAPHVIZ_DOT_EXECUTABLE dot)
-if(GRAPHVIZ_DOT_EXECUTABLE)
+if(Python3_Interpreter_FOUND AND GRAPHVIZ_DOT_EXECUTABLE)
   add_custom_target(bitomega_transition_graph
     COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/reports
     COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/tools/bitomega_csv_to_dot.py
@@ -297,5 +313,13 @@ if(GRAPHVIZ_DOT_EXECUTABLE)
     DEPENDS run_bitomega_smoketest
   )
 else()
-  message(STATUS "Graphviz dot not found; skipping bitomega_transition_graph target")
+  set(RMR_REPORT_MISSING_TOOLS "")
+  if(NOT Python3_Interpreter_FOUND)
+    list(APPEND RMR_REPORT_MISSING_TOOLS "Python3 interpreter")
+  endif()
+  if(NOT GRAPHVIZ_DOT_EXECUTABLE)
+    list(APPEND RMR_REPORT_MISSING_TOOLS "Graphviz dot")
+  endif()
+  string(JOIN ", " RMR_REPORT_MISSING_TOOLS_TEXT ${RMR_REPORT_MISSING_TOOLS})
+  message(STATUS "Skipping bitomega_transition_graph target: missing ${RMR_REPORT_MISSING_TOOLS_TEXT}")
 endif()

@@ -836,11 +836,6 @@ public class RfbProto {
     rec.write(desktopName.getBytes());
     numUpdatesInSession = 0;
 
-    // FIXME: If there were e.g. ZRLE updates only, that should not
-    //        affect recording of Zlib and Tight updates. So, actually
-    //        we should maintain separate flags for Zlib, ZRLE and
-    //        Tight, instead of one ``wereZlibUpdates'' variable.
-    //
     if (wereZlibUpdates)
       recordFromBeginning = false;
 

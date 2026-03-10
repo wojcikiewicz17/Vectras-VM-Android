@@ -43,6 +43,9 @@ jobs:
       - name: Print build config
         run: make print-build-config
 
+      - name: Export Make resolved build config
+        run: make print-build-config-env
+
       - name: Make build
         run: make clean && make -j"$(nproc)"
 
@@ -54,8 +57,14 @@ jobs:
 
       - name: Root CMake configure + build
         run: |
+          set -euo pipefail
+          mkdir -p bench/results
           cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
           cmake --build build-cmake -j"$(nproc)"
+          cmake --build build-cmake --target run_selftest 2>&1 | tee bench/results/proof-cmake-selftest.log
+
+      - name: Assert Make/CMake macro parity
+        run: bash tools/ci/assert_make_cmake_build_config.sh
 
       - name: Upload host logs
         if: always()
@@ -66,4 +75,5 @@ jobs:
             build
             build-cmake
             bench/results
+            bench/results/proof-cmake-selftest.log
             reports

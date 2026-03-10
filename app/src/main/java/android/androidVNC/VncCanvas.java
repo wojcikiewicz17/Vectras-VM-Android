@@ -979,20 +979,13 @@ public class VncCanvas extends AppCompatImageView {
 	public boolean processPointerEvent(MotionEvent evt, boolean downEvent, boolean useRightButton) {
         boolean useMiddleButton = false;
 
-        if(evt.getButtonState() == MotionEvent.BUTTON_SECONDARY){
+        final int buttonState = evt.getButtonState();
+        if ((buttonState & MotionEvent.BUTTON_SECONDARY) != 0) {
             useRightButton = true;
-        } else  if(evt.getButtonState() == MotionEvent.BUTTON_TERTIARY){
+        }
+        if ((buttonState & MotionEvent.BUTTON_TERTIARY) != 0) {
             useMiddleButton = true;
         }
-
-		//XXX: not reliable with laptop trackpads
-//		if(Config.mouseMode == Config.MouseMode.External
-//				&& MotionEvent.TOOL_TYPE_FINGER == evt.getToolType(0))
-//			return true;
-//
-//		if(Config.mouseMode == Config.MouseMode.Trackpad
-//				&& MotionEvent.TOOL_TYPE_MOUSE == evt.getToolType(0))
-//			return true;
 
 		return processPointerEvent((int) evt.getX(), (int) evt.getY(), evt.getAction(), evt.getMetaState(), downEvent,
 				useRightButton, useMiddleButton, false);
@@ -1009,12 +1002,12 @@ public class VncCanvas extends AppCompatImageView {
             if (rfb != null && rfb.inNormalProtocol) {
                 if (action == MotionEvent.ACTION_DOWN || (mouseIsDown && action == MotionEvent.ACTION_MOVE)) {
                     if (useRightButton) {
-                        // Log.v("Vectras", "Right Button Down");
                         pointerMask |= MOUSE_BUTTON_RIGHT;
-                    } else if (useMiddleButton) {
+                    }
+                    if (useMiddleButton) {
                         pointerMask |= MOUSE_BUTTON_MIDDLE;
-                    }else {
-                        //Log.v("Vectras", "Left Button Down: x=" + x + ", y=" + y);
+                    }
+                    if (!useRightButton && !useMiddleButton) {
                         pointerMask |= MOUSE_BUTTON_LEFT;
                     }
                 } else if (action == MotionEvent.ACTION_SCROLL) {
@@ -1026,19 +1019,17 @@ public class VncCanvas extends AppCompatImageView {
                 } else if (action == MotionEvent.ACTION_HOVER_MOVE) {
                     pointerMask &= ~(MOUSE_BUTTON_LEFT | MOUSE_BUTTON_MIDDLE | MOUSE_BUTTON_RIGHT);
                 } else if (action == MotionEvent.ACTION_UP) {
-                    // Log.v("Vectras", "Button Up");
-                    //pointerMask = 0;
                     if (useRightButton) {
-                        // Log.v("Vectras", "Right Button Down");
                         pointerMask &= ~MOUSE_BUTTON_RIGHT;
-                    } else if (useMiddleButton) {
-                        pointerMask &= ~MOUSE_BUTTON_MIDDLE;
-                    }else {
-                        //Log.v("Vectras", "Left Button Down: x=" + x + ", y=" + y);
-                        //XXX: Mouse middle click cannot always be detected so we
-                        //  reset all buttons (left, middle, click) to be safe
-                        pointerMask = 0;
                     }
+                    if (useMiddleButton) {
+                        pointerMask &= ~MOUSE_BUTTON_MIDDLE;
+                    }
+                    if (!useRightButton && !useMiddleButton) {
+                        pointerMask &= ~MOUSE_BUTTON_LEFT;
+                    }
+                } else if (action == MotionEvent.ACTION_CANCEL) {
+                    pointerMask = MOUSE_BUTTON_NONE;
                 }
 
                 if (bitmapData != null) bitmapData.invalidateMousePosition();

@@ -72,6 +72,40 @@ public class VncCanvasHoverMouseTest {
         }
     }
 
+
+    @Test
+    public void pointerEventRecognizesCombinedSecondaryAndTertiaryButtons() {
+        Context context = RuntimeEnvironment.getApplication();
+        RecordingVncCanvas canvas = new RecordingVncCanvas(context);
+
+        long time = SystemClock.uptimeMillis();
+        MotionEvent event = MotionEvent.obtain(
+            time,
+            time,
+            MotionEvent.ACTION_DOWN,
+            10f,
+            20f,
+            0,
+            0,
+            1f,
+            1f,
+            0,
+            0,
+            InputDevice.SOURCE_MOUSE,
+            MotionEvent.BUTTON_SECONDARY | MotionEvent.BUTTON_TERTIARY
+        );
+
+        boolean handled = canvas.processPointerEvent(event, true, false);
+
+        assertTrue(handled);
+        assertEquals(1, canvas.pointerCalls.size());
+        PointerCall call = canvas.pointerCalls.get(0);
+        assertTrue(call.useRightButton);
+        assertTrue(call.useMiddleButton);
+
+        event.recycle();
+    }
+
     private static class RecordingVncCanvas extends VncCanvas {
         final List<PointerCall> pointerCalls = new ArrayList<>();
 

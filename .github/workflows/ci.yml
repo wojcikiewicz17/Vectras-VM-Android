@@ -42,6 +42,9 @@ jobs:
       - name: Show hosted engine config
         run: make print-build-config
 
+      - name: Export Make resolved build config
+        run: make print-build-config-env
+
       - name: Build engine with Makefile
         run: make -j"$(nproc)"
 
@@ -56,6 +59,9 @@ jobs:
         run: |
           cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
           cmake --build build-cmake -j"$(nproc)"
+
+      - name: Verify link contracts (CMake)
+        run: cmake --build build-cmake --target verify_contracts
 
       - name: Run engine selftests (CMake)
         run: cmake --build build-cmake --target run_selftest

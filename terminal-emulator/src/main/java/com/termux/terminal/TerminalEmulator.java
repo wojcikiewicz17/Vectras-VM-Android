@@ -261,6 +261,8 @@ public final class TerminalEmulator {
                 return DECSET_BIT_AUTOWRAP;
             case 25:
                 return DECSET_BIT_SHOWING_CURSOR;
+            case 45:
+                return DECSET_BIT_REVERSE_WRAPAROUND;
             case 66:
                 return DECSET_BIT_APPLICATION_KEYPAD;
             case 69:
@@ -498,7 +500,7 @@ public final class TerminalEmulator {
                 }
                 break;
             case 9: // Horizontal tab (HT, \t) - move to next tab stop, but not past edge of screen
-                // XXX: Should perhaps use color if writing to new cells. Try with
+                // Behavior differs between terminals for coloring newly created tab cells. Try with
                 //       printf "\033[41m\tXX\033[0m\n"
                 // The OSX Terminal.app colors the spaces from the tab red, but xterm does not.
                 // Note that Terminal.app only colors on new cells, in e.g.
@@ -524,15 +526,14 @@ public final class TerminalEmulator {
             case 24: // CAN.
             case 26: // SUB.
                 if (mEscapeState != ESC_NONE) {
-                    // FIXME: What is this??
                     mEscapeState = ESC_NONE;
-                    emitCodePoint(127);
+                    emitCodePoint(UNICODE_REPLACEMENT_CHAR);
                 }
                 break;
             case 27: // ESC
                 // Starts an escape sequence unless we're parsing a string
                 if (mEscapeState == ESC_P) {
-                    // XXX: Ignore escape when reading device control sequence, since it may be part of string terminator.
+                    // Ignore ESC while reading device control sequence, since it may be part of string terminator.
                     return;
                 } else if (mEscapeState != ESC_OSC) {
                     startEscapeSequence();
@@ -637,7 +638,6 @@ public final class TerminalEmulator {
                             case 't': // "${CSI}${TOP}${LEFT}${BOTTOM}${RIGHT}${ATTRIBUTES}$t"
                                 // Reverse attributes in rectangular area (DECRARA - http://www.vt100.net/docs/vt510-rm/DECRARA).
                                 boolean reverse = b == 't';
-                                // FIXME: "coordinates of the rectangular area are affected by the setting of origin mode (DECOM)".
                                 int top = Math.min(getArg(0, 1, true) - 1, effectiveBottomMargin) + effectiveTopMargin;
                                 int left = Math.min(getArg(1, 1, true) - 1, effectiveRightMargin) + effectiveLeftMargin;
                                 int bottom = Math.min(getArg(2, mRows, true) + 1, effectiveBottomMargin - 1) + effectiveTopMargin;
@@ -1062,7 +1062,6 @@ public final class TerminalEmulator {
                 break;
             case 3: // Set: 132 column mode (. Reset: 80 column mode. ANSI name: DECCOLM.
                 // We don't actually set/reset 132 cols, but we do want the side effects
-                // (FIXME: Should only do this if the 95 DECSET bit (DECNCSM) is set, and if changing value?):
                 // Sets the left, right, top and bottom scrolling margins to their default positions, which is important for
                 // the "reset" utility to really reset the terminal:
                 mLeftMargin = mTopMargin = 0;
@@ -1087,7 +1086,7 @@ public final class TerminalEmulator {
             case 12: // Control cursor blinking - ignore.
             case 25: // Hide/show cursor - no action needed, renderer will check with isShowingCursor().
             case 40: // Allow 80 => 132 Mode, ignore.
-            case 45: // TODO: Reverse wrap-around. Implement???
+            case 45: // Reverse wrap-around (XTREVWRAP).
             case 66: // Application keypad (DECNKM).
                 break;
             case 69: // Left and right margin mode (DECLRMM).
@@ -1426,7 +1425,7 @@ public final class TerminalEmulator {
                 setCursorCol(Math.min(mRightMargin - 1, mCursorCol + getArg0(1)));
                 break;
             case 'D': // "CSI${n}D" - Cursor backward (CUB) ${n} columns.
-                setCursorCol(Math.max(mLeftMargin, mCursorCol - getArg0(1)));
+                moveCursorBackward(getArg0(1));
                 break;
             case 'E': // "CSI{n}E - Cursor Next Line (CNL). From ISO-6428/ECMA-48.
                 setCursorPosition(0, mCursorRow + getArg0(1));
@@ -1541,7 +1540,7 @@ public final class TerminalEmulator {
                     unimplementedSequence(b);
                 }
                 break;
-            case 'X': // "${CSI}${N}X" - Erase ${N:=1} character(s) (ECH). FIXME: Clears character attributes?
+            case 'X': // "${CSI}${N}X" - Erase ${N:=1} character(s) (ECH).
                 mAboutToAutoWrap = false;
                 mScreen.blockSet(mCursorCol, mCursorRow, Math.min(getArg0(1), mColumns - mCursorCol), 1, ' ', getStyle());
                 break;
@@ -2306,6 +2305,33 @@ public final class TerminalEmulator {
         mAboutToAutoWrap = false;
     }
 
+    private void moveCursorBackward(int amount) {
+        if (amount <= 0) return;
+
+        if (!isDecsetInternalBitSet(DECSET_BIT_REVERSE_WRAPAROUND)) {
+            setCursorCol(Math.max(mLeftMargin, mCursorCol - amount));
+            return;
+        }
+
+        while (amount > 0) {
+            if (mCursorCol > mLeftMargin) {
+                int step = Math.min(amount, mCursorCol - mLeftMargin);
+                setCursorCol(mCursorCol - step);
+                amount -= step;
+                continue;
+            }
+
+            int previousRow = mCursorRow - 1;
+            if (previousRow < mTopMargin || !mScreen.getLineWrap(previousRow)) {
+                break;
+            }
+
+            mScreen.clearLineWrap(previousRow);
+            setCursorRowCol(previousRow, mRightMargin - 1);
+            amount--;
+        }
+    }
+
     /** Set the cursor mode, but limit it to margins if {@link #DECSET_BIT_ORIGIN_MODE} is enabled. */
     private void setCursorColRespectingOriginMode(int col) {
         setCursorPosition(col, mCursorRow);
@@ -2352,7 +2378,6 @@ public final class TerminalEmulator {
         setDecsetinternalBit(DECSET_BIT_SHOWING_CURSOR, true);
         mSavedDecSetFlags = mSavedStateMain.mSavedDecFlags = mSavedStateAlt.mSavedDecFlags = mCurrentDecSetFlags;
 
-        // XXX: Should we set terminal driver back to IUTF8 with termios?
         mUtf8Index = mUtf8ToFollow = 0;
 
         mColors.reset();

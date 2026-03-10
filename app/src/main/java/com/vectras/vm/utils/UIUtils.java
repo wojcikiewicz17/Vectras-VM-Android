@@ -69,10 +69,10 @@ public class UIUtils {
             ForegroundColorSpan colorSpan = null;
             while (scanner.hasNextLine()) {
                 String line = scanner.nextLine();
-                //FIXME: some devices don't have standard format for the log
-                if (line.startsWith("E/") || line.contains(" E ")) {
+                char level = parseAndroidLogLevel(line);
+                if (level == 'E') {
                     colorSpan = new ForegroundColorSpan(Color.rgb(255, 22, 22));
-                } else if (line.startsWith("W/") || line.contains(" W ")) {
+                } else if (level == 'W') {
                     colorSpan = new ForegroundColorSpan(Color.rgb(22, 44, 255));
                 } else {
                     colorSpan = null;
@@ -99,6 +99,29 @@ public class UIUtils {
         }
         return formattedString;
     }
+
+    static char parseAndroidLogLevel(String line) {
+        if (line == null || line.isEmpty()) return 0;
+
+        if (line.length() >= 2 && line.charAt(1) == '/') {
+            char level = line.charAt(0);
+            if (level == 'E' || level == 'W' || level == 'I' || level == 'D' || level == 'V') {
+                return level;
+            }
+        }
+
+        for (int i = 0; i < line.length() - 2; i++) {
+            if (line.charAt(i) == ' ') {
+                char level = line.charAt(i + 1);
+                if (line.charAt(i + 2) == ' ' && (level == 'E' || level == 'W' || level == 'I' || level == 'D' || level == 'V')) {
+                    return level;
+                }
+            }
+        }
+
+        return 0;
+    }
+
 	public static void toastLong(final Context activity, final String errStr) {
 		new Handler(Looper.getMainLooper()).post(new Runnable() {
 			@Override
@@ -121,11 +144,6 @@ public class UIUtils {
     public static boolean onKeyboard(Activity activity, boolean toggle, View view) {
         InputMethodManager inputMgr = (InputMethodManager) activity.getSystemService(Context.INPUT_METHOD_SERVICE);
 
-        //XXX: we need to get the focused view to make this always work
-        //inputMgr.toggleSoftInput(0, 0);
-
-
-//        View view = activity.getCurrentFocus();
         if (toggle || !Config.enableToggleKeyboard){
             if(view!=null) {
                 view.requestFocus();
