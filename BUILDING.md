@@ -79,3 +79,17 @@ Strictness control by pipeline context:
 - Local/dev or debug CI (`buildStrict=false`):
   - Same checks run, but max-JVM/API-ABI non-release gates can warn.
   - Python-dependent checks are skipped with warning if Python is unavailable.
+
+
+## Selftest matrix expectations
+Canonical gate names:
+- Make: `make run-selftest`
+- CMake: `cmake --build <build-dir> --target run_selftest`
+
+Expected per architecture:
+
+| Environment | Canonical gate | Required architecture-specific selftests | Artifact logs |
+|---|---|---|---|
+| Host x86_64 Linux | `make run-selftest` and/or `run_selftest` | `rmr_casm_bridge_selftest` (supported ABI), `rmr_neon_simd_selftest` not required | `bench/results/selftest-host-x86_64.log`, `bench/results/rmr_casm_bridge_selftest-x86_64.log` |
+| Host arm64 Linux (aarch64/arm64) | `make run-selftest` and/or `run_selftest` | `rmr_neon_simd_selftest` (required), `rmr_casm_bridge_selftest` optional/unsupported | `bench/results/selftest-host-arm64.log`, `bench/results/rmr_neon_simd_selftest-arm64.log`, `bench/results/rmr_casm_bridge_selftest-arm64.log` |
+| Android (NDK / app ABI lanes) | Native selftests must be wired through the same gate contract before release | ABI-specific execution required for `arm64-v8a`; other ABIs per policy (`APP_ABI_POLICY`) | Keep per-ABI logs in CI artifacts and fail lane when required selftests are missing or failing |

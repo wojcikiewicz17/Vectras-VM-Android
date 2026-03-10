@@ -6,7 +6,8 @@ set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(RMR_JNI_BUILD "Use hosted/JNI libc path for root builds" ON)
-option(RMR_BUILD_HOST_TOOLING "Force host-tooling compatibility path" ON)
+set(RMR_BUILD_HOST_TOOLING "AUTO" CACHE STRING "Host-tooling compatibility path (AUTO mirrors RMR_JNI_BUILD)" )
+set_property(CACHE RMR_BUILD_HOST_TOOLING PROPERTY STRINGS AUTO ON OFF)
 option(RMR_ENABLE_POLICY_MODULE "Enable RMR policy module for root builds" ON)
 option(RMR_ASM_CORE_EXPERIMENTAL "Enable experimental ASM core hot paths" ON)
 option(RMR_ASM_CORE_X86_64_VALIDATED "Enable ASM hot paths on x86_64 (validated ABI)" ON)
@@ -19,10 +20,12 @@ else()
   set(RMR_JNI_BUILD_VALUE 0)
 endif()
 
-if(RMR_BUILD_HOST_TOOLING)
+if(RMR_BUILD_HOST_TOOLING STREQUAL "AUTO")
+  set(RMR_BUILD_HOST_TOOLING_VALUE ${RMR_JNI_BUILD_VALUE})
+elseif(RMR_BUILD_HOST_TOOLING)
   set(RMR_BUILD_HOST_TOOLING_VALUE 1)
 else()
-  set(RMR_BUILD_HOST_TOOLING_VALUE ${RMR_JNI_BUILD_VALUE})
+  set(RMR_BUILD_HOST_TOOLING_VALUE 0)
 endif()
 
 if(RMR_ENABLE_POLICY_MODULE)
@@ -30,6 +33,16 @@ if(RMR_ENABLE_POLICY_MODULE)
 else()
   set(RMR_ENABLE_POLICY_MODULE_VALUE 0)
 endif()
+
+message(STATUS "RMR_JNI_BUILD resolved to ${RMR_JNI_BUILD_VALUE}")
+message(STATUS "RMR_BUILD_HOST_TOOLING input=${RMR_BUILD_HOST_TOOLING} resolved=${RMR_BUILD_HOST_TOOLING_VALUE}")
+message(STATUS "RMR_ENABLE_POLICY_MODULE resolved to ${RMR_ENABLE_POLICY_MODULE_VALUE}")
+
+file(WRITE "${CMAKE_BINARY_DIR}/rmr_build_config.env"
+  "RMR_JNI_BUILD=${RMR_JNI_BUILD_VALUE}\n"
+  "RMR_BUILD_HOST_TOOLING=${RMR_BUILD_HOST_TOOLING_VALUE}\n"
+  "RMR_ENABLE_POLICY_MODULE=${RMR_ENABLE_POLICY_MODULE_VALUE}\n"
+)
 
 if(RMR_ASM_CORE_EXPERIMENTAL)
   set(RMR_ASM_CORE_EXPERIMENTAL_VALUE 1)
@@ -126,6 +139,29 @@ endif()
 
 add_library(rmr STATIC ${RMR_SOURCES})
 rmr_apply_common_flags(rmr)
+
+set(RMR_REQUIRED_SYMBOLS
+  RmR_MathFabric_AutodetectPlan
+  RmR_MathFabric_VectorMix
+)
+
+add_custom_command(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/verify_librmr_symbols.stamp
+  COMMAND ${CMAKE_SOURCE_DIR}/tools/verify_librmr_symbols.sh
+          $<TARGET_FILE:rmr>
+          ${RMR_REQUIRED_SYMBOLS}
+  COMMAND ${CMAKE_COMMAND} -E touch ${CMAKE_CURRENT_BINARY_DIR}/verify_librmr_symbols.stamp
+  DEPENDS rmr ${CMAKE_SOURCE_DIR}/tools/verify_librmr_symbols.sh
+  VERBATIM
+)
+
+add_custom_target(verify_librmr_symbols
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/verify_librmr_symbols.stamp
+)
+
+add_custom_target(verify_contracts
+  DEPENDS verify_librmr_symbols
+)
 
 add_executable(rafaelia_demo demo_cli/src/main.c)
 target_link_libraries(rafaelia_demo PRIVATE rmr)
@@ -265,7 +301,7 @@ endif()
 add_custom_target(run_selftest
   COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_SOURCE_DIR}/bench/results
   WORKING_DIRECTORY ${CMAKE_SOURCE_DIR}
-  DEPENDS ${RMR_RUN_SELFTEST_DEPENDS}
+  DEPENDS verify_contracts ${RMR_RUN_SELFTEST_DEPENDS}
 )
 
 foreach(RMR_SELFTEST_CMD IN LISTS RMR_RUN_SELFTEST_COMMANDS)

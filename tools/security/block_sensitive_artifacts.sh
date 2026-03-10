@@ -4,7 +4,23 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 ALLOWLIST_FILE="$ROOT_DIR/.ci/sensitive-allowlist.txt"
 
-mapfile -t tracked_files < <(git -C "$ROOT_DIR" ls-files)
+if git -C "$ROOT_DIR" rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  IN_GIT_WORKTREE=1
+else
+  IN_GIT_WORKTREE=0
+fi
+
+if [[ "$IN_GIT_WORKTREE" -eq 1 ]]; then
+  mapfile -t tracked_files < <(git -C "$ROOT_DIR" ls-files)
+else
+  mapfile -t tracked_files < <(
+    cd "$ROOT_DIR"
+    find . \
+      -type d \
+      \( -name .git -o -name 'build*' -o -name .gradle \) -prune -o \
+      -type f -print | sed 's#^\./##'
+  )
+fi
 
 is_builtin_allowlisted() {
   local path="$1"

@@ -87,6 +87,12 @@ jobs:
       - name: Build with Make
         run: make clean && make all CC="$CC" CXX="$CXX"
 
+      - name: Run selftests (Make)
+        run: |
+          set -euo pipefail
+          mkdir -p bench/results
+          make run-selftest 2>&1 | tee bench/results/make-selftest.log
+
       - name: Build with CMake
         run: |
           cmake -S . -B build-cmake -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX"
@@ -97,6 +103,9 @@ jobs:
 
       - name: Run BitΩ smoke test (CMake)
         run: cmake --build build-cmake --target run_bitomega_smoketest
+
+      - name: Verify link contracts (CMake)
+        run: cmake --build build-cmake --target verify_contracts
 
       - name: Run selftests (CMake)
         run: cmake --build build-cmake --target run_selftest
@@ -128,6 +137,7 @@ jobs:
           path: |
             bench/results/summary.json
             bench/results/release-gate.log
+            bench/results/make-selftest.log
           if-no-files-found: warn
 
       - name: Upload baremetal reports artifact
@@ -138,6 +148,85 @@ jobs:
           path: reports/baremetal/*
           if-no-files-found: warn
 
+
+
+  engine-selftest-arm64:
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 45
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake make ninja-build pkg-config python3 graphviz
+
+      - name: Build engine (Make)
+        run: make clean && make -j"$(nproc)"
+
+      - name: Run canonical selftest gate (Make)
+        run: |
+          set -euo pipefail
+          mkdir -p bench/results
+          make run-selftest 2>&1 | tee bench/results/selftest-host-arm64.log
+
+      - name: Verify arm64 selftest coverage
+        run: |
+          set -euo pipefail
+          mkdir -p bench/results
+
+          neon_bin="build/demo/rmr_neon_simd_selftest"
+          casm_bin="build/demo/rmr_casm_bridge_selftest"
+
+          if [ ! -x "$neon_bin" ]; then
+            echo "[arm64-selftest] Missing required NEON selftest binary: $neon_bin" >&2
+            exit 1
+          fi
+
+          if ! grep -Fq "./$neon_bin" bench/results/selftest-host-arm64.log; then
+            echo "[arm64-selftest] Canonical gate did not execute $neon_bin" >&2
+            exit 1
+          fi
+
+          echo "[arm64-selftest] Explicit run: $neon_bin"
+          ./$neon_bin 2>&1 | tee bench/results/rmr_neon_simd_selftest-arm64.log
+
+          arch="$(uname -m)"
+          casm_supported=0
+          case "$arch" in
+            x86_64|amd64|riscv64) casm_supported=1 ;;
+          esac
+
+          if [ "$casm_supported" -eq 1 ]; then
+            if [ ! -x "$casm_bin" ]; then
+              echo "[arm64-selftest] Missing required CASM selftest binary on supported ABI ($arch): $casm_bin" >&2
+              exit 1
+            fi
+            if ! grep -Fq "./$casm_bin" bench/results/selftest-host-arm64.log; then
+              echo "[arm64-selftest] Canonical gate did not execute $casm_bin on supported ABI ($arch)" >&2
+              exit 1
+            fi
+            echo "[arm64-selftest] Explicit run: $casm_bin"
+            ./$casm_bin 2>&1 | tee bench/results/rmr_casm_bridge_selftest-arm64.log
+          else
+            echo "[arm64-selftest] CASM selftest not required on ABI: $arch" | tee bench/results/rmr_casm_bridge_selftest-arm64.log
+          fi
+
+      - name: Upload arm64 selftest logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: selftest-logs-arm64
+          path: |
+            bench/results/selftest-host-arm64.log
+            bench/results/rmr_neon_simd_selftest-arm64.log
+            bench/results/rmr_casm_bridge_selftest-arm64.log
+          if-no-files-found: error
   sanitizers:
     runs-on: ubuntu-latest
     timeout-minutes: 30

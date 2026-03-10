@@ -279,8 +279,15 @@ clean:
 
 print-build-config:
 	@echo "RMR_JNI_BUILD=$(RMR_JNI_BUILD)"
+	@echo "RMR_BUILD_HOST_TOOLING=$(RMR_BUILD_HOST_TOOLING)"
 	@echo "RMR_ENABLE_POLICY_MODULE=$(RMR_ENABLE_POLICY_MODULE)"
 	@echo "CPPFLAGS=$(CPPFLAGS)"
 	@echo "CFLAGS=$(CFLAGS)"
 
-.PHONY: print-build-config
+print-build-config-env:
+	@mkdir -p build
+	@printf 'RMR_JNI_BUILD=%s\nRMR_BUILD_HOST_TOOLING=%s\nRMR_ENABLE_POLICY_MODULE=%s\n' \
+		"$(RMR_JNI_BUILD)" "$(RMR_BUILD_HOST_TOOLING)" "$(RMR_ENABLE_POLICY_MODULE)" > build/rmr_build_config.env
+	@cat build/rmr_build_config.env
+
+.PHONY: print-build-config print-build-config-env
