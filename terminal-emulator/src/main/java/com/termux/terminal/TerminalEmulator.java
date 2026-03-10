@@ -124,6 +124,8 @@ public final class TerminalEmulator {
     private static final int DECSET_BIT_BRACKETED_PASTE_MODE = 1 << 10;
     /** Toggled with DECLRMM - http://www.vt100.net/docs/vt510-rm/DECLRMM */
     private static final int DECSET_BIT_LEFTRIGHT_MARGIN_MODE = 1 << 11;
+    /** DECSET 45 - reverse wraparound mode (DECRAWM). */
+    private static final int DECSET_BIT_REVERSE_WRAPAROUND = 1 << 12;
     /** Not really DECSET bit... - http://www.vt100.net/docs/vt510-rm/DECSACE */
     private static final int DECSET_BIT_RECTANGULAR_CHANGEATTRIBUTE = 1 << 12;
     /** DECSET 45 - reverse wrap-around on backspace over wrapped lines. */
@@ -1379,7 +1381,7 @@ public final class TerminalEmulator {
         mEffect = state.mSavedEffect;
         mForeColor = state.mSavedForeColor;
         mBackColor = state.mSavedBackColor;
-        int mask = (DECSET_BIT_AUTOWRAP | DECSET_BIT_ORIGIN_MODE);
+        int mask = (DECSET_BIT_AUTOWRAP | DECSET_BIT_ORIGIN_MODE | DECSET_BIT_REVERSE_WRAPAROUND);
         mCurrentDecSetFlags = (mCurrentDecSetFlags & ~mask) | (state.mSavedDecFlags & mask);
         mUseLineDrawingG0 = state.mUseLineDrawingG0;
         mUseLineDrawingG1 = state.mUseLineDrawingG1;
