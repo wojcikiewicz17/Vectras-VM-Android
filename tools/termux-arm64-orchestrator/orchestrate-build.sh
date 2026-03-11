@@ -43,6 +43,41 @@ mkdir -p "$BUILD_SPILL_DIR"
 log() { echo "$LOG_PREFIX $*"; }
 warn() { echo "$LOG_PREFIX WARN: $*"; }
 
+resolve_signing_var() {
+  local canonical_name="$1"
+  local legacy_name="$2"
+  local default_value="${3:-}"
+  local canonical_value legacy_value
+
+  canonical_value="$(printenv "$canonical_name" 2>/dev/null || true)"
+  legacy_value="$(printenv "$legacy_name" 2>/dev/null || true)"
+
+  if [[ -n "$canonical_value" ]]; then
+    printf '%s\n' "$canonical_value"
+    return 0
+  fi
+
+  if [[ -n "$legacy_value" ]]; then
+    warn "variável legada detectada: $legacy_name. Migre para $canonical_name (ponte temporária de retrocompatibilidade)."
+    printf '%s\n' "$legacy_value"
+    return 0
+  fi
+
+  printf '%s\n' "$default_value"
+}
+
+configure_signing_env() {
+  VECTRAS_RELEASE_STORE_FILE="$(resolve_signing_var VECTRAS_RELEASE_STORE_FILE VECTRAS_KEYSTORE "$ROOT_DIR/vectras.jks")"
+  VECTRAS_RELEASE_STORE_PASSWORD="$(resolve_signing_var VECTRAS_RELEASE_STORE_PASSWORD VECTRAS_STORE_PASSWORD "856856")"
+  VECTRAS_RELEASE_KEY_ALIAS="$(resolve_signing_var VECTRAS_RELEASE_KEY_ALIAS VECTRAS_KEY_ALIAS "vectras")"
+  VECTRAS_RELEASE_KEY_PASSWORD="$(resolve_signing_var VECTRAS_RELEASE_KEY_PASSWORD VECTRAS_KEY_PASSWORD "856856")"
+
+  export VECTRAS_RELEASE_STORE_FILE
+  export VECTRAS_RELEASE_STORE_PASSWORD
+  export VECTRAS_RELEASE_KEY_ALIAS
+  export VECTRAS_RELEASE_KEY_PASSWORD
+}
+
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "$LOG_PREFIX missing required command: $1" >&2
@@ -166,6 +201,7 @@ require_cmd "$GRADLE_WRAPPER"
 detect_arch
 configure_memory_spill
 configure_toolchain_flags
+configure_signing_env
 run_native_helpers
 bootstrap_android_env
 run_build
