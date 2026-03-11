@@ -47,6 +47,15 @@ on:
       - '.github/workflows/android.yml'
   workflow_dispatch:
     inputs:
+      build_selection:
+        description: 'Selecionar artefatos para compilar: debug, release ou ambos'
+        required: false
+        type: choice
+        default: both
+        options:
+          - debug
+          - release
+          - both
       build_debug:
         description: 'Build debug APK (assembleDebug)'
         required: false
@@ -92,6 +101,28 @@ on:
         required: false
         type: string
         default: '17'
+      diagnostic_mode:
+        description: 'Modo de execução/diagnóstico (11 níveis)'
+        required: false
+        type: choice
+        default: moderado
+        options:
+          - fast
+          - moderado
+          - profundo
+          - ultra_minucioso
+          - diagnostico
+          - compatibilidade
+          - interoperabilidade
+          - confiabilidade
+          - release_hardening
+          - forense
+          - maximo
+      allow_unsigned_release:
+        description: 'Permitir fallback para release unsigned (evita assinatura não intencional)'
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
@@ -121,6 +152,10 @@ jobs:
     outputs:
       has_signing_secrets: ${{ steps.release_mode.outputs.has_signing_secrets }}
       has_telegram_secrets: ${{ steps.release_mode.outputs.has_telegram_secrets }}
+      selected_build_debug: ${{ steps.dispatch_controls.outputs.selected_build_debug }}
+      selected_build_release: ${{ steps.dispatch_controls.outputs.selected_build_release }}
+      diagnostic_mode: ${{ steps.dispatch_controls.outputs.diagnostic_mode }}
+      deep_diagnostics: ${{ steps.dispatch_controls.outputs.deep_diagnostics }}
 
     steps:
       - uses: actions/checkout@v4
@@ -209,6 +244,51 @@ jobs:
           else
             echo "has_telegram_secrets=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Resolve dispatch controls and diagnostic profile
+        id: dispatch_controls
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          selected_build_debug='true'
+          selected_build_release='true'
+          diagnostic_mode='moderado'
+
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
+            build_selection='${{ github.event.inputs.build_selection }}'
+            build_debug_input='${{ github.event.inputs.build_debug }}'
+            build_release_input='${{ github.event.inputs.build_release }}'
+
+            case "${build_selection}" in
+              debug) selected_build_release='false' ;;
+              release) selected_build_debug='false' ;;
+            esac
+
+            if [[ "${build_debug_input}" != 'true' ]]; then
+              selected_build_debug='false'
+            fi
+
+            if [[ "${build_release_input}" != 'true' ]]; then
+              selected_build_release='false'
+            fi
+
+            diagnostic_mode='${{ github.event.inputs.diagnostic_mode }}'
+          fi
+
+          deep_diagnostics='false'
+          case "${diagnostic_mode}" in
+            profundo|ultra_minucioso|diagnostico|compatibilidade|interoperabilidade|confiabilidade|release_hardening|forense|maximo)
+              deep_diagnostics='true'
+              ;;
+          esac
+
+          echo "selected_build_debug=${selected_build_debug}" >> "$GITHUB_OUTPUT"
+          echo "selected_build_release=${selected_build_release}" >> "$GITHUB_OUTPUT"
+          echo "diagnostic_mode=${diagnostic_mode}" >> "$GITHUB_OUTPUT"
+          echo "deep_diagnostics=${deep_diagnostics}" >> "$GITHUB_OUTPUT"
+
+          echo "Resolved profile => build_debug=${selected_build_debug}, build_release=${selected_build_release}, diagnostic_mode=${diagnostic_mode}, deep_diagnostics=${deep_diagnostics}"
 
       - name: Validate release version metadata consistency
         run: |
@@ -366,7 +446,28 @@ jobs:
         run: ./gradlew verifyBootstrapAssets auditNonMdInventory ${{ env.GRADLE_ARGS }}
 
       - name: Native ABI matrix gate
+        if: ${{ needs.preflight.outputs.diagnostic_mode != 'fast' }}
         run: ./gradlew checkNativeAllMatrix ${{ env.GRADLE_ARGS }}
+
+      - name: Deep diagnostics bundle
+        if: ${{ needs.preflight.outputs.deep_diagnostics == 'true' }}
+        continue-on-error: true
+        run: |
+          mkdir -p diagnostics
+          ./gradlew tasks --all > diagnostics/gradle-tasks.txt
+          ./gradlew :app:dependencies --configuration debugRuntimeClasspath > diagnostics/debug-dependencies.txt
+          ./gradlew :app:androidDependencies > diagnostics/android-dependencies.txt
+
+      - name: Upload diagnostics bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-diagnostics-test_and_verify
+          path: |
+            diagnostics/**
+            app/build/reports/**
+            app/build/test-results/**
+          if-no-files-found: warn
 
   build_debug:
     name: '03 • Build Debug APK'
@@ -531,14 +632,14 @@ jobs:
         PY
 
     - name: Build Debug APK
-      if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_debug == 'true' }}
+      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
       run: ./gradlew assembleDebug -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
 
     - name: Validate native binaries are arm64-v8a
-      if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_debug == 'true' }}
+      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -575,7 +676,7 @@ jobs:
 
 
     - name: Materialize Firebase config for release
-      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true') && secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 != '' }}
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' && secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 != '' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -583,7 +684,7 @@ jobs:
         echo "Firebase config loaded from VECTRAS_GOOGLE_SERVICES_JSON_B64 for release build"
 
     - name: Materialize placeholder Firebase config for unsigned internal validation
-      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true') && secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 == '' && !((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') }}
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' && secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 == '' && !((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') }}
       shell: bash
       run: |
         set -euo pipefail
@@ -602,7 +703,7 @@ jobs:
         echo "Using placeholder google-services.json for unsigned internal validation path."
 
     - name: Validate Firebase release config
-      if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true' }}
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
@@ -614,14 +715,14 @@ jobs:
         ./gradlew :app:validateFirebaseReleaseConfig ${{ env.GRADLE_ARGS }} ${EXTRA_VALIDATE_FLAGS}
 
     - name: Build Release APK (unsigned fallback)
-      if: ${{ (github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true') && !((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') }}
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' && !((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.allow_unsigned_release == 'true') }}
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
       run: ./gradlew assembleRelease -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION} -PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true
 
     - name: Build Release APK (signed via CI secrets)
-      if: ${{ github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true') && ((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') }}
+      if: ${{ github.event_name != 'pull_request' && needs.preflight.outputs.selected_build_release == 'true' && ((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') }}
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
@@ -640,7 +741,7 @@ jobs:
 
     - name: Resolve release artifact path
       id: release_artifact
-      if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true' }}
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -661,21 +762,21 @@ jobs:
         exit 1
 
     - name: Upload Debug APK as artifact
-      if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_debug == 'true' }}
+      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: android-debug-apk
         path: app/build/outputs/apk/debug/app-debug.apk
 
     - name: Upload Release APK as artifact
-      if: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.build_release == 'true' }}
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
       uses: actions/upload-artifact@v4
       with:
         name: android-release-apk
         path: ${{ steps.release_artifact.outputs.path }}
 
     - name: Stage Release APKs for Telegram upload
-      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && github.event.inputs.build_release == 'true' && needs.preflight.outputs.has_telegram_secrets == 'true' }}
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && needs.preflight.outputs.selected_build_release == 'true' && needs.preflight.outputs.has_telegram_secrets == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
@@ -689,7 +790,7 @@ jobs:
         cp app/build/outputs/apk/release/*.apk artifacts/release/
 
     - name: Upload to Telegram
-      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && github.event.inputs.build_release == 'true' && needs.preflight.outputs.has_telegram_secrets == 'true' }}
+      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && needs.preflight.outputs.selected_build_release == 'true' && needs.preflight.outputs.has_telegram_secrets == 'true' }}
       shell: bash
       run: |
         set -euo pipefail

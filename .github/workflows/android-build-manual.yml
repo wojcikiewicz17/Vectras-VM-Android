@@ -232,6 +232,78 @@ jobs:
       - name: Verify Gradle baseline
         if: steps.mode.outputs.run_repo_checks == 'true'
         run: |
+          set -euo pipefail
+          MODE="${EXECUTION_MODE}"
+          case "${MODE}" in
+            fast)
+              TASKS="verifyGradleRuntimeJvm :app:assembleDebug"
+              ;;
+            quick-check)
+              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline :app:assembleDebug"
+              ;;
+            smoke)
+              TASKS="verifyGradleRuntimeJvm verifyMinApiAbiCompatibility lintDebug :app:assembleDebug"
+              ;;
+            diagnose)
+              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility checkNativeAllMatrix"
+              ;;
+            integration)
+              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline lintDebug testDebugUnitTest :app:assembleDebug"
+              ;;
+            moderado)
+              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility verifyBootstrapAssets lintDebug :app:assembleDebug"
+              ;;
+            hardening)
+              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility verifyBootstrapAssets verifyRepoFileDependencies lintDebug testDebugUnitTest :app:assembleDebug"
+              ;;
+            strict)
+              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility verifyBootstrapAssets verifyRepoFileDependencies checkNativeAllMatrix lintDebug testDebugUnitTest :app:assembleDebug"
+              ;;
+            profundo)
+              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility verifyBootstrapAssets verifyRepoFileDependencies checkNativeAllMatrix lintDebug testDebugUnitTest connectedDebugAndroidTest :app:assembleDebug"
+              ;;
+            release-candidate)
+              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility verifyBootstrapAssets verifyRepoFileDependencies lintDebug testDebugUnitTest :app:assembleDebug :app:assembleRelease"
+              ;;
+            ultra-minucioso)
+              TASKS="verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility verifyBootstrapAssets verifyRepoFileDependencies checkNativeAllMatrix lintDebug testDebugUnitTest connectedDebugAndroidTest :app:assembleDebug :app:assembleRelease"
+              ;;
+            *)
+              echo "Modo inválido: ${MODE}" >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ -n "${SELECTED_TASKS// }" ]]; then
+            EXTRA_TASKS="$(echo "${SELECTED_TASKS}" | tr ',' ' ')"
+            TASKS="${TASKS} ${EXTRA_TASKS}"
+          fi
+
+          echo "tasks=${TASKS}" >> "$GITHUB_OUTPUT"
+          echo "profile=${MODE}" >> "$GITHUB_OUTPUT"
+
+      - name: Build local.properties
+        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+
+      - name: Decode release keystore
+        if: env.SIGN_RELEASE == 'true'
+        env:
+          VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
+        run: |
+          set -euo pipefail
+          if [[ -z "${VECTRAS_RELEASE_KEYSTORE_B64:-}" ]]; then
+            echo "Assinatura solicitada, mas segredo do keystore não foi fornecido." >&2
+            exit 1
+          fi
+          echo "$VECTRAS_RELEASE_KEYSTORE_B64" | base64 -d > vectras-release.jks
+
+      - name: Run selected Gradle tasks
+        env:
+          VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
+          VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
+          VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
           chmod +x gradlew
           ./gradlew --no-daemon verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility verifyBootstrapAssets verifyRepoFileDependencies --stacktrace ${GRADLE_EXTRA_ARGS}
 
