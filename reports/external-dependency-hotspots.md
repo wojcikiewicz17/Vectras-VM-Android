@@ -66,6 +66,76 @@ Relatório gerado automaticamente a partir de `app/build.gradle` + imports em `a
 - `androidx.test.ext:junit:1.3.0`: Jetpack/AndroidX: bibliotecas oficiais de alto nível para UI, ciclo de vida, storage e compatibilidade Android.
 - `androidx.test.espresso:espresso-core:3.7.0`: Jetpack/AndroidX: bibliotecas oficiais de alto nível para UI, ciclo de vida, storage e compatibilidade Android.
 
+## Itens priorizados para refatoração low-level autoral
+
+### #1 `com.google.code.gson:gson:2.13.2` | prioridade=230
+- Módulo autoral alvo: `vectra_json_det`
+- Entrega low-level: parser JSON autoral orientado a tokens (scanner determinístico), sem reflexão dinâmica
+- Arquivos impactados agora: 10
+  - `app/src/main/java/com/vectras/vm/CqcmActivity.java`
+  - `app/src/main/java/com/vectras/vm/ExportRomActivity.java`
+  - `app/src/main/java/com/vectras/vm/RomInfo.java`
+  - `app/src/main/java/com/vectras/vm/VMManager.java`
+  - `app/src/main/java/com/vectras/vm/main/romstore/DataRoms.java`
+  - `app/src/main/java/com/vectras/vm/main/romstore/RomStoreFragment.java`
+  - `... +4 arquivos`
+- Passos de migração determinística:
+  - Mapear schemas fixos de VM metadata e store payloads
+  - Implementar scanner de bytes com tabela de estados e arena de strings reutilizável
+  - Trocar parsing quente em JSONUtils/VMManager por caminho autoral
+
+### #2 `com.github.bumptech.glide:glide:4.16.0` | prioridade=230
+- Módulo autoral alvo: `vectra_img_det`
+- Entrega low-level: pipeline autoral de decode/caching com política de blocos fixos
+- Arquivos impactados agora: 10
+  - `app/src/main/java/com/vectras/vm/ImagePrvActivity.java`
+  - `app/src/main/java/com/vectras/vm/RomInfo.java`
+  - `app/src/main/java/com/vectras/vm/VMCreatorActivity.java`
+  - `app/src/main/java/com/vectras/vm/main/core/MainStartVM.java`
+  - `app/src/main/java/com/vectras/vm/main/romstore/RomStoreHomeAdapterSearch.java`
+  - `app/src/main/java/com/vectras/vm/main/romstore/RomStoreHomeAdpater.java`
+  - `... +4 arquivos`
+- Passos de migração determinística:
+  - Criar cache slab para thumbnails e capas
+  - Converter decode para tamanho-alvo fixo por viewport
+  - Migrar adapters de listagem para loader autoral
+
+### #3 `androidx.work:work-runtime:2.9.1` | prioridade=226
+- Módulo autoral alvo: `vectra_sched_det`
+- Entrega low-level: scheduler autoral orientado a state-machine com reexecução idempotente
+- Arquivos impactados agora: 6
+  - `app/src/main/java/com/vectras/vm/VMCreatorActivity.java`
+  - `app/src/main/java/com/vectras/vm/download/DownloadCoordinator.java`
+  - `app/src/main/java/com/vectras/vm/download/DownloadStateReconciler.java`
+  - `app/src/main/java/com/vectras/vm/download/DownloadViewModel.java`
+  - `app/src/main/java/com/vectras/vm/download/DownloadWorker.java`
+  - `app/src/main/java/com/vectras/vm/importer/ImportSessionWorker.java`
+- Passos de migração determinística:
+  - Unificar jobs de download/import em fila única
+  - Persistir estado mínimo em estrutura compacta
+  - Adicionar reconciliador com backoff determinístico
+
+### #4 `com.squareup.okhttp3:okhttp:4.12.0` | prioridade=222
+- Módulo autoral alvo: `vectra_net_det`
+- Entrega low-level: cliente HTTP autoral com pool fixo de conexões e buffers reaproveitáveis
+- Arquivos impactados agora: 2
+  - `app/src/main/java/com/vectras/vm/RomInfo.java`
+  - `app/src/main/java/com/vectras/vm/download/DownloadWorker.java`
+- Passos de migração determinística:
+  - Introduzir dispatcher determinístico com fila fixa
+  - Separar handshake/retry em estado explícito sem alocação por request
+  - Migrar DownloadWorker e RomInfo para camada autoral
+
+### #5 `org.apache.commons:commons-compress:1.28.0` | prioridade=221
+- Módulo autoral alvo: `vectra_archive_det`
+- Entrega low-level: stream de tar/compactação autoral com buffers fixos e cópia zero quando possível
+- Arquivos impactados agora: 1
+  - `app/src/main/java/com/vectras/vm/utils/TarUtils.java`
+- Passos de migração determinística:
+  - Implementar leitura de headers em bloco
+  - Padronizar buffer único por operação
+  - Migrar TarUtils para rotinas autorais de I/O
+
 ## Hotspots por dependência
 
 ### `androidx.appcompat:appcompat:1.7.1` (implementation)
@@ -210,7 +280,7 @@ Relatório gerado automaticamente a partir de `app/build.gradle` + imports em `a
   - `app/src/main/java/com/vectras/vm/x11/utils/X11ToolbarViewPager.java`
 
 ### `com.google.code.gson:gson:2.13.2` (implementation)
-- Oportunidade de refatoração: Reduzir alocações evitando parse completo para objetos grandes; priorizar streaming com JsonReader em caminhos críticos.
+- Oportunidade de refatoração: Reduzir alocações evitando parse completo para objetos grandes; priorizar streaming em caminhos críticos.
 - Arquivos impactados (10):
   - `app/src/main/java/com/vectras/vm/CqcmActivity.java`
   - `app/src/main/java/com/vectras/vm/ExportRomActivity.java`
@@ -224,7 +294,7 @@ Relatório gerado automaticamente a partir de `app/build.gradle` + imports em `a
   - `app/src/test/java/com/vectras/vm/VMManagerRestoreVMsJsonAppendTest.java`
 
 ### `com.squareup.okhttp3:okhttp:4.12.0` (implementation)
-- Oportunidade de refatoração: Reutilizar singleton de OkHttpClient e pools, evitando novos clients por request para diminuir GC e overhead de conexão.
+- Oportunidade de refatoração: Reutilizar singleton de cliente HTTP e pools, evitando novos clients por request para diminuir GC e overhead de conexão.
 - Arquivos impactados (2):
   - `app/src/main/java/com/vectras/vm/RomInfo.java`
   - `app/src/main/java/com/vectras/vm/download/DownloadWorker.java`
@@ -234,7 +304,7 @@ Relatório gerado automaticamente a partir de `app/build.gradle` + imports em `a
 - Arquivos impactados: nenhum import direto encontrado no código-fonte atual.
 
 ### `org.apache.commons:commons-compress:1.28.0` (implementation)
-- Oportunidade de refatoração: Substituir fluxos bufferizados pequenos por buffers fixos maiores em I/O pesado para reduzir churn de objetos.
+- Oportunidade de refatoração: Usar buffers fixos maiores em I/O pesado para reduzir churn de objetos.
 - Arquivos impactados (1):
   - `app/src/main/java/com/vectras/vm/utils/TarUtils.java`
 
@@ -274,7 +344,7 @@ Relatório gerado automaticamente a partir de `app/build.gradle` + imports em `a
   - `app/src/main/java/com/vectras/vm/utils/PermissionUtils.java`
 
 ### `androidx.work:work-runtime:2.9.1` (implementation)
-- Oportunidade de refatoração: Consolidar jobs periódicos e evitar enfileiramento redundante; usar constraints mínimas para reduzir wakeups.
+- Oportunidade de refatoração: Consolidar jobs periódicos e evitar enfileiramento redundante para reduzir wakeups.
 - Arquivos impactados (6):
   - `app/src/main/java/com/vectras/vm/VMCreatorActivity.java`
   - `app/src/main/java/com/vectras/vm/download/DownloadCoordinator.java`
@@ -284,7 +354,7 @@ Relatório gerado automaticamente a partir de `app/build.gradle` + imports em `a
   - `app/src/main/java/com/vectras/vm/importer/ImportSessionWorker.java`
 
 ### `com.github.bumptech.glide:glide:4.16.0` (implementation)
-- Oportunidade de refatoração: Fixar tamanhos alvo, habilitar downsampling e recycle de targets para reduzir picos de heap/GC em listas.
+- Oportunidade de refatoração: Fixar tamanhos alvo, downsampling e recycle de targets para reduzir picos de heap/GC em listas.
 - Arquivos impactados (10):
   - `app/src/main/java/com/vectras/vm/ImagePrvActivity.java`
   - `app/src/main/java/com/vectras/vm/RomInfo.java`

@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -56,16 +57,79 @@ RUNTIME_CLASS = {
 }
 
 REFACTOR_NOTES = {
-    "com.google.code.gson:gson": "Reduzir alocações evitando parse completo para objetos grandes; priorizar streaming com JsonReader em caminhos críticos.",
-    "com.squareup.okhttp3:okhttp": "Reutilizar singleton de OkHttpClient e pools, evitando novos clients por request para diminuir GC e overhead de conexão.",
-    "com.github.bumptech.glide:glide": "Fixar tamanhos alvo, habilitar downsampling e recycle de targets para reduzir picos de heap/GC em listas.",
-    "androidx.work:work-runtime": "Consolidar jobs periódicos e evitar enfileiramento redundante; usar constraints mínimas para reduzir wakeups.",
-    "org.apache.commons:commons-compress": "Substituir fluxos bufferizados pequenos por buffers fixos maiores em I/O pesado para reduzir churn de objetos.",
+    "com.google.code.gson:gson": "Reduzir alocações evitando parse completo para objetos grandes; priorizar streaming em caminhos críticos.",
+    "com.squareup.okhttp3:okhttp": "Reutilizar singleton de cliente HTTP e pools, evitando novos clients por request para diminuir GC e overhead de conexão.",
+    "com.github.bumptech.glide:glide": "Fixar tamanhos alvo, downsampling e recycle de targets para reduzir picos de heap/GC em listas.",
+    "androidx.work:work-runtime": "Consolidar jobs periódicos e evitar enfileiramento redundante para reduzir wakeups.",
+    "org.apache.commons:commons-compress": "Usar buffers fixos maiores em I/O pesado para reduzir churn de objetos.",
+}
+
+LOW_LEVEL_PLAN = {
+    "com.google.code.gson:gson": {
+        "module": "vectra_json_det",
+        "deliverable": "parser JSON autoral orientado a tokens (scanner determinístico), sem reflexão dinâmica",
+        "steps": [
+            "Mapear schemas fixos de VM metadata e store payloads",
+            "Implementar scanner de bytes com tabela de estados e arena de strings reutilizável",
+            "Trocar parsing quente em JSONUtils/VMManager por caminho autoral",
+        ],
+    },
+    "com.squareup.okhttp3:okhttp": {
+        "module": "vectra_net_det",
+        "deliverable": "cliente HTTP autoral com pool fixo de conexões e buffers reaproveitáveis",
+        "steps": [
+            "Introduzir dispatcher determinístico com fila fixa",
+            "Separar handshake/retry em estado explícito sem alocação por request",
+            "Migrar DownloadWorker e RomInfo para camada autoral",
+        ],
+    },
+    "com.github.bumptech.glide:glide": {
+        "module": "vectra_img_det",
+        "deliverable": "pipeline autoral de decode/caching com política de blocos fixos",
+        "steps": [
+            "Criar cache slab para thumbnails e capas",
+            "Converter decode para tamanho-alvo fixo por viewport",
+            "Migrar adapters de listagem para loader autoral",
+        ],
+    },
+    "androidx.work:work-runtime": {
+        "module": "vectra_sched_det",
+        "deliverable": "scheduler autoral orientado a state-machine com reexecução idempotente",
+        "steps": [
+            "Unificar jobs de download/import em fila única",
+            "Persistir estado mínimo em estrutura compacta",
+            "Adicionar reconciliador com backoff determinístico",
+        ],
+    },
+    "org.apache.commons:commons-compress": {
+        "module": "vectra_archive_det",
+        "deliverable": "stream de tar/compactação autoral com buffers fixos e cópia zero quando possível",
+        "steps": [
+            "Implementar leitura de headers em bloco",
+            "Padronizar buffer único por operação",
+            "Migrar TarUtils para rotinas autorais de I/O",
+        ],
+    },
 }
 
 
-def parse_dependencies() -> list[tuple[str, str]]:
-    deps: list[tuple[str, str]] = []
+@dataclass(frozen=True)
+class DependencyEntry:
+    config: str
+    coord: str
+
+    @property
+    def group(self) -> str:
+        return self.coord.split(":", 1)[0]
+
+    @property
+    def ga(self) -> str:
+        chunks = (self.coord.split(":") + [""])[:2]
+        return f"{chunks[0]}:{chunks[1]}"
+
+
+def parse_dependencies() -> list[DependencyEntry]:
+    deps: list[DependencyEntry] = []
     for line in BUILD_FILE.read_text(encoding="utf-8").splitlines():
         m = DEP_RE.match(line)
         if not m:
@@ -73,7 +137,7 @@ def parse_dependencies() -> list[tuple[str, str]]:
         cfg, coord = m.groups()
         if ":" not in coord:
             continue
-        deps.append((cfg, coord))
+        deps.append(DependencyEntry(cfg, coord))
     return deps
 
 
@@ -95,12 +159,8 @@ def collect_imports() -> dict[Path, list[str]]:
     return imports_by_file
 
 
-def find_matches(coord: str, imports_by_file: dict[Path, list[str]]) -> list[Path]:
-    group, artifact, *_ = (coord.split(":") + [""])[:3]
-    hints = PACKAGE_HINTS.get(group, [])
-    if not hints:
-        hints = [group]
-
+def find_matches(dep: DependencyEntry, imports_by_file: dict[Path, list[str]]) -> list[Path]:
+    hints = PACKAGE_HINTS.get(dep.group, [dep.group])
     matched: list[Path] = []
     for file, imports in imports_by_file.items():
         if any(any(imp.startswith(prefix) for prefix in hints) for imp in imports):
@@ -108,10 +168,30 @@ def find_matches(coord: str, imports_by_file: dict[Path, list[str]]) -> list[Pat
     return sorted(matched)
 
 
+def score_priority(dep: DependencyEntry, impacted_count: int) -> int:
+    runtime_weight = {
+        "implementation": 100,
+        "annotationProcessor": 20,
+        "testImplementation": 10,
+        "androidTestImplementation": 5,
+    }.get(dep.config, 0)
+    strategic_bonus = 120 if dep.ga in LOW_LEVEL_PLAN else 0
+    return runtime_weight + strategic_bonus + impacted_count
+
+
+def concept_for(dep: DependencyEntry) -> str:
+    for prefix, text in DEPENDENCY_CONCEPTS.items():
+        if dep.group.startswith(prefix):
+            return text
+    return "Dependência externa de suporte; validar necessidade em runtime e possibilidade de módulo autoral equivalente."
+
+
 def main() -> None:
     deps = parse_dependencies()
     imports_by_file = collect_imports()
     REPORT.parent.mkdir(parents=True, exist_ok=True)
+
+    matches: dict[str, list[Path]] = {dep.coord: find_matches(dep, imports_by_file) for dep in deps}
 
     lines: list[str] = []
     lines.append("# External Dependency Hotspots (Performance/GC)")
@@ -120,8 +200,8 @@ def main() -> None:
     lines.append("")
     lines.append("## Dependências externas detectadas")
     lines.append("")
-    for cfg, coord in deps:
-        lines.append(f"- `{cfg}` ({RUNTIME_CLASS.get(cfg, 'desconhecido')}) → `{coord}`")
+    for dep in deps:
+        lines.append(f"- `{dep.config}` ({RUNTIME_CLASS.get(dep.config, 'desconhecido')}) → `{dep.coord}`")
 
     lines.append("")
     lines.append("## Conceitos (AndroidX, JDK, SDK e tipos)")
@@ -135,25 +215,43 @@ def main() -> None:
     lines.append("")
     lines.append("## Classificação conceitual por dependência")
     lines.append("")
-    for cfg, coord in deps:
-        group = coord.split(":", 1)[0]
-        concept = "Dependência externa de suporte; validar necessidade em runtime e possibilidade de módulo autoral equivalente."
-        for prefix, text in DEPENDENCY_CONCEPTS.items():
-            if group.startswith(prefix):
-                concept = text
-                break
-        lines.append(f"- `{coord}`: {concept}")
+    for dep in deps:
+        lines.append(f"- `{dep.coord}`: {concept_for(dep)}")
 
     lines.append("")
+    lines.append("## Itens priorizados para refatoração low-level autoral")
+    lines.append("")
+    prioritized = []
+    for dep in deps:
+        impacted = matches[dep.coord]
+        prioritized.append((score_priority(dep, len(impacted)), dep, impacted))
+    prioritized.sort(key=lambda x: x[0], reverse=True)
+
+    rank = 1
+    for score, dep, impacted in prioritized:
+        if dep.ga not in LOW_LEVEL_PLAN:
+            continue
+        plan = LOW_LEVEL_PLAN[dep.ga]
+        lines.append(f"### #{rank} `{dep.coord}` | prioridade={score}")
+        lines.append(f"- Módulo autoral alvo: `{plan['module']}`")
+        lines.append(f"- Entrega low-level: {plan['deliverable']}")
+        lines.append(f"- Arquivos impactados agora: {len(impacted)}")
+        for file in impacted[:6]:
+            lines.append(f"  - `{file.as_posix()}`")
+        if len(impacted) > 6:
+            lines.append(f"  - `... +{len(impacted) - 6} arquivos`")
+        lines.append("- Passos de migração determinística:")
+        for step in plan["steps"]:
+            lines.append(f"  - {step}")
+        lines.append("")
+        rank += 1
+
     lines.append("## Hotspots por dependência")
     lines.append("")
-
-    for cfg, coord in deps:
-        files = find_matches(coord, imports_by_file)
-        lines.append(f"### `{coord}` ({cfg})")
-        note = ""
-        group, artifact, *_ = (coord.split(":") + [""])[:3]
-        note = REFACTOR_NOTES.get(f"{group}:{artifact}", "Avaliar remoção gradual com módulo autoral equivalente, priorizando caminhos críticos de CPU/memória.")
+    for dep in deps:
+        files = matches[dep.coord]
+        lines.append(f"### `{dep.coord}` ({dep.config})")
+        note = REFACTOR_NOTES.get(dep.ga, "Avaliar remoção gradual com módulo autoral equivalente, priorizando caminhos críticos de CPU/memória.")
         lines.append(f"- Oportunidade de refatoração: {note}")
         if files:
             lines.append(f"- Arquivos impactados ({len(files)}):")
