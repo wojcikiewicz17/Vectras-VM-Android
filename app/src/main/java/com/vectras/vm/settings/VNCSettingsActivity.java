@@ -49,13 +49,13 @@ public class VNCSettingsActivity extends AppCompatActivity {
         });
         binding.lnEnabled.setOnClickListener(v -> binding.swEnabled.toggle());
 
-        binding.swForcerefesh.setOnCheckedChangeListener((buttonView, isChecked) -> MainSettingsManager.setForceRefeshVNCDisplay(this, isChecked));
+        binding.swForcerefesh.setOnCheckedChangeListener((buttonView, isChecked) -> MainSettingsManager.setForceRefreshVNCDisplay(this, isChecked));
         binding.lnForcerefesh.setOnClickListener(v -> binding.swForcerefesh.toggle());
 
         binding.swExternal.setOnCheckedChangeListener((buttonView, isChecked) -> MainSettingsManager.setVncExternal(this, isChecked));
         binding.lnExternal.setOnClickListener( v -> startActivity(new Intent(this, ExternalVNCSettingsActivity.class)));
 
-        binding.swForcerefesh.setChecked(MainSettingsManager.getForceRefeshVNCDisplay(this));
+        binding.swForcerefesh.setChecked(MainSettingsManager.getForceRefreshVNCDisplay(this));
         binding.swExternal.setChecked(MainSettingsManager.getVncExternal(this));
 
         isInitialized = true;

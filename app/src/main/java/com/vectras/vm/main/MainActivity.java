@@ -362,7 +362,7 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
 
         Config.ui = MainSettingsManager.getVmUi(this);
         Config.defaultVNCPort = Integer.parseInt(MainSettingsManager.getVncExternalDisplay(this));
-        Config.forceRefeshVNCDisplay = MainSettingsManager.getForceRefeshVNCDisplay(this);
+        Config.forceRefeshVNCDisplay = MainSettingsManager.getForceRefreshVNCDisplay(this);
 
         if (!MainSettingsManager.getVncExternal(this))
             NotificationUtils.clearAll(this);
