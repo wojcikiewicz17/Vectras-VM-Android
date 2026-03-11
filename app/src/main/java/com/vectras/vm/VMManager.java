@@ -1253,7 +1253,7 @@ public class VMManager {
     private static void closeVmFdsOnStop() {
         String vmId = MainStartVM.ensureLastVmIdInitialized(MainStartVM.lastVMID);
         FileUtils.closeFdsForVm(vmId);
-        com.vectras.qemu.utils.FileUtils.close_fds();
+        FileUtils.closeAllFds();
     }
 
     private static void markQemuStoppedWithError() {
