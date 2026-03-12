@@ -24,6 +24,16 @@ required_files=(
   "app/build.gradle"
   "tools/gradle_with_jdk21.sh"
   "tools/termux-arm64-orchestrator/bootstrap-termux-android15.sh"
+  "tools/termux-arm64-orchestrator/toolchain-pack.sh"
+  "tools/termux-arm64-orchestrator/forks-sync.sh"
+  "tools/termux-arm64-orchestrator/fork-manifests/forks-sources.json"
+  "tools/termux-arm64-orchestrator/TOOLCHAIN_LICENSES.md"
+  "tools/termux-arm64-orchestrator/TOOLCHAIN_CORE.md"
+  "tools/termux-arm64-orchestrator/toolchain-manifests/toolchain-bom.json"
+  "tools/termux-arm64-orchestrator/toolchain-core/detect-host.sh"
+  "tools/termux-arm64-orchestrator/toolchain-core/resolve-toolchain.sh"
+  "tools/termux-arm64-orchestrator/toolchain-core/activate-env.sh"
+  "tools/termux-arm64-orchestrator/toolchain-core/verify-toolchain.sh"
 )
 
 for file in "${required_files[@]}"; do
@@ -89,6 +99,23 @@ fi
 
 if ! rg -n 'JDK 21|JDK 17|JAVA_HOME' tools/gradle_with_jdk21.sh >/dev/null; then
   echo "[compliance] tools/gradle_with_jdk21.sh must enforce local JDK selection (21/17)" >&2
+  exit 1
+fi
+
+
+if ! rg -n '"name"\s*:\s*"android-cmdline-tools"|"name"\s*:\s*"android-ndk"|"name"\s*:\s*"android-cmake"|"name"\s*:\s*"jdk"' tools/termux-arm64-orchestrator/toolchain-manifests/toolchain-bom.json >/dev/null; then
+  echo "[compliance] toolchain-bom.json must declare android-cmdline-tools/android-ndk/android-cmake/jdk components" >&2
+  exit 1
+fi
+
+if ! rg -n '"version"\s*:|"source"\s*:|"sha256"\s*:|"license"\s*:' tools/termux-arm64-orchestrator/toolchain-manifests/toolchain-bom.json >/dev/null; then
+  echo "[compliance] toolchain-bom.json missing mandatory metadata keys (version/source/sha256/license)" >&2
+  exit 1
+fi
+
+
+if ! rg -n '"schema"\s*:\s*"vectras-termux-forks/v1"|"forks"\s*:' tools/termux-arm64-orchestrator/fork-manifests/forks-sources.json >/dev/null; then
+  echo "[compliance] forks-sources.json must declare schema vectras-termux-forks/v1 and forks array" >&2
   exit 1
 fi
 

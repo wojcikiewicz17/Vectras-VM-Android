@@ -1,0 +1,33 @@
+{
+  "schema": "vectras-termux-toolchain-bom/v1",
+  "components": [
+    {
+      "name": "android-cmdline-tools",
+      "version": "13114758",
+      "source": "https://dl.google.com/android/repository/commandlinetools-linux-13114758_latest.zip",
+      "sha256": "7ec965280a073311c339e571cd5de778b9975026cfcbe79f2b1cdcb1e15317ee",
+      "license": "Android SDK License"
+    },
+    {
+      "name": "android-ndk",
+      "version": "27.2.12479018",
+      "source": "sdkmanager:ndk;27.2.12479018",
+      "sha256": "provided-by-sdkmanager",
+      "license": "Android SDK License"
+    },
+    {
+      "name": "android-cmake",
+      "version": "3.22.1",
+      "source": "sdkmanager:cmake;3.22.1",
+      "sha256": "provided-by-sdkmanager",
+      "license": "Android SDK License"
+    },
+    {
+      "name": "jdk",
+      "version": "21-or-17",
+      "source": "system-local-jdk",
+      "sha256": "system-managed",
+      "license": "GPL-2.0-with-classpath-exception"
+    }
+  ]
+}
