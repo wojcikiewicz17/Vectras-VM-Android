@@ -20,28 +20,15 @@ if [[ -z "$RELEASE_STORE_FILE" && -f "$PRIVATE_LOCAL_KEYSTORE_FALLBACK" ]]; then
   log "usando fallback local privado de keystore em $PRIVATE_LOCAL_KEYSTORE_FALLBACK"
 fi
 
-if [[ -z "$RELEASE_STORE_FILE" ]]; then
-  echo "$LOG_PREFIX VECTRAS_RELEASE_STORE_FILE obrigatório para build release local (fallback opcional: $PRIVATE_LOCAL_KEYSTORE_FALLBACK fora do Git)." >&2
-  exit 1
-fi
-
-if [[ ! -f "$RELEASE_STORE_FILE" ]]; then
-  echo "$LOG_PREFIX keystore informado em VECTRAS_RELEASE_STORE_FILE não encontrado: $RELEASE_STORE_FILE" >&2
-  exit 1
-fi
-
 export VECTRAS_RELEASE_STORE_FILE="$RELEASE_STORE_FILE"
+export VECTRAS_RELEASE_STORE_PASSWORD="${VECTRAS_RELEASE_STORE_PASSWORD:-${VECTRAS_STORE_PASSWORD:-}}"
+export VECTRAS_RELEASE_KEY_ALIAS="${VECTRAS_RELEASE_KEY_ALIAS:-${VECTRAS_KEY_ALIAS:-}}"
+export VECTRAS_RELEASE_KEY_PASSWORD="${VECTRAS_RELEASE_KEY_PASSWORD:-${VECTRAS_KEY_PASSWORD:-}}"
 
 export BOOTSTRAP_ANDROID="${BOOTSTRAP_ANDROID:-1}"
 export ENABLE_SPILL="${ENABLE_SPILL:-1}"
 export CI_DRY_RUN="${CI_DRY_RUN:-0}"
 
-log "iniciando bootstrap + compliance + build local"
-if [[ "$BOOTSTRAP_ANDROID" == "1" ]]; then
-  bash tools/termux-arm64-orchestrator/bootstrap-termux-android15.sh
-else
-  log "bootstrap desabilitado por BOOTSTRAP_ANDROID=$BOOTSTRAP_ANDROID"
-fi
-bash tools/termux-arm64-orchestrator/legal-compliance-check.sh
+log "iniciando orchestrate-build (gate + bootstrap + build)"
 bash tools/termux-arm64-orchestrator/orchestrate-build.sh
 log "build local concluído"
