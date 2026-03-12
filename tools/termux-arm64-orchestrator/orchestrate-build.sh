@@ -9,13 +9,31 @@ BUILD_SPILL_DIR="${BUILD_SPILL_DIR:-$ROOT_DIR/.build-spill}"
 ENABLE_SPILL="${ENABLE_SPILL:-1}"
 CI_DRY_RUN="${CI_DRY_RUN:-0}"
 BOOTSTRAP_ANDROID="${BOOTSTRAP_ANDROID:-1}"
+ENABLE_FORK_SYNC="${ENABLE_FORK_SYNC:-0}"
 ANDROID_API_LEVEL="${ANDROID_API_LEVEL:-35}"
-VECTRAS_KEYSTORE="${VECTRAS_KEYSTORE:-$ROOT_DIR/vectras.jks}"
-VECTRAS_KEY_ALIAS="${VECTRAS_KEY_ALIAS:-vectras}"
-VECTRAS_STORE_PASSWORD="${VECTRAS_STORE_PASSWORD:-856856}"
-VECTRAS_KEY_PASSWORD="${VECTRAS_KEY_PASSWORD:-856856}"
+VECTRAS_RELEASE_STORE_FILE="${VECTRAS_RELEASE_STORE_FILE:-}"
+VECTRAS_RELEASE_KEY_ALIAS="${VECTRAS_RELEASE_KEY_ALIAS:-}"
+VECTRAS_RELEASE_STORE_PASSWORD="${VECTRAS_RELEASE_STORE_PASSWORD:-}"
+VECTRAS_RELEASE_KEY_PASSWORD="${VECTRAS_RELEASE_KEY_PASSWORD:-}"
+
+if [[ -z "$VECTRAS_RELEASE_STORE_FILE" && -n "${VECTRAS_KEYSTORE:-}" ]]; then
+  VECTRAS_RELEASE_STORE_FILE="$VECTRAS_KEYSTORE"
+fi
+if [[ -z "$VECTRAS_RELEASE_KEY_ALIAS" && -n "${VECTRAS_KEY_ALIAS:-}" ]]; then
+  VECTRAS_RELEASE_KEY_ALIAS="$VECTRAS_KEY_ALIAS"
+fi
+if [[ -z "$VECTRAS_RELEASE_STORE_PASSWORD" && -n "${VECTRAS_STORE_PASSWORD:-}" ]]; then
+  VECTRAS_RELEASE_STORE_PASSWORD="$VECTRAS_STORE_PASSWORD"
+fi
+if [[ -z "$VECTRAS_RELEASE_KEY_PASSWORD" && -n "${VECTRAS_KEY_PASSWORD:-}" ]]; then
+  VECTRAS_RELEASE_KEY_PASSWORD="$VECTRAS_KEY_PASSWORD"
+fi
+
+export VECTRAS_RELEASE_STORE_FILE VECTRAS_RELEASE_KEY_ALIAS VECTRAS_RELEASE_STORE_PASSWORD VECTRAS_RELEASE_KEY_PASSWORD
+
 APK_PATH="${APK_PATH:-$ROOT_DIR/app/build/outputs/apk/release/app-release.apk}"
 GRADLE_WRAPPER="$ROOT_DIR/tools/gradle_with_jdk21.sh"
+TOOLCHAIN_CORE_DIR="$ROOT_DIR/tools/termux-arm64-orchestrator/toolchain-core"
 
 SPILL_ALLOC_MB="${SPILL_ALLOC_MB:-256}"
 
@@ -46,6 +64,16 @@ require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
     echo "$LOG_PREFIX missing required command: $1" >&2
     exit 1
+  fi
+}
+
+
+run_toolchain_core_probe() {
+  local host_report="$BUILD_SPILL_DIR/toolchain-host.txt"
+  if [[ -x "$TOOLCHAIN_CORE_DIR/detect-host.sh" ]]; then
+    "$TOOLCHAIN_CORE_DIR/detect-host.sh" | tee "$host_report"
+  else
+    warn "toolchain-core detect-host.sh ausente"
   fi
 }
 
@@ -89,6 +117,20 @@ configure_toolchain_flags() {
   log "flags de toolchain configuradas"
 }
 
+sync_required_forks() {
+  if [[ "$ENABLE_FORK_SYNC" != "1" ]]; then
+    log "fork sync desabilitado por ENABLE_FORK_SYNC=$ENABLE_FORK_SYNC"
+    return
+  fi
+
+  if [[ -x tools/termux-arm64-orchestrator/forks-sync.sh ]]; then
+    log "sincronizando forks externos necessários"
+    bash tools/termux-arm64-orchestrator/forks-sync.sh
+  else
+    warn "forks-sync.sh ausente"
+  fi
+}
+
 bootstrap_android_env() {
   if [[ "$BOOTSTRAP_ANDROID" != "1" ]]; then
     log "bootstrap Android desabilitado por BOOTSTRAP_ANDROID=$BOOTSTRAP_ANDROID"
@@ -97,6 +139,12 @@ bootstrap_android_env() {
 
   log "iniciando bootstrap Android SDK/NDK local"
   bash tools/termux-arm64-orchestrator/bootstrap-termux-android15.sh
+
+  if [[ -x "$TOOLCHAIN_CORE_DIR/verify-toolchain.sh" ]]; then
+    "$TOOLCHAIN_CORE_DIR/verify-toolchain.sh"
+  else
+    warn "toolchain-core verify-toolchain.sh ausente"
+  fi
 }
 
 verify_signing() {
@@ -131,14 +179,6 @@ verify_signing() {
 }
 
 run_build() {
-  log "running legal compliance gate"
-  bash tools/termux-arm64-orchestrator/legal-compliance-check.sh
-
-  if [[ ! -f "$VECTRAS_KEYSTORE" ]]; then
-    echo "$LOG_PREFIX keystore not found: $VECTRAS_KEYSTORE" >&2
-    exit 1
-  fi
-
   if [[ "$CI_DRY_RUN" == "1" ]]; then
     log "CI_DRY_RUN=1; skipping real Gradle build"
     return
@@ -146,14 +186,14 @@ run_build() {
 
   chmod +x "$GRADLE_WRAPPER"
 
-  log "starting arm64-v8a release build using repository jks"
+  log "starting arm64-v8a release build using injected signing credentials"
   "$GRADLE_WRAPPER" --no-daemon :app:clean :app:assembleRelease \
     -Pandroid.injected.build.abi=arm64-v8a \
     -Pandroid.injected.build.api="$ANDROID_API_LEVEL" \
-    -Pandroid.injected.signing.store.file="$VECTRAS_KEYSTORE" \
-    -Pandroid.injected.signing.store.password="$VECTRAS_STORE_PASSWORD" \
-    -Pandroid.injected.signing.key.alias="$VECTRAS_KEY_ALIAS" \
-    -Pandroid.injected.signing.key.password="$VECTRAS_KEY_PASSWORD" \
+    -Pandroid.injected.signing.store.file="$VECTRAS_RELEASE_STORE_FILE" \
+    -Pandroid.injected.signing.store.password="$VECTRAS_RELEASE_STORE_PASSWORD" \
+    -Pandroid.injected.signing.key.alias="$VECTRAS_RELEASE_KEY_ALIAS" \
+    -Pandroid.injected.signing.key.password="$VECTRAS_RELEASE_KEY_PASSWORD" \
     -Dorg.gradle.jvmargs="-Xmx2g -XX:MaxMetaspaceSize=512m -XX:+UseSerialGC"
 
   verify_signing "$APK_PATH"
@@ -165,9 +205,14 @@ require_cmd rg
 require_cmd uname
 require_cmd "$GRADLE_WRAPPER"
 
+log "running legal compliance gate"
+RELEASE_SIGNING_REQUIRED=1 bash tools/termux-arm64-orchestrator/legal-compliance-check.sh
+
+run_toolchain_core_probe
 detect_arch
 configure_memory_spill
 configure_toolchain_flags
 run_native_helpers
+sync_required_forks
 bootstrap_android_env
 run_build

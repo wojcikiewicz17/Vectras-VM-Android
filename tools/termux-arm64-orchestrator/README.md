@@ -19,10 +19,16 @@ Este módulo é para **build local no terminal**, sem depender de GitHub Actions
 - `build-native-helpers.sh`: compila os binários C low-level locais.
 - `c/arm64_neon_probe.c`: detector de HWCAP/NEON/ASIMD/SVE em ARM64.
 - `c/storage_spill_allocator.c`: cria arquivo de spill (`spill.bin`) para suporte de memória por storage.
-- `bootstrap-termux-android15.sh`: instala/prepara cmdline-tools + SDK + NDK + CMake local (`.android-sdk`) e gera `local.properties`.
+- `bootstrap-termux-android15.sh`: instala/prepara cmdline-tools + SDK + NDK + CMake local (`.android-sdk`) e gera `local.properties` (com suporte a pack local offline-first em `.toolchain-packs`).
 - `orchestrate-build.sh`: orquestrador principal (detecção, spill, bootstrap, build e verificação de assinatura).
 - `legal-compliance-check.sh`: valida pré-requisitos legais e metadados de release + contrato de assinatura por variável.
 - `run-local-termux-build.sh`: entrypoint único para execução local no terminal.
+- `TOOLCHAIN_CORE.md`: contrato interno dos módulos de toolchain reutilizáveis.
+- `TOOLCHAIN_LICENSES.md`: inventário mínimo de licenças/proveniência da toolchain externa.
+- `toolchain-core/*.sh`: detecção de host, resolução de ambiente, ativação e verificação da toolchain.
+- `toolchain-manifests/toolchain-bom.json`: BOM de componentes JDK/SDK/NDK/CMake usados no fluxo.
+- `forks-sync.sh`: sincroniza fontes de forks externos (GitHub codeload) declarados em manifesto.
+- `fork-manifests/forks-sources.json`: manifesto de forks necessários/opcionais para composição local.
 
 ## Execução local (recomendada)
 
@@ -48,8 +54,28 @@ bash tools/termux-arm64-orchestrator/orchestrate-build.sh
 - `ANDROID_CMAKE_VERSION` (default `3.22.1`)
 - `BUILD_SPILL_DIR` (default `.build-spill`)
 - `VECTRAS_RELEASE_STORE_FILE` (obrigatória para release; fallback local privado opcional em `.secrets/vectras-release.jks`, fora do Git)
-- `VECTRAS_KEY_ALIAS` (default `vectras`)
-- `VECTRAS_STORE_PASSWORD` (default `856856`)
-- `VECTRAS_KEY_PASSWORD` (default `856856`)
+- `VECTRAS_RELEASE_KEY_ALIAS` (obrigatória para release; compatível com legado `VECTRAS_KEY_ALIAS`)
+- `VECTRAS_RELEASE_STORE_PASSWORD` (obrigatória para release; compatível com legado `VECTRAS_STORE_PASSWORD`)
+- `VECTRAS_RELEASE_KEY_PASSWORD` (obrigatória para release; compatível com legado `VECTRAS_KEY_PASSWORD`)
+- `TOOLCHAIN_PACK_DIR` (default `.toolchain-packs`)
+- `ALLOW_NETWORK_TOOLCHAIN=0|1` (quando `0`, exige pack local de cmdline-tools)
+- `ENABLE_FORK_SYNC=0|1` (default `0`; sincroniza forks externos declarados antes do bootstrap)
+- `ALLOW_NETWORK_FORKS=0|1` (quando `0`, não baixa forks; forks obrigatórios ausentes geram erro)
+- `RELEASE_SIGNING_REQUIRED=0|1` (default `1`; quando `0`, pula somente validação de credenciais de signing no compliance gate)
 - `BOOTSTRAP_ANDROID=0|1`
 - `CI_DRY_RUN=0|1`
+
+## GitHub (sem computador local)
+
+Há workflow dedicado em `.github/workflows/termux-orchestrator.yml` para executar este fluxo no GitHub Actions via `workflow_dispatch`:
+
+- `dry_run=true` (default): roda compliance + orquestração sem build release real.
+- `dry_run=false`: executa build release e publica APK como artifact.
+
+Secrets necessários para `dry_run=false`:
+
+- `VECTRAS_RELEASE_KEYSTORE_B64`
+- `VECTRAS_RELEASE_STORE_PASSWORD`
+- `VECTRAS_RELEASE_KEY_ALIAS`
+- `VECTRAS_RELEASE_KEY_PASSWORD`
+
