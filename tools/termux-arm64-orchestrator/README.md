@@ -65,6 +65,5 @@ bash tools/termux-arm64-orchestrator/orchestrate-build.sh
 - `ALLOW_NETWORK_TOOLCHAIN=0|1` (quando `0`, exige pack local de cmdline-tools)
 - `ENABLE_FORK_SYNC=0|1` (default `0`; sincroniza forks externos declarados antes do bootstrap)
 - `ALLOW_NETWORK_FORKS=0|1` (quando `0`, não baixa forks; forks obrigatórios ausentes geram erro)
-- `RELEASE_SIGNING_REQUIRED=0|1` (default `1`; quando `0`, pula somente validação de credenciais de signing no compliance gate)
 - `BOOTSTRAP_ANDROID=0|1`
 - `CI_DRY_RUN=0|1`

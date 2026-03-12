@@ -29,5 +29,5 @@ export ENABLE_SPILL="${ENABLE_SPILL:-1}"
 export CI_DRY_RUN="${CI_DRY_RUN:-0}"
 
 log "iniciando orchestrate-build (gate + bootstrap + build)"
-RELEASE_SIGNING_REQUIRED=1 bash tools/termux-arm64-orchestrator/orchestrate-build.sh
+bash tools/termux-arm64-orchestrator/orchestrate-build.sh
 log "build local concluído"
