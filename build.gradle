@@ -212,6 +212,23 @@ def resolveAndroidSdkRootDir() {
     if (envSdk) {
         return file(envSdk)
     }
+
+    // Fallbacks úteis para ambientes Linux/CI onde o SDK é provisionado por pacote.
+    def fallbackSdkDirs = [
+        '/usr/lib/android-sdk',
+        '/opt/android-sdk',
+        '/opt/android-sdk-linux',
+        "${System.properties['user.home']}/Android/Sdk"
+    ]
+
+    def discovered = fallbackSdkDirs
+        .collect { file(it) }
+        .find { it.exists() }
+    if (discovered != null) {
+        logger.lifecycle("[resolveAndroidSdkRootDir] ANDROID_HOME/ANDROID_SDK_ROOT não definidos; usando fallback detectado em ${discovered}.")
+        return discovered
+    }
+
     return null
 }
 
