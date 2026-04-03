@@ -807,16 +807,33 @@ jobs:
 
         if [[ -f "${signed_apk}" ]]; then
           echo "path=${signed_apk}" >> "$GITHUB_OUTPUT"
+          echo "track=official-signed" >> "$GITHUB_OUTPUT"
           exit 0
         fi
 
         if [[ -f "${unsigned_apk}" ]]; then
           echo "path=${unsigned_apk}" >> "$GITHUB_OUTPUT"
+          echo "track=internal-unsigned" >> "$GITHUB_OUTPUT"
           exit 0
         fi
 
         echo "No release APK found after release build" >&2
         exit 1
+
+    - name: Validate expected delivery artifacts
+      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' || needs.preflight.outputs.selected_build_release == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        variants=()
+        if [[ "${{ needs.preflight.outputs.selected_build_debug }}" == "true" ]]; then
+          variants+=("debug")
+        fi
+        if [[ "${{ needs.preflight.outputs.selected_build_release }}" == "true" ]]; then
+          variants+=("release" "perfRelease")
+        fi
+        artifact_variants="$(IFS=,; echo "${variants[*]}")"
+        ./tools/ci/validate_expected_android_artifacts.sh "${artifact_variants}"
 
     - name: Upload compiled artifacts report (required)
       if: always()
@@ -830,7 +847,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v5
       with:
-        name: android-compiled-outputs
+        name: android-${{ needs.preflight.outputs.selected_build_release == 'true' && steps.release_artifact.outputs.track || 'internal-unsigned' }}-compiled-outputs
         path: |
           app/build/outputs/apk/**
           app/build/outputs/bundle/**
@@ -841,15 +858,17 @@ jobs:
       if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
       uses: actions/upload-artifact@v5
       with:
-        name: android-debug-apk
+        name: android-internal-unsigned-debug-apk
         path: app/build/outputs/apk/debug/app-debug.apk
+        if-no-files-found: error
 
     - name: Upload Release APK as artifact
       if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
       uses: actions/upload-artifact@v5
       with:
-        name: android-release-apk
+        name: android-${{ steps.release_artifact.outputs.track }}-release-apk
         path: ${{ steps.release_artifact.outputs.path }}
+        if-no-files-found: error
 
     - name: Stage Release APKs for Telegram upload
       if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && needs.preflight.outputs.selected_build_release == 'true' && needs.preflight.outputs.has_telegram_secrets == 'true' }}

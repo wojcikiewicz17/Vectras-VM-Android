@@ -354,6 +354,16 @@ jobs:
             -PartifactVariants="${artifact_variants}" \
             ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
+      - name: Validate expected delivery artifacts
+        if: always()
+        run: |
+          set -euo pipefail
+          variants=()
+          if [[ "${{ inputs.build_debug }}" == 'true' ]]; then variants+=("debug"); fi
+          if [[ "${{ inputs.build_release }}" == 'true' ]]; then variants+=("release" "perfRelease"); fi
+          artifact_variants=$(IFS=,; echo "${variants[*]}")
+          ./tools/ci/validate_expected_android_artifacts.sh "${artifact_variants}"
+
       - name: Upload compiled artifacts report (required)
         if: always()
         uses: actions/upload-artifact@v5
@@ -366,7 +376,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: android-compiled-outputs
+          name: android-${{ inputs.sign_release && 'official-signed' || 'internal-unsigned' }}-compiled-outputs
           path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
