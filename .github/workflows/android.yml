@@ -245,6 +245,39 @@ jobs:
             echo "has_telegram_secrets=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Validate Telegram credentials when upload is requested
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          upload_requested='false'
+          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ github.event.inputs.upload_telegram }}" == "true" ]]; then
+            upload_requested='true'
+          fi
+
+          if [[ "${upload_requested}" != "true" ]]; then
+            echo "Telegram upload not requested; skipping credential validation."
+            exit 0
+          fi
+
+          missing_credentials='false'
+
+          if [[ -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]]; then
+            echo "::error::Telegram upload requested, but TELEGRAM_BOT_TOKEN is missing. Configure this repository secret before running with upload_telegram=true."
+            missing_credentials='true'
+          fi
+
+          if [[ -z "${{ secrets.TELEGRAM_CHAT_ID }}" && -z "${{ secrets.TELEGRAM_CHAT_ID_VEC }}" ]]; then
+            echo "::error::Telegram upload requested, but no destination chat is configured. Set TELEGRAM_CHAT_ID or TELEGRAM_CHAT_ID_VEC as repository secret."
+            missing_credentials='true'
+          fi
+
+          if [[ "${missing_credentials}" == "true" ]]; then
+            exit 1
+          fi
+
+          echo "Telegram credentials validated for requested upload."
+
       - name: Resolve dispatch controls and diagnostic profile
         id: dispatch_controls
         shell: bash
@@ -790,6 +823,7 @@ jobs:
         cp app/build/outputs/apk/release/*.apk artifacts/release/
 
     - name: Upload to Telegram
+      id: upload_to_telegram
       if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && needs.preflight.outputs.selected_build_release == 'true' && needs.preflight.outputs.has_telegram_secrets == 'true' }}
       shell: bash
       run: |
@@ -827,3 +861,27 @@ jobs:
               "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
           fi
         done
+
+    - name: Publish final upload summary
+      if: always()
+      shell: bash
+      run: |
+        upload_requested='no'
+        upload_executed='no'
+
+        if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ github.event.inputs.upload_telegram }}" == "true" ]]; then
+          upload_requested='yes'
+        fi
+
+        if [[ "${upload_requested}" == 'yes' \
+          && "${{ needs.preflight.outputs.selected_build_release }}" == 'true' \
+          && "${{ needs.preflight.outputs.has_telegram_secrets }}" == 'true' \
+          && "${{ steps.upload_to_telegram.outcome }}" == 'success' ]]; then
+          upload_executed='yes'
+        fi
+
+        {
+          echo "### Telegram Upload Summary"
+          echo "- upload requested: ${upload_requested}"
+          echo "- upload executed: ${upload_executed}"
+        } >> "$GITHUB_STEP_SUMMARY"
