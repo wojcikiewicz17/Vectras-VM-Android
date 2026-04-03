@@ -1,0 +1,99 @@
+name: Pipeline Orchestrator
+
+on:
+  push:
+    branches: [main, master, dev, release/**]
+  pull_request:
+    branches: [main, master, dev]
+  workflow_dispatch:
+    inputs:
+      run_host_ci:
+        description: "Force run host CI"
+        type: boolean
+        required: false
+        default: true
+      run_android_ci:
+        description: "Force run Android CI"
+        type: boolean
+        required: false
+        default: true
+      mode:
+        description: "Android build profile"
+        type: choice
+        required: false
+        default: moderado
+        options:
+          - fast
+          - moderado
+          - profundo
+          - ultra_minucioso
+          - interoperabilidade
+          - confiabilidade
+          - diagnostico
+          - release_ready
+          - hardware_focus
+          - matrix_total
+          - holistico
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pipeline-orchestrator-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      host: ${{ steps.filter.outputs.host }}
+      android: ${{ steps.filter.outputs.android }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Filter changed paths
+        id: filter
+        uses: dorny/paths-filter@v3
+        with:
+          filters: |
+            host:
+              - 'engine/**'
+              - 'tools/**'
+              - 'CMakeLists.txt'
+              - 'Makefile'
+              - '.github/workflows/ci.yml'
+            android:
+              - 'app/**'
+              - 'terminal-emulator/**'
+              - 'terminal-view/**'
+              - 'shell-loader/**'
+              - 'gradle/**'
+              - '*.gradle'
+              - 'settings.gradle'
+              - 'gradle.properties'
+              - '.github/workflows/android-build-manual.yml'
+              - '.github/workflows/pipeline-orchestrator.yml'
+
+  host-ci:
+    name: Host CI
+    needs: changes
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.run_host_ci
+      || github.event_name != 'workflow_dispatch' && needs.changes.outputs.host == 'true'
+    uses: ./.github/workflows/ci.yml
+
+  android-ci:
+    name: Android CI
+    needs: changes
+    if: >-
+      github.event_name == 'workflow_dispatch' && inputs.run_android_ci
+      || github.event_name != 'workflow_dispatch' && needs.changes.outputs.android == 'true'
+    uses: ./.github/workflows/android-build-manual.yml
+    with:
+      mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'moderado' }}
+      build_debug: true
+      build_release: false
+      run_lint: true
+      run_native_matrix: true
+      run_unit_tests: false
+    secrets: inherit
