@@ -9,8 +9,10 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.AppConfig;
 import com.vectras.vm.R;
+import com.vectras.vm.StartVM;
 import com.vectras.vm.VMManager;
 import com.vectras.vm.core.ProotCommandBuilder;
 import com.vectras.vm.core.ProcessLaunch;
@@ -54,12 +56,19 @@ public class SetupFeatureCore {
     public static String TAG = "SetupFeatureCore";
     public static final String ABI_RESOLVE_TAG = "SETUP_ABI_RESOLVE";
     public static String lastErrorLog = "";
+    public static String lastWarningLog = "";
     public static final String COPY_FAIL_PREFIX = "COPY_FAIL:";
     public static final String INTEGRITY_FAIL_PREFIX = "INTEGRITY_FAIL:";
     public static final String EXTRACTION_FAIL_PREFIX = "EXTRACTION_FAIL:";
+    public static final String EXTRACTION_WARN_PREFIX = "EXTRACTION_WARN:";
     public static final String POST_CHECK_FAIL_PREFIX = "POST_CHECK_FAIL:";
     private static final String BOOTSTRAP_LOG_PREFIX = "PROOT_BOOTSTRAP";
     private static final long MIN_TAR_BYTES = 1024L;
+    private static final List<String> CRITICAL_STDERR_PATTERNS = Arrays.asList(
+            "cannot open",
+            "permission denied",
+            "error is not recoverable"
+    );
 
     public static boolean isInstalledSystemFiles(Context context) {
         return isInstalledProot(context) && isInstalledDistro(context);
@@ -450,11 +459,19 @@ public class SetupFeatureCore {
         String filesDir = context.getFilesDir().getAbsolutePath();
         String rootfsPath = filesDir + "/distro";
         String workDir = "/root";
-        String requiredQemuBinary = QemuBinaryResolver.primaryBinaryForArch("X86_64");
+        String configuredArch = MainSettingsManager.getArch(context);
+        String effectiveArch = StartVM.effectiveArch(context);
+        String requiredQemuBinary = StartVM.requiredQemuBinary(context);
 
         detailMap.put("filesDir", filesDir);
         detailMap.put("rootfsPath", rootfsPath);
         detailMap.put("workDir", workDir);
+        detailMap.put("configuredArch", String.valueOf(configuredArch));
+        detailMap.put("effectiveArch", effectiveArch);
+        detailMap.put("requiredQemuBinary", requiredQemuBinary);
+        if (QemuBinaryResolver.normalizedArchOrNull(configuredArch) == null) {
+            detailMap.put("archFallback", QemuBinaryResolver.DEFAULT_ARCH);
+        }
 
         ProotPrerequisiteResult prerequisiteResult = validateProotPrerequisites(context, rootfsPath, workDir);
         if (!prerequisiteResult.ok) {
@@ -834,6 +851,7 @@ public class SetupFeatureCore {
     public static boolean startExtractSystemFiles(Context context, @Nullable String bootstrapExpectedSha256) {
         if (isInstalledSystemFiles(context)) return true;
         lastErrorLog = "";
+        lastWarningLog = "";
 
         String filesDir = context.getFilesDir().getAbsolutePath();
         File distroDir = new File(filesDir + "/distro");
@@ -864,6 +882,7 @@ public class SetupFeatureCore {
     }
 
     public static boolean extractSystemFiles(Context context, String fromAsset, String extractTo, @Nullable String expectedSha256) {
+        lastWarningLog = "";
         String randomFileName = VMManager.startRandomVMID();
         final String[] selectedAssetHolder = new String[1];
         String assetPath = resolveAssetPath(context, fromAsset, selectedAssetHolder);
@@ -966,6 +985,7 @@ public class SetupFeatureCore {
                 );
 
                 String commandSummary = formatCommand(cmdline);
+                String stdoutSummary;
                 String stderrSummary;
                 synchronized (stderrOutput) {
                     stderrSummary = stderrOutput.toString().trim();
@@ -998,8 +1018,8 @@ public class SetupFeatureCore {
                     return false;
                 }
 
-                if (waitResult.exitCode != 0 || !stderrSummary.isEmpty()) {
-                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_NON_ZERO_OR_OUTPUT_VALIDATION_FAIL ["
+                if (waitResult.exitCode != 0) {
+                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_NON_ZERO_EXIT ["
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
@@ -1008,6 +1028,26 @@ public class SetupFeatureCore {
                             + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
+                }
+
+                if (!stderrSummary.isEmpty()) {
+                    String stderrLower = stderrSummary.toLowerCase(Locale.ROOT);
+                    if (containsCriticalStderr(stderrLower)) {
+                        lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_CRITICAL_STDERR_DETECTED ["
+                                + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
+                                + "] asset=" + assetPath
+                                + " cmd=" + commandSummary
+                                + " stderr=" + stderrSummary);
+                        Log.e(TAG, lastErrorLog);
+                        return false;
+                    }
+
+                    lastWarningLog = formatErrorCode(EXTRACTION_WARN_PREFIX, "PROCESS_STDERR_WARNING ["
+                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
+                            + "] asset=" + assetPath
+                            + " cmd=" + commandSummary
+                            + " warning=" + stderrSummary);
+                    Log.w(TAG, lastWarningLog);
                 }
 
                 ArrayList<String> extractionPostCheckFailedItems = new ArrayList<>();
@@ -1056,9 +1096,18 @@ public class SetupFeatureCore {
         if (line == null) {
             return;
         }
-        synchronized (output) {
-            output.append(line).append("\n");
+        synchronized (outputBuffer) {
+            outputBuffer.append(outputLine).append("\n");
         }
+    }
+
+    private static boolean containsCriticalStderr(String stderrLower) {
+        for (String pattern : CRITICAL_STDERR_PATTERNS) {
+            if (stderrLower.contains(pattern)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
