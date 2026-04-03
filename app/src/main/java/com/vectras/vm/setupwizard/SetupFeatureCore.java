@@ -57,7 +57,7 @@ public class SetupFeatureCore {
     public static String TAG = "SetupFeatureCore";
     public static final String ABI_RESOLVE_TAG = "SETUP_ABI_RESOLVE";
     public static String lastErrorLog = "";
-    public static String lastWarningLog = "";
+    public static String lastWarningDiagnostic = "";
     public static final String COPY_FAIL_PREFIX = "COPY_FAIL:";
     public static final String INTEGRITY_FAIL_PREFIX = "INTEGRITY_FAIL:";
     public static final String EXTRACTION_FAIL_PREFIX = "EXTRACTION_FAIL:";
@@ -849,7 +849,7 @@ public class SetupFeatureCore {
     public static boolean startExtractSystemFiles(Context context, @Nullable String bootstrapExpectedSha256) {
         if (isInstalledSystemFiles(context)) return true;
         lastErrorLog = "";
-        lastWarningLog = "";
+        lastWarningDiagnostic = "";
 
         String filesDir = context.getFilesDir().getAbsolutePath();
         File distroDir = new File(filesDir + "/distro");
@@ -880,7 +880,7 @@ public class SetupFeatureCore {
     }
 
     public static boolean extractSystemFiles(Context context, String fromAsset, String extractTo, @Nullable String expectedSha256) {
-        lastWarningLog = "";
+        lastWarningDiagnostic = "";
         String randomFileName = VMManager.startRandomVMID();
         final String[] selectedAssetHolder = new String[1];
         String assetPath = resolveAssetPath(context, fromAsset, selectedAssetHolder);
@@ -977,8 +977,8 @@ public class SetupFeatureCore {
                         null,
                         ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION,
                         processBuilder,
-                        line -> appendProcessOutput(stdoutOutput, line),
-                        line -> appendProcessOutput(stderrOutput, line),
+                        line -> appendExtractOutput(stdoutOutput, line),
+                        line -> appendExtractOutput(stderrOutput, line),
                         null
                 );
 
@@ -992,6 +992,13 @@ public class SetupFeatureCore {
                 synchronized (stdoutOutput) {
                     stdoutSummary = stdoutOutput.toString().trim();
                 }
+                lastWarningDiagnostic = stderrSummary.isEmpty()
+                        ? ""
+                        : "EXTRACTION_WARNING_DIAGNOSTIC ["
+                        + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
+                        + "] asset=" + assetPath
+                        + " cmd=" + commandSummary
+                        + " stderr=" + stderrSummary;
                 if (waitResult.status == ProcessLaunch.LaunchStatus.TIMEOUT) {
                     lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_TIMEOUT ["
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
@@ -1022,30 +1029,27 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " exit=" + waitResult.exitCode
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary)
-                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
+                            + (waitResult.diagnosis == null || waitResult.diagnosis.trim().isEmpty()
+                            ? ""
+                            : " detail=" + waitResult.diagnosis)
+                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary)
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                    Log.e(TAG, lastErrorLog);
+                    return false;
+                }
+
+                if (!stderrSummary.isEmpty() && hasCriticalStderr(stderrSummary)) {
+                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_CRITICAL_STDERR ["
+                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
+                            + "] asset=" + assetPath
+                            + " cmd=" + commandSummary
+                            + " stderr=" + stderrSummary);
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
 
                 if (!stderrSummary.isEmpty()) {
-                    String stderrLower = stderrSummary.toLowerCase(Locale.ROOT);
-                    if (containsCriticalStderr(stderrLower)) {
-                        lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_CRITICAL_STDERR_DETECTED ["
-                                + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                                + "] asset=" + assetPath
-                                + " cmd=" + commandSummary
-                                + " stderr=" + stderrSummary);
-                        Log.e(TAG, lastErrorLog);
-                        return false;
-                    }
-
-                    lastWarningLog = formatErrorCode(EXTRACTION_WARN_PREFIX, "PROCESS_STDERR_WARNING ["
-                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                            + "] asset=" + assetPath
-                            + " cmd=" + commandSummary
-                            + " warning=" + stderrSummary);
-                    Log.w(TAG, lastWarningLog);
+                    Log.w(TAG, BOOTSTRAP_LOG_PREFIX + " EXTRACT_STDERR_WARNING " + lastWarningDiagnostic);
                 }
 
                 ArrayList<String> extractionPostCheckFailedItems = new ArrayList<>();
@@ -1099,13 +1103,14 @@ public class SetupFeatureCore {
         }
     }
 
-    private static boolean containsCriticalStderr(String stderrLower) {
-        for (String pattern : CRITICAL_STDERR_PATTERNS) {
-            if (stderrLower.contains(pattern)) {
-                return true;
-            }
+    private static boolean hasCriticalStderr(String stderrSummary) {
+        if (stderrSummary == null || stderrSummary.trim().isEmpty()) {
+            return false;
         }
-        return false;
+        String normalized = stderrSummary.toLowerCase(Locale.ROOT);
+        return normalized.contains("cannot open")
+                || normalized.contains("permission denied")
+                || normalized.contains("error is not recoverable");
     }
 
 
