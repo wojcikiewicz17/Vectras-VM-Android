@@ -1,5 +1,6 @@
 #include <errno.h>
 #include <jni.h>
+#include <limits.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -8,6 +9,7 @@
 #include <android/log.h>
 
 #define TERMUX_BOOTSTRAP_TAG "termux-bootstrap"
+#define TERMUX_BOOTSTRAP_SYMBOL "Java_com_termux_app_TermuxInstaller_nativeGetZip"
 #define LOGE(fmt, ...) __android_log_print(ANDROID_LOG_ERROR, TERMUX_BOOTSTRAP_TAG, fmt, ##__VA_ARGS__)
 #define LOGI(fmt, ...) __android_log_print(ANDROID_LOG_INFO, TERMUX_BOOTSTRAP_TAG, fmt, ##__VA_ARGS__)
 
@@ -49,55 +51,56 @@ static size_t get_embedded_bootstrap_size(void) {
 }
 #endif
 
+static jbyteArray return_controlled_null(const char* cause, const char* context) {
+    LOGE("%s: returning NULL cause=%s context=%s", TERMUX_BOOTSTRAP_SYMBOL, cause, context);
+    return NULL;
+}
+
 /* JNI symbol must exactly match: com.termux.app.TermuxInstaller#nativeGetZip() */
 JNIEXPORT jbyteArray JNICALL
 Java_com_termux_app_TermuxInstaller_nativeGetZip(JNIEnv* env, jclass clazz) {
     (void)clazz;
 
     if (env == NULL) {
-        LOGE("nativeGetZip failed: env=NULL (context=jni-entry)");
-        return NULL;
+        return return_controlled_null("env is NULL", "jni-entry");
     }
 
     const unsigned char* payload = get_embedded_bootstrap_data();
     const size_t payload_size = get_embedded_bootstrap_size();
 
     if (payload == NULL || payload_size == 0U) {
-        LOGE("nativeGetZip failed: embedded payload unavailable (payload=%p size=%zu)",
-             (const void*)payload,
-             payload_size);
-        return NULL;
+        LOGE("%s: embedded payload unavailable payload=%p size=%zu", TERMUX_BOOTSTRAP_SYMBOL,
+             (const void*)payload, payload_size);
+        return return_controlled_null("embedded payload missing", "payload-source");
     }
 
 #if !defined(TERMUX_BOOTSTRAP_PAYLOAD_DATA) || !defined(TERMUX_BOOTSTRAP_PAYLOAD_SIZE)
-    LOGE("nativeGetZip using controlled fallback empty ZIP payload; real embedded bootstrap not configured");
+    LOGE("%s: using controlled fallback empty ZIP payload; real embedded bootstrap not configured", TERMUX_BOOTSTRAP_SYMBOL);
 #endif
 
-    if (payload_size > (size_t)INT32_MAX) {
-        LOGE("nativeGetZip failed: payload too large for jbyteArray (size=%zu max=%d)",
-             payload_size,
-             INT32_MAX);
-        return NULL;
+    if (payload_size > (size_t)INT_MAX) {
+        LOGE("%s: payload too large for jbyteArray size=%zu max=%d", TERMUX_BOOTSTRAP_SYMBOL,
+             payload_size, INT_MAX);
+        return return_controlled_null("payload too large", "array-allocation");
     }
 
     jbyteArray result = (*env)->NewByteArray(env, (jsize)payload_size);
     if (result == NULL) {
         const int saved_errno = errno;
-        LOGE("nativeGetZip failed: NewByteArray returned NULL (size=%zu errno=%d msg=%s)",
-             payload_size,
-             saved_errno,
-             strerror(saved_errno));
-        return NULL;
+        LOGE("%s: NewByteArray returned NULL size=%zu errno=%d msg=%s", TERMUX_BOOTSTRAP_SYMBOL,
+             payload_size, saved_errno, strerror(saved_errno));
+        return return_controlled_null("NewByteArray returned NULL", "array-allocation");
     }
 
     (*env)->SetByteArrayRegion(env, result, 0, (jsize)payload_size, (const jbyte*)payload);
     if ((*env)->ExceptionCheck(env)) {
-        LOGE("nativeGetZip failed: SetByteArrayRegion raised JNI exception (size=%zu)", payload_size);
+        LOGE("%s: SetByteArrayRegion raised JNI exception size=%zu", TERMUX_BOOTSTRAP_SYMBOL,
+             payload_size);
         (*env)->ExceptionDescribe(env);
         (*env)->ExceptionClear(env);
-        return NULL;
+        return return_controlled_null("SetByteArrayRegion JNI exception", "array-copy");
     }
 
-    LOGI("nativeGetZip success: returned payload bytes=%zu", payload_size);
+    LOGI("%s: success bytes=%zu", TERMUX_BOOTSTRAP_SYMBOL, payload_size);
     return result;
 }
