@@ -301,6 +301,7 @@ jobs:
           VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
           VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
           VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
+          VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
           ANDROID_SIGNING_KEYSTORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
         run: |
           set -euo pipefail
@@ -346,7 +347,7 @@ jobs:
           resolve_keystore_source
 
           if [[ "${{ needs.preflight.outputs.signing_mode }}" == "unsigned" ]]; then
-            EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
+            EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true"
           elif [[ "${{ needs.preflight.outputs.signing_mode }}" == "signed" ]]; then
             if ! has_required_signing_secrets; then
               echo "::error::signing_mode=signed requer VECTRAS_RELEASE_STORE_PASSWORD, VECTRAS_RELEASE_KEY_ALIAS e VECTRAS_RELEASE_KEY_PASSWORD"
@@ -358,8 +359,29 @@ jobs:
             fi
           else
             if ! has_required_signing_secrets || [[ "${KEYSTORE_READY}" != "true" ]]; then
-              EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
+              EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true"
             fi
+          fi
+
+          if [[ -n "${VECTRAS_GOOGLE_SERVICES_JSON_B64:-}" ]]; then
+            echo "${VECTRAS_GOOGLE_SERVICES_JSON_B64}" | base64 --decode > app/google-services.json
+            echo "Loaded production Firebase config from VECTRAS_GOOGLE_SERVICES_JSON_B64."
+          elif [[ "${EXTRA_RELEASE_FLAGS}" == *"-PCI_INTERNAL_VALIDATION=true"* ]]; then
+            cat > app/google-services.json <<'JSON'
+            {
+              "project_info": {
+                "project_number": "0",
+                "project_id": "placeholder-internal-validation",
+                "storage_bucket": "placeholder-internal-validation.appspot.com"
+              },
+              "client": [],
+              "configuration_version": "1"
+            }
+            JSON
+            echo "Using placeholder Firebase config for unsigned internal validation."
+          else
+            echo "::error::google-services.json de produção ausente para caminho oficial assinado."
+            exit 1
           fi
 
           if [[ -z "${EXTRA_RELEASE_FLAGS}" ]]; then

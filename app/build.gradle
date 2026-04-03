@@ -284,13 +284,15 @@ tasks.register("validateFirebaseReleaseConfig") {
 
     doLast {
         def allowPlaceholderFirebase = providers.gradleProperty("ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE").orElse("false").get().toBoolean()
+        def ciInternalValidation = providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get().toBoolean()
+        def effectiveAllowPlaceholderFirebase = allowPlaceholderFirebase || ciInternalValidation
 
         logger.lifecycle("[validateFirebaseReleaseConfig] matriz de variantes: debug=opcional | perfRelease=obrigatório | release=obrigatório")
-        logger.lifecycle("[validateFirebaseReleaseConfig] exceção controlada: -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true (somente validação interna)")
+        logger.lifecycle("[validateFirebaseReleaseConfig] exceção controlada: -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true ou -PCI_INTERNAL_VALIDATION=true (somente validação interna)")
 
         if (!firebaseConfigFile.exists()) {
-            if (allowPlaceholderFirebase) {
-                logger.lifecycle("[validateFirebaseReleaseConfig] google-services.json ausente, mas ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true habilitado para validação interna.")
+            if (effectiveAllowPlaceholderFirebase) {
+                logger.lifecycle("[validateFirebaseReleaseConfig] google-services.json ausente, mas exceção de validação interna habilitada (-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true ou -PCI_INTERNAL_VALIDATION=true).")
                 return
             }
             throw new GradleException("google-services.json ausente para variant release. Injete o arquivo real via secret/base64 no CI ou use fallback apenas para debug. Veja app/FIREBASE.md.")
@@ -305,14 +307,14 @@ tasks.register("validateFirebaseReleaseConfig") {
 
         def projectId = (firebaseConfig?.project_info?.project_id ?: "").toString().trim()
         if (!projectId) {
-            if (allowPlaceholderFirebase) {
-                logger.lifecycle("[validateFirebaseReleaseConfig] project_id vazio aceito via ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true para validação interna.")
+            if (effectiveAllowPlaceholderFirebase) {
+                logger.lifecycle("[validateFirebaseReleaseConfig] project_id vazio aceito via exceção de validação interna (-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true ou -PCI_INTERNAL_VALIDATION=true).")
                 return
             }
             throw new GradleException("google-services.json sem project_info.project_id para variant release.")
         }
 
-        if (projectId.toLowerCase().contains("placeholder") && !allowPlaceholderFirebase) {
+        if (projectId.toLowerCase().contains("placeholder") && !effectiveAllowPlaceholderFirebase) {
             throw new GradleException("Build release bloqueado: project_id contém 'placeholder' (${projectId}). Injete o google-services.json de produção via segredo de pipeline.")
         }
 
@@ -394,7 +396,7 @@ def variantTaskPart = { String variant ->
     variant ? variant.substring(0, 1).toUpperCase() + variant.substring(1) : variant
 }
 
-def registerNativeMatrixTasks = { List<String> abiPolicies, List<String> buildVariants, String taskNameSuffix, String matrixLabel ->
+def registerNativeMatrixTasks = { List<String> abiPolicies, List<String> buildVariants, String taskNameSuffix, String matrixLabel, boolean ciInternalValidation = false ->
     def matrixTasks = []
 
     abiPolicies.each { policy ->
@@ -410,8 +412,8 @@ def registerNativeMatrixTasks = { List<String> abiPolicies, List<String> buildVa
                     : 'somente diagnóstico interno (não bloqueante para release)'
                 description = "[${matrixLabel}] (${releaseImpactDescription}) Executa :app:assemble${variantTaskPart(variant)} com APP_ABI_POLICY=${policy}."
                 workingDir rootProject.projectDir
-                def gradleArgs = ["-PAPP_ABI_POLICY=${policy}", "-PALLOW_UNSIGNED_RELEASE=true"]
-                if (isInternalValidationVariant) {
+                def gradleArgs = ["-PAPP_ABI_POLICY=${policy}", "-PALLOW_UNSIGNED_RELEASE=true", "-PCI_INTERNAL_VALIDATION=${ciInternalValidation}"]
+                if (isInternalValidationVariant || ciInternalValidation) {
                     gradleArgs << "-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
                 } else {
                     gradleArgs << "-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=false"
@@ -428,14 +430,16 @@ def checkNativeOfficialMatrixTasks = registerNativeMatrixTasks(
     officialNativeCheckAbiPolicies,
     officialNativeCheckBuildVariants,
     'Official',
-    'official'
+    'official',
+    providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get().toBoolean()
 )
 
 def checkNativeExtendedMatrixTasks = registerNativeMatrixTasks(
     extendedNativeCheckAbiPolicies,
     extendedNativeCheckBuildVariants,
     'Extended',
-    'extended'
+    'extended',
+    true
 )
 
 tasks.register('checkNativeExtendedMatrix') {
