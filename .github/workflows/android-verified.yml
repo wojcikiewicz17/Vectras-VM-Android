@@ -303,18 +303,12 @@ jobs:
             "cmake;${{ env.CMAKE_VERSION }}"
 
       - name: Generate local.properties
-        run: |
-          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
+        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}"
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Bootstrap shell-loader asset (mandatory)
-        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
-
-      - name: Verify bootstrap assets (mandatory)
-        run: |
-          python3 tools/verify_bootstrap_assets.py
-          ./tools/gradle_with_jdk21.sh verifyBootstrapAssets --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }}
+      - name: Enforce bootstrap contract (sync -> verify)
+        run: ./tools/ci/verify_bootstrap_contract.sh --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }}
 
       - name: Build debug with mode policy
         shell: bash
@@ -353,6 +347,7 @@ jobs:
         run: |
           set -euo pipefail
           ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PartifactVariants=debug
+          ./tools/ci/verify_artifact_contract.sh --variants debug
 
       - name: Upload compiled artifacts report (required)
         if: always()
@@ -414,18 +409,12 @@ jobs:
             "cmake;${{ env.CMAKE_VERSION }}"
 
       - name: Generate local.properties
-        run: |
-          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
+        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}"
 
       - uses: gradle/actions/setup-gradle@v4
 
-      - name: Bootstrap shell-loader asset (mandatory)
-        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
-
-      - name: Verify bootstrap assets (mandatory)
-        run: |
-          python3 tools/verify_bootstrap_assets.py
-          ./tools/gradle_with_jdk21.sh verifyBootstrapAssets --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }}
+      - name: Enforce bootstrap contract (sync -> verify)
+        run: ./tools/ci/verify_bootstrap_contract.sh --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }}
 
       - name: Assemble release (auto/signed/unsigned)
         shell: bash
@@ -440,94 +429,21 @@ jobs:
         run: |
           set -euo pipefail
           BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
-          EXTRA_RELEASE_FLAGS=""
-          GENERATED_KEYSTORE_PATH="/tmp/release.keystore"
-          KEYSTORE_READY="false"
+          ./tools/ci/prepare_release_signing.sh --mode "${{ needs.preflight.outputs.signing_mode }}" --keystore-out "/tmp/release.keystore" --allow-legacy-fallback
 
-          has_required_signing_secrets() {
-            [[ -n "${VECTRAS_RELEASE_STORE_PASSWORD:-}" && -n "${VECTRAS_RELEASE_KEY_ALIAS:-}" && -n "${VECTRAS_RELEASE_KEY_PASSWORD:-}" ]]
-          }
-
-          resolve_keystore_source() {
-            if [[ -n "${VECTRAS_RELEASE_STORE_FILE:-}" ]]; then
-              if [[ -s "${VECTRAS_RELEASE_STORE_FILE}" ]]; then
-                KEYSTORE_READY="true"
-              else
-                echo "::error::VECTRAS_RELEASE_STORE_FILE foi definido, mas o arquivo não existe ou está vazio: ${VECTRAS_RELEASE_STORE_FILE}"
-                return 1
-              fi
-            elif [[ -n "${VECTRAS_RELEASE_KEYSTORE_B64:-}" ]]; then
-              echo "${VECTRAS_RELEASE_KEYSTORE_B64}" | base64 -d > "${GENERATED_KEYSTORE_PATH}"
-              if [[ -s "${GENERATED_KEYSTORE_PATH}" ]]; then
-                export VECTRAS_RELEASE_STORE_FILE="${GENERATED_KEYSTORE_PATH}"
-                KEYSTORE_READY="true"
-              else
-                echo "::error::VECTRAS_RELEASE_KEYSTORE_B64 foi fornecido, mas não gerou um keystore válido"
-                return 1
-              fi
-            elif [[ -n "${ANDROID_SIGNING_KEYSTORE:-}" ]]; then
-              echo "::warning::Usando fallback legado ANDROID_SIGNING_KEYSTORE; prefira VECTRAS_RELEASE_STORE_FILE ou VECTRAS_RELEASE_KEYSTORE_B64"
-              echo "${ANDROID_SIGNING_KEYSTORE}" | base64 -d > "${GENERATED_KEYSTORE_PATH}"
-              if [[ -s "${GENERATED_KEYSTORE_PATH}" ]]; then
-                export VECTRAS_RELEASE_STORE_FILE="${GENERATED_KEYSTORE_PATH}"
-                KEYSTORE_READY="true"
-              else
-                echo "::error::ANDROID_SIGNING_KEYSTORE (fallback legado) não gerou um keystore válido"
-                return 1
-              fi
-            fi
-          }
-
-          resolve_keystore_source
-
-          if [[ "${{ needs.preflight.outputs.signing_mode }}" == "unsigned" ]]; then
-            EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true"
-          elif [[ "${{ needs.preflight.outputs.signing_mode }}" == "signed" ]]; then
-            if ! has_required_signing_secrets; then
-              echo "::error::signing_mode=signed requer VECTRAS_RELEASE_STORE_PASSWORD, VECTRAS_RELEASE_KEY_ALIAS e VECTRAS_RELEASE_KEY_PASSWORD"
-              exit 1
-            fi
-            if [[ "${KEYSTORE_READY}" != "true" ]]; then
-              echo "::error::signing_mode=signed requer keystore válido via VECTRAS_RELEASE_STORE_FILE ou VECTRAS_RELEASE_KEYSTORE_B64 (fallback legado: ANDROID_SIGNING_KEYSTORE)"
-              exit 1
-            fi
+          if [[ -n "${VECTRAS_CI_RELEASE_FLAGS:-}" ]]; then
+            ./tools/ci/materialize_firebase_config.sh --policy internal
           else
-            if ! has_required_signing_secrets || [[ "${KEYSTORE_READY}" != "true" ]]; then
-              EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true"
-            fi
-          fi
-
-          if [[ -n "${VECTRAS_GOOGLE_SERVICES_JSON_B64:-}" ]]; then
-            echo "${VECTRAS_GOOGLE_SERVICES_JSON_B64}" | base64 --decode > app/google-services.json
-            echo "Loaded production Firebase config from VECTRAS_GOOGLE_SERVICES_JSON_B64."
-          elif [[ "${EXTRA_RELEASE_FLAGS}" == *"-PCI_INTERNAL_VALIDATION=true"* ]]; then
-            python3 -c 'import json; from pathlib import Path; payload={"project_info":{"project_number":"0","project_id":"placeholder-internal-validation","storage_bucket":"placeholder-internal-validation.appspot.com"},"client":[],"configuration_version":"1"}; Path("app/google-services.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")'
-            echo "Using placeholder Firebase config for unsigned internal validation."
-          else
-            echo "::error::google-services.json de produção ausente para caminho oficial assinado."
-            exit 1
-          fi
-
-          if [[ -z "${EXTRA_RELEASE_FLAGS}" ]]; then
-            if [[ -z "${VECTRAS_RELEASE_STORE_FILE:-}" || ! -s "${VECTRAS_RELEASE_STORE_FILE}" ]]; then
-              echo "::error::Keystore ausente ou vazio antes do assembleRelease"
-              exit 1
-            fi
-            if ! has_required_signing_secrets; then
-              echo "::error::Secrets obrigatórios ausentes antes do assembleRelease: VECTRAS_RELEASE_STORE_PASSWORD, VECTRAS_RELEASE_KEY_ALIAS, VECTRAS_RELEASE_KEY_PASSWORD"
-              exit 1
-            fi
+            ./tools/ci/materialize_firebase_config.sh --policy official
           fi
 
           if [[ "${{ needs.preflight.outputs.run_native_matrix }}" == "true" ]]; then
-            ./tools/gradle_with_jdk21.sh checkNativeAllMatrix --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
+            ./tools/gradle_with_jdk21.sh checkNativeAllMatrix --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS ${VECTRAS_CI_RELEASE_FLAGS}
           fi
 
           ./tools/gradle_with_jdk21.sh verifyTargetApiBaseline --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PTARGET_API=${{ env.TARGET_API }} -PRELEASE_MIN_TARGET_API=35
-          ./tools/gradle_with_jdk21.sh assembleDebug --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
-          ./tools/gradle_with_jdk21.sh assembleRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
-
-          rm -f "${GENERATED_KEYSTORE_PATH}"
+          ./tools/gradle_with_jdk21.sh assembleDebug --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS ${VECTRAS_CI_RELEASE_FLAGS} ${VECTRAS_CI_SIGNING_ARGS}
+          ./tools/gradle_with_jdk21.sh assembleRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS ${VECTRAS_CI_RELEASE_FLAGS} ${VECTRAS_CI_SIGNING_ARGS}
 
       - name: Assemble perfRelease
         shell: bash
@@ -541,44 +457,15 @@ jobs:
         run: |
           set -euo pipefail
           BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
-          EXTRA_RELEASE_FLAGS=""
-          GENERATED_KEYSTORE_PATH="/tmp/perf-release.keystore"
-          KEYSTORE_READY="false"
-
-          has_required_signing_secrets() {
-            [[ -n "${VECTRAS_RELEASE_STORE_PASSWORD:-}" && -n "${VECTRAS_RELEASE_KEY_ALIAS:-}" && -n "${VECTRAS_RELEASE_KEY_PASSWORD:-}" ]]
-          }
-
-          if [[ -n "${VECTRAS_RELEASE_STORE_FILE:-}" && -s "${VECTRAS_RELEASE_STORE_FILE}" ]]; then
-            KEYSTORE_READY="true"
-          elif [[ -n "${VECTRAS_RELEASE_KEYSTORE_B64:-}" ]]; then
-            echo "${VECTRAS_RELEASE_KEYSTORE_B64}" | base64 -d > "${GENERATED_KEYSTORE_PATH}"
-            if [[ -s "${GENERATED_KEYSTORE_PATH}" ]]; then
-              export VECTRAS_RELEASE_STORE_FILE="${GENERATED_KEYSTORE_PATH}"
-              KEYSTORE_READY="true"
-            fi
-          elif [[ -n "${ANDROID_SIGNING_KEYSTORE:-}" ]]; then
-            echo "${ANDROID_SIGNING_KEYSTORE}" | base64 -d > "${GENERATED_KEYSTORE_PATH}"
-            if [[ -s "${GENERATED_KEYSTORE_PATH}" ]]; then
-              export VECTRAS_RELEASE_STORE_FILE="${GENERATED_KEYSTORE_PATH}"
-              KEYSTORE_READY="true"
-            fi
-          fi
-
-          if [[ "${{ needs.preflight.outputs.signing_mode }}" == "unsigned" ]]; then
-            EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
-          elif [[ "${{ needs.preflight.outputs.signing_mode }}" == "auto" && ( "${KEYSTORE_READY}" != "true" || ! has_required_signing_secrets ) ]]; then
-            EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
-          fi
-
-          ./tools/gradle_with_jdk21.sh :app:assemblePerfRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
-          rm -f "${GENERATED_KEYSTORE_PATH}"
+          ./tools/ci/prepare_release_signing.sh --mode "${{ needs.preflight.outputs.signing_mode }}" --keystore-out "/tmp/perf-release.keystore" --allow-legacy-fallback
+          ./tools/gradle_with_jdk21.sh assemblePerfRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS ${VECTRAS_CI_RELEASE_FLAGS} ${VECTRAS_CI_SIGNING_ARGS}
 
       - name: Verify delivered compiled artifacts (debug, release, perfRelease)
         shell: bash
         run: |
           set -euo pipefail
           ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PartifactVariants=debug,release,perfRelease
+          ./tools/ci/verify_artifact_contract.sh --variants debug,release,perfRelease
 
       - name: Upload release artifacts
         if: always()

@@ -235,12 +235,12 @@ jobs:
           sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
 
       - name: Build local.properties
-        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}" --require-sdkmanager
 
       - name: Materialize Firebase config (debug/tests)
         env:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
-        run: ./tools/ci/materialize_google_services_placeholder.sh
+        run: ./tools/ci/materialize_firebase_config.sh --policy internal
 
       - name: Resolve diagnostic profile
         id: mode
@@ -265,11 +265,8 @@ jobs:
               ;;
           esac
 
-      - name: Bootstrap shell-loader asset (mandatory)
-        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
-
-      - name: Verify bootstrap assets script
-        run: python3 tools/verify_bootstrap_assets.py
+      - name: Enforce bootstrap contract (sync -> verify)
+        run: ./tools/ci/verify_bootstrap_contract.sh ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
       - name: Verify Gradle baseline gates
         if: steps.mode.outputs.run_repo_checks == 'true'
@@ -314,32 +311,20 @@ jobs:
         if: inputs.build_release && inputs.sign_release
         env:
           VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${VECTRAS_RELEASE_KEYSTORE_B64:-}" ]]; then
-            echo "Assinatura solicitada, mas segredo VECTRAS_RELEASE_KEYSTORE_B64 não foi fornecido." >&2
-            exit 1
-          fi
-          mkdir -p .ci-keystore
-          echo "${VECTRAS_RELEASE_KEYSTORE_B64}" | base64 -d > .ci-keystore/release.jks
-
-      - name: Build signed release/perfRelease
-        if: inputs.build_release && inputs.sign_release
-        env:
           VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
           VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
           VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          if [[ -z "${VECTRAS_RELEASE_STORE_PASSWORD:-}" || -z "${VECTRAS_RELEASE_KEY_ALIAS:-}" || -z "${VECTRAS_RELEASE_KEY_PASSWORD:-}" ]]; then
-            echo "Signing requested, but signing secrets are missing." >&2
-            exit 1
-          fi
+          mkdir -p .ci-keystore
+          ./tools/ci/prepare_release_signing.sh --mode signed --keystore-out "$PWD/.ci-keystore/release.jks"
+
+      - name: Build signed release/perfRelease
+        if: inputs.build_release && inputs.sign_release
+        run: |
+          set -euo pipefail
           ./tools/gradle_with_jdk21.sh :app:assembleRelease :app:assemblePerfRelease --stacktrace \
-            -Pandroid.injected.signing.store.file="$PWD/.ci-keystore/release.jks" \
-            -Pandroid.injected.signing.store.password="${VECTRAS_RELEASE_STORE_PASSWORD}" \
-            -Pandroid.injected.signing.key.alias="${VECTRAS_RELEASE_KEY_ALIAS}" \
-            -Pandroid.injected.signing.key.password="${VECTRAS_RELEASE_KEY_PASSWORD}" \
+            ${VECTRAS_CI_SIGNING_ARGS} \
             ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
       - name: Verify delivered compiled artifacts
@@ -353,6 +338,7 @@ jobs:
           ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts \
             -PartifactVariants="${artifact_variants}" \
             ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+          ./tools/ci/verify_artifact_contract.sh --variants "${artifact_variants}"
 
       - name: Upload compiled artifacts report (required)
         if: always()

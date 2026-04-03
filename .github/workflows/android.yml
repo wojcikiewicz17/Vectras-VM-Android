@@ -171,7 +171,7 @@ jobs:
       - name: Materialize Firebase config (optional fallback for debug/tests)
         env:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
-        run: ./tools/ci/materialize_google_services_placeholder.sh
+        run: ./tools/ci/materialize_firebase_config.sh --policy internal
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -398,14 +398,11 @@ jobs:
       - name: Verify ABI policy alignment (gradle.properties vs qemu_launch.yml)
         run: python3 tools/check_abi_policy_alignment.py
 
-      - name: Build shell-loader bootstrap asset (fail-fast)
+      - name: Enforce bootstrap contract (sync -> verify)
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap ${{ env.GRADLE_ARGS }}
-
-      - name: Validate bootstrap assets (fail-fast)
-        run: python3 tools/verify_bootstrap_assets.py
+        run: ./tools/ci/verify_bootstrap_contract.sh ${{ env.GRADLE_ARGS }}
 
       - name: Run ProotCommandBuilder unit tests
         env:
@@ -441,7 +438,9 @@ jobs:
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: ./tools/gradle_with_jdk21.sh verifyBootstrapAssets auditNonMdInventory ${{ env.GRADLE_ARGS }}
+        run: |
+          ./tools/ci/verify_bootstrap_contract.sh ${{ env.GRADLE_ARGS }}
+          ./tools/gradle_with_jdk21.sh auditNonMdInventory ${{ env.GRADLE_ARGS }}
 
       - name: Native ABI matrix gate
         if: ${{ needs.preflight.outputs.diagnostic_mode != 'fast' }}
@@ -450,20 +449,11 @@ jobs:
           set -euo pipefail
           MATRIX_FLAGS=""
           if [[ -n "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" ]]; then
-            echo "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" | base64 --decode > app/google-services.json
+            export VECTRAS_GOOGLE_SERVICES_JSON_B64="${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}"
+            ./tools/ci/materialize_firebase_config.sh --policy official
             echo "Native matrix will use production Firebase config from secret."
           else
-            cat > app/google-services.json <<'JSON'
-            {
-              "project_info": {
-                "project_number": "0",
-                "project_id": "placeholder-internal-validation",
-                "storage_bucket": "placeholder-internal-validation.appspot.com"
-              },
-              "client": [],
-              "configuration_version": "1"
-            }
-            JSON
+            ./tools/ci/materialize_firebase_config.sh --policy internal
             MATRIX_FLAGS="-PCI_INTERNAL_VALIDATION=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
             echo "Native matrix will use placeholder Firebase config for internal validation."
           fi
@@ -567,7 +557,7 @@ jobs:
     - name: Materialize Firebase config (optional fallback for debug/tests)
       env:
         VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
-      run: ./tools/ci/materialize_google_services_placeholder.sh
+      run: ./tools/ci/materialize_firebase_config.sh --policy internal
 
     - name: Grant execute permission for gradlew
       run: chmod +x gradlew
@@ -577,14 +567,11 @@ jobs:
         java -version
         ./tools/gradle_with_jdk21.sh --version
 
-    - name: Bootstrap shell-loader asset (mandatory)
+    - name: Enforce bootstrap contract (sync -> verify)
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap ${{ env.GRADLE_ARGS }}
-
-    - name: Validate bootstrap assets (mandatory)
-      run: python3 tools/verify_bootstrap_assets.py
+      run: ./tools/ci/verify_bootstrap_contract.sh ${{ env.GRADLE_ARGS }}
 
     - name: Run ProotCommandBuilder unit tests
       env:
@@ -705,7 +692,8 @@ jobs:
       shell: bash
       run: |
         set -euo pipefail
-        echo "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" | base64 --decode > app/google-services.json
+        export VECTRAS_GOOGLE_SERVICES_JSON_B64="${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}"
+        ./tools/ci/materialize_firebase_config.sh --policy official
         echo "Firebase config loaded from VECTRAS_GOOGLE_SERVICES_JSON_B64 for release build"
 
     - name: Materialize placeholder Firebase config for unsigned internal validation
@@ -713,17 +701,7 @@ jobs:
       shell: bash
       run: |
         set -euo pipefail
-        cat > app/google-services.json <<'JSON'
-        {
-          "project_info": {
-            "project_number": "0",
-            "project_id": "placeholder-internal-validation",
-            "storage_bucket": "placeholder-internal-validation.appspot.com"
-          },
-          "client": [],
-          "configuration_version": "1"
-        }
-        JSON
+        ./tools/ci/materialize_firebase_config.sh --policy internal
         echo "VECTRAS_GOOGLE_SERVICES_JSON_B64 is not configured."
         echo "Using placeholder google-services.json for unsigned internal validation path."
 
@@ -752,17 +730,16 @@ jobs:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
         VECTRAS_RELEASE_STORE_FILE: ${{ runner.temp }}/vectras-release.jks
+        VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
         VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
         VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
         VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
       run: |
-        echo "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}" | base64 --decode > "$VECTRAS_RELEASE_STORE_FILE"
+        set -euo pipefail
+        ./tools/ci/prepare_release_signing.sh --mode signed --keystore-out "$VECTRAS_RELEASE_STORE_FILE"
         ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace \
           ${{ env.GRADLE_ARGS }} \
-          -Pandroid.injected.signing.store.file="$VECTRAS_RELEASE_STORE_FILE" \
-          -Pandroid.injected.signing.store.password="$VECTRAS_RELEASE_STORE_PASSWORD" \
-          -Pandroid.injected.signing.key.alias="$VECTRAS_RELEASE_KEY_ALIAS" \
-          -Pandroid.injected.signing.key.password="$VECTRAS_RELEASE_KEY_PASSWORD"
+          ${VECTRAS_CI_SIGNING_ARGS}
 
     - name: Build PerfRelease APK
       if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
@@ -795,6 +772,7 @@ jobs:
         fi
         artifact_variants="$(IFS=,; echo "${variants[*]}")"
         ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants="${artifact_variants}"
+        ./tools/ci/verify_artifact_contract.sh --variants "${artifact_variants}"
 
     - name: Resolve release artifact path
       id: release_artifact
