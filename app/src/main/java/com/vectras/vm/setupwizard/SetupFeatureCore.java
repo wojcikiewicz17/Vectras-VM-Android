@@ -54,12 +54,19 @@ public class SetupFeatureCore {
     public static String TAG = "SetupFeatureCore";
     public static final String ABI_RESOLVE_TAG = "SETUP_ABI_RESOLVE";
     public static String lastErrorLog = "";
+    public static String lastWarningLog = "";
     public static final String COPY_FAIL_PREFIX = "COPY_FAIL:";
     public static final String INTEGRITY_FAIL_PREFIX = "INTEGRITY_FAIL:";
     public static final String EXTRACTION_FAIL_PREFIX = "EXTRACTION_FAIL:";
+    public static final String EXTRACTION_WARN_PREFIX = "EXTRACTION_WARN:";
     public static final String POST_CHECK_FAIL_PREFIX = "POST_CHECK_FAIL:";
     private static final String BOOTSTRAP_LOG_PREFIX = "PROOT_BOOTSTRAP";
     private static final long MIN_TAR_BYTES = 1024L;
+    private static final List<String> CRITICAL_STDERR_PATTERNS = Arrays.asList(
+            "cannot open",
+            "permission denied",
+            "error is not recoverable"
+    );
 
     public static boolean isInstalledSystemFiles(Context context) {
         return isInstalledProot(context) && isInstalledDistro(context);
@@ -834,6 +841,7 @@ public class SetupFeatureCore {
     public static boolean startExtractSystemFiles(Context context, @Nullable String bootstrapExpectedSha256) {
         if (isInstalledSystemFiles(context)) return true;
         lastErrorLog = "";
+        lastWarningLog = "";
 
         String filesDir = context.getFilesDir().getAbsolutePath();
         File distroDir = new File(filesDir + "/distro");
@@ -864,6 +872,7 @@ public class SetupFeatureCore {
     }
 
     public static boolean extractSystemFiles(Context context, String fromAsset, String extractTo, @Nullable String expectedSha256) {
+        lastWarningLog = "";
         String randomFileName = VMManager.startRandomVMID();
         final String[] selectedAssetHolder = new String[1];
         String assetPath = resolveAssetPath(context, fromAsset, selectedAssetHolder);
@@ -991,8 +1000,8 @@ public class SetupFeatureCore {
                     return false;
                 }
 
-                if (waitResult.exitCode != 0 || !stderrSummary.isEmpty()) {
-                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_NON_ZERO_OR_OUTPUT_VALIDATION_FAIL ["
+                if (waitResult.exitCode != 0) {
+                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_NON_ZERO_EXIT ["
                             + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
@@ -1000,6 +1009,26 @@ public class SetupFeatureCore {
                             + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
+                }
+
+                if (!stderrSummary.isEmpty()) {
+                    String stderrLower = stderrSummary.toLowerCase(Locale.ROOT);
+                    if (containsCriticalStderr(stderrLower)) {
+                        lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_CRITICAL_STDERR_DETECTED ["
+                                + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
+                                + "] asset=" + assetPath
+                                + " cmd=" + commandSummary
+                                + " stderr=" + stderrSummary);
+                        Log.e(TAG, lastErrorLog);
+                        return false;
+                    }
+
+                    lastWarningLog = formatErrorCode(EXTRACTION_WARN_PREFIX, "PROCESS_STDERR_WARNING ["
+                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
+                            + "] asset=" + assetPath
+                            + " cmd=" + commandSummary
+                            + " warning=" + stderrSummary);
+                    Log.w(TAG, lastWarningLog);
                 }
 
                 ArrayList<String> extractionPostCheckFailedItems = new ArrayList<>();
@@ -1051,6 +1080,15 @@ public class SetupFeatureCore {
         synchronized (output) {
             output.append(line).append("\n");
         }
+    }
+
+    private static boolean containsCriticalStderr(String stderrLower) {
+        for (String pattern : CRITICAL_STDERR_PATTERNS) {
+            if (stderrLower.contains(pattern)) {
+                return true;
+            }
+        }
+        return false;
     }
 
 
