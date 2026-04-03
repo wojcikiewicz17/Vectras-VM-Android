@@ -32,6 +32,7 @@
 ## Regra de manutenção do índice
 - Todo novo arquivo Markdown na raiz (`./*.md`) deve ser incluído na tabela **Documentos de raiz** no mesmo commit/PR em que for criado ou movido.
 - Antes de concluir mudanças na raiz, validar consistência com [`docs/ROOT_FILES_CATALOG.md`](docs/ROOT_FILES_CATALOG.md) e [`docs/ROOT_FILE_CHAIN.md`](docs/ROOT_FILE_CHAIN.md).
+- Para revisão/refatoração documental, seguir o fluxo em [`docs/README.md#fluxo-de-revisão-documental-refatorado`](docs/README.md#fluxo-de-revisão-documental-refatorado).
 
 ## Diretórios com documentação completa
 Cada diretório tem:

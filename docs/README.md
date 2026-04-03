@@ -14,6 +14,13 @@ Camada técnica central de documentação do Vectras VM Android.
 - [`ROOT_FILE_CHAIN.md`](ROOT_FILE_CHAIN.md)
 - [`../DOC_INDEX.md`](../DOC_INDEX.md)
 
+## Fluxo de revisão documental (refatorado)
+1. **Mapear escopo da mudança**: identificar quais diretórios/módulos foram alterados no código.
+2. **Atualizar o documento fonte**: aplicar ajuste no arquivo técnico principal (arquitetura, operação, build, benchmark, etc.).
+3. **Sincronizar índices e navegação**: refletir mudanças em `../README.md`, `../DOC_INDEX.md` e `navigation/INDEX.md` quando necessário.
+4. **Verificar rastreabilidade**: garantir que links internos e referências cruzadas apontem para caminhos canônicos.
+5. **Registrar metadados**: atualizar versão, data e commit de referência ao final deste arquivo.
+
 ## Eixos técnicos especializados
 - Arquitetura: `ARCHITECTURE.md`, `API.md`, `RAFAELIA_COHESION_ENTERPRISE_STACK.md`
 - Operação e benchmark: `OPERATIONS.md`, `BENCHMARKS.md`, `BENCHMARK_MANAGER.md`
@@ -41,7 +48,7 @@ sed -n '1,120p' docs/ROOT_FILE_CHAIN.md
 ```
 
 ## Metadados
-- Versão do documento: 1.2
-- Última atualização: 2026-03-06
-- Commit de referência: `a70a4d9`
+- Versão do documento: 1.3
+- Última atualização: 2026-04-03
+- Commit de referência: `HEAD`
 - Domínio de código coberto: Portal documental transversal para app, engine, tools, web e runtime.
