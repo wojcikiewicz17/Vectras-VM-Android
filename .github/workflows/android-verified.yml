@@ -364,34 +364,31 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          phase: upload
-          artifact_name: android-compiled-artifacts-report
-          artifact_path: app/build/reports/artifacts/compiled-artifacts-report.json
-          artifact_if_no_files_found: error
-          artifact_retention_days: '14'
+          name: android-compiled-artifacts-report
+          path: app/build/reports/artifacts/compiled-artifacts-report.json
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload compiled outputs bundle
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          phase: upload
-          artifact_name: android-compiled-outputs
-          artifact_path: |
+          name: android-compiled-outputs
+          path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
             app/build/outputs/mapping/**
-          artifact_if_no_files_found: error
-          artifact_retention_days: '14'
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload debug diagnostics
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          phase: upload
-          artifact_name: debug-diagnostics-${{ github.run_id }}
-          artifact_retention_days: '14'
-          artifact_if_no_files_found: ignore
-          artifact_path: |
+          name: debug-diagnostics-${{ github.run_id }}
+          retention-days: 14
+          if-no-files-found: ignore
+          path: |
             app/build/reports/**
             app/build/outputs/logs/**
             **/build/test-results/**
@@ -489,13 +486,19 @@ jobs:
 
       - name: Validate expected delivery artifacts (debug, release, perfRelease)
         if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/validate_expected_android_artifacts.sh "debug,release,perfRelease"
+
+      - name: Upload release bundle
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          phase: upload
-          artifact_name: release-bundle-${{ github.run_id }}
-          artifact_retention_days: '30'
-          artifact_if_no_files_found: ignore
-          artifact_path: |
+          name: release-bundle-${{ github.run_id }}
+          retention-days: 30
+          if-no-files-found: ignore
+          path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
             app/build/outputs/mapping/**
