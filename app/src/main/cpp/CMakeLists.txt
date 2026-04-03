@@ -62,6 +62,9 @@ add_library(vectra_core_accel SHARED
     ${VECTRA_LOWLEVEL_SOURCES}
     ${VECTRA_CASM_SOURCES})
 
+add_library(termux-bootstrap SHARED
+    termux_bootstrap_bridge.c)
+
 if(VECTRA_CASM_SOURCES)
     target_compile_definitions(vectra_core_accel PRIVATE VECTRA_HAS_CASM_MARKER=1)
 else()
@@ -158,6 +161,9 @@ endif()
 target_compile_options(vectra_core_accel PRIVATE
     ${VECTRA_COMMON_COMPILE_OPTIONS}
     ${VECTRA_ABI_COMPILE_OPTIONS})
+target_compile_options(termux-bootstrap PRIVATE
+    ${VECTRA_COMMON_COMPILE_OPTIONS}
+    ${VECTRA_ABI_COMPILE_OPTIONS})
 
 target_compile_definitions(vectra_core_accel PRIVATE
     RMR_ASM_CORE_EXPERIMENTAL=$<BOOL:${RMR_ASM_CORE_EXPERIMENTAL}>
@@ -166,16 +172,24 @@ target_compile_definitions(vectra_core_accel PRIVATE
     RMR_ASM_CORE_RISCV64_VALIDATED=$<BOOL:${RMR_ASM_CORE_RISCV64_VALIDATED}>)
 
 target_link_libraries(vectra_core_accel PRIVATE ${log-lib})
+target_link_libraries(termux-bootstrap PRIVATE ${log-lib})
 
 target_include_directories(vectra_core_accel PRIVATE
     ${VECTRA_RMR_INCLUDE_DIR})
 
+target_include_directories(termux-bootstrap PRIVATE
+    ${VECTRA_RMR_INCLUDE_DIR})
+
 if(NOT ANDROID)
     target_include_directories(vectra_core_accel PRIVATE ${JNI_INCLUDE_DIRS})
+    target_include_directories(termux-bootstrap PRIVATE ${JNI_INCLUDE_DIRS})
 endif()
 
 if(CMAKE_ANDROID_NDK)
     target_include_directories(vectra_core_accel PRIVATE
+        ${CMAKE_ANDROID_NDK}/sysroot/usr/include
+        ${CMAKE_ANDROID_NDK}/sysroot/usr/include/${CMAKE_ANDROID_ARCH_TRIPLE})
+    target_include_directories(termux-bootstrap PRIVATE
         ${CMAKE_ANDROID_NDK}/sysroot/usr/include
         ${CMAKE_ANDROID_NDK}/sysroot/usr/include/${CMAKE_ANDROID_ARCH_TRIPLE})
 endif()
