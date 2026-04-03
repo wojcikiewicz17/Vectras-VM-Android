@@ -950,7 +950,8 @@ public class SetupFeatureCore {
                 // Security note: ProcessBuilder receives each token separately. There is no shell invocation here.
                 ProcessBuilder processBuilder = new ProcessBuilder(cmdline);
                 processBuilder.environment().remove("LD_LIBRARY_PATH");
-                StringBuilder errorOutput = new StringBuilder();
+                StringBuilder stdoutOutput = new StringBuilder();
+                StringBuilder stderrOutput = new StringBuilder();
                 ProcessLaunch.LaunchResult waitResult = ProcessLaunch.withBudget(
                         context,
                         "setupwizard.extract",
@@ -959,15 +960,19 @@ public class SetupFeatureCore {
                         null,
                         ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION,
                         processBuilder,
-                        line -> appendExtractOutput(errorOutput, line),
-                        line -> appendExtractOutput(errorOutput, line),
+                        line -> appendProcessOutput(stdoutOutput, line),
+                        line -> appendProcessOutput(stderrOutput, line),
                         null
                 );
 
                 String commandSummary = formatCommand(cmdline);
                 String stderrSummary;
-                synchronized (errorOutput) {
-                    stderrSummary = errorOutput.toString().trim();
+                synchronized (stderrOutput) {
+                    stderrSummary = stderrOutput.toString().trim();
+                }
+                String stdoutSummary;
+                synchronized (stdoutOutput) {
+                    stdoutSummary = stdoutOutput.toString().trim();
                 }
                 if (waitResult.status == ProcessLaunch.LaunchStatus.TIMEOUT) {
                     lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_TIMEOUT ["
@@ -975,7 +980,8 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " detail=" + waitResult.diagnosis
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary)
+                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -986,7 +992,8 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " detail=" + waitResult.diagnosis
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary)
+                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -997,7 +1004,8 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " exit=" + waitResult.exitCode
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary)
+                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -1044,7 +1052,7 @@ public class SetupFeatureCore {
     }
 
 
-    private static void appendExtractOutput(StringBuilder output, String line) {
+    private static void appendProcessOutput(StringBuilder output, String line) {
         if (line == null) {
             return;
         }
