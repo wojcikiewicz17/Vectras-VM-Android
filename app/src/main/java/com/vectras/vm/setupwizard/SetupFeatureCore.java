@@ -979,19 +979,20 @@ public class SetupFeatureCore {
                         null,
                         ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION,
                         processBuilder,
-                        line -> appendProcessOutputLine(stdoutOutput, line),
-                        line -> appendProcessOutputLine(stderrOutput, line),
+                        line -> appendProcessOutput(stdoutOutput, line),
+                        line -> appendProcessOutput(stderrOutput, line),
                         null
                 );
 
                 String commandSummary = formatCommand(cmdline);
                 String stdoutSummary;
                 String stderrSummary;
-                synchronized (stdoutOutput) {
-                    stdoutSummary = stdoutOutput.toString().trim();
-                }
                 synchronized (stderrOutput) {
                     stderrSummary = stderrOutput.toString().trim();
+                }
+                String stdoutSummary;
+                synchronized (stdoutOutput) {
+                    stdoutSummary = stdoutOutput.toString().trim();
                 }
                 if (waitResult.status == ProcessLaunch.LaunchStatus.TIMEOUT) {
                     lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_TIMEOUT ["
@@ -999,8 +1000,8 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " detail=" + waitResult.diagnosis
-                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary)
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary)
+                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -1011,8 +1012,8 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " detail=" + waitResult.diagnosis
-                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary)
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary)
+                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -1023,8 +1024,8 @@ public class SetupFeatureCore {
                             + "] asset=" + assetPath
                             + " cmd=" + commandSummary
                             + " exit=" + waitResult.exitCode
-                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary)
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary)
+                            + (stdoutSummary.isEmpty() ? "" : " stdout=" + stdoutSummary));
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -1091,8 +1092,8 @@ public class SetupFeatureCore {
     }
 
 
-    private static void appendProcessOutputLine(StringBuilder outputBuffer, String outputLine) {
-        if (outputLine == null) {
+    private static void appendProcessOutput(StringBuilder output, String line) {
+        if (line == null) {
             return;
         }
         synchronized (outputBuffer) {
