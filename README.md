@@ -122,12 +122,15 @@ find . -maxdepth 2 -type d | sort
 - Uso de alias legado gera warning de depreciação no bootstrap Gradle para facilitar migração sem quebra imediata.
 
 ### ABIs oficialmente suportadas
-- Matriz oficial única de ABI (build/Gradle): `arm64-v8a`, `armeabi-v7a`, `x86` e `x86_64`.
-- **Suporte de distribuição oficial**:
-  - `APP_ABI_POLICY=arm64-only`: empacota apenas `arm64-v8a` (distribuição mínima).
-  - `APP_ABI_POLICY=with-32bit`: empacota `arm64-v8a,armeabi-v7a` (distribuição completa).
-- **Suporte de validação interna**:
-  - `APP_ABI_POLICY=all`: valida/empacota toda a matriz oficial (`arm64-v8a,armeabi-v7a,x86,x86_64`) para cobertura técnica interna (**não usar para distribuição oficial**).
+- Escopos ABI em `tools/qemu_launch.yml`:
+  - `official_distribution`: padrão oficial de distribuição, com `arm64-v8a`.
+  - `internal_validation`: matriz técnica expandida (`arm64-v8a,armeabi-v7a,x86,x86_64`) para validação interna.
+- **Política Gradle de distribuição oficial**:
+  - `APP_ABI_POLICY=arm64-only` + `SUPPORTED_ABIS=arm64-v8a` (default oficial).
+  - `APP_ABI_POLICY=with-32bit` + `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (distribuição oficial com ARM 32-bit).
+- **Política Gradle de validação técnica interna**:
+  - `APP_ABI_POLICY=all` + `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64` para cobertura interna (**não usar para distribuição oficial**).
+- O CI executa `tools/check_abi_policy_alignment.py` para garantir alinhamento entre `gradle.properties` (`APP_ABI_POLICY`/`SUPPORTED_ABIS`) e os escopos ABI em `tools/qemu_launch.yml`.
 - Entradas condicionais para ABIs fora dessa matriz no CMake (ex.: `riscv64`) são apenas roadmap e não representam ABI ativa no empacotamento Gradle.
 
 ### Exemplo de configuração de Java para build

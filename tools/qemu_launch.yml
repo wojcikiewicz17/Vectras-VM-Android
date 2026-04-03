@@ -77,10 +77,14 @@ build_env:
   cmake_version: "3.22.1"
   java_version: 17
   abi_filters:
-    - arm64-v8a
-    - armeabi-v7a
-    - x86
-    - x86_64
+    scope: official_distribution
+    official_distribution:
+      - arm64-v8a
+    internal_validation:
+      - arm64-v8a
+      - armeabi-v7a
+      - x86
+      - x86_64
 
 # ── RMR engine compile flags ────────────────────────────────
 engine_flags:
