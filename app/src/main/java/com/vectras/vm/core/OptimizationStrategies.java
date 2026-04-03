@@ -150,34 +150,36 @@ public final class OptimizationStrategies {
     
     /**
      * Simple object pool for reducing allocations.
-     * Thread-safe using lock-free stack.
+     * <p>
+     * This implementation is optimized for single-threaded usage and is not thread-safe.
+     * </p>
      */
     public static class ObjectPool<T> {
-        private final PooledObject<T>[] pool;
-        private volatile int top;
+        private final Object[] pool;
+        private int top;
         private final ObjectFactory<T> factory;
         
         @SuppressWarnings("unchecked")
         public ObjectPool(ObjectFactory<T> factory, int capacity) {
             this.factory = factory;
-            this.pool = new PooledObject[capacity];
+            this.pool = new Object[capacity];
             this.top = 0;
             
             // Pre-populate pool
             for (int i = 0; i < capacity; i++) {
-                pool[i] = new PooledObject<>(factory.create());
+                pool[i] = factory.create();
             }
             this.top = capacity;
         }
         
+        @SuppressWarnings("unchecked")
         public T acquire() {
-            int idx = top - 1;
-            if (idx >= 0 && idx < pool.length) {
-                // Try to pop
-                PooledObject<T> obj = pool[idx];
+            if (top > 0) {
+                int idx = --top;
+                T obj = (T) pool[idx];
+                pool[idx] = null;
                 if (obj != null) {
-                    top = idx;
-                    return obj.get();
+                    return obj;
                 }
             }
             // Pool empty, create new
@@ -185,22 +187,11 @@ public final class OptimizationStrategies {
         }
         
         public void release(T obj) {
-            int idx = top;
-            if (idx >= 0 && idx < pool.length) {
-                pool[idx] = new PooledObject<>(obj);
-                top = idx + 1;
+            if (obj == null) {
+                return;
             }
-        }
-        
-        private static class PooledObject<T> {
-            private final T object;
-            
-            PooledObject(T object) {
-                this.object = object;
-            }
-            
-            T get() {
-                return object;
+            if (top < pool.length) {
+                pool[top++] = obj;
             }
         }
     }
