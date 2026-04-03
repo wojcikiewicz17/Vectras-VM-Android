@@ -9,13 +9,16 @@ import android.util.Log;
 
 import androidx.annotation.Nullable;
 
+import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.AppConfig;
 import com.vectras.vm.R;
+import com.vectras.vm.StartVM;
 import com.vectras.vm.VMManager;
 import com.vectras.vm.core.ProotCommandBuilder;
 import com.vectras.vm.core.ProcessLaunch;
 import com.vectras.vm.core.ProcessRuntimeOps;
 import com.vectras.vm.core.HardwareProfileBridge;
+import com.vectras.vm.qemu.QemuArgsBuilder;
 import com.vectras.vm.qemu.QemuBinaryResolver;
 import com.vectras.vm.utils.DeviceUtils;
 import com.vectras.vm.utils.DialogUtils;
@@ -450,11 +453,16 @@ public class SetupFeatureCore {
         String filesDir = context.getFilesDir().getAbsolutePath();
         String rootfsPath = filesDir + "/distro";
         String workDir = "/root";
-        String requiredQemuBinary = QemuBinaryResolver.primaryBinaryForArch("X86_64");
+        String configuredArch = MainSettingsManager.getArch(context);
+        String effectiveArch = StartVM.resolvedArch(context);
+        String requiredQemuBinary = QemuArgsBuilder.binaryForArch(effectiveArch);
 
         detailMap.put("filesDir", filesDir);
         detailMap.put("rootfsPath", rootfsPath);
         detailMap.put("workDir", workDir);
+        detailMap.put("configuredArch", configuredArch == null ? "<null>" : configuredArch);
+        detailMap.put("effectiveArch", effectiveArch);
+        detailMap.put("requiredQemuBinary", requiredQemuBinary);
 
         ProotPrerequisiteResult prerequisiteResult = validateProotPrerequisites(context, rootfsPath, workDir);
         if (!prerequisiteResult.ok) {
