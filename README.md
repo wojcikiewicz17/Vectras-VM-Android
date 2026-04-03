@@ -5,6 +5,11 @@
 ## Abstract
 Esta revisão consolida a documentação em três camadas por diretório (propósito, estrutura e arquivo-a-arquivo), conectando documentação raiz, mapas locais e cadeia de comandos de inspeção. O objetivo é eliminar lacunas entre arquivos soltos, módulos ativos e documentação técnica, com navegação formal e auditável.
 
+## Atualização da revisão documental (2026-04-03)
+- Fluxo de revisão contínua padronizado em `docs/README.md`.
+- Navegação de `docs/` refatorada para estrutura numerada de 5 níveis.
+- Metadados de governança documental atualizados para acompanhamento de ciclo.
+
 
 ## Governança e estado — navegação rápida
 - Estado do projeto: [`PROJECT_STATE.md`](PROJECT_STATE.md)
