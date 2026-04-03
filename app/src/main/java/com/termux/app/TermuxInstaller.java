@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.os.Build;
 import android.os.Environment;
 import android.os.UserManager;
 import android.system.Os;
@@ -45,6 +46,14 @@ import java.util.zip.ZipInputStream;
  * (5.2) For every other zip entry, extract it into $STAGING_PREFIX and set execute permissions if necessary.
  */
 final class TermuxInstaller {
+    private static final class BootstrapInstallException extends RuntimeException {
+        final int userMessageResId;
+
+        BootstrapInstallException(String message, int userMessageResId) {
+            super(message);
+            this.userMessageResId = userMessageResId;
+        }
+    }
 
     /** Performs setup if necessary. */
     static void setupIfNeeded(final Activity activity, final Runnable whenDone) {
@@ -84,9 +93,9 @@ final class TermuxInstaller {
 
                     final byte[] zipBytes = loadZipBytes();
                     if (zipBytes == null || zipBytes.length == 0) {
-                        final String errorMessage = "Bootstrap archive is empty or unavailable: loadZipBytes() returned null/empty data";
+                        final String errorMessage = "Bootstrap archive is empty or unavailable: loadZipBytes() returned null/empty data. diagnostic=" + getBootstrapNativeLoadError();
                         Log.e(EmulatorDebug.LOG_TAG, errorMessage);
-                        throw new RuntimeException(errorMessage);
+                        throw new BootstrapInstallException(errorMessage, resolveBootstrapErrorMessageResId());
                     }
 
                     boolean symlinksFound = false;
@@ -100,7 +109,7 @@ final class TermuxInstaller {
                                 while ((line = symlinksReader.readLine()) != null) {
                                     String[] parts = line.split("←");
                                     if (parts.length != 2)
-                                        throw new RuntimeException("Malformed symlink line: " + line);
+                                        throw new BootstrapInstallException("Malformed symlink line: " + line, R.string.bootstrap_error_body_archive_invalid_or_empty);
                                     String oldPath = parts[0];
                                     File newPath;
                                     try {
@@ -120,7 +129,7 @@ final class TermuxInstaller {
                                     targetFile = resolveWithinStaging(STAGING_PREFIX_FILE, zipEntryName);
                                 } catch (RuntimeException e) {
                                     Log.e(EmulatorDebug.LOG_TAG, "Rejected zip entry: " + zipEntryName, e);
-                                    throw e;
+                                    throw new BootstrapInstallException("Invalid zip entry in bootstrap archive: " + zipEntryName, R.string.bootstrap_error_body_archive_invalid_or_empty);
                                 }
                                 boolean isDirectory = zipEntry.isDirectory();
 
@@ -144,11 +153,11 @@ final class TermuxInstaller {
                     if (!symlinksFound) {
                         final String errorMessage = "Bootstrap archive is invalid: SYMLINKS.txt entry was not found";
                         Log.e(EmulatorDebug.LOG_TAG, errorMessage);
-                        throw new RuntimeException(errorMessage);
+                        throw new BootstrapInstallException(errorMessage, R.string.bootstrap_error_body_archive_invalid_or_empty);
                     }
 
                     if (symlinks.isEmpty())
-                        throw new RuntimeException("Bootstrap archive contains SYMLINKS.txt but no symlink definitions");
+                        throw new BootstrapInstallException("Bootstrap archive contains SYMLINKS.txt but no symlink definitions", R.string.bootstrap_error_body_archive_invalid_or_empty);
                     for (Pair<String, String> symlink : symlinks) {
                         Os.symlink(symlink.first, symlink.second);
                     }
@@ -160,9 +169,11 @@ final class TermuxInstaller {
                     activity.runOnUiThread(whenDone);
                 } catch (final Exception e) {
                     Log.e(EmulatorDebug.LOG_TAG, "Bootstrap error", e);
+                    final int messageResId = (e instanceof BootstrapInstallException) ? ((BootstrapInstallException) e).userMessageResId : R.string.bootstrap_error_body;
+                    logBootstrapTelemetry("bootstrap_install_error_dialog", "setup_exception");
                     activity.runOnUiThread(() -> {
                         try {
-                            new AlertDialog.Builder(activity).setTitle(R.string.bootstrap_error_title).setMessage(R.string.bootstrap_error_body)
+                            new AlertDialog.Builder(activity).setTitle(R.string.bootstrap_error_title).setMessage(messageResId)
                                 .setNegativeButton(R.string.bootstrap_error_abort, (dialog, which) -> {
                                     dialog.dismiss();
                                     activity.finish();
@@ -217,15 +228,88 @@ final class TermuxInstaller {
     private static volatile boolean bootstrapNativeLoadAttempted = false;
     private static volatile boolean bootstrapNativeLoaded = false;
     private static volatile String bootstrapNativeLoadError = "";
+    private static volatile BootstrapDiagnostic bootstrapDiagnostic = BootstrapDiagnostic.idle();
+
+    private static final class BootstrapDiagnostic {
+        final String stage;
+        final String failureType;
+        final String failureMessage;
+        final String supportedAbis;
+        final String targetLibrary;
+
+        private BootstrapDiagnostic(String stage, String failureType, String failureMessage, String supportedAbis, String targetLibrary) {
+            this.stage = stage;
+            this.failureType = failureType;
+            this.failureMessage = failureMessage;
+            this.supportedAbis = supportedAbis;
+            this.targetLibrary = targetLibrary;
+        }
+
+        static BootstrapDiagnostic idle() {
+            return new BootstrapDiagnostic("none", "none", "", getSupportedAbisString(), TERMUX_BOOTSTRAP_LIB);
+        }
+
+        static BootstrapDiagnostic fromThrowable(String stage, Throwable t) {
+            return new BootstrapDiagnostic(stage, t.getClass().getSimpleName(), String.valueOf(t.getMessage()), getSupportedAbisString(), TERMUX_BOOTSTRAP_LIB);
+        }
+    }
+
+    private static String getSupportedAbisString() {
+        String[] abis = Build.SUPPORTED_ABIS;
+        if (abis == null || abis.length == 0) return "unknown";
+        StringBuilder builder = new StringBuilder();
+        for (int i = 0; i < abis.length; i++) {
+            if (i > 0) builder.append(',');
+            builder.append(abis[i]);
+        }
+        return builder.toString();
+    }
+
+    private static void recordBootstrapFailure(String stage, Throwable t) {
+        BootstrapDiagnostic diagnostic = BootstrapDiagnostic.fromThrowable(stage, t);
+        bootstrapDiagnostic = diagnostic;
+        bootstrapNativeLoadError = "stage=" + diagnostic.stage + ",type=" + diagnostic.failureType + ",lib=" + diagnostic.targetLibrary +
+            ",abis=" + diagnostic.supportedAbis + ",message=" + diagnostic.failureMessage;
+    }
+
+    private static void logBootstrapTelemetry(String event, String reason) {
+        BootstrapDiagnostic diagnostic = bootstrapDiagnostic;
+        Log.i(EmulatorDebug.LOG_TAG,
+            "bootstrap_telemetry event=" + event +
+                " reason=" + reason +
+                " stage=" + diagnostic.stage +
+                " failure_type=" + diagnostic.failureType +
+                " target_lib=" + diagnostic.targetLibrary +
+                " supported_abis=" + diagnostic.supportedAbis +
+                " linker_message=" + diagnostic.failureMessage);
+    }
+
+    private static int resolveBootstrapErrorMessageResId() {
+        String stage = bootstrapDiagnostic.stage;
+        if ("jni_load_library".equals(stage) || "jni_get_zip".equals(stage) || "jni_unavailable".equals(stage)) {
+            return R.string.bootstrap_error_body_jni_unavailable;
+        }
+        return R.string.bootstrap_error_body_archive_invalid_or_empty;
+    }
 
     public static byte[] loadZipBytes() {
         if (ensureBootstrapNativeLoaded()) {
             try {
-                return nativeGetZip();
+                byte[] zipBytes = nativeGetZip();
+                if (zipBytes == null || zipBytes.length == 0) {
+                    bootstrapDiagnostic = new BootstrapDiagnostic("zip_validation", "EmptyBootstrapZip", "nativeGetZip() returned null or empty payload", getSupportedAbisString(), TERMUX_BOOTSTRAP_LIB);
+                    bootstrapNativeLoadError = "stage=zip_validation,type=EmptyBootstrapZip,lib=" + TERMUX_BOOTSTRAP_LIB +
+                        ",abis=" + getSupportedAbisString() + ",message=nativeGetZip() returned null or empty payload";
+                }
+                return zipBytes;
             } catch (Throwable t) {
-                bootstrapNativeLoadError = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
+                recordBootstrapFailure("jni_get_zip", t);
                 Log.e(EmulatorDebug.LOG_TAG, "Failed to read bootstrap archive from JNI", t);
             }
+        } else if ("none".equals(bootstrapDiagnostic.stage)) {
+            bootstrapDiagnostic = new BootstrapDiagnostic("jni_unavailable", "NativeBootstrapUnavailable", "Bootstrap JNI is unavailable after load attempt", getSupportedAbisString(), TERMUX_BOOTSTRAP_LIB);
+            bootstrapNativeLoadError = "stage=jni_unavailable,type=NativeBootstrapUnavailable,lib=" + TERMUX_BOOTSTRAP_LIB +
+                ",abis=" + getSupportedAbisString() + ",message=Bootstrap JNI is unavailable after load attempt";
         }
         return new byte[0];
     }
@@ -236,9 +320,11 @@ final class TermuxInstaller {
         try {
             System.loadLibrary(TERMUX_BOOTSTRAP_LIB);
             bootstrapNativeLoaded = true;
+            bootstrapDiagnostic = BootstrapDiagnostic.idle();
+            bootstrapNativeLoadError = "";
         } catch (Throwable t) {
             bootstrapNativeLoaded = false;
-            bootstrapNativeLoadError = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
+            recordBootstrapFailure("jni_load_library", t);
             Log.e(EmulatorDebug.LOG_TAG, "Unable to load " + TERMUX_BOOTSTRAP_LIB + "; bootstrap JNI path disabled", t);
         }
         return bootstrapNativeLoaded;
