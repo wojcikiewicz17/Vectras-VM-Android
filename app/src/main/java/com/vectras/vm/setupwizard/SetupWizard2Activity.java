@@ -46,9 +46,11 @@ import com.vectras.vm.benchmark.BenchmarkActivity;
 import com.vectras.vm.benchmark.BenchmarkManager;
 import com.vectras.vm.core.ProcessLaunch;
 import com.vectras.vm.core.HardwareProfileBridge;
+import com.vectras.vm.core.RuntimeErrorReporter;
 import com.vectras.vm.core.ProcessRuntimeOps;
 import com.vectras.vm.core.ProotCommandBuilder;
 import com.vectras.vm.network.RequestNetwork;
+import com.vectras.vm.qemu.QemuBinaryResolver;
 import com.vectras.vm.network.RequestNetworkController;
 import com.vectras.vm.databinding.ActivitySetupWizard2Binding;
 import com.vectras.vm.databinding.ListViewBinding;
@@ -145,6 +147,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     String downloadBootstrapsCommand = "";
     String tarPath = "";
     String setupArchiveFileName = "setup.tar.gz";
+    String bundledBootstrapTechnicalError = "";
     String progressText ="0%";
     int setupProgressPercent = 0;
     boolean bootstrapDownloadActive = false;
@@ -897,6 +900,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
                 Log.i(TAG, "AUDIT setup command template=mirror;set -e;... | setupTs=" + setupTimestamp + " | customSetup=" + isCustomSetupMode + " | setupArchive=" + setupArchive + " | stageDir=" + stageDir + " | mirrorLocation=" + selectedMirrorLocation + " | bootstrapSource=" + setupSource + " | hasExpectedSha256=" + hasExpectedSha256 + " | hasExpectedSig=" + hasExpectedSignature);
 
+                String stageQemuBinaryCheck = buildAnyQemuBinaryPresenceCheck("$STAGE_ROOT/usr/local/bin", "-x");
                 String cmd = selectedMirrorCommand + ";" +
                         " set -e;" +
                         " SETUP_TS='" + setupTimestamp + "';" +
@@ -932,7 +936,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                         " echo \"Installing Qemu...\";" +
                         " if gzip -t \"$SETUP_ARCHIVE\" >/dev/null 2>&1; then tar -xzf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\"; else tar -xf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\"; fi || { rollback_setup 'bootstrap extraction failed'; exit 44; };" +
                         " test -d \"$STAGE_ROOT/usr/local/bin\" || { rollback_setup 'missing /usr/local/bin in staging'; exit 45; };" +
-                        " test -x \"$STAGE_ROOT/usr/local/bin/qemu-system-x86_64\" -o -x \"$STAGE_ROOT/usr/local/bin/qemu-system-aarch64\" || { rollback_setup 'missing qemu binary in staging'; exit 46; };" +
+                        " " + stageQemuBinaryCheck + " || { rollback_setup 'missing qemu binary in staging'; exit 46; };" +
                         " chmod 775 \"$STAGE_ROOT\"/usr/local/bin/* || { rollback_setup 'invalid binary permissions'; exit 47; };" +
                         " write_state STAGING 'Staging validation completed';" +
                         " mkdir -p \"$BACKUP_BASE/$SETUP_TS\";" +
@@ -958,6 +962,21 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 executeShellCommand(cmd, setupTimestamp);
             });
         }).start();
+    }
+
+    private String buildAnyQemuBinaryPresenceCheck(String baseDir, String testFlag) {
+        String resolvedBase = baseDir == null ? "" : baseDir;
+        String resolvedFlag = (testFlag == null || testFlag.trim().isEmpty()) ? "-f" : testFlag.trim();
+        StringBuilder expression = new StringBuilder();
+        for (String binary : QemuBinaryResolver.supportedBinaryNames()) {
+            if (expression.length() > 0) {
+                expression.append(" -o ");
+            }
+            expression.append(resolvedFlag)
+                    .append(" ")
+                    .append(CommandUtils.shellSingleQuote(resolvedBase + "/" + binary));
+        }
+        return expression.toString();
     }
 
     private void continueAfterEssentialPermissionResolution() {
@@ -1046,7 +1065,13 @@ public class SetupWizard2Activity extends AppCompatActivity {
         uiController(STEP_INSTALLING_PACKAGES);
         new Thread(() -> {
             if (!prepareBundledBootstrapArchive()) {
-                runOnUiThread(() -> uiController(STEP_ERROR, withSetupSourceDiagnostic(getString(R.string.unable_to_prepare_bundled_bootstrap_package))));
+                runOnUiThread(() -> {
+                    String baseMessage = getString(R.string.unable_to_prepare_bundled_bootstrap_package);
+                    String technical = bundledBootstrapTechnicalError == null || bundledBootstrapTechnicalError.isEmpty()
+                            ? ""
+                            : "\n\n" + bundledBootstrapTechnicalError;
+                    uiController(STEP_ERROR, withSetupSourceDiagnostic(baseMessage + technical));
+                });
                 return;
             }
 
@@ -1061,19 +1086,22 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private boolean prepareBundledBootstrapArchive() {
         String selectedAssetPath = null;
         String selectedAbi = null;
+        bundledBootstrapTechnicalError = "";
         for (String abiCandidate : BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS, HardwareProfileBridge.getEffectiveAbiHint(this))) {
             String candidatePath = "alpine19/" + abiCandidate + ".tar";
             try (InputStream ignored = getAssets().open(candidatePath)) {
                 selectedAssetPath = candidatePath;
                 selectedAbi = abiCandidate;
                 break;
-            } catch (IOException ignored) {
+            } catch (IOException e) {
+                RuntimeErrorReporter.warn("VRT-SETUP-0004", "probe_bundled_bootstrap_asset", candidatePath, e);
             }
         }
 
         if (selectedAssetPath == null) {
             Log.e(TAG, "PROOT_BOOTSTRAP ABI_RESOLUTION_FAIL bundled candidates="
                     + BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS, HardwareProfileBridge.getEffectiveAbiHint(this)));
+            bundledBootstrapTechnicalError = "[VRT-SETUP-0101] bundled_asset_abi_resolution_failed";
             return false;
         }
 
@@ -1091,7 +1119,9 @@ public class SetupWizard2Activity extends AppCompatActivity {
             Log.i(SetupFeatureCore.ABI_RESOLVE_TAG, "Bundled bootstrap prepared from path=" + selectedAssetPath);
             return true;
         } catch (IOException e) {
+            RuntimeErrorReporter.error("VRT-SETUP-0005", "copy_bundled_bootstrap_archive", selectedAssetPath, e);
             Log.e(TAG, "Failed to prepare bundled bootstrap archive: " + selectedAssetPath, e);
+            bundledBootstrapTechnicalError = RuntimeErrorReporter.technicalSummary("VRT-SETUP-0102", "bundled_archive_copy_failed", e);
             return false;
         }
     }
@@ -1321,7 +1351,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
         String validationCommand = "set -e; " +
                 "STATE_FILE='/root/.vectras-setup/setup_state.json'; " +
-                "test -f /usr/local/bin/qemu-system-x86_64 -o -f /usr/local/bin/qemu-system-aarch64 || exit 61; " +
+                buildAnyQemuBinaryPresenceCheck("/usr/local/bin", "-f") + " || exit 61; " +
                 "test -f \"$STATE_FILE\" || exit 62; " +
                 "grep -q '\"phase\":\"COMPLETED\"' \"$STATE_FILE\" || exit 63; " +
                 "grep -q '\"timestamp\":\"" + setupTimestamp + "\"' \"$STATE_FILE\" || exit 64;";
@@ -1669,7 +1699,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private int safeParseInt(String value) {
         try {
             return Integer.parseInt(value);
-        } catch (NumberFormatException ignored) {
+        } catch (NumberFormatException e) {
+            RuntimeErrorReporter.warn("VRT-SETUP-0006", "safe_parse_int", value, e);
             return 0;
         }
     }
@@ -1755,7 +1786,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
         try {
             InstallState parsed = InstallState.valueOf(token);
             transitionInstallState(parsed, "Transition from setup runtime.");
-        } catch (IllegalArgumentException ignored) {
+        } catch (IllegalArgumentException e) {
+            RuntimeErrorReporter.warn("VRT-SETUP-0007", "parse_install_state_transition", token, e);
         }
     }
 
@@ -1829,7 +1861,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
         }
         try {
             installState = InstallState.valueOf(persistedState);
-        } catch (IllegalArgumentException ignored) {
+        } catch (IllegalArgumentException e) {
+            RuntimeErrorReporter.warn("VRT-SETUP-0008", "restore_install_state", persistedState, e);
             installState = InstallState.INIT;
         }
         installStateDetail = MainSettingsManager.getSetupInstallStateDetail(this);
@@ -2060,6 +2093,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
         String architectureKey = "";
         Object architectureConfig = null;
         ArrayList<String> attemptedKeys = new ArrayList<>();
+        bundledBootstrapTechnicalError = "";
         for (String abiCandidate : BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS, HardwareProfileBridge.getEffectiveAbiHint(this))) {
             String metadataKey = BootstrapAbiMapper.architectureMetadataKey(abiCandidate);
             attemptedKeys.add(metadataKey);

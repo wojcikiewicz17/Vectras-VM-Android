@@ -4,6 +4,7 @@ import android.app.Activity;
 import android.app.AlertDialog;
 import android.app.ProgressDialog;
 import android.content.Context;
+import android.os.Build;
 import android.os.Environment;
 import android.os.Build;
 import android.os.UserManager;
@@ -22,6 +23,7 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipInputStream;
@@ -147,9 +149,9 @@ final class TermuxInstaller {
 
                     final byte[] zipBytes = loadZipBytes();
                     if (zipBytes == null || zipBytes.length == 0) {
-                        final String errorMessage = "Bootstrap archive is empty or unavailable: loadZipBytes() returned null/empty data";
+                        final String errorMessage = "Bootstrap archive is empty or unavailable: loadZipBytes() returned null/empty data. diagnostic=" + getBootstrapNativeLoadError();
                         Log.e(EmulatorDebug.LOG_TAG, errorMessage);
-                        throw new RuntimeException(errorMessage);
+                        throw new BootstrapInstallException(errorMessage, resolveBootstrapErrorMessageResId());
                     }
 
                     boolean symlinksFound = false;
@@ -163,7 +165,7 @@ final class TermuxInstaller {
                                 while ((line = symlinksReader.readLine()) != null) {
                                     String[] parts = line.split("←");
                                     if (parts.length != 2)
-                                        throw new RuntimeException("Malformed symlink line: " + line);
+                                        throw new BootstrapInstallException("Malformed symlink line: " + line, R.string.bootstrap_error_body_archive_invalid_or_empty);
                                     String oldPath = parts[0];
                                     File newPath;
                                     try {
@@ -183,7 +185,7 @@ final class TermuxInstaller {
                                     targetFile = resolveWithinStaging(STAGING_PREFIX_FILE, zipEntryName);
                                 } catch (RuntimeException e) {
                                     Log.e(EmulatorDebug.LOG_TAG, "Rejected zip entry: " + zipEntryName, e);
-                                    throw e;
+                                    throw new BootstrapInstallException("Invalid zip entry in bootstrap archive: " + zipEntryName, R.string.bootstrap_error_body_archive_invalid_or_empty);
                                 }
                                 boolean isDirectory = zipEntry.isDirectory();
 
@@ -207,11 +209,11 @@ final class TermuxInstaller {
                     if (!symlinksFound) {
                         final String errorMessage = "Bootstrap archive is invalid: SYMLINKS.txt entry was not found";
                         Log.e(EmulatorDebug.LOG_TAG, errorMessage);
-                        throw new RuntimeException(errorMessage);
+                        throw new BootstrapInstallException(errorMessage, R.string.bootstrap_error_body_archive_invalid_or_empty);
                     }
 
                     if (symlinks.isEmpty())
-                        throw new RuntimeException("Bootstrap archive contains SYMLINKS.txt but no symlink definitions");
+                        throw new BootstrapInstallException("Bootstrap archive contains SYMLINKS.txt but no symlink definitions", R.string.bootstrap_error_body_archive_invalid_or_empty);
                     for (Pair<String, String> symlink : symlinks) {
                         Os.symlink(symlink.first, symlink.second);
                     }
@@ -223,9 +225,11 @@ final class TermuxInstaller {
                     activity.runOnUiThread(whenDone);
                 } catch (final Exception e) {
                     Log.e(EmulatorDebug.LOG_TAG, "Bootstrap error", e);
+                    final int messageResId = (e instanceof BootstrapInstallException) ? ((BootstrapInstallException) e).userMessageResId : R.string.bootstrap_error_body;
+                    logBootstrapTelemetry("bootstrap_install_error_dialog", "setup_exception");
                     activity.runOnUiThread(() -> {
                         try {
-                            new AlertDialog.Builder(activity).setTitle(R.string.bootstrap_error_title).setMessage(R.string.bootstrap_error_body)
+                            new AlertDialog.Builder(activity).setTitle(R.string.bootstrap_error_title).setMessage(messageResId)
                                 .setNegativeButton(R.string.bootstrap_error_abort, (dialog, which) -> {
                                     dialog.dismiss();
                                     activity.finish();

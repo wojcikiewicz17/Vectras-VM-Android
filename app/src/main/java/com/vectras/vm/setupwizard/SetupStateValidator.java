@@ -1,5 +1,7 @@
 package com.vectras.vm.setupwizard;
 
+import com.vectras.vm.core.RuntimeErrorReporter;
+
 import org.json.JSONObject;
 
 import java.util.Arrays;
@@ -53,7 +55,8 @@ public final class SetupStateValidator {
             }
 
             return state.opt("message") instanceof String;
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            RuntimeErrorReporter.warn("VRT-SETUP-0001", "validate_state_json", json, e);
             return false;
         }
     }

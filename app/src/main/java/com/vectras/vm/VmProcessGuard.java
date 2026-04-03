@@ -3,6 +3,8 @@ package com.vectras.vm;
 import android.content.Context;
 import android.util.Log;
 
+import com.vectras.vm.core.RuntimeErrorReporter;
+
 /**
  * VmProcessGuard
  * - protege contra reentrância/lifecycle (ex.: Terminal/Termux UI)
@@ -21,7 +23,9 @@ public final class VmProcessGuard {
             Log.w(TAG, "suppressed register crash vmId=" + vmId + " err=" + t.getMessage(), t);
             try {
                 if (process != null && process.isAlive()) process.destroy();
-            } catch (Throwable ignored) {}
+            } catch (Throwable destroyError) {
+                RuntimeErrorReporter.warn("VRT-VMG-0001", "destroy_process_after_register_failure", vmId, destroyError);
+            }
             return false;
         }
     }

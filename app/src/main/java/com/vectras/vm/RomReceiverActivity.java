@@ -13,12 +13,12 @@ import android.widget.Toast;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 
-import java.io.File;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
 
 import com.vectras.vm.utils.UIUtils;
 import com.vectras.vm.utils.PermissionUtils;
+import com.vectras.vm.qemu.QemuBinaryResolver;
 
 public class RomReceiverActivity extends AppCompatActivity {
     @Override
@@ -40,8 +40,8 @@ public class RomReceiverActivity extends AppCompatActivity {
     public void onResume() {
         super.onResume();
         if (PermissionUtils.storagepermission(this, false)) {
-            String filesDir = getFilesDir().getAbsolutePath();
-            if ((new File(filesDir, "/distro/usr/local/bin/qemu-system-x86_64").exists()) || (new File(filesDir, "/distro/usr/bin/qemu-system-x86_64").exists())) {
+            QemuBinaryResolver.Resolution resolution = QemuBinaryResolver.resolveAny(this, "RomReceiverActivity");
+            if (resolution.found) {
                 handleIncomingIntent(getIntent());
             } else {
                 Toast.makeText(RomReceiverActivity.this, getResources().getString(R.string.you_need_to_complete_vectras_vm_setup_before_importing_this_file), Toast.LENGTH_LONG).show();

@@ -79,7 +79,8 @@ public final class ProcessBudgetRegistry {
 
         try {
             return Integer.parseInt(raw.trim());
-        } catch (NumberFormatException ignored) {
+        } catch (NumberFormatException e) {
+            RuntimeErrorReporter.warn("VRT-PBR-0001", "parse_process_budget_property", key + "=" + raw, e);
             Log.w(TAG, "Ignoring invalid property " + key + "=" + raw);
             return null;
         }

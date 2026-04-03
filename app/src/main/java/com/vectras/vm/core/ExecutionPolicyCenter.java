@@ -9,6 +9,7 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
@@ -209,7 +210,8 @@ public final class ExecutionPolicyCenter {
                 return -1;
             }
             return Integer.parseInt(value.trim());
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            RuntimeErrorReporter.warn("VRT-EPC-0001", "read_pid_max", "/proc/sys/kernel/pid_max", e);
             return -1;
         }
     }
