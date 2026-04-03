@@ -2,10 +2,51 @@ name: Engine CI
 
 on:
   workflow_call:
+    inputs:
+      provenance_run_id:
+        required: true
+        type: string
+      expected_sha:
+        required: true
+        type: string
+      provenance_manifest_hash:
+        required: true
+        type: string
+  push:
+    paths:
+      - 'engine/**'
+      - 'bench/**'
+      - 'demo_cli/**'
+      - 'Makefile'
+      - 'CMakeLists.txt'
+      - 'app/src/main/cpp/CMakeLists.txt'
+      - 'engine/rmr/sources.cmake'
+      - 'engine/rmr/sources.mk'
+      - 'engine/rmr/sources_rmr_core.cmake'
+      - 'engine/rmr/cmake/rmr_sources.cmake'
+      - 'tools/qemu_launch.yml'
+      - 'tools/sync_engine_sources.py'
+      - '.github/workflows/engine-ci.yml'
+  pull_request:
+    paths:
+      - 'engine/**'
+      - 'bench/**'
+      - 'demo_cli/**'
+      - 'Makefile'
+      - 'CMakeLists.txt'
+      - 'app/src/main/cpp/CMakeLists.txt'
+      - 'engine/rmr/sources.cmake'
+      - 'engine/rmr/sources.mk'
+      - 'engine/rmr/sources_rmr_core.cmake'
+      - 'engine/rmr/cmake/rmr_sources.cmake'
+      - 'tools/qemu_launch.yml'
+      - 'tools/sync_engine_sources.py'
+      - '.github/workflows/engine-ci.yml'
   workflow_dispatch:
 
 permissions:
   contents: read
+  actions: read
 
 concurrency:
   group: engine-ci-${{ github.workflow }}-${{ github.ref }}
@@ -30,6 +71,37 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v5
+
+      - name: Validate provenance chain-of-custody
+        if: ${{ github.event_name == 'workflow_call' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PROVENANCE_RUN_ID: ${{ inputs.provenance_run_id }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_MANIFEST_HASH: ${{ inputs.provenance_manifest_hash }}
+          CURRENT_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" == "$CURRENT_SHA" ]] || { echo "SHA mismatch: expected=$EXPECTED_SHA current=$CURRENT_SHA" >&2; exit 1; }
+          python3 - <<'PY'
+          import hashlib, io, json, os, urllib.request, zipfile
+          token = os.environ["GITHUB_TOKEN"]; repo = os.environ["REPO"]; run_id = os.environ["PROVENANCE_RUN_ID"]
+          expected_sha = os.environ["EXPECTED_SHA"]; expected_hash = os.environ["EXPECTED_MANIFEST_HASH"]
+          req = urllib.request.Request(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100", headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
+          with urllib.request.urlopen(req) as r: artifacts = json.load(r).get("artifacts", [])
+          artifact = next((a for a in artifacts if a.get("name") == "chain-of-custody"), None)
+          if not artifact: raise SystemExit("Artifact chain-of-custody not found")
+          with urllib.request.urlopen(urllib.request.Request(artifact["archive_download_url"], headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})) as r: blob = r.read()
+          with zipfile.ZipFile(io.BytesIO(blob)) as zf: raw = zf.read("provenance.json")
+          got_hash = hashlib.sha256(raw).hexdigest()
+          if got_hash != expected_hash: raise SystemExit(f"Manifest hash mismatch: expected={expected_hash} got={got_hash}")
+          data = json.loads(raw)
+          if data["github"]["sha"] != expected_sha: raise SystemExit("Manifest SHA differs from expected SHA")
+          if str(data["github"]["run_id"]) != str(run_id): raise SystemExit("Manifest run_id differs from provenance_run_id")
+          print("Provenance validation passed")
+          PY
 
       - name: Block sensitive artifacts in repository (warn only)
         continue-on-error: true
