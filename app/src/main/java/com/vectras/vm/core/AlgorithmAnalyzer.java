@@ -157,7 +157,6 @@ public final class AlgorithmAnalyzer {
      * @param size Input size
      * @return Space complexity estimate in bytes, or {@code 0} when benchmark mode is disabled
      */
-    @Deprecated
     public static long estimateSpaceComplexity(TimedOperation operation, int size) {
         if (!isSpaceComplexityBenchmarkEnabled()) {
             return 0L;

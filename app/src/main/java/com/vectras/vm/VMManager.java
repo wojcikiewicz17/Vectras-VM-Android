@@ -714,14 +714,12 @@ public class VMManager {
     }
 
     /** @deprecated Use {@link #startRandomVMID()} instead. */
-    @Deprecated
     @NonNull
     public static String startRamdomVMID() {
         return startRandomVMID();
     }
 
     //This can be removed because QMP currently uses sockets instead of open ports.
-    @Deprecated
     public static int startRandomPort() {
         final int min = 10_000;
         final int max = 65_535;

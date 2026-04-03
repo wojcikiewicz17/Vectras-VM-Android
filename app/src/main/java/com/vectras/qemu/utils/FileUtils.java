@@ -59,10 +59,8 @@ import com.vectras.vm.utils.UIUtils;
  *
  * @author dev
  */
-@Deprecated
 public class FileUtils {
     private final static String TAG = "FileUtils";
-    @Deprecated
     public static HashMap<Integer, FileInfo> fds = new HashMap<Integer, FileInfo>();
 
     public static String getNativeLibDir(Context context) {
@@ -243,32 +241,26 @@ public class FileUtils {
         }
     }
 
-    @Deprecated
     public static int get_fd(final Context context, String path) {
         return get_fd(context, path, null);
     }
 
-    @Deprecated
     public static int get_fd(final Context context, String path, String backendMode) {
         return com.vectras.vm.utils.FileUtils.get_fd(context, path, backendMode);
     }
 
-    @Deprecated
     static String resolveContentOpenMode(String path, String backendMode) {
         return com.vectras.vm.utils.FileUtils.resolveContentOpenMode(path, backendMode);
     }
 
-    @Deprecated
     static int resolveParcelOpenMode(String path, String backendMode) {
         return com.vectras.vm.utils.FileUtils.resolveParcelOpenMode(path, backendMode);
     }
 
-    @Deprecated
     public static void close_fds() {
         com.vectras.vm.utils.FileUtils.closeAllFds();
     }
 
-    @Deprecated
     public static int close_fd(int fd) {
         return com.vectras.vm.utils.FileUtils.close_fd(fd);
     }
