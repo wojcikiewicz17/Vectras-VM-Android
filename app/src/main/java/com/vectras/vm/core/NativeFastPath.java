@@ -2,7 +2,6 @@ package com.vectras.vm.core;
 
 import android.util.Log;
 
-import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -53,7 +52,8 @@ public final class NativeFastPath {
                 || archCode == ARCH_ARM32
                 || archCode == ARCH_X64
                 || archCode == ARCH_X86
-                || archCode == ARCH_RISCV64;
+                || archCode == ARCH_RISCV64
+                || archCode == ARCH_RISCV32;
     }
 
     public static final int OS_UNKNOWN = 0x0000;
@@ -81,6 +81,7 @@ public final class NativeFastPath {
     private static final int ENTERPRISE_NECESSARY_COUNT = 7;
     private static final int ENTERPRISE_URGENT_COUNT = 5;
     private static final int ENTERPRISE_COMPLEMENTARY_COUNT = 14;
+    private static final int RAW_TELEMETRY_LONG_COUNT = 11;
 
     private static final HardwareProfile BOOT_PROFILE;
 
@@ -117,6 +118,10 @@ public final class NativeFastPath {
 
     public static boolean isNativeAvailable() {
         return NATIVE_AVAILABLE;
+    }
+
+    public static boolean isFallbackActive() {
+        return !NATIVE_AVAILABLE;
     }
 
     public static boolean isArenaAvailable() {
@@ -173,41 +178,76 @@ public final class NativeFastPath {
 
     public static NativeBridgeTelemetrySnapshot readNativeBridgeTelemetry() {
         KernelUnitProfile kernel = readKernelUnitProfile();
-        return new NativeBridgeTelemetrySnapshot(
-                NATIVE_AVAILABLE,
-                BOOT_PROFILE,
-                kernel,
-                TELEMETRY_COPY_CALLS.get(),
-                TELEMETRY_COPY_BYTES.get(),
-                TELEMETRY_XOR_CALLS.get(),
-                TELEMETRY_CRC_CALLS.get(),
-                TELEMETRY_ROUTE_CALLS.get(),
-                TELEMETRY_AUDIT_CALLS.get(),
-                TELEMETRY_NATIVE_HITS.get(),
-                TELEMETRY_FALLBACK_HITS.get(),
-                ENTERPRISE_NECESSARY_COUNT,
-                ENTERPRISE_URGENT_COUNT,
-                ENTERPRISE_COMPLEMENTARY_COUNT);
+        long[] rawCounters = new long[RAW_TELEMETRY_LONG_COUNT];
+        readNativeBridgeTelemetryRaw(rawCounters, 0);
+        return new NativeBridgeTelemetrySnapshot(NATIVE_AVAILABLE, BOOT_PROFILE, kernel, rawCounters);
     }
 
+    public static int getNativeBridgeTelemetryLongCount() {
+        return RAW_TELEMETRY_LONG_COUNT;
+    }
+
+    /**
+     * Raw telemetry read API for polling paths. Caller provides the output buffer to avoid
+     * allocating a new telemetry snapshot object.
+     * Layout:
+     * [0]=copyCalls, [1]=copyBytes, [2]=xorCalls, [3]=crcCalls, [4]=routeCalls, [5]=auditCalls,
+     * [6]=nativeHits, [7]=fallbackHits, [8]=necessaryCount, [9]=urgentCount, [10]=complementaryCount
+     */
+    public static void readNativeBridgeTelemetryRaw(long[] out, int offset) {
+        if (out == null) {
+            throw new IllegalArgumentException("Output buffer must not be null");
+        }
+        if (offset < 0 || offset + RAW_TELEMETRY_LONG_COUNT > out.length) {
+            throw new IllegalArgumentException("Output buffer too small");
+        }
+        out[offset] = TELEMETRY_COPY_CALLS.get();
+        out[offset + 1] = TELEMETRY_COPY_BYTES.get();
+        out[offset + 2] = TELEMETRY_XOR_CALLS.get();
+        out[offset + 3] = TELEMETRY_CRC_CALLS.get();
+        out[offset + 4] = TELEMETRY_ROUTE_CALLS.get();
+        out[offset + 5] = TELEMETRY_AUDIT_CALLS.get();
+        out[offset + 6] = TELEMETRY_NATIVE_HITS.get();
+        out[offset + 7] = TELEMETRY_FALLBACK_HITS.get();
+        out[offset + 8] = ENTERPRISE_NECESSARY_COUNT;
+        out[offset + 9] = ENTERPRISE_URGENT_COUNT;
+        out[offset + 10] = ENTERPRISE_COMPLEMENTARY_COUNT;
+    }
+
+    /**
+     * Debug/observability formatter only (not for hot path).
+     */
     public static String formatHardwareKernelContractLine(String sourceTag) {
         NativeBridgeTelemetrySnapshot snapshot = readNativeBridgeTelemetry();
-        return String.format(Locale.US,
-                "NATIVE_CONTRACT[%s] avail=%s sig=0x%08X ptr=%d cache=%d page=%d features=%s cores=%d arena=%d io=%d",
-                sourceTag,
-                snapshot.nativeAvailable ? "1" : "0",
-                snapshot.hardwareSignature,
-                snapshot.pointerBits,
-                snapshot.cacheLineBytes,
-                snapshot.pageBytes,
-                describeFeatureMask(snapshot.featureMask),
-                snapshot.kernelCpuCores,
-                snapshot.kernelArenaBytes,
-                snapshot.kernelIoQuantumBytes);
+        StringBuilder sb = new StringBuilder(192);
+        sb.append("NATIVE_CONTRACT[")
+                .append(sourceTag)
+                .append("] avail=")
+                .append(snapshot.nativeAvailable ? '1' : '0')
+                .append(" sig=0x")
+                .append(toHex8(snapshot.hardwareSignature))
+                .append(" ptr=")
+                .append(snapshot.pointerBits)
+                .append(" cache=")
+                .append(snapshot.cacheLineBytes)
+                .append(" page=")
+                .append(snapshot.pageBytes)
+                .append(" features=")
+                .append(describeFeatureMask(snapshot.featureMask))
+                .append(" cores=")
+                .append(snapshot.kernelCpuCores)
+                .append(" arena=")
+                .append(snapshot.kernelArenaBytes)
+                .append(" io=")
+                .append(snapshot.kernelIoQuantumBytes);
+        return sb.toString();
     }
 
+    /**
+     * Debug/observability formatter only (not for hot path).
+     */
     public static String describeFeatureMask(int featureMask) {
-        StringBuilder sb = new StringBuilder();
+        StringBuilder sb = new StringBuilder(32);
         appendFeature(sb, featureMask, FEATURE_NEON, "NEON");
         appendFeature(sb, featureMask, FEATURE_AES, "AES");
         appendFeature(sb, featureMask, FEATURE_CRC32, "CRC32");
@@ -252,34 +292,60 @@ public final class NativeFastPath {
         return (int) weighted;
     }
 
+    /**
+     * Debug/observability formatter only (not for hot path).
+     */
     public static String formatNativeBridgeTelemetryLine(String sourceTag) {
         NativeBridgeTelemetrySnapshot snapshot = readNativeBridgeTelemetry();
         int determinismScore = getDeterminismScore();
-        return String.format(Locale.US,
-                "NATIVE_BRIDGE[%s] avail=%s hw(sig=0x%08X ptr=%d cache=%d page=%d feat=0x%08X/%s) kernel(cores=%d arena=%d io=%d) ops(copy=%d bytes=%d xor=%d crc=%d route=%d audit=%d nativeHit=%d fallback=%d) gates(n=%d/u=%d/c=%d) det=%d",
-                sourceTag,
-                snapshot.nativeAvailable ? "1" : "0",
-                snapshot.hardwareSignature,
-                snapshot.pointerBits,
-                snapshot.cacheLineBytes,
-                snapshot.pageBytes,
-                snapshot.featureMask,
-                describeFeatureMask(snapshot.featureMask),
-                snapshot.kernelCpuCores,
-                snapshot.kernelArenaBytes,
-                snapshot.kernelIoQuantumBytes,
-                snapshot.copyCalls,
-                snapshot.copyBytes,
-                snapshot.xorCalls,
-                snapshot.crcCalls,
-                snapshot.routeCalls,
-                snapshot.auditCalls,
-                snapshot.nativeHits,
-                snapshot.fallbackHits,
-                snapshot.necessaryCount,
-                snapshot.urgentCount,
-                snapshot.complementaryCount,
-                determinismScore);
+        StringBuilder sb = new StringBuilder(384);
+        sb.append("NATIVE_BRIDGE[")
+                .append(sourceTag)
+                .append("] avail=")
+                .append(snapshot.nativeAvailable ? '1' : '0')
+                .append(" hw(sig=0x")
+                .append(toHex8(snapshot.hardwareSignature))
+                .append(" ptr=")
+                .append(snapshot.pointerBits)
+                .append(" cache=")
+                .append(snapshot.cacheLineBytes)
+                .append(" page=")
+                .append(snapshot.pageBytes)
+                .append(" feat=0x")
+                .append(toHex8(snapshot.featureMask))
+                .append('/')
+                .append(describeFeatureMask(snapshot.featureMask))
+                .append(") kernel(cores=")
+                .append(snapshot.kernelCpuCores)
+                .append(" arena=")
+                .append(snapshot.kernelArenaBytes)
+                .append(" io=")
+                .append(snapshot.kernelIoQuantumBytes)
+                .append(") ops(copy=")
+                .append(snapshot.copyCalls)
+                .append(" bytes=")
+                .append(snapshot.copyBytes)
+                .append(" xor=")
+                .append(snapshot.xorCalls)
+                .append(" crc=")
+                .append(snapshot.crcCalls)
+                .append(" route=")
+                .append(snapshot.routeCalls)
+                .append(" audit=")
+                .append(snapshot.auditCalls)
+                .append(" nativeHit=")
+                .append(snapshot.nativeHits)
+                .append(" fallback=")
+                .append(snapshot.fallbackHits)
+                .append(") gates(n=")
+                .append(snapshot.necessaryCount)
+                .append("/u=")
+                .append(snapshot.urgentCount)
+                .append("/c=")
+                .append(snapshot.complementaryCount)
+                .append(") det=")
+                .append(determinismScore);
+        return sb.toString();
     }
 
     public static String emitBootTelemetryLineIfNeeded() {
@@ -696,6 +762,16 @@ public final class NativeFastPath {
         return value;
     }
 
+    private static String toHex8(int value) {
+        char[] out = new char[8];
+        for (int i = 7; i >= 0; i--) {
+            int nibble = value & 0xF;
+            out[i] = (char) (nibble < 10 ? ('0' + nibble) : ('A' + (nibble - 10)));
+            value >>>= 4;
+        }
+        return new String(out);
+    }
+
     public static final class KernelUnitProfile {
         public final int signature;
         public final int pointerBits;
@@ -954,17 +1030,7 @@ public final class NativeFastPath {
         NativeBridgeTelemetrySnapshot(boolean nativeAvailable,
                                      HardwareProfile hardware,
                                      KernelUnitProfile kernel,
-                                     long copyCalls,
-                                     long copyBytes,
-                                     long xorCalls,
-                                     long crcCalls,
-                                     long routeCalls,
-                                     long auditCalls,
-                                     long nativeHits,
-                                     long fallbackHits,
-                                     int necessaryCount,
-                                     int urgentCount,
-                                     int complementaryCount) {
+                                     long[] rawCounters) {
             this.nativeAvailable = nativeAvailable;
             this.hardwareSignature = hardware.signature;
             this.pointerBits = hardware.pointerBits;
@@ -974,17 +1040,17 @@ public final class NativeFastPath {
             this.kernelCpuCores = kernel.cpuCores;
             this.kernelArenaBytes = kernel.arenaBytes;
             this.kernelIoQuantumBytes = kernel.ioQuantumBytes;
-            this.copyCalls = copyCalls;
-            this.copyBytes = copyBytes;
-            this.xorCalls = xorCalls;
-            this.crcCalls = crcCalls;
-            this.routeCalls = routeCalls;
-            this.auditCalls = auditCalls;
-            this.nativeHits = nativeHits;
-            this.fallbackHits = fallbackHits;
-            this.necessaryCount = necessaryCount;
-            this.urgentCount = urgentCount;
-            this.complementaryCount = complementaryCount;
+            this.copyCalls = rawCounters[0];
+            this.copyBytes = rawCounters[1];
+            this.xorCalls = rawCounters[2];
+            this.crcCalls = rawCounters[3];
+            this.routeCalls = rawCounters[4];
+            this.auditCalls = rawCounters[5];
+            this.nativeHits = rawCounters[6];
+            this.fallbackHits = rawCounters[7];
+            this.necessaryCount = (int) rawCounters[8];
+            this.urgentCount = (int) rawCounters[9];
+            this.complementaryCount = (int) rawCounters[10];
         }
     }
 

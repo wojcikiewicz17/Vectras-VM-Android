@@ -112,6 +112,7 @@ public class NativeFastPathTest {
         assertEquals(0x0300, NativeFastPath.ARCH_X64);
         assertEquals(0x0400, NativeFastPath.ARCH_X86);
         assertEquals(0x0500, NativeFastPath.ARCH_RISCV64);
+        assertEquals(0x0600, NativeFastPath.ARCH_RISCV32);
 
         assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_UNKNOWN));
         assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_ARM64));
@@ -119,7 +120,20 @@ public class NativeFastPathTest {
         assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_X64));
         assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_X86));
         assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_RISCV64));
-        assertTrue(!NativeFastPath.isStableArchCode(NativeFastPath.ARCH_RISCV32));
+        assertTrue(NativeFastPath.isStableArchCode(NativeFastPath.ARCH_RISCV32));
+        assertTrue(!NativeFastPath.isStableArchCode(0x0700));
+    }
+
+    @Test
+    public void everyDeclaredArchitectureCodeIsStable() throws Exception {
+        for (Field field : NativeFastPath.class.getDeclaredFields()) {
+            if (!field.getName().startsWith("ARCH_")) {
+                continue;
+            }
+            int archCode = field.getInt(null);
+            assertTrue("expected stable architecture code for " + field.getName(),
+                    NativeFastPath.isStableArchCode(archCode));
+        }
     }
 
     @Test
