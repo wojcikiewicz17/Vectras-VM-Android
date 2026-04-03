@@ -13,28 +13,22 @@ on:
           - moderado
           - profundo
           - ultra_minucioso
-          - interoperabilidade
-          - confiabilidade
           - diagnostico
-          - release_ready
-          - hardware_focus
+          - interoperavel
+          - confiavel
+          - portavel
+          - hardening
           - matrix_total
-          - holistico
-      build_debug:
-        description: "Gerar APK debug"
-        required: false
-        type: boolean
-        default: true
-      build_release:
-        description: "Gerar APK release/perfRelease"
-        required: false
-        type: boolean
-        default: false
-      sign_release:
-        description: "Assinar release (requer segredos)"
-        required: false
-        type: boolean
-        default: false
+          - forense
+      build_variant:
+        description: "Seleciona debug/release/both"
+        required: true
+        type: choice
+        default: both
+        options:
+          - debug
+          - release
+          - both
       run_lint:
         description: "Executar lint"
         required: false
@@ -45,68 +39,37 @@ on:
         required: false
         type: boolean
         default: true
-      run_unit_tests:
-        description: "Executar testes unitários"
+      signing_mode:
+        description: "Modo de assinatura release"
         required: false
-        type: boolean
-        default: false
-      android_api:
-        description: "Android API (compile/target)"
-        required: false
-        type: string
-        default: "35"
-      build_tools:
-        description: "Android Build Tools"
-        required: false
-        type: string
-        default: "35.0.0"
-      ndk_version:
-        description: "NDK version"
-        required: false
-        type: string
-        default: "27.2.12479018"
-      cmake_version:
-        description: "CMake version"
-        required: false
-        type: string
-        default: "3.22.1"
-      java_version:
-        description: "JDK version"
-        required: false
-        type: string
-        default: "17"
-      gradle_extra_args:
-        description: "Args extras para gradle"
-        required: false
-        type: string
-        default: ""
+        type: choice
+        default: auto
+        options:
+          - auto
+          - unsigned
+          - signed
   workflow_call:
     inputs:
       provenance_run_id:
-        required: true
+        required: false
         type: string
+        default: ""
       expected_sha:
-        required: true
+        required: false
         type: string
+        default: ""
       provenance_manifest_hash:
-        required: true
+        required: false
         type: string
+        default: ""
       mode:
         required: false
         type: string
-        default: moderado
-      build_debug:
+        default: "moderado"
+      build_variant:
         required: false
-        type: boolean
-        default: true
-      build_release:
-        required: false
-        type: boolean
-        default: false
-      sign_release:
-        required: false
-        type: boolean
-        default: false
+        type: string
+        default: "both"
       run_lint:
         required: false
         type: boolean
@@ -115,45 +78,10 @@ on:
         required: false
         type: boolean
         default: true
-      run_unit_tests:
-        required: false
-        type: boolean
-        default: false
-      android_api:
+      signing_mode:
         required: false
         type: string
-        default: "35"
-      build_tools:
-        required: false
-        type: string
-        default: "35.0.0"
-      ndk_version:
-        required: false
-        type: string
-        default: "27.2.12479018"
-      cmake_version:
-        required: false
-        type: string
-        default: "3.22.1"
-      java_version:
-        required: false
-        type: string
-        default: "17"
-      gradle_extra_args:
-        required: false
-        type: string
-        default: ""
-    secrets:
-      VECTRAS_RELEASE_KEYSTORE_B64:
-        required: false
-      VECTRAS_RELEASE_STORE_PASSWORD:
-        required: false
-      VECTRAS_RELEASE_KEY_ALIAS:
-        required: false
-      VECTRAS_RELEASE_KEY_PASSWORD:
-        required: false
-      VECTRAS_GOOGLE_SERVICES_JSON_B64:
-        required: false
+        default: "auto"
 
 permissions:
   contents: read
@@ -234,12 +162,12 @@ jobs:
           sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
 
       - name: Build local.properties
-        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
+        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}" --require-sdkmanager
 
       - name: Materialize Firebase config (debug/tests)
         env:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
-        run: ./tools/ci/materialize_google_services_placeholder.sh
+        run: ./tools/ci/materialize_firebase_config.sh --policy internal
 
       - name: Resolve diagnostic profile
         id: mode
@@ -264,11 +192,8 @@ jobs:
               ;;
           esac
 
-      - name: Bootstrap shell-loader asset (mandatory)
-        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
-
-      - name: Verify bootstrap assets script
-        run: python3 tools/verify_bootstrap_assets.py
+      - name: Enforce bootstrap contract (sync -> verify)
+        run: ./tools/ci/verify_bootstrap_contract.sh ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
       - name: Verify Gradle baseline gates
         if: steps.mode.outputs.run_repo_checks == 'true'
@@ -313,32 +238,20 @@ jobs:
         if: inputs.build_release && inputs.sign_release
         env:
           VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
-        run: |
-          set -euo pipefail
-          if [[ -z "${VECTRAS_RELEASE_KEYSTORE_B64:-}" ]]; then
-            echo "Assinatura solicitada, mas segredo VECTRAS_RELEASE_KEYSTORE_B64 não foi fornecido." >&2
-            exit 1
-          fi
-          mkdir -p .ci-keystore
-          echo "${VECTRAS_RELEASE_KEYSTORE_B64}" | base64 -d > .ci-keystore/release.jks
-
-      - name: Build signed release/perfRelease
-        if: inputs.build_release && inputs.sign_release
-        env:
           VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
           VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
           VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
         run: |
           set -euo pipefail
-          if [[ -z "${VECTRAS_RELEASE_STORE_PASSWORD:-}" || -z "${VECTRAS_RELEASE_KEY_ALIAS:-}" || -z "${VECTRAS_RELEASE_KEY_PASSWORD:-}" ]]; then
-            echo "Signing requested, but signing secrets are missing." >&2
-            exit 1
-          fi
+          mkdir -p .ci-keystore
+          ./tools/ci/prepare_release_signing.sh --mode signed --keystore-out "$PWD/.ci-keystore/release.jks"
+
+      - name: Build signed release/perfRelease
+        if: inputs.build_release && inputs.sign_release
+        run: |
+          set -euo pipefail
           ./tools/gradle_with_jdk21.sh :app:assembleRelease :app:assemblePerfRelease --stacktrace \
-            -Pandroid.injected.signing.store.file="$PWD/.ci-keystore/release.jks" \
-            -Pandroid.injected.signing.store.password="${VECTRAS_RELEASE_STORE_PASSWORD}" \
-            -Pandroid.injected.signing.key.alias="${VECTRAS_RELEASE_KEY_ALIAS}" \
-            -Pandroid.injected.signing.key.password="${VECTRAS_RELEASE_KEY_PASSWORD}" \
+            ${VECTRAS_CI_SIGNING_ARGS} \
             ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
       - name: Verify delivered compiled artifacts
@@ -352,6 +265,7 @@ jobs:
           ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts \
             -PartifactVariants="${artifact_variants}" \
             ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+          ./tools/ci/verify_artifact_contract.sh --variants "${artifact_variants}"
 
       - name: Upload compiled artifacts report (required)
         if: always()

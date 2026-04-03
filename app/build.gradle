@@ -181,7 +181,7 @@ if (!checkVariant) {
 def checkVariantTaskSuffix = checkVariant.substring(0, 1).toUpperCase() + checkVariant.substring(1)
 def checkVariantAssembleTask = "assemble${checkVariantTaskSuffix}"
 def termuxBootstrapLibName = "libtermux-bootstrap.so"
-def termuxBootstrapSupportedAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64']
+def termuxBootstrapSupportedAbis = (rootProject.ext.officialAbis ?: ['arm64-v8a']) as List<String>
 
 tasks.register("verifyTermuxBootstrapAbiCoverage") {
     group = "verification"

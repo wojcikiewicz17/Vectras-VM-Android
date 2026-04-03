@@ -17,11 +17,6 @@ on:
         type: boolean
         required: false
         default: true
-      promote_android_minimal:
-        description: "Promover estágio Android minimal após verified"
-        type: boolean
-        required: false
-        default: false
       run_termux_orchestrator:
         description: "Executar pipeline Termux"
         type: boolean
@@ -195,6 +190,8 @@ jobs:
       run_native_matrix: true
       signing_mode: unsigned
       abi_policy: arm64-only
+      enable_policy_module: true
+      enable_bitraf_module: true
     secrets: inherit
 
   android-verified:
@@ -214,23 +211,10 @@ jobs:
       run_lint: true
       run_native_matrix: true
       abi_policy: arm64-only
-      signing_mode: auto
+      signing_mode: signed
       enable_policy_module: true
       enable_bitraf_module: true
     secrets: inherit
-
-  android-minimal:
-    name: 06 · Android Minimal (opcional, promoção após verified)
-    needs: [changes, android-verified]
-    if: >-
-      always() && needs.android-verified.result != 'failure' && (
-      (github.event_name == 'workflow_dispatch' && inputs.run_android_ci)
-      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.android_canonical == 'true'))
-    uses: ./.github/workflows/android-minimal-debug.yml
-    with:
-      provenance_run_id: ${{ needs.provenance.outputs.run_id }}
-      expected_sha: ${{ needs.provenance.outputs.expected_sha }}
-      provenance_manifest_hash: ${{ needs.provenance.outputs.manifest_hash }}
 
   baremetal-rafcode:
     name: 07 · Baremetal Rafcode Phi
@@ -269,9 +253,8 @@ jobs:
       - host-ci
       - engine-ci
       - proof-build
-      - android-ci
+      - android-baseline
       - android-verified
-      - android-minimal-debug
       - baremetal-rafcode
       - termux-orchestrator
     if: always()
@@ -288,9 +271,8 @@ jobs:
             echo "- Host CI: \`${{ needs.host-ci.result }}\`"
             echo "- Engine CI: \`${{ needs.engine-ci.result }}\`"
             echo "- Proof Build: \`${{ needs.proof-build.result }}\`"
-            echo "- Android Build Manual: \`${{ needs.android-ci.result }}\`"
+            echo "- Android Internal Validation (unsigned): \`${{ needs.android-baseline.result }}\`"
             echo "- Android Verified: \`${{ needs.android-verified.result }}\`"
-            echo "- Android Minimal Debug: \`${{ needs.android-minimal-debug.result }}\`"
             echo "- Baremetal Rafcode Phi: \`${{ needs.baremetal-rafcode.result }}\`"
             echo "- Termux Orchestrator: \`${{ needs.termux-orchestrator.result }}\`"
           } >> "$GITHUB_STEP_SUMMARY"

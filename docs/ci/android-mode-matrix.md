@@ -1,15 +1,17 @@
 # Android CI canonical mode matrix
 
-Este é o ponto único de documentação dos modos Android usados por `.github/workflows/android-verified.yml` e acionados por `.github/workflows/pipeline-orchestrator.yml`.
+Este é o ponto único de documentação dos modos Android usados por `.github/workflows/android-verified.yml` (fluxo canônico) e acionados por `.github/workflows/pipeline-orchestrator.yml`.
 
-## Trilha canônica no orquestrador
+## Modelo de pipeline Android (fonte de verdade)
 
-1. **baseline** (`mode=fast`, `run_lint=false`, `run_native_matrix=false`)  
-   Objetivo: validação rápida de compilação e smoke checks.
-2. **verified** (`mode=<input>`, `run_lint=true`, `run_native_matrix=true`)  
-   Objetivo: validação padrão de qualidade/promovida após baseline bem-sucedido.
-3. **minimal (opcional)** (`mode=fast`, `run_lint=false`, `run_native_matrix=false`)  
-   Objetivo: rerun leve pós-verified quando solicitado manualmente (`promote_android_minimal=true`).
+Existe **um único fluxo canônico**:
+
+1. **internal validation (unsigned explícito)**
+   `android-verified.yml` com `signing_mode=unsigned`, para validação interna com trilha explícita.
+2. **official verified (signed/auto)**
+   `android-verified.yml` com `signing_mode=auto` (ou `signed`) após sucesso da trilha interna.
+
+Wrappers manuais/reutilizáveis (`android.yml` e `android-build-manual.yml`) apenas delegam para o fluxo canônico via `workflow_dispatch`/`workflow_call`, sem semântica paralela de build.
 
 ## Matriz de modos (`mode`)
 

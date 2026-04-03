@@ -1,0 +1,121 @@
+name: Android Build Base
+
+description: >-
+  Shared Android CI base for SDK/JDK setup, bootstrap sync/verify and optional artifact upload.
+
+inputs:
+  phase:
+    description: setup or upload
+    required: false
+    default: setup
+  java_version:
+    description: Java version for setup-java
+    required: false
+    default: '17'
+  compile_api:
+    description: Android compile API
+    required: false
+    default: '35'
+  tools_version:
+    description: Android build tools version
+    required: false
+    default: '35.0.0'
+  ndk_version:
+    description: Android NDK version
+    required: false
+    default: '27.2.12479018'
+  cmake_version:
+    description: Android CMake version
+    required: false
+    default: '3.22.1'
+  gradle_log_flags:
+    description: Extra log flags for gradle bootstrap verify
+    required: false
+    default: ''
+  setup_gradle:
+    description: Setup gradle action when phase=setup
+    required: false
+    default: 'true'
+  run_bootstrap_verify:
+    description: Run bootstrap sync + verify tasks
+    required: false
+    default: 'true'
+  artifact_name:
+    description: Artifact name when phase=upload
+    required: false
+    default: ''
+  artifact_path:
+    description: Artifact path when phase=upload
+    required: false
+    default: ''
+  artifact_if_no_files_found:
+    description: if-no-files-found for upload-artifact
+    required: false
+    default: error
+  artifact_retention_days:
+    description: retention-days for upload-artifact
+    required: false
+    default: '14'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up JDK
+      if: ${{ inputs.phase == 'setup' }}
+      uses: actions/setup-java@v5
+      with:
+        distribution: temurin
+        java-version: ${{ inputs.java_version }}
+
+    - name: Set up Android SDK
+      if: ${{ inputs.phase == 'setup' }}
+      uses: android-actions/setup-android@v3
+      with:
+        log-accepted-android-sdk-licenses: false
+
+    - name: Install Android SDK components
+      if: ${{ inputs.phase == 'setup' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        sdkmanager --install \
+          "platform-tools" \
+          "platforms;android-${{ inputs.compile_api }}" \
+          "build-tools;${{ inputs.tools_version }}" \
+          "ndk;${{ inputs.ndk_version }}" \
+          "cmake;${{ inputs.cmake_version }}"
+
+    - name: Generate local.properties
+      if: ${{ inputs.phase == 'setup' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
+
+    - name: Set up Gradle
+      if: ${{ inputs.phase == 'setup' && inputs.setup_gradle == 'true' }}
+      uses: gradle/actions/setup-gradle@v4
+
+    - name: Bootstrap shell-loader asset (mandatory)
+      if: ${{ inputs.phase == 'setup' && inputs.run_bootstrap_verify == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
+
+    - name: Verify bootstrap assets (mandatory)
+      if: ${{ inputs.phase == 'setup' && inputs.run_bootstrap_verify == 'true' }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 tools/verify_bootstrap_assets.py
+        ./tools/gradle_with_jdk21.sh verifyBootstrapAssets --no-daemon ${{ inputs.gradle_log_flags }}
+
+    - name: Upload artifact
+      if: ${{ inputs.phase == 'upload' }}
+      uses: actions/upload-artifact@v5
+      with:
+        name: ${{ inputs.artifact_name }}
+        path: ${{ inputs.artifact_path }}
+        if-no-files-found: ${{ inputs.artifact_if_no_files_found }}
+        retention-days: ${{ inputs.artifact_retention_days }}
