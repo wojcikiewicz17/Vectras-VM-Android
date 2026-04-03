@@ -24,6 +24,7 @@ from `ANDROID_SDK_ROOT` (or `ANDROID_HOME`) when the directory exists.
 ./tools/gradle_with_jdk21.sh clean
 ./tools/gradle_with_jdk21.sh :app:assembleDebug --stacktrace
 ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace
+./tools/gradle_with_jdk21.sh :app:assemblePerfRelease --stacktrace
 ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=debug,release,perfRelease
 ./tools/gradle_with_jdk21.sh :app:lintDebug --stacktrace
 ```
@@ -109,6 +110,16 @@ Strictness control by pipeline context:
 - Local/dev or debug CI (`buildStrict=false`):
   - Same checks run, but max-JVM/API-ABI non-release gates can warn.
   - Python-dependent checks are skipped with warning if Python is unavailable.
+
+## Release oficial vs validação interna (unsigned/placeholder)
+- **Release oficial (assinado)**:
+  - exige keystore + credenciais de signing de produção;
+  - exige `app/google-services.json` real (sem placeholder);
+  - **não** usar `-PCI_INTERNAL_VALIDATION=true`.
+- **Validação interna (unsigned)**:
+  - permite `-PALLOW_UNSIGNED_RELEASE=true`;
+  - permite placeholder Firebase **somente** com sinal explícito `-PCI_INTERNAL_VALIDATION=true` (opcionalmente junto de `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true`);
+  - usada para CI interno quando segredos de produção não estão disponíveis.
 
 
 ## Selftest matrix expectations

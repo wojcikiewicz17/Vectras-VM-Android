@@ -306,6 +306,26 @@ jobs:
           set -euo pipefail
           ./gradlew --no-daemon --stacktrace ":${GRADLE_MODULE}:assembleRelease" ${GRADLE_EXTRA_ARGS}
 
+      - name: Verify delivered compiled artifacts report
+        if: inputs.build_debug || inputs.build_release
+        run: |
+          set -euo pipefail
+          variants=()
+          if [[ "${{ inputs.build_debug }}" == 'true' ]]; then
+            variants+=("debug")
+          fi
+          if [[ "${{ inputs.build_release }}" == 'true' ]]; then
+            variants+=("release")
+          fi
+
+          if [[ ${#variants[@]} -eq 0 ]]; then
+            echo "No build variants selected; skipping compiled artifacts verification."
+            exit 0
+          fi
+
+          artifact_variants=$(IFS=,; echo "${variants[*]}")
+          ./gradlew --no-daemon --stacktrace ":${GRADLE_MODULE}:verifyDeliveredCompiledArtifacts" -PartifactVariants="${artifact_variants}" ${GRADLE_EXTRA_ARGS}
+
       - name: Sign Release APK
         if: inputs.build_release && inputs.sign_release
         env:
@@ -378,7 +398,6 @@ jobs:
         with:
           name: android-manual-artifacts-${{ github.run_number }}
           path: |
-            ${{ env.GRADLE_MODULE }}/build/outputs/**/*.apk
             **/build/reports/**
             **/build/test-results/**
             **/*.log
