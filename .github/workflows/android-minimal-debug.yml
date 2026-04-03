@@ -128,6 +128,13 @@ jobs:
             -Pcmake.version=${CMAKE_VERSION} \
             -Pjava.language.version=${JAVA_VERSION}
 
+      - name: Validate expected delivery artifacts (debug)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/validate_expected_android_artifacts.sh "debug"
+
       - name: Upload compiled artifacts report (required)
         if: always()
         uses: actions/upload-artifact@v5
@@ -140,7 +147,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: android-compiled-outputs
+          name: android-internal-unsigned-debug-compiled-outputs
           path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
@@ -151,10 +158,16 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: vectras-debug-apk
+          name: android-internal-unsigned-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+
+      - name: Upload debug diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: android-debug-diagnostics-${{ github.run_id }}
           path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/**/*.apk
             **/build/reports/**
             **/build/outputs/logs/**
           if-no-files-found: warn

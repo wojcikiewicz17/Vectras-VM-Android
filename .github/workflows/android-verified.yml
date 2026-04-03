@@ -354,6 +354,13 @@ jobs:
           set -euo pipefail
           ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PartifactVariants=debug
 
+      - name: Validate expected delivery artifacts (debug)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/validate_expected_android_artifacts.sh "debug"
+
       - name: Upload compiled artifacts report (required)
         if: always()
         uses: actions/upload-artifact@v5
@@ -366,7 +373,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: android-compiled-outputs
+          name: android-internal-unsigned-debug-compiled-outputs
           path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
@@ -580,18 +587,34 @@ jobs:
           set -euo pipefail
           ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PartifactVariants=debug,release,perfRelease
 
-      - name: Upload release artifacts
+      - name: Validate expected delivery artifacts (debug, release, perfRelease)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/validate_expected_android_artifacts.sh "debug,release,perfRelease"
+
+      - name: Upload delivery artifacts
         if: always()
         uses: actions/upload-artifact@v5
         with:
-          name: release-bundle-${{ github.run_id }}
+          name: android-${{ needs.preflight.outputs.signing_mode == 'required' && 'official-signed' || 'internal-unsigned' }}-release-compiled-outputs
           retention-days: 30
-          if-no-files-found: ignore
+          if-no-files-found: error
           path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
             app/build/outputs/mapping/**
             app/build/reports/artifacts/compiled-artifacts-report.json
+
+      - name: Upload release diagnostics
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: release-diagnostics-${{ github.run_id }}
+          retention-days: 14
+          if-no-files-found: warn
+          path: |
             app/build/reports/**
             **/*.log
 
