@@ -2,8 +2,6 @@ name: proof-build-process
 
 on:
   workflow_call:
-  push:
-  pull_request:
   workflow_dispatch:
 
 permissions:

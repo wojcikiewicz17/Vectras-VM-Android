@@ -3,20 +3,6 @@ name: android-minimal-debug
 on:
   workflow_call:
   workflow_dispatch:
-  push:
-    branches: [ main, master ]
-    paths:
-      - 'app/**'
-      - 'terminal-emulator/**'
-      - 'terminal-view/**'
-      - 'shell-loader/**'
-      - 'engine/**'
-      - 'build.gradle'
-      - 'settings.gradle'
-      - 'gradle.properties'
-      - 'gradle/**'
-      - '.github/workflows/android-minimal-debug.yml'
-
 permissions:
   contents: read
 

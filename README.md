@@ -89,8 +89,15 @@ find . -maxdepth 2 -type d | sort
 - [docs/README.md](docs/README.md)
 - [docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md](docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md)
 
+## Execução padrão de CI/CD
+- A execução normal deve ocorrer via **Actions > Pipeline Orchestrator** (`.github/workflows/pipeline-orchestrator.yml`), que é o único workflow que recebe eventos de branch/PR.
+- Workflows filhos (`engine-ci.yml`, `proof-build.yml`, `android.yml`, `android-verified.yml`, `android-minimal-debug.yml`, `termux-orchestrator.yml`) executam em modo reutilizável via `uses: ./.github/workflows/<arquivo>.yml`.
+- `workflow_dispatch` nos workflows filhos fica apenas para depuração manual controlada.
+
 ## Como rodar manualmente
-- Acesse **Actions > Android CI > Run workflow** e selecione os inputs do `workflow_dispatch`.
+- Fluxo recomendado: acesse **Actions > Pipeline Orchestrator > Run workflow** e ajuste os toggles (`run_host_ci`, `run_android_ci`, `run_termux_orchestrator`) e `mode`.
+- Depuração pontual: execute diretamente um workflow filho apenas quando necessário para troubleshooting local de pipeline.
+- No workflow **Android CI** (debug manual), use os inputs do `workflow_dispatch` abaixo:
 - Inputs booleanos:
   - `build_debug` (`true`/`false`): executa `assembleDebug`.
   - `build_release` (`true`/`false`): executa `assembleRelease`.
