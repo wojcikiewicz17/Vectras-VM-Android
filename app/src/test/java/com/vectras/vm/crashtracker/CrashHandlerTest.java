@@ -112,5 +112,6 @@ public class CrashHandlerTest {
         void terminateProcess(int pid) {
             terminateCalled = true;
         }
+
     }
 }

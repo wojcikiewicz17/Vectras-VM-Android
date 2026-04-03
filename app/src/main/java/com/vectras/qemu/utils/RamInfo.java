@@ -11,7 +11,9 @@ import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.utils.TextUtils;
 
 public class RamInfo {
-    private static final int MIN_VM_MEMORY_MB = 128;
+    public static int ensureMinimumVmMemoryMb(int requestedMb) {
+        return Math.max(requestedMb, 128);
+    }
     public static int safeLongToInt(long l) {
         if (l < Integer.MIN_VALUE || l > Integer.MAX_VALUE) {
             throw new IllegalArgumentException(l + " cannot be cast to int without changing its value.");
