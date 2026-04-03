@@ -126,12 +126,28 @@ public class Loader {
 
     static String getSecurityValidationError(android.content.pm.PackageInfo targetInfo, java.util.List<String> expected) {
         if (targetInfo == null) {
-            return BuildConfig.packageNotInstalledErrorText.replace("ARCH", android.os.Build.SUPPORTED_ABIS[0]);
+            return BuildConfig.packageNotInstalledErrorText.replace("ARCH", getPrimaryAbi());
         }
         if (!isTrustedSignature(targetInfo, expected)) {
             return BuildConfig.packageSignatureMismatchErrorText;
         }
         return null;
+    }
+
+    private static String getPrimaryAbi() {
+        if (android.os.Build.SUPPORTED_ABIS != null && android.os.Build.SUPPORTED_ABIS.length > 0) {
+            String abi = android.os.Build.SUPPORTED_ABIS[0];
+            if (abi != null && !abi.trim().isEmpty()) {
+                return abi;
+            }
+        }
+
+        String arch = System.getProperty("os.arch");
+        if (arch != null && !arch.trim().isEmpty()) {
+            return arch;
+        }
+
+        return "unknown";
     }
 
     /**

@@ -14,6 +14,26 @@ import java.util.Collections;
 import java.util.List;
 
 public class LoaderSignatureVerificationTest {
+    private static Signature signature(String hex) {
+        return new Signature(hex);
+    }
+
+    private static String expectedPrimaryAbi() {
+        if (android.os.Build.SUPPORTED_ABIS != null && android.os.Build.SUPPORTED_ABIS.length > 0) {
+            String abi = android.os.Build.SUPPORTED_ABIS[0];
+            if (abi != null && !abi.trim().isEmpty()) {
+                return abi;
+            }
+        }
+
+        String arch = System.getProperty("os.arch");
+        if (arch != null && !arch.trim().isEmpty()) {
+            return arch;
+        }
+
+        return "unknown";
+    }
+
     private static void setLegacySignatures(PackageInfo packageInfo, Signature[] signatures) throws Exception {
         java.lang.reflect.Field signaturesField = PackageInfo.class.getField("signatures");
         signaturesField.set(packageInfo, signatures);
@@ -34,8 +54,8 @@ public class LoaderSignatureVerificationTest {
     @Test
     @Config(sdk = 27)
     public void isTrustedSignature_acceptsExpectedSignatures_withOrderNormalization() throws Exception {
-        Signature signerA = new Signature(new byte[]{1, 2, 3, 4});
-        Signature signerB = new Signature(new byte[]{5, 6, 7, 8});
+        Signature signerA = signature("01020304");
+        Signature signerB = signature("05060708");
 
         PackageInfo packageInfo = new PackageInfo();
         setLegacySignatures(packageInfo, new Signature[]{signerB, signerA});
@@ -52,7 +72,7 @@ public class LoaderSignatureVerificationTest {
     @Test
     @Config(sdk = 27)
     public void isTrustedSignature_rejectsDivergentSignature() throws Exception {
-        Signature signer = new Signature(new byte[]{10, 11, 12, 13});
+        Signature signer = signature("0a0b0c0d");
 
         PackageInfo packageInfo = new PackageInfo();
         setLegacySignatures(packageInfo, new Signature[]{signer});
@@ -66,7 +86,7 @@ public class LoaderSignatureVerificationTest {
     @Config(sdk = 27)
     public void getSecurityValidationError_returnsNotInstalledMessage_whenTargetPackageMissing() {
         Assert.assertEquals(
-                BuildConfig.packageNotInstalledErrorText.replace("ARCH", android.os.Build.SUPPORTED_ABIS[0]),
+                BuildConfig.packageNotInstalledErrorText.replace("ARCH", expectedPrimaryAbi()),
                 Loader.getSecurityValidationError(null, Collections.singletonList("expected"))
         );
     }
@@ -74,7 +94,7 @@ public class LoaderSignatureVerificationTest {
     @Test
     @Config(sdk = 27)
     public void getSecurityValidationError_returnsSignatureMismatchMessage_whenSignatureIsUntrusted() throws Exception {
-        Signature signer = new Signature(new byte[]{42, 43, 44, 45});
+        Signature signer = signature("2a2b2c2d");
 
         PackageInfo packageInfo = new PackageInfo();
         setLegacySignatures(packageInfo, new Signature[]{signer});
@@ -90,7 +110,7 @@ public class LoaderSignatureVerificationTest {
     @Test
     @Config(sdk = 27)
     public void getSecurityValidationError_returnsNull_whenSignatureIsTrusted() throws Exception {
-        Signature signer = new Signature(new byte[]{7, 7, 7, 7});
+        Signature signer = signature("07070707");
 
         PackageInfo packageInfo = new PackageInfo();
         setLegacySignatures(packageInfo, new Signature[]{signer});
