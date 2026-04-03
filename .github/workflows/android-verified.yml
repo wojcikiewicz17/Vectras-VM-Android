@@ -95,6 +95,7 @@ env:
   COMPILE_API: "35"
   TARGET_API: "35"
   MIN_API: "23"
+  TOOLS_VERSION: "35.0.0"
 
 jobs:
   preflight:
@@ -229,8 +230,18 @@ jobs:
         with:
           log-accepted-android-sdk-licenses: false
 
-      - name: Install NDK + CMake
-        run: sdkmanager --install "ndk;${{ needs.preflight.outputs.ndk_version }}" "cmake;${{ env.CMAKE_VERSION }}"
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-${{ env.COMPILE_API }}" \
+            "build-tools;${{ env.TOOLS_VERSION }}" \
+            "ndk;${{ needs.preflight.outputs.ndk_version }}" \
+            "cmake;${{ env.CMAKE_VERSION }}"
+
+      - name: Generate local.properties
+        run: |
+          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
 
       - uses: gradle/actions/setup-gradle@v4
 
@@ -289,8 +300,18 @@ jobs:
         with:
           log-accepted-android-sdk-licenses: false
 
-      - name: Install NDK + CMake
-        run: sdkmanager --install "ndk;${{ needs.preflight.outputs.ndk_version }}" "cmake;${{ env.CMAKE_VERSION }}"
+      - name: Install Android SDK components
+        run: |
+          sdkmanager --install \
+            "platform-tools" \
+            "platforms;android-${{ env.COMPILE_API }}" \
+            "build-tools;${{ env.TOOLS_VERSION }}" \
+            "ndk;${{ needs.preflight.outputs.ndk_version }}" \
+            "cmake;${{ env.CMAKE_VERSION }}"
+
+      - name: Generate local.properties
+        run: |
+          printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
 
       - uses: gradle/actions/setup-gradle@v4
 
