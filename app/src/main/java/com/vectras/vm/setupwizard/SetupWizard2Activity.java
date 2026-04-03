@@ -49,6 +49,7 @@ import com.vectras.vm.core.HardwareProfileBridge;
 import com.vectras.vm.core.ProcessRuntimeOps;
 import com.vectras.vm.core.ProotCommandBuilder;
 import com.vectras.vm.network.RequestNetwork;
+import com.vectras.vm.qemu.QemuBinaryResolver;
 import com.vectras.vm.network.RequestNetworkController;
 import com.vectras.vm.databinding.ActivitySetupWizard2Binding;
 import com.vectras.vm.databinding.ListViewBinding;
@@ -897,6 +898,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
                 Log.i(TAG, "AUDIT setup command template=mirror;set -e;... | setupTs=" + setupTimestamp + " | customSetup=" + isCustomSetupMode + " | setupArchive=" + setupArchive + " | stageDir=" + stageDir + " | mirrorLocation=" + selectedMirrorLocation + " | bootstrapSource=" + setupSource + " | hasExpectedSha256=" + hasExpectedSha256 + " | hasExpectedSig=" + hasExpectedSignature);
 
+                String stageQemuBinaryCheck = buildAnyQemuBinaryPresenceCheck("$STAGE_ROOT/usr/local/bin", "-x");
                 String cmd = selectedMirrorCommand + ";" +
                         " set -e;" +
                         " SETUP_TS='" + setupTimestamp + "';" +
@@ -932,7 +934,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
                         " echo \"Installing Qemu...\";" +
                         " if gzip -t \"$SETUP_ARCHIVE\" >/dev/null 2>&1; then tar -xzf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\"; else tar -xf \"$SETUP_ARCHIVE\" -C \"$STAGE_ROOT\"; fi || { rollback_setup 'bootstrap extraction failed'; exit 44; };" +
                         " test -d \"$STAGE_ROOT/usr/local/bin\" || { rollback_setup 'missing /usr/local/bin in staging'; exit 45; };" +
-                        " test -x \"$STAGE_ROOT/usr/local/bin/qemu-system-x86_64\" -o -x \"$STAGE_ROOT/usr/local/bin/qemu-system-aarch64\" || { rollback_setup 'missing qemu binary in staging'; exit 46; };" +
+                        " " + stageQemuBinaryCheck + " || { rollback_setup 'missing qemu binary in staging'; exit 46; };" +
                         " chmod 775 \"$STAGE_ROOT\"/usr/local/bin/* || { rollback_setup 'invalid binary permissions'; exit 47; };" +
                         " write_state STAGING 'Staging validation completed';" +
                         " mkdir -p \"$BACKUP_BASE/$SETUP_TS\";" +
@@ -958,6 +960,21 @@ public class SetupWizard2Activity extends AppCompatActivity {
                 executeShellCommand(cmd, setupTimestamp);
             });
         }).start();
+    }
+
+    private String buildAnyQemuBinaryPresenceCheck(String baseDir, String testFlag) {
+        String resolvedBase = baseDir == null ? "" : baseDir;
+        String resolvedFlag = (testFlag == null || testFlag.trim().isEmpty()) ? "-f" : testFlag.trim();
+        StringBuilder expression = new StringBuilder();
+        for (String binary : QemuBinaryResolver.supportedBinaryNames()) {
+            if (expression.length() > 0) {
+                expression.append(" -o ");
+            }
+            expression.append(resolvedFlag)
+                    .append(" ")
+                    .append(CommandUtils.shellSingleQuote(resolvedBase + "/" + binary));
+        }
+        return expression.toString();
     }
 
     private void continueAfterEssentialPermissionResolution() {
@@ -1321,7 +1338,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
 
         String validationCommand = "set -e; " +
                 "STATE_FILE='/root/.vectras-setup/setup_state.json'; " +
-                "test -f /usr/local/bin/qemu-system-x86_64 -o -f /usr/local/bin/qemu-system-aarch64 || exit 61; " +
+                buildAnyQemuBinaryPresenceCheck("/usr/local/bin", "-f") + " || exit 61; " +
                 "test -f \"$STATE_FILE\" || exit 62; " +
                 "grep -q '\"phase\":\"COMPLETED\"' \"$STATE_FILE\" || exit 63; " +
                 "grep -q '\"timestamp\":\"" + setupTimestamp + "\"' \"$STATE_FILE\" || exit 64;";
