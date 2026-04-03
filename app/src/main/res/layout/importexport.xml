@@ -14,14 +14,15 @@
   		android:text="@string/import_settings_file_url"
 		android:gravity="end|center_vertical"
   		/>
-  	<EditText
-  		android:id="@+id/textImportUrl"
-  		android:layout_width="fill_parent"
-  		android:layout_height="wrap_content"
- 		android:layout_weight="1"
- 		android:textAppearance="?android:attr/textAppearanceSmall"
-  		android:singleLine="true"
-  		/>
+	  	<EditText
+	  		android:id="@+id/textImportUrl"
+	  		android:layout_width="fill_parent"
+	  		android:layout_height="wrap_content"
+	 		android:layout_weight="1"
+	 		android:textAppearance="?android:attr/textAppearanceSmall"
+	  		android:inputType="textUri"
+	  		android:singleLine="true"
+	  		/>
   	<Button
   		android:id="@+id/buttonImport"
   		android:layout_width="wrap_content"
@@ -36,14 +37,15 @@
   		android:text="@string/export_settings_path"
 		android:gravity="end|center_vertical"
   		/>
-  	<EditText
-  		android:id="@+id/textExportPath"
-  		android:layout_width="fill_parent"
-  		android:layout_height="wrap_content"
-  		android:layout_weight="1"
-  		android:textAppearance="?android:attr/textAppearanceSmall"
-  		android:singleLine="true"
-  		/>
+	  	<EditText
+	  		android:id="@+id/textExportPath"
+	  		android:layout_width="fill_parent"
+	  		android:layout_height="wrap_content"
+	  		android:layout_weight="1"
+	  		android:textAppearance="?android:attr/textAppearanceSmall"
+	  		android:inputType="textUri"
+	  		android:singleLine="true"
+	  		/>
   	<Button
   		android:id="@+id/buttonExport"
   		android:layout_width="wrap_content"

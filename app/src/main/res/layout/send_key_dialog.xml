@@ -48,6 +48,7 @@
                     android:background="@android:color/transparent"
                     android:hint="Send text..."
                     android:imeOptions="actionSend"
+                    android:inputType="text"
                     android:padding="6sp"
                     android:textColor="@android:color/black"
                     android:textColorHint="@android:color/black"

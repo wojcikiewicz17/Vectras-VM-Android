@@ -144,7 +144,7 @@
         android:backgroundTint="?attr/colorPrimary"
         android:clickable="true"
         android:focusable="true"
-        android:text="R"
+        android:text="@string/key_r"
         android:textColor="?attr/colorPrimary"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintRight_toRightOf="parent" />
@@ -159,7 +159,7 @@
         android:backgroundTint="?attr/colorPrimary"
         android:clickable="true"
         android:focusable="true"
-        android:text="E"
+        android:text="@string/key_e"
         android:textColor="?attr/colorPrimary"
         app:layout_constraintTop_toTopOf="parent"
         app:layout_constraintLeft_toLeftOf="parent" />
@@ -174,7 +174,7 @@
         android:backgroundTint="?attr/colorPrimary"
         android:clickable="true"
         android:focusable="true"
-        android:text="X"
+        android:text="@string/key_x"
         android:textColor="?attr/colorPrimary"
         app:layout_constraintTop_toBottomOf="@id/eBtn"
         app:layout_constraintRight_toRightOf="parent" />
@@ -189,7 +189,7 @@
         android:backgroundTint="?attr/colorPrimary"
         android:clickable="true"
         android:focusable="true"
-        android:text="Q"
+        android:text="@string/key_q"
         android:textColor="?attr/colorPrimary"
         app:layout_constraintTop_toBottomOf="@id/eBtn"
         app:layout_constraintLeft_toLeftOf="parent" />
@@ -204,7 +204,7 @@
         android:backgroundTint="?attr/colorPrimary"
         android:clickable="true"
         android:focusable="true"
-        android:text="TAB"
+        android:text="@string/key_tab"
         android:textColor="?attr/colorPrimary"
         app:layout_constraintBottom_toTopOf="@id/enterGameBtn"
         app:layout_constraintRight_toRightOf="parent" />
