@@ -16,6 +16,7 @@ import java.util.Set;
 
 public final class QemuBinaryResolver {
     public static final String DEFAULT_LOG_TAG = "QemuBinaryResolver";
+    public static final String DEFAULT_ARCH = "X86_64";
 
     private static final List<String> SUPPORTED_BINARIES = Collections.unmodifiableList(Arrays.asList(
             "qemu-system-x86_64",
@@ -38,8 +39,25 @@ public final class QemuBinaryResolver {
         return SUPPORTED_BINARIES;
     }
 
-    public static String primaryBinaryForArch(String arch) {
+    @Nullable
+    public static String normalizedArchOrNull(@Nullable String arch) {
         String normalized = arch == null ? "" : arch.trim().toUpperCase(Locale.ROOT);
+        if ("I386".equals(normalized)
+                || "ARM64".equals(normalized)
+                || "PPC".equals(normalized)
+                || DEFAULT_ARCH.equals(normalized)) {
+            return normalized;
+        }
+        return null;
+    }
+
+    public static String normalizedArchOrDefault(@Nullable String arch) {
+        String normalized = normalizedArchOrNull(arch);
+        return normalized == null ? DEFAULT_ARCH : normalized;
+    }
+
+    public static String primaryBinaryForArch(String arch) {
+        String normalized = normalizedArchOrDefault(arch);
         if ("I386".equals(normalized)) return "qemu-system-i386";
         if ("ARM64".equals(normalized)) return "qemu-system-aarch64";
         if ("PPC".equals(normalized)) return "qemu-system-ppc";
