@@ -1,6 +1,5 @@
 package com.vectras.vm.vectra
 
-import kotlin.math.min
 
 private const val CONTAINER_BASE60_ALPHABET = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwx"
 private const val CONTAINER_STATE_COUNT = 10
@@ -79,20 +78,38 @@ class VectraDeterministicContainer(
         val matrixCell = matrixCell(pathHash, preferredLayer, lane)
         val pathVector60 = toBase60(pathHash)
 
-        val chunks = splitChunks(payload)
-        val chunkIds = LongArray(chunks.size)
+        val chunkCount = if (payload.isEmpty()) 1 else ((payload.size + chunkSize - 1) / chunkSize)
+        val chunkIds = LongArray(chunkCount)
         var rolling = pathHash xor payload.size.toLong()
 
-        for (index in chunks.indices) {
-            val chunkId = chunkKey(pathHash, index, lane, preferredLayer)
-            val chunkCopy = chunks[index]
-            chunkStore[chunkId] = chunkCopy
-            chunkIds[index] = chunkId
+        if (payload.isEmpty()) {
+            val chunkId = chunkKey(pathHash, 0, lane, preferredLayer)
+            val emptyChunk = ByteArray(0)
+            chunkStore[chunkId] = emptyChunk
+            chunkIds[0] = chunkId
             writeOps++
-            rolling = mix64(rolling xor chunkId xor CRC32C.update(0, chunkCopy).toLong())
+            rolling = mix64(rolling xor chunkId xor CRC32C.update(0, emptyChunk).toLong())
+        } else {
+            var offset = 0
+            var index = 0
+            while (offset < payload.size) {
+                val remaining = payload.size - offset
+                val size = if (remaining > chunkSize) chunkSize else remaining
+                val chunkCopy = ByteArray(size)
+                System.arraycopy(payload, offset, chunkCopy, 0, size)
+
+                val chunkId = chunkKey(pathHash, index, lane, preferredLayer)
+                chunkStore[chunkId] = chunkCopy
+                chunkIds[index] = chunkId
+                writeOps++
+                rolling = mix64(rolling xor chunkId xor CRC32C.update(0, chunkCopy).toLong())
+
+                offset += size
+                index++
+            }
         }
 
-        val wave = waveState(pathHash, chunks.size, payload.size, matrixCell)
+        val wave = waveState(pathHash, chunkCount, payload.size, matrixCell)
         val tag = mix64(rolling xor wave.toLong() xor (preferredLayer.toLong() shl 32))
 
         val record = EntryRecord(
@@ -124,7 +141,8 @@ class VectraDeterministicContainer(
         var offset = 0
         for (chunkId in record.chunkIds) {
             val chunk = chunkStore[chunkId] ?: return null
-            val count = min(chunk.size, out.size - offset)
+            val remaining = out.size - offset
+            val count = if (chunk.size < remaining) chunk.size else remaining
             System.arraycopy(chunk, 0, out, offset, count)
             offset += count
             readOps++
@@ -248,32 +266,44 @@ class VectraDeterministicContainer(
         )
     }
 
-    private fun splitChunks(payload: ByteArray): List<ByteArray> {
-        if (payload.isEmpty()) return listOf(ByteArray(0))
-        val result = ArrayList<ByteArray>((payload.size + chunkSize - 1) / chunkSize)
-        var offset = 0
-        while (offset < payload.size) {
-            val end = min(offset + chunkSize, payload.size)
-            val chunk = ByteArray(end - offset)
-            System.arraycopy(payload, offset, chunk, 0, chunk.size)
-            result.add(chunk)
-            offset = end
-        }
-        return result
-    }
-
     private fun normalizePath(path: String): String {
-        val parts = path.replace('\\', '/').trim().split('/')
-        val stack = ArrayList<String>(parts.size)
-        for (part in parts) {
-            if (part.isBlank() || part == ".") continue
-            if (part == "..") {
-                if (stack.isNotEmpty()) stack.removeAt(stack.lastIndex)
-                continue
+        if (path.isBlank()) return ""
+        val stack = ArrayDeque<String>(8)
+        val segment = StringBuilder(path.length)
+
+        fun flushSegment() {
+            if (segment.isEmpty()) return
+            val part = segment.toString()
+            when (part) {
+                "." -> Unit
+                ".." -> if (stack.isNotEmpty()) stack.removeLast()
+                else -> stack.addLast(part)
             }
-            stack.add(part)
+            segment.setLength(0)
         }
-        return stack.joinToString("/").lowercase()
+
+        var i = 0
+        while (i < path.length) {
+            val ch = path[i]
+            if (ch == '/' || ch == '\\') {
+                flushSegment()
+            } else {
+                segment.append(ch)
+            }
+            i++
+        }
+        flushSegment()
+
+        if (stack.isEmpty()) return ""
+
+        val normalized = StringBuilder(path.length)
+        var first = true
+        for (part in stack) {
+            if (!first) normalized.append('/')
+            normalized.append(part)
+            first = false
+        }
+        return normalized.toString().lowercase()
     }
 
     private fun stablePathHash(path: String): Long {
