@@ -6,6 +6,7 @@ import android.app.ProgressDialog;
 import android.content.Context;
 import android.os.Build;
 import android.os.Environment;
+import android.os.Build;
 import android.os.UserManager;
 import android.system.Os;
 import android.util.Log;
@@ -47,12 +48,66 @@ import java.util.zip.ZipInputStream;
  * (5.2) For every other zip entry, extract it into $STAGING_PREFIX and set execute permissions if necessary.
  */
 final class TermuxInstaller {
-    private static final class BootstrapInstallException extends RuntimeException {
-        final int userMessageResId;
+    interface NativeLibraryLoader {
+        void loadLibrary(String libName);
+    }
 
-        BootstrapInstallException(String message, int userMessageResId) {
-            super(message);
-            this.userMessageResId = userMessageResId;
+    interface NativeZipAccessor {
+        byte[] getZipBytes();
+    }
+
+    interface NativeBootstrapProvider {
+        boolean ensureLoaded();
+
+        byte[] getZipBytes();
+
+        String getLastError();
+    }
+
+    private static final class DefaultNativeBootstrapProvider implements NativeBootstrapProvider {
+        private static final String TERMUX_BOOTSTRAP_LIB = "termux-bootstrap";
+
+        private final NativeLibraryLoader libraryLoader;
+        private final NativeZipAccessor zipAccessor;
+        private volatile boolean bootstrapNativeLoadAttempted = false;
+        private volatile boolean bootstrapNativeLoaded = false;
+        private volatile String bootstrapNativeLoadError = "";
+
+        DefaultNativeBootstrapProvider(NativeLibraryLoader libraryLoader, NativeZipAccessor zipAccessor) {
+            this.libraryLoader = libraryLoader;
+            this.zipAccessor = zipAccessor;
+        }
+
+        @Override
+        public synchronized boolean ensureLoaded() {
+            if (bootstrapNativeLoadAttempted) return bootstrapNativeLoaded;
+            bootstrapNativeLoadAttempted = true;
+            try {
+                libraryLoader.loadLibrary(TERMUX_BOOTSTRAP_LIB);
+                bootstrapNativeLoaded = true;
+                bootstrapNativeLoadError = "";
+            } catch (Throwable t) {
+                bootstrapNativeLoaded = false;
+                bootstrapNativeLoadError = buildDetailedBootstrapError(TERMUX_BOOTSTRAP_LIB, t);
+                Log.e(EmulatorDebug.LOG_TAG, "Unable to load " + TERMUX_BOOTSTRAP_LIB + "; bootstrap JNI path disabled", t);
+            }
+            return bootstrapNativeLoaded;
+        }
+
+        @Override
+        public byte[] getZipBytes() {
+            try {
+                return zipAccessor.getZipBytes();
+            } catch (Throwable t) {
+                bootstrapNativeLoadError = buildDetailedBootstrapError(TERMUX_BOOTSTRAP_LIB, t);
+                Log.e(EmulatorDebug.LOG_TAG, "Failed to read bootstrap archive from JNI", t);
+                return new byte[0];
+            }
+        }
+
+        @Override
+        public String getLastError() {
+            return bootstrapNativeLoadError;
         }
     }
 
@@ -225,175 +280,46 @@ final class TermuxInstaller {
         }
     }
 
-    private static final String TERMUX_BOOTSTRAP_LIB = "termux-bootstrap";
     private static volatile NativeBootstrapProvider nativeBootstrapProvider = createDefaultNativeBootstrapProvider();
-    private static volatile String bootstrapNativeLoadError = "";
-    private static volatile BootstrapDiagnostic bootstrapDiagnostic = BootstrapDiagnostic.idle();
-
-    private static final class BootstrapDiagnostic {
-        final String stage;
-        final String failureType;
-        final String failureMessage;
-        final String supportedAbis;
-        final String targetLibrary;
-
-        private BootstrapDiagnostic(String stage, String failureType, String failureMessage, String supportedAbis, String targetLibrary) {
-            this.stage = stage;
-            this.failureType = failureType;
-            this.failureMessage = failureMessage;
-            this.supportedAbis = supportedAbis;
-            this.targetLibrary = targetLibrary;
-        }
-
-        static BootstrapDiagnostic idle() {
-            return new BootstrapDiagnostic("none", "none", "", getSupportedAbisString(), TERMUX_BOOTSTRAP_LIB);
-        }
-
-        static BootstrapDiagnostic fromThrowable(String stage, Throwable t) {
-            return new BootstrapDiagnostic(stage, t.getClass().getSimpleName(), String.valueOf(t.getMessage()), getSupportedAbisString(), TERMUX_BOOTSTRAP_LIB);
-        }
-    }
-
-    private static String getSupportedAbisString() {
-        String[] abis = Build.SUPPORTED_ABIS;
-        if (abis == null || abis.length == 0) return "unknown";
-        StringBuilder builder = new StringBuilder();
-        for (int i = 0; i < abis.length; i++) {
-            if (i > 0) builder.append(',');
-            builder.append(abis[i]);
-        }
-        return builder.toString();
-    }
-
-    private static void recordBootstrapFailure(String stage, Throwable t) {
-        BootstrapDiagnostic diagnostic = BootstrapDiagnostic.fromThrowable(stage, t);
-        bootstrapDiagnostic = diagnostic;
-        bootstrapNativeLoadError = "stage=" + diagnostic.stage + ",type=" + diagnostic.failureType + ",lib=" + diagnostic.targetLibrary +
-            ",abis=" + diagnostic.supportedAbis + ",message=" + diagnostic.failureMessage;
-    }
-
-    private static void logBootstrapTelemetry(String event, String reason) {
-        BootstrapDiagnostic diagnostic = bootstrapDiagnostic;
-        Log.i(EmulatorDebug.LOG_TAG,
-            "bootstrap_telemetry event=" + event +
-                " reason=" + reason +
-                " stage=" + diagnostic.stage +
-                " failure_type=" + diagnostic.failureType +
-                " target_lib=" + diagnostic.targetLibrary +
-                " supported_abis=" + diagnostic.supportedAbis +
-                " linker_message=" + diagnostic.failureMessage);
-    }
-
-    private static int resolveBootstrapErrorMessageResId() {
-        String stage = bootstrapDiagnostic.stage;
-        if ("jni_load_library".equals(stage) || "jni_get_zip".equals(stage) || "jni_unavailable".equals(stage)) {
-            return R.string.bootstrap_error_body_jni_unavailable;
-        }
-        return R.string.bootstrap_error_body_archive_invalid_or_empty;
-    }
 
     public static byte[] loadZipBytes() {
-        if (ensureBootstrapNativeLoaded()) {
-            try {
-                byte[] zipBytes = nativeGetZip();
-                if (zipBytes == null || zipBytes.length == 0) {
-                    bootstrapDiagnostic = new BootstrapDiagnostic("zip_validation", "EmptyBootstrapZip", "nativeGetZip() returned null or empty payload", getSupportedAbisString(), TERMUX_BOOTSTRAP_LIB);
-                    bootstrapNativeLoadError = "stage=zip_validation,type=EmptyBootstrapZip,lib=" + TERMUX_BOOTSTRAP_LIB +
-                        ",abis=" + getSupportedAbisString() + ",message=nativeGetZip() returned null or empty payload";
-                }
-                return zipBytes;
-            } catch (Throwable t) {
-                recordBootstrapFailure("jni_get_zip", t);
-                Log.e(EmulatorDebug.LOG_TAG, "Failed to read bootstrap archive from JNI", t);
-            }
-        } else if ("none".equals(bootstrapDiagnostic.stage)) {
-            bootstrapDiagnostic = new BootstrapDiagnostic("jni_unavailable", "NativeBootstrapUnavailable", "Bootstrap JNI is unavailable after load attempt", getSupportedAbisString(), TERMUX_BOOTSTRAP_LIB);
-            bootstrapNativeLoadError = "stage=jni_unavailable,type=NativeBootstrapUnavailable,lib=" + TERMUX_BOOTSTRAP_LIB +
-                ",abis=" + getSupportedAbisString() + ",message=Bootstrap JNI is unavailable after load attempt";
+        NativeBootstrapProvider provider = nativeBootstrapProvider;
+        if (provider.ensureLoaded()) {
+            return provider.getZipBytes();
         }
         return new byte[0];
     }
 
-    private static synchronized boolean ensureBootstrapNativeLoaded() {
-        if (bootstrapNativeLoadAttempted) return bootstrapNativeLoaded;
-        bootstrapNativeLoadAttempted = true;
-        try {
-            System.loadLibrary(TERMUX_BOOTSTRAP_LIB);
-            bootstrapNativeLoaded = true;
-            bootstrapDiagnostic = BootstrapDiagnostic.idle();
-            bootstrapNativeLoadError = "";
-        } catch (Throwable t) {
-            bootstrapNativeLoaded = false;
-            recordBootstrapFailure("jni_load_library", t);
-            Log.e(EmulatorDebug.LOG_TAG, "Unable to load " + TERMUX_BOOTSTRAP_LIB + "; bootstrap JNI path disabled", t);
-        }
-        return bootstrapNativeLoaded;
+    private static NativeBootstrapProvider createDefaultNativeBootstrapProvider() {
+        return new DefaultNativeBootstrapProvider(System::loadLibrary, TermuxInstaller::nativeGetZip);
+    }
+
+    static NativeBootstrapProvider createNativeBootstrapProviderForTesting(NativeLibraryLoader loader, NativeZipAccessor zipAccessor) {
+        return new DefaultNativeBootstrapProvider(loader, zipAccessor);
     }
 
     public static String getBootstrapNativeLoadError() {
-        return "target_lib=" + bootstrapNativeTargetLibrary
-            + ", abi=" + bootstrapNativeSupportedAbis
-            + ", failure_type=" + bootstrapNativeFailureType
-            + ", linker_message=" + bootstrapNativeLinkerMessage
-            + ", detail=" + bootstrapNativeLoadError;
+        return nativeBootstrapProvider.getLastError();
     }
 
-    private static void recordBootstrapNativeEnvironment() {
-        bootstrapNativeTargetLibrary = TERMUX_BOOTSTRAP_LIB;
-        bootstrapNativeSupportedAbis = Arrays.toString(Build.SUPPORTED_ABIS);
-    }
-
-    private static void recordBootstrapNativeFailure(Throwable t) {
-        String throwableClass = t.getClass().getSimpleName();
-        String message = String.valueOf(t.getMessage());
-        recordBootstrapNativeFailure(throwableClass, message);
-    }
-
-    private static void recordBootstrapNativeFailure(String failureType, String message) {
-        bootstrapNativeFailureType = failureType;
-        bootstrapNativeLinkerMessage = message;
-        bootstrapNativeLoadError = failureType + ": " + message;
-    }
-
-    private static void logBootstrapFailureTelemetry(String event, String errorCode, Throwable error) {
-        String throwableType = error != null ? error.getClass().getSimpleName() : "none";
-        String throwableMessage = error != null ? String.valueOf(error.getMessage()) : "none";
-        Log.e(
-            EmulatorDebug.LOG_TAG,
-            "telemetry_event=" + event
-                + " error_code=" + errorCode
-                + " target_lib=" + bootstrapNativeTargetLibrary
-                + " supported_abis=" + bootstrapNativeSupportedAbis
-                + " failure_type=" + bootstrapNativeFailureType
-                + " linker_message=" + bootstrapNativeLinkerMessage
-                + " throwable_type=" + throwableType
-                + " throwable_message=" + throwableMessage
-        );
-    }
-
-    private static final class BootstrapInstallException extends RuntimeException {
-        final String errorCode;
-        final int userMessageResId;
-
-        BootstrapInstallException(String errorCode, int userMessageResId, String message) {
-            super(message);
-            this.errorCode = errorCode;
-            this.userMessageResId = userMessageResId;
-        }
-    }
-
-    static void setNativeBootstrapProviderForTests(NativeBootstrapProvider provider) {
+    static void setNativeBootstrapProviderForTesting(NativeBootstrapProvider provider) {
         nativeBootstrapProvider = provider;
-        bootstrapNativeLoadError = "";
     }
 
-    static void resetNativeBootstrapProviderForTests() {
+    static void resetNativeBootstrapProviderForTesting() {
         nativeBootstrapProvider = createDefaultNativeBootstrapProvider();
-        bootstrapNativeLoadError = "";
     }
 
-    private static String describeThrowable(Throwable throwable) {
-        return throwable.getClass().getSimpleName() + ": " + String.valueOf(throwable.getMessage());
+    private static String buildDetailedBootstrapError(String libName, Throwable throwable) {
+        String abiSummary;
+        if (Build.SUPPORTED_ABIS != null && Build.SUPPORTED_ABIS.length > 0) {
+            abiSummary = android.text.TextUtils.join(",", Build.SUPPORTED_ABIS);
+        } else {
+            abiSummary = "unknown";
+        }
+        String throwableMessage = String.valueOf(throwable.getMessage());
+        return "lib=" + libName + ", abi=" + abiSummary + ", error="
+            + throwable.getClass().getSimpleName() + ": " + throwableMessage;
     }
 
     private static native byte[] nativeGetZip();
