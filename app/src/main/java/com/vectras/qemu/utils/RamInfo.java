@@ -5,7 +5,7 @@ import static android.content.Context.ACTIVITY_SERVICE;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 
 import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.utils.TextUtils;

@@ -3,7 +3,7 @@ package com.vectras.vm.x11.utils;
 import static android.view.WindowManager.LayoutParams.FLAG_FULLSCREEN;
 
 import android.content.SharedPreferences;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 import android.graphics.Rect;
 import android.widget.FrameLayout;
 import android.view.View;

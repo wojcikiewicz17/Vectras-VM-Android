@@ -24,7 +24,7 @@ import androidx.preference.Preference;
 
 import android.os.Handler;
 import android.os.IBinder;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 import android.provider.Settings;
 
 import androidx.annotation.Nullable;

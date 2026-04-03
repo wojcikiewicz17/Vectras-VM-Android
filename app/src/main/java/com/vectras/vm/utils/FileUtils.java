@@ -27,7 +27,6 @@ import java.util.LinkedList;
 import java.util.List;
 
 import android.app.Activity;
-import android.content.pm.PackageManager;
 import android.os.Handler;
 import android.os.Looper;
 import android.os.ParcelFileDescriptor;
@@ -475,8 +474,9 @@ public class FileUtils {
 
 	public static String getDataDir(Context context) {
 
-		String dataDir = context.getApplicationInfo().dataDir;
-		PackageManager m = context.getPackageManager();
+		String dataDir = Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
+				? context.getDataDir().getAbsolutePath()
+				: null;
 		String packageName = context.getPackageName();
 		Log.v("VMExecutor", "Found packageName: " + packageName);
 
