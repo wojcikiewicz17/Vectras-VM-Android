@@ -29,25 +29,12 @@ static size_t get_embedded_bootstrap_size(void) {
     return (size_t)TERMUX_BOOTSTRAP_PAYLOAD_SIZE;
 }
 #else
-/*
- * Controlled fallback: valid empty ZIP archive (EOCD only).
- * This keeps JNI contract valid while preserving diagnostics.
- */
-static const unsigned char kEmptyZipPayload[] = {
-    0x50, 0x4B, 0x05, 0x06,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00, 0x00, 0x00,
-    0x00, 0x00
-};
-
 static const unsigned char* get_embedded_bootstrap_data(void) {
-    return kEmptyZipPayload;
+    return NULL;
 }
 
 static size_t get_embedded_bootstrap_size(void) {
-    return sizeof(kEmptyZipPayload);
+    return 0U;
 }
 #endif
 
@@ -69,14 +56,27 @@ Java_com_termux_app_TermuxInstaller_nativeGetZip(JNIEnv* env, jclass clazz) {
     const size_t payload_size = get_embedded_bootstrap_size();
 
     if (payload == NULL || payload_size == 0U) {
-        LOGE("%s: embedded payload unavailable payload=%p size=%zu", TERMUX_BOOTSTRAP_SYMBOL,
+        LOGE("%s: embedded payload missing payload=%p size=%zu", TERMUX_BOOTSTRAP_SYMBOL,
              (const void*)payload, payload_size);
         return return_controlled_null("embedded payload missing", "payload-source");
     }
 
 #if !defined(TERMUX_BOOTSTRAP_PAYLOAD_DATA) || !defined(TERMUX_BOOTSTRAP_PAYLOAD_SIZE)
-    LOGE("%s: using controlled fallback empty ZIP payload; real embedded bootstrap not configured", TERMUX_BOOTSTRAP_SYMBOL);
+    LOGE("%s: embedded payload symbols are not configured; refusing to return synthetic payload", TERMUX_BOOTSTRAP_SYMBOL);
 #endif
+
+    if (payload_size < 4U || payload[0] != 0x50U || payload[1] != 0x4BU ||
+        (payload[2] != 0x03U && payload[2] != 0x05U && payload[2] != 0x07U) ||
+        (payload[3] != 0x04U && payload[3] != 0x06U && payload[3] != 0x08U)) {
+        if (payload_size >= 4U) {
+            LOGE("%s: embedded payload invalid zip signature size=%zu first_bytes=%02X %02X %02X %02X",
+                 TERMUX_BOOTSTRAP_SYMBOL, payload_size, payload[0], payload[1], payload[2], payload[3]);
+        } else {
+            LOGE("%s: embedded payload invalid zip signature size=%zu", TERMUX_BOOTSTRAP_SYMBOL,
+                 payload_size);
+        }
+        return return_controlled_null("embedded payload invalid", "payload-validation");
+    }
 
     if (payload_size > (size_t)INT_MAX) {
         LOGE("%s: payload too large for jbyteArray size=%zu max=%d", TERMUX_BOOTSTRAP_SYMBOL,
