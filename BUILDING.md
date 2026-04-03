@@ -50,6 +50,10 @@ python3 tools/verify_bootstrap_assets.py
 
 ## ABI policy
 Configured by `APP_ABI_POLICY` and `SUPPORTED_ABIS` in `gradle.properties`.
+The ABI baseline is also declared in `tools/qemu_launch.yml` with explicit scope:
+- `build_env.abi_filters.scope=official_distribution` (official default)
+- `build_env.abi_filters.internal_validation` (expanded internal matrix)
+
 Accepted policies in code and docs are exactly:
 - `APP_ABI_POLICY=arm64-only` → `SUPPORTED_ABIS=arm64-v8a` (official minimum distribution)
 - `APP_ABI_POLICY=with-32bit` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (official distribution with 32-bit ARM)
@@ -65,6 +69,11 @@ To include 32-bit ARM:
 To run full internal ABI validation coverage:
 ```bash
 ./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=all -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64 :app:assembleDebug
+```
+
+Alignment check command (used by CI before build):
+```bash
+python3 tools/check_abi_policy_alignment.py
 ```
 
 

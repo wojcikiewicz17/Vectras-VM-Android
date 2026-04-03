@@ -143,7 +143,8 @@ public class ShellExecutor {
             ExecutionBudget budget = CoreExecutionBudgetPolicy.resolve(VmProfile.BALANCED, cpus, "UNKNOWN");
             ThreadPoolBudget.RejectionPolicy resolved = budget.getThreadPoolBudget().getRejectionPolicy();
             return ExecutionBudgetPolicy.RejectionPolicy.valueOf(resolved.name());
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            RuntimeErrorReporter.warn("VRT-SHELL-0001", "resolve_rejection_policy", VmProfile.BALANCED.name(), e);
             return ExecutionBudgetPolicy.RejectionPolicy.CALLER_RUNS;
         }
     }

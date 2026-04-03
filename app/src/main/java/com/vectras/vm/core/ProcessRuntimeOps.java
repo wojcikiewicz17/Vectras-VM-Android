@@ -1,6 +1,7 @@
 package com.vectras.vm.core;
 
 import android.os.SystemClock;
+import android.util.Log;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -14,6 +15,7 @@ import java.util.concurrent.TimeUnit;
 public final class ProcessRuntimeOps {
 
     private static final long DESTROY_GRACE_PERIOD_MS = 250L;
+    private static final String TAG = "ProcessRuntimeOps";
 
     public enum ExecutionCategory {
         INTERACTIVE(3_000L, TimeUnit.MILLISECONDS),
@@ -146,7 +148,9 @@ public final class ProcessRuntimeOps {
                     return pid;
                 }
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            RuntimeErrorReporter.warn("VRT-PRC-0001", "resolve_pid_reflection_api", String.valueOf(process), e);
+            Log.d(TAG, "safePid: fallback to field reflection");
         }
 
         try {
@@ -160,7 +164,8 @@ public final class ProcessRuntimeOps {
             } finally {
                 field.setAccessible(false);
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            RuntimeErrorReporter.warn("VRT-PRC-0002", "resolve_pid_declared_field", process.getClass().getName(), e);
         }
 
         return -1L;

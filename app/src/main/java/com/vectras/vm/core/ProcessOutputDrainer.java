@@ -67,8 +67,8 @@ public class ProcessOutputDrainer {
         for (InputStream stream : activeStreams) {
             try {
                 stream.close();
-            } catch (IOException ignored) {
-                // Best effort close to unblock readers.
+            } catch (IOException e) {
+                RuntimeErrorReporter.warn("VRT-DRN-0001", "close_stream_on_cancel", String.valueOf(stream), e);
             }
         }
     }
@@ -135,7 +135,8 @@ public class ProcessOutputDrainer {
         streamExecutor.shutdownNow();
         try {
             streamExecutor.awaitTermination(200, TimeUnit.MILLISECONDS);
-        } catch (InterruptedException ignored) {
+        } catch (InterruptedException e) {
+            RuntimeErrorReporter.warn("VRT-DRN-0002", "shutdown_executor", "awaitTermination", e);
             Thread.currentThread().interrupt();
         }
     }

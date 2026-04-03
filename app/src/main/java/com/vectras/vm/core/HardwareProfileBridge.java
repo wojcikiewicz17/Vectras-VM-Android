@@ -3,6 +3,7 @@ package com.vectras.vm.core;
 import android.content.Context;
 import android.os.Build;
 import android.os.SystemClock;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -16,6 +17,7 @@ import java.util.List;
 import java.util.Locale;
 
 public final class HardwareProfileBridge {
+    private static final String TAG = "HardwareProfileBridge";
     private static final int SIMD_NEON = 1;
     private static final int SIMD_SSE2 = 1 << 1;
     private static final int SIMD_SSE42 = 1 << 2;
@@ -193,7 +195,8 @@ public final class HardwareProfileBridge {
             object.put("f0", snapshot.featureBits0);
             object.put("f1", snapshot.featureBits1);
             object.put("simd", snapshot.simdMask);
-        } catch (JSONException ignored) {
+        } catch (JSONException e) {
+            RuntimeErrorReporter.warn("VRT-HPB-0001", "serialize_hardware_snapshot", String.valueOf(snapshot != null ? snapshot.effectiveAbi : "null"), e);
             return "";
         }
         return object.toString();
@@ -217,7 +220,9 @@ public final class HardwareProfileBridge {
                     object.optInt("f1", 0),
                     object.optInt("simd", 0)
             );
-        } catch (JSONException ignored) {
+        } catch (JSONException e) {
+            RuntimeErrorReporter.warn("VRT-HPB-0002", "deserialize_hardware_snapshot", encoded, e);
+            Log.w(TAG, "Invalid persisted hardware snapshot");
             return null;
         }
     }

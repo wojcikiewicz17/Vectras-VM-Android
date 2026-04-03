@@ -46,6 +46,7 @@ import com.vectras.vm.benchmark.BenchmarkActivity;
 import com.vectras.vm.benchmark.BenchmarkManager;
 import com.vectras.vm.core.ProcessLaunch;
 import com.vectras.vm.core.HardwareProfileBridge;
+import com.vectras.vm.core.RuntimeErrorReporter;
 import com.vectras.vm.core.ProcessRuntimeOps;
 import com.vectras.vm.core.ProotCommandBuilder;
 import com.vectras.vm.network.RequestNetwork;
@@ -146,6 +147,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
     String downloadBootstrapsCommand = "";
     String tarPath = "";
     String setupArchiveFileName = "setup.tar.gz";
+    String bundledBootstrapTechnicalError = "";
     String progressText ="0%";
     int setupProgressPercent = 0;
     boolean bootstrapDownloadActive = false;
@@ -1063,7 +1065,13 @@ public class SetupWizard2Activity extends AppCompatActivity {
         uiController(STEP_INSTALLING_PACKAGES);
         new Thread(() -> {
             if (!prepareBundledBootstrapArchive()) {
-                runOnUiThread(() -> uiController(STEP_ERROR, withSetupSourceDiagnostic(getString(R.string.unable_to_prepare_bundled_bootstrap_package))));
+                runOnUiThread(() -> {
+                    String baseMessage = getString(R.string.unable_to_prepare_bundled_bootstrap_package);
+                    String technical = bundledBootstrapTechnicalError == null || bundledBootstrapTechnicalError.isEmpty()
+                            ? ""
+                            : "\n\n" + bundledBootstrapTechnicalError;
+                    uiController(STEP_ERROR, withSetupSourceDiagnostic(baseMessage + technical));
+                });
                 return;
             }
 
@@ -1078,19 +1086,22 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private boolean prepareBundledBootstrapArchive() {
         String selectedAssetPath = null;
         String selectedAbi = null;
+        bundledBootstrapTechnicalError = "";
         for (String abiCandidate : BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS, HardwareProfileBridge.getEffectiveAbiHint(this))) {
             String candidatePath = "alpine19/" + abiCandidate + ".tar";
             try (InputStream ignored = getAssets().open(candidatePath)) {
                 selectedAssetPath = candidatePath;
                 selectedAbi = abiCandidate;
                 break;
-            } catch (IOException ignored) {
+            } catch (IOException e) {
+                RuntimeErrorReporter.warn("VRT-SETUP-0004", "probe_bundled_bootstrap_asset", candidatePath, e);
             }
         }
 
         if (selectedAssetPath == null) {
             Log.e(TAG, "PROOT_BOOTSTRAP ABI_RESOLUTION_FAIL bundled candidates="
                     + BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS, HardwareProfileBridge.getEffectiveAbiHint(this)));
+            bundledBootstrapTechnicalError = "[VRT-SETUP-0101] bundled_asset_abi_resolution_failed";
             return false;
         }
 
@@ -1108,7 +1119,9 @@ public class SetupWizard2Activity extends AppCompatActivity {
             Log.i(SetupFeatureCore.ABI_RESOLVE_TAG, "Bundled bootstrap prepared from path=" + selectedAssetPath);
             return true;
         } catch (IOException e) {
+            RuntimeErrorReporter.error("VRT-SETUP-0005", "copy_bundled_bootstrap_archive", selectedAssetPath, e);
             Log.e(TAG, "Failed to prepare bundled bootstrap archive: " + selectedAssetPath, e);
+            bundledBootstrapTechnicalError = RuntimeErrorReporter.technicalSummary("VRT-SETUP-0102", "bundled_archive_copy_failed", e);
             return false;
         }
     }
@@ -1686,7 +1699,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
     private int safeParseInt(String value) {
         try {
             return Integer.parseInt(value);
-        } catch (NumberFormatException ignored) {
+        } catch (NumberFormatException e) {
+            RuntimeErrorReporter.warn("VRT-SETUP-0006", "safe_parse_int", value, e);
             return 0;
         }
     }
@@ -1772,7 +1786,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
         try {
             InstallState parsed = InstallState.valueOf(token);
             transitionInstallState(parsed, "Transition from setup runtime.");
-        } catch (IllegalArgumentException ignored) {
+        } catch (IllegalArgumentException e) {
+            RuntimeErrorReporter.warn("VRT-SETUP-0007", "parse_install_state_transition", token, e);
         }
     }
 
@@ -1846,7 +1861,8 @@ public class SetupWizard2Activity extends AppCompatActivity {
         }
         try {
             installState = InstallState.valueOf(persistedState);
-        } catch (IllegalArgumentException ignored) {
+        } catch (IllegalArgumentException e) {
+            RuntimeErrorReporter.warn("VRT-SETUP-0008", "restore_install_state", persistedState, e);
             installState = InstallState.INIT;
         }
         installStateDetail = MainSettingsManager.getSetupInstallStateDetail(this);
@@ -2077,6 +2093,7 @@ public class SetupWizard2Activity extends AppCompatActivity {
         String architectureKey = "";
         Object architectureConfig = null;
         ArrayList<String> attemptedKeys = new ArrayList<>();
+        bundledBootstrapTechnicalError = "";
         for (String abiCandidate : BootstrapAbiMapper.resolveCandidates(Build.SUPPORTED_ABIS, HardwareProfileBridge.getEffectiveAbiHint(this))) {
             String metadataKey = BootstrapAbiMapper.architectureMetadataKey(abiCandidate);
             attemptedKeys.add(metadataKey);

@@ -2,6 +2,7 @@ package com.vectras.vm.core;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+
 import java.io.IOException;
 import java.nio.ByteOrder;
 
@@ -199,7 +200,8 @@ public final class BareMetalProfile {
                 return -1;
             }
             return (end - start) + 1;
-        } catch (IOException | NumberFormatException ignored) {
+        } catch (IOException | NumberFormatException e) {
+            RuntimeErrorReporter.warn("VRT-BMP-0001", "parse_cpu_range", path, e);
             return -1;
         }
     }

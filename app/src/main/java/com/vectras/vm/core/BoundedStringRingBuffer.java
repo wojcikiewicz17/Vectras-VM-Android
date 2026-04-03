@@ -1,5 +1,7 @@
 package com.vectras.vm.core;
 
+import android.util.Log;
+
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.CharacterCodingException;
@@ -103,7 +105,9 @@ public class BoundedStringRingBuffer {
         if (result.isError()) {
             try {
                 result.throwException();
-            } catch (CharacterCodingException ignored) {
+            } catch (CharacterCodingException e) {
+                RuntimeErrorReporter.warn("VRT-BSR-0001", "decode_utf8_line", "acceptedBytes=" + acceptedBytes, e);
+                Log.w(TAG, "Falling back to empty line due to UTF-8 decode error");
                 appendLineRange("", 0, 0);
                 return;
             }
