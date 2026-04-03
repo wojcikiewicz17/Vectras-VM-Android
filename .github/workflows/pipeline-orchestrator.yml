@@ -68,9 +68,12 @@ jobs:
               - 'terminal-view/**'
               - 'shell-loader/**'
               - 'gradle/**'
-              - '*.gradle'
+              - '**/*.gradle'
               - 'settings.gradle'
               - 'gradle.properties'
+              - '.github/workflows/android.yml'
+              - '.github/workflows/android-minimal-debug.yml'
+              - '.github/workflows/android-verified.yml'
               - '.github/workflows/android-build-manual.yml'
               - '.github/workflows/pipeline-orchestrator.yml'
 
@@ -78,16 +81,16 @@ jobs:
     name: Host CI
     needs: changes
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.run_host_ci
-      || github.event_name != 'workflow_dispatch' && needs.changes.outputs.host == 'true'
+      (github.event_name == 'workflow_dispatch' && inputs.run_host_ci)
+      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.host == 'true')
     uses: ./.github/workflows/ci.yml
 
   android-ci:
     name: Android CI
     needs: changes
     if: >-
-      github.event_name == 'workflow_dispatch' && inputs.run_android_ci
-      || github.event_name != 'workflow_dispatch' && needs.changes.outputs.android == 'true'
+      (github.event_name == 'workflow_dispatch' && inputs.run_android_ci)
+      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.android == 'true')
     uses: ./.github/workflows/android-build-manual.yml
     with:
       mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'moderado' }}

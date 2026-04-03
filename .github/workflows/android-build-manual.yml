@@ -156,6 +156,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: android-build-manual-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android-build:
     runs-on: ubuntu-latest

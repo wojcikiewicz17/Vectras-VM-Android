@@ -20,6 +20,13 @@ on:
       - "tools/termux-arm64-orchestrator/**"
       - ".github/workflows/termux-orchestrator.yml"
 
+permissions:
+  contents: read
+
+concurrency:
+  group: termux-orchestrator-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   orchestrator:
     runs-on: ubuntu-latest

@@ -10,6 +10,13 @@ on:
       - 'tools/baremetal/rafcode_phi/**'
       - '.github/workflows/rafcode-phi-baremetal-ci.yml'
 
+permissions:
+  contents: read
+
+concurrency:
+  group: rafcode-phi-baremetal-ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   rafcode-phi-regression:
     runs-on: ubuntu-latest
