@@ -1,4 +1,5 @@
 #include "vectra_lowlevel_backend.h"
+#include "hardware_profile_bridge_internal.h"
 
 #if defined(__x86_64__)
 #include <emmintrin.h>
@@ -6,6 +7,18 @@
 #endif
 
 #include "rmr_lowlevel.h"
+
+static uint32_t vectra_crc32c_software(uint32_t initial, const uint8_t* data, size_t len) {
+    uint32_t crc = initial;
+    for (size_t i = 0; i < len; ++i) {
+        crc ^= data[i];
+        for (uint32_t b = 0; b < 8u; ++b) {
+            const uint32_t mask = (uint32_t)-(int32_t)(crc & 1u);
+            crc = (crc >> 1u) ^ (0x82F63B78u & mask);
+        }
+    }
+    return crc;
+}
 
 static uint32_t vectra_checksum32_x86_64(const uint8_t* data, size_t len, uint32_t seed) {
     return rmr_lowlevel_checksum32(data, len, seed);
@@ -32,18 +45,6 @@ static uint32_t vectra_crc32c_x86_64(uint32_t initial, const uint8_t* data, size
     for (; i < len; ++i) crc32 = _mm_crc32_u8(crc32, data[i]);
     return crc32;
 }
-#else
-static uint32_t vectra_crc32c_x86_64(uint32_t initial, const uint8_t* data, size_t len) {
-    uint32_t crc = initial;
-    for (size_t i = 0; i < len; ++i) {
-        crc ^= data[i];
-        for (uint32_t b = 0; b < 8u; ++b) {
-            const uint32_t mask = (uint32_t)-(int32_t)(crc & 1u);
-            crc = (crc >> 1u) ^ (0x82F63B78u & mask);
-        }
-    }
-    return crc;
-}
 #endif
 
 int vectra_backend_x86_64_available(uint32_t simd_mask) {
@@ -51,8 +52,15 @@ int vectra_backend_x86_64_available(uint32_t simd_mask) {
 }
 
 void vectra_backend_bind_x86_64(vectra_lowlevel_backend_vtable_t* out) {
-    out->name = "x86_64-sse42";
+    const uint32_t simd_mask = vectra_hw_runtime_simd_mask();
+    const int has_sse42 = (simd_mask & VECTRA_SIMD_SSE42) != 0u;
+
+    out->name = has_sse42 ? "x86_64-sse42" : "x86_64-softcrc";
     out->reduce_xor = vectra_reduce_xor_x86_64;
     out->checksum32 = vectra_checksum32_x86_64;
-    out->crc32c = vectra_crc32c_x86_64;
+#if defined(__x86_64__)
+    out->crc32c = has_sse42 ? vectra_crc32c_x86_64 : vectra_crc32c_software;
+#else
+    out->crc32c = vectra_crc32c_software;
+#endif
 }

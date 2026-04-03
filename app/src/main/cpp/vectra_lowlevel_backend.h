@@ -15,6 +15,15 @@ typedef struct vectra_lowlevel_backend_vtable {
     vectra_crc32c_fn crc32c;
 } vectra_lowlevel_backend_vtable_t;
 
+/*
+ * Backend selection contract:
+ * 1) Callers compute a runtime SIMD mask (see vectra_hw_runtime_simd_mask)
+ *    and pass it to *_available checks before selecting an ABI backend.
+ * 2) *_bind functions must remain safe on every CPU of that ABI and may
+ *    downgrade individual function pointers to software fallbacks when a
+ *    required runtime feature (e.g. SSE4.2 CRC32) is not present.
+ */
+
 enum {
     VECTRA_SIMD_NEON = 1u << 0,
     VECTRA_SIMD_SSE2 = 1u << 1,
