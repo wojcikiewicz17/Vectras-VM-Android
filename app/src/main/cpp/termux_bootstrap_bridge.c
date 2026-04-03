@@ -56,25 +56,26 @@ Java_com_termux_app_TermuxInstaller_nativeGetZip(JNIEnv* env, jclass clazz) {
     const size_t payload_size = get_embedded_bootstrap_size();
 
     if (payload == NULL || payload_size == 0U) {
-        LOGE("%s: embedded payload unavailable payload=%p size=%zu", TERMUX_BOOTSTRAP_SYMBOL,
+        LOGE("%s: embedded payload missing payload=%p size=%zu", TERMUX_BOOTSTRAP_SYMBOL,
              (const void*)payload, payload_size);
         return return_controlled_null("bootstrap payload missing (asset not embedded)", "payload-source");
     }
 
 #if !defined(TERMUX_BOOTSTRAP_PAYLOAD_DATA) || !defined(TERMUX_BOOTSTRAP_PAYLOAD_SIZE)
-    return return_controlled_null("bootstrap payload missing (build symbols not configured)", "payload-source");
+    LOGE("%s: embedded payload symbols are not configured; refusing to return synthetic payload", TERMUX_BOOTSTRAP_SYMBOL);
 #endif
 
-    if (payload_size < 4U) {
-        LOGE("%s: embedded payload too small to be a ZIP archive size=%zu", TERMUX_BOOTSTRAP_SYMBOL,
-             payload_size);
-        return return_controlled_null("bootstrap payload invalid (too small)", "payload-validation");
-    }
-
-    if (payload[0] != 0x50U || payload[1] != 0x4BU) {
-        LOGE("%s: embedded payload has invalid ZIP signature bytes=%02X%02X", TERMUX_BOOTSTRAP_SYMBOL,
-             payload[0], payload[1]);
-        return return_controlled_null("bootstrap payload invalid (bad ZIP signature)", "payload-validation");
+    if (payload_size < 4U || payload[0] != 0x50U || payload[1] != 0x4BU ||
+        (payload[2] != 0x03U && payload[2] != 0x05U && payload[2] != 0x07U) ||
+        (payload[3] != 0x04U && payload[3] != 0x06U && payload[3] != 0x08U)) {
+        if (payload_size >= 4U) {
+            LOGE("%s: embedded payload invalid zip signature size=%zu first_bytes=%02X %02X %02X %02X",
+                 TERMUX_BOOTSTRAP_SYMBOL, payload_size, payload[0], payload[1], payload[2], payload[3]);
+        } else {
+            LOGE("%s: embedded payload invalid zip signature size=%zu", TERMUX_BOOTSTRAP_SYMBOL,
+                 payload_size);
+        }
+        return return_controlled_null("embedded payload invalid", "payload-validation");
     }
 
     if (payload_size > (size_t)INT_MAX) {
