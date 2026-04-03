@@ -15,9 +15,7 @@ typedef struct vectra_runtime_backend_state {
 static vectra_runtime_backend_state_t g_backend_state;
 
 static uint32_t vectra_select_simd_mask(void) {
-    uint32_t snapshot[9] = {0};
-    vectra_hw_collect_snapshot(snapshot);
-    return snapshot[8];
+    return vectra_hw_runtime_simd_mask();
 }
 
 static void vectra_bind_backend_once(void) {

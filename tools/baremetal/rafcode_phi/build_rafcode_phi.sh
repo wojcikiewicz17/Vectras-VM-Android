@@ -48,11 +48,13 @@ printf 'rafcode_phi.build.backend_src=%s\n' "${BACKEND_SRC}"
 printf 'rafcode_phi.build.hwcaps=%s\n' "${HWCAPS}"
 
 "${CC_BIN}" ${CFLAGS} -I"${ROOT_DIR}/include" -c "${ROOT_DIR}/c/rafcode_phi_front_shell.c" -o "${BUILD_DIR}/rafcode_phi_front_shell.o"
+"${CC_BIN}" ${CFLAGS} -I"${ROOT_DIR}/include" -c "${ROOT_DIR}/c/rafcode_phi_vecbit.c" -o "${BUILD_DIR}/rafcode_phi_vecbit.o"
 "${CC_BIN}" ${CFLAGS} -I"${ROOT_DIR}/include" -c "${BACKEND_SRC}" -o "${BUILD_DIR}/rafcode_phi_emit_word.o"
 "${CC_BIN}" ${CFLAGS} -I"${ROOT_DIR}/include" -c "${ROOT_DIR}/c/rafcode_phi_cli.c" -o "${BUILD_DIR}/rafcode_phi_cli.o"
 
 "${CC_BIN}" ${CFLAGS} \
   "${BUILD_DIR}/rafcode_phi_front_shell.o" \
+  "${BUILD_DIR}/rafcode_phi_vecbit.o" \
   "${BUILD_DIR}/rafcode_phi_emit_word.o" \
   "${BUILD_DIR}/rafcode_phi_cli.o" \
   -o "${BUILD_DIR}/rafcode_phi_cli"
