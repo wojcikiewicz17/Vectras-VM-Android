@@ -1,6 +1,9 @@
 package com.vectras.vm;
 
 public class Loader {
+    // android.content.pm.PackageManager.GET_SIGNATURES (removed from direct reference to avoid deprecation warning)
+    private static final int LEGACY_GET_SIGNATURES_FLAG = 0x00000040;
+
     private static android.content.pm.PackageInfo getTargetPackageInfo() throws android.os.RemoteException {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             return android.app.ActivityThread.getPackageManager().getPackageInfo(
@@ -16,7 +19,7 @@ public class Loader {
         }
         return android.app.ActivityThread.getPackageManager().getPackageInfo(
                 BuildConfig.APPLICATION_ID,
-                android.content.pm.PackageManager.GET_SIGNATURES,
+                LEGACY_GET_SIGNATURES_FLAG,
                 0);
     }
 
@@ -78,6 +81,24 @@ public class Loader {
         return isTrustedSignature(targetInfo, expectedSignatureDigests());
     }
 
+    private static android.content.pm.Signature[] getLegacySignatures(android.content.pm.PackageInfo targetInfo) {
+        if (targetInfo == null) {
+            return null;
+        }
+
+        try {
+            java.lang.reflect.Field signaturesField = android.content.pm.PackageInfo.class.getField("signatures");
+            Object value = signaturesField.get(targetInfo);
+            if (value instanceof android.content.pm.Signature[]) {
+                return (android.content.pm.Signature[]) value;
+            }
+        } catch (NoSuchFieldException | IllegalAccessException ignored) {
+            // Ignore and treat as missing signatures
+        }
+
+        return null;
+    }
+
     static boolean isTrustedSignature(android.content.pm.PackageInfo targetInfo, java.util.List<String> expected) {
         if (expected == null || expected.isEmpty()) {
             return false;
@@ -93,7 +114,7 @@ public class Loader {
                     : targetInfo.signingInfo.getSigningCertificateHistory();
             actual = normalizeSignatureDigests(signatures);
         } else {
-            actual = normalizeSignatureDigests(targetInfo.signatures);
+            actual = normalizeSignatureDigests(getLegacySignatures(targetInfo));
         }
 
         return !actual.isEmpty() && expected.equals(actual);

@@ -14,6 +14,11 @@ import java.util.Collections;
 import java.util.List;
 
 public class LoaderSignatureVerificationTest {
+    private static void setLegacySignatures(PackageInfo packageInfo, Signature[] signatures) throws Exception {
+        java.lang.reflect.Field signaturesField = PackageInfo.class.getField("signatures");
+        signaturesField.set(packageInfo, signatures);
+    }
+
     private static String sha256Hex(byte[] input) throws Exception {
         byte[] digest = MessageDigest.getInstance("SHA-256").digest(input);
         char[] out = new char[digest.length * 2];
@@ -33,7 +38,7 @@ public class LoaderSignatureVerificationTest {
         Signature signerB = new Signature(new byte[]{5, 6, 7, 8});
 
         PackageInfo packageInfo = new PackageInfo();
-        packageInfo.signatures = new Signature[]{signerB, signerA};
+        setLegacySignatures(packageInfo, new Signature[]{signerB, signerA});
 
         List<String> expected = new ArrayList<>(Arrays.asList(
                 sha256Hex(signerA.toByteArray()),
@@ -50,7 +55,7 @@ public class LoaderSignatureVerificationTest {
         Signature signer = new Signature(new byte[]{10, 11, 12, 13});
 
         PackageInfo packageInfo = new PackageInfo();
-        packageInfo.signatures = new Signature[]{signer};
+        setLegacySignatures(packageInfo, new Signature[]{signer});
 
         List<String> expected = Collections.singletonList(sha256Hex(new byte[]{99, 100, 101}));
 
@@ -72,7 +77,7 @@ public class LoaderSignatureVerificationTest {
         Signature signer = new Signature(new byte[]{42, 43, 44, 45});
 
         PackageInfo packageInfo = new PackageInfo();
-        packageInfo.signatures = new Signature[]{signer};
+        setLegacySignatures(packageInfo, new Signature[]{signer});
 
         List<String> expected = Collections.singletonList(sha256Hex(new byte[]{9, 9, 9, 9}));
 
@@ -88,7 +93,7 @@ public class LoaderSignatureVerificationTest {
         Signature signer = new Signature(new byte[]{7, 7, 7, 7});
 
         PackageInfo packageInfo = new PackageInfo();
-        packageInfo.signatures = new Signature[]{signer};
+        setLegacySignatures(packageInfo, new Signature[]{signer});
 
         List<String> expected = Collections.singletonList(sha256Hex(signer.toByteArray()));
 
