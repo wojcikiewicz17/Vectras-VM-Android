@@ -2,36 +2,6 @@ name: Engine CI
 
 on:
   workflow_call:
-  push:
-    paths:
-      - 'engine/**'
-      - 'bench/**'
-      - 'demo_cli/**'
-      - 'Makefile'
-      - 'CMakeLists.txt'
-      - 'app/src/main/cpp/CMakeLists.txt'
-      - 'engine/rmr/sources.cmake'
-      - 'engine/rmr/sources.mk'
-      - 'engine/rmr/sources_rmr_core.cmake'
-      - 'engine/rmr/cmake/rmr_sources.cmake'
-      - 'tools/qemu_launch.yml'
-      - 'tools/sync_engine_sources.py'
-      - '.github/workflows/engine-ci.yml'
-  pull_request:
-    paths:
-      - 'engine/**'
-      - 'bench/**'
-      - 'demo_cli/**'
-      - 'Makefile'
-      - 'CMakeLists.txt'
-      - 'app/src/main/cpp/CMakeLists.txt'
-      - 'engine/rmr/sources.cmake'
-      - 'engine/rmr/sources.mk'
-      - 'engine/rmr/sources_rmr_core.cmake'
-      - 'engine/rmr/cmake/rmr_sources.cmake'
-      - 'tools/qemu_launch.yml'
-      - 'tools/sync_engine_sources.py'
-      - '.github/workflows/engine-ci.yml'
   workflow_dispatch:
 
 permissions:

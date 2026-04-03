@@ -2,54 +2,6 @@ name: Android CI
 
 on:
   workflow_call:
-  push:
-    branches: [main, master, dev, release/**]
-    paths:
-      - 'app/**'
-      - 'app/src/main/cpp/**'
-      - 'terminal-emulator/**'
-      - 'terminal-view/**'
-      - 'shell-loader/**'
-      - 'CMakeLists.txt'
-      - 'Makefile'
-      - 'build.gradle'
-      - 'settings.gradle'
-      - 'gradle.properties'
-      - 'gradle/**'
-      - 'local.properties.example'
-      - 'engine/**'
-      - 'tools/check_android_toolchain.sh'
-      - 'tools/check_abi_policy_alignment.py'
-      - 'tools/qemu_launch.yml'
-      - 'docs/OPERATIONS.md'
-      - 'docs/BUILD_ENV_ALIGNMENT.md'
-      - 'docs/DOCUMENTATION_STANDARDS.md'
-      - 'README.md'
-      - '.github/workflows/android.yml'
-  pull_request:
-    branches: [main]
-    paths:
-      - 'app/**'
-      - 'app/src/main/cpp/**'
-      - 'terminal-emulator/**'
-      - 'terminal-view/**'
-      - 'shell-loader/**'
-      - 'CMakeLists.txt'
-      - 'Makefile'
-      - 'build.gradle'
-      - 'settings.gradle'
-      - 'gradle.properties'
-      - 'gradle/**'
-      - 'local.properties.example'
-      - 'engine/**'
-      - 'tools/check_android_toolchain.sh'
-      - 'tools/check_abi_policy_alignment.py'
-      - 'tools/qemu_launch.yml'
-      - 'docs/OPERATIONS.md'
-      - 'docs/BUILD_ENV_ALIGNMENT.md'
-      - 'docs/DOCUMENTATION_STANDARDS.md'
-      - 'README.md'
-      - '.github/workflows/android.yml'
   workflow_dispatch:
     inputs:
       build_selection:

@@ -97,6 +97,39 @@ on:
         required: false
       ANDROID_SIGNING_KEYSTORE:
         required: false
+  workflow_dispatch:
+    inputs:
+      build_variant:
+        description: "Build variant"
+        type: choice
+        options: [debug, release, both]
+        default: debug
+      build_mode:
+        description: "Execution mode (11 níveis)"
+        type: choice
+        options: [fast, moderado, profundo, ultra_minucioso, diagnostico, interoperavel, confiavel, portavel, hardening, matrix_total, forense]
+        default: moderado
+      abi_policy:
+        description: "ABI policy"
+        type: choice
+        options: [arm64-only, with-32bit]
+        default: arm64-only
+      ndk_version:
+        description: "NDK version (override)"
+        default: "27.2.12479018"
+      signing_mode:
+        description: "Release signing mode"
+        type: choice
+        options: [auto, unsigned, signed]
+        default: auto
+      enable_policy_module:
+        description: "Enable RMR policy module"
+        type: boolean
+        default: true
+      enable_bitraf_module:
+        description: "Enable BITRAF module"
+        type: boolean
+        default: true
 
 permissions:
   contents: read
