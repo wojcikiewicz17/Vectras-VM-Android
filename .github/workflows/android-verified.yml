@@ -401,9 +401,45 @@ jobs:
           fi
 
           ./tools/gradle_with_jdk21.sh verifyTargetApiBaseline --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PTARGET_API=${{ env.TARGET_API }} -PRELEASE_MIN_TARGET_API=35
-          ./tools/gradle_with_jdk21.sh assembleRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
 
           rm -f "${GENERATED_KEYSTORE_PATH}"
+
+      - name: Assemble release variant
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
+          EXTRA_RELEASE_FLAGS=""
+          if [[ "${{ needs.preflight.outputs.signing_mode }}" == "unsigned" ]]; then
+            EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
+          elif [[ "${{ needs.preflight.outputs.signing_mode }}" == "auto" ]]; then
+            if [[ -z "${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}" || -z "${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}" || -z "${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}" ]]; then
+              EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
+            fi
+          fi
+          ./tools/gradle_with_jdk21.sh :app:assembleRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
+
+      - name: Assemble perfRelease variant
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
+          EXTRA_RELEASE_FLAGS=""
+          if [[ "${{ needs.preflight.outputs.signing_mode }}" == "unsigned" ]]; then
+            EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
+          elif [[ "${{ needs.preflight.outputs.signing_mode }}" == "auto" ]]; then
+            if [[ -z "${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}" || -z "${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}" || -z "${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}" ]]; then
+              EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
+            fi
+          fi
+          ./tools/gradle_with_jdk21.sh :app:assemblePerfRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
+
+      - name: Verify delivered compiled artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
+          ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=debug,release,perfRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
 
       - name: Upload release artifacts
         if: always()
