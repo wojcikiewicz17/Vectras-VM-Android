@@ -18,6 +18,17 @@ public class LoaderSignatureVerificationTest {
         return new Signature(hex);
     }
 
+    private static String hex(byte[] bytes) {
+        char[] out = new char[bytes.length * 2];
+        final char[] hex = "0123456789abcdef".toCharArray();
+        for (int i = 0; i < bytes.length; i++) {
+            int v = bytes[i] & 0xFF;
+            out[i * 2] = hex[v >>> 4];
+            out[i * 2 + 1] = hex[v & 0x0F];
+        }
+        return new String(out);
+    }
+
     private static String expectedPrimaryAbi() {
         if (android.os.Build.SUPPORTED_ABIS != null && android.os.Build.SUPPORTED_ABIS.length > 0) {
             String abi = android.os.Build.SUPPORTED_ABIS[0];
@@ -54,15 +65,17 @@ public class LoaderSignatureVerificationTest {
     @Test
     @Config(sdk = 27)
     public void isTrustedSignature_acceptsExpectedSignatures_withOrderNormalization() throws Exception {
-        Signature signerA = signature("01020304");
-        Signature signerB = signature("05060708");
+        byte[] signerABytes = new byte[]{1, 2, 3, 4};
+        byte[] signerBBytes = new byte[]{5, 6, 7, 8};
+        Signature signerA = signature(hex(signerABytes));
+        Signature signerB = signature(hex(signerBBytes));
 
         PackageInfo packageInfo = new PackageInfo();
         setLegacySignatures(packageInfo, new Signature[]{signerB, signerA});
 
         List<String> expected = new ArrayList<>(Arrays.asList(
-                sha256Hex(signerA.toByteArray()),
-                sha256Hex(signerB.toByteArray())
+                sha256Hex(signerABytes),
+                sha256Hex(signerBBytes)
         ));
         Collections.sort(expected);
 
@@ -110,12 +123,13 @@ public class LoaderSignatureVerificationTest {
     @Test
     @Config(sdk = 27)
     public void getSecurityValidationError_returnsNull_whenSignatureIsTrusted() throws Exception {
-        Signature signer = signature("07070707");
+        byte[] signerBytes = new byte[]{7, 7, 7, 7};
+        Signature signer = signature(hex(signerBytes));
 
         PackageInfo packageInfo = new PackageInfo();
         setLegacySignatures(packageInfo, new Signature[]{signer});
 
-        List<String> expected = Collections.singletonList(sha256Hex(signer.toByteArray()));
+        List<String> expected = Collections.singletonList(sha256Hex(signerBytes));
 
         Assert.assertNull(Loader.getSecurityValidationError(packageInfo, expected));
     }
