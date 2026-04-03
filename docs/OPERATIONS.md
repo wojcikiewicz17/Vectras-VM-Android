@@ -38,7 +38,7 @@
 | Build Android (debug + release) | Garantir integridade de compilação dos módulos Android antes de distribuição | Workflow canônico `Android CI` em `.github/workflows/android.yml` executa `./tools/gradle_with_jdk21.sh assembleDebug` e `./tools/gradle_with_jdk21.sh assembleRelease` com versões de SDK/NDK/CMake/Java parametrizadas por variáveis de ambiente do job. | APKs publicados como artefatos `android-debug-apk` e `android-release-apk` no Actions. |
 | Dependências de arquivos de repositório | Bloquear divergências entre documentação, mapeamentos e cadeia de arquivos essenciais | Etapa explícita `./tools/gradle_with_jdk21.sh verifyRepoFileDependencies` executada antes das etapas de build. | Log da etapa `Verify repository file dependencies` no job de CI. |
 | Documentação crítica (links locais markdown) | Detectar referências quebradas em `README.md` e `docs/**/*.md` | Etapa opcional `Validate local markdown links` em Python (com `continue-on-error`) verifica caminhos locais não-HTTP. | Relatório no log da etapa, com lista de links inválidos quando detectados. |
-| Artefatos de distribuição | Assegurar rastreabilidade de binários gerados na pipeline | Upload automatizado dos APKs de debug/release via `actions/upload-artifact@v4`. | Artefatos versionados por run no GitHub Actions + upload Telegram condicionado a segredo. |
+| Artefatos de distribuição | Assegurar rastreabilidade de binários gerados na pipeline | Upload automatizado dos APKs de debug/release via `actions/upload-artifact@v5` com execução forçada das JavaScript Actions em Node.js 24 (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`). | Artefatos versionados por run no GitHub Actions + upload Telegram condicionado a segredo. |
 
 
 ## Ciclo Toroidal Recursivo

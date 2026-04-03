@@ -14,6 +14,9 @@ concurrency:
   group: zipdrop-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+
 jobs:
   apply:
     if: "!contains(github.event.head_commit.message, '[zipdrop]')"
