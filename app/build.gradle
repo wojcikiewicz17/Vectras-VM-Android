@@ -177,12 +177,90 @@ if (!checkVariant) {
 
 def checkVariantTaskSuffix = checkVariant.substring(0, 1).toUpperCase() + checkVariant.substring(1)
 def checkVariantAssembleTask = "assemble${checkVariantTaskSuffix}"
+def termuxBootstrapLibName = "libtermux-bootstrap.so"
+def termuxBootstrapSupportedAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64']
+
+tasks.register("verifyTermuxBootstrapAbiCoverage") {
+    group = "verification"
+    description = "Falha se SUPPORTED_ABIS incluir ABI fora da matriz oficial/política ativa ou sem ${termuxBootstrapLibName} no APK da variant selecionada."
+
+    dependsOn(":app:${checkVariantAssembleTask}")
+
+    doLast {
+        def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
+        def officialAbis = (rootProject.ext.officialAbis ?: []) as List<String>
+        def appAbiPolicy = (rootProject.ext.appAbiPolicy ?: "").toString()
+        def unknownAbis = supportedAbis.findAll { !(it in officialAbis) }
+
+        if (!unknownAbis.isEmpty()) {
+            throw new GradleException("SUPPORTED_ABIS contém ABIs fora da matriz oficial: ${unknownAbis}. Matriz oficial: ${officialAbis}.")
+        }
+
+        switch (appAbiPolicy) {
+            case "arm64-only":
+                if (supportedAbis != ['arm64-v8a']) {
+                    throw new GradleException("APP_ABI_POLICY=arm64-only exige SUPPORTED_ABIS=arm64-v8a (atual: ${supportedAbis}).")
+                }
+                break
+            case "with-32bit":
+                if (!supportedAbis.contains('armeabi-v7a')) {
+                    throw new GradleException("APP_ABI_POLICY=with-32bit exige armeabi-v7a em SUPPORTED_ABIS (atual: ${supportedAbis}).")
+                }
+                break
+            case "all":
+                if ((supportedAbis as Set) != (officialAbis as Set)) {
+                    throw new GradleException("APP_ABI_POLICY=all exige todas as ABIs oficiais ${officialAbis} (atual: ${supportedAbis}).")
+                }
+                break
+            default:
+                throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only, with-32bit ou all.")
+        }
+
+        def unsupportedByBootstrap = supportedAbis.findAll { !(it in termuxBootstrapSupportedAbis) }
+        if (!unsupportedByBootstrap.isEmpty()) {
+            throw new GradleException("termux-bootstrap não suporta ABIs solicitadas em SUPPORTED_ABIS: ${unsupportedByBootstrap}. ABIs válidas para termux-bootstrap: ${termuxBootstrapSupportedAbis}.")
+        }
+
+        def apkDir = file("${buildDir}/outputs/apk/${checkVariant}")
+        def apkFiles = fileTree(apkDir) {
+            include "**/*.apk"
+        }.files.sort { it.name }
+
+        if (apkFiles.isEmpty()) {
+            throw new GradleException("Nenhum APK encontrado para variant ${checkVariant} em ${apkDir}.")
+        }
+
+        def missingByApk = [:].withDefault { [] }
+        apkFiles.each { apkFile ->
+            def zipFile = new java.util.zip.ZipFile(apkFile)
+            try {
+                supportedAbis.each { abi ->
+                    def entryPath = "lib/${abi}/${termuxBootstrapLibName}"
+                    if (zipFile.getEntry(entryPath) == null) {
+                        missingByApk[apkFile.name] << entryPath
+                    }
+                }
+            } finally {
+                zipFile.close()
+            }
+        }
+
+        if (!missingByApk.isEmpty()) {
+            def rendered = missingByApk.collect { apkName, missingEntries ->
+                "${apkName}: ${missingEntries}"
+            }.join(" | ")
+            throw new GradleException("Cobertura ABI inválida para termux-bootstrap. Entradas ausentes: ${rendered}.")
+        }
+
+        logger.lifecycle("[verifyTermuxBootstrapAbiCoverage] variant=${checkVariant}, APP_ABI_POLICY=${appAbiPolicy}, SUPPORTED_ABIS=${supportedAbis} com ${termuxBootstrapLibName} presente para todas as ABIs.")
+    }
+}
 
 tasks.register("checkGradleCmakeConfig") {
     group = "verification"
     description = "Valida configuração Gradle/CMake e executa build do variant selecionado via -PcheckVariant=<variant>."
 
-    dependsOn(":app:${checkVariantAssembleTask}")
+    dependsOn(tasks.named("verifyTermuxBootstrapAbiCoverage"))
 
     doFirst {
         def rmrEnablePolicyModule = providers.gradleProperty("RMR_ENABLE_POLICY_MODULE").orElse("ON").get()
