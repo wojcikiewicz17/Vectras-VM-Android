@@ -3,6 +3,7 @@ plugins {
     id 'org.jetbrains.kotlin.android'
 }
 
+import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 
 android {
@@ -376,6 +377,80 @@ tasks.register("printNativeVariantConfig") {
             logger.lifecycle("[printNativeVariantConfig] variant=${variant.name}")
             logger.lifecycle("[printNativeVariantConfig] abiFilters=${supportedAbis}")
             logger.lifecycle("[printNativeVariantConfig] cmakeArgs=${(defaultConfigCmakeArgs + variantCmakeArgs).unique()}")
+        }
+    }
+}
+
+tasks.register("verifyDeliveredCompiledArtifacts") {
+    group = "verification"
+    description = "Valida se os artefatos compilados esperados (APK/AAB) foram gerados e emite relatório JSON para entrega."
+
+    doLast {
+        def requestedVariantsRaw = (providers.gradleProperty("artifactVariants")
+            .orElse("debug,release,perfRelease")
+            .get() ?: "debug,release,perfRelease")
+        def requestedVariants = requestedVariantsRaw
+            .split(',')
+            .collect { it.trim() }
+            .findAll { !it.isEmpty() }
+            .unique()
+
+        if (requestedVariants.isEmpty()) {
+            throw new GradleException("Nenhuma variant informada em -PartifactVariants. Informe ao menos uma variant (ex.: debug,release).")
+        }
+
+        def reportVariants = []
+        def missingVariants = []
+
+        requestedVariants.each { variant ->
+            def apkDir = file("${buildDir}/outputs/apk/${variant}")
+            def bundleDir = file("${buildDir}/outputs/bundle/${variant}")
+
+            def apkFiles = fileTree(apkDir) {
+                include "**/*.apk"
+            }.files.sort { it.name }
+
+            def bundleFiles = fileTree(bundleDir) {
+                include "**/*.aab"
+            }.files.sort { it.name }
+
+            def artifacts = (apkFiles + bundleFiles).collect { artifact ->
+                [
+                    name      : artifact.name,
+                    type      : artifact.name.endsWith(".aab") ? "AAB" : "APK",
+                    sizeBytes : artifact.length(),
+                    path      : rootProject.projectDir.toPath().relativize(artifact.toPath()).toString()
+                ]
+            }
+
+            if (artifacts.isEmpty()) {
+                missingVariants << variant
+            }
+
+            reportVariants << [
+                variant   : variant,
+                artifactCount: artifacts.size(),
+                artifacts : artifacts
+            ]
+        }
+
+        def report = [
+            generatedAtUtc: new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone("UTC")),
+            project       : project.path,
+            variants      : reportVariants
+        ]
+
+        def reportFile = file("${buildDir}/reports/artifacts/compiled-artifacts-report.json")
+        reportFile.parentFile.mkdirs()
+        reportFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(report))
+
+        if (!missingVariants.isEmpty()) {
+            throw new GradleException("Artefatos compilados ausentes para variants=${missingVariants}. Execute assemble correspondente antes de validar. Relatório: ${reportFile}")
+        }
+
+        logger.lifecycle("[verifyDeliveredCompiledArtifacts] Relatório gerado em ${reportFile}")
+        reportVariants.each { entry ->
+            logger.lifecycle("[verifyDeliveredCompiledArtifacts] variant=${entry.variant} artifacts=${entry.artifactCount}")
         }
     }
 }

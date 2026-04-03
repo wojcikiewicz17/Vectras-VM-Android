@@ -24,8 +24,12 @@ from `ANDROID_SDK_ROOT` (or `ANDROID_HOME`) when the directory exists.
 ./tools/gradle_with_jdk21.sh clean
 ./tools/gradle_with_jdk21.sh :app:assembleDebug --stacktrace
 ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace
+./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=debug,release,perfRelease
 ./tools/gradle_with_jdk21.sh :app:lintDebug --stacktrace
 ```
+
+`verifyDeliveredCompiledArtifacts` validates APK/AAB delivery per variant and writes
+`app/build/reports/artifacts/compiled-artifacts-report.json`.
 
 > Use `./tools/gradle_with_jdk21.sh` como comando canônico: o wrapper aplica a política de JVM suportada (17/21) e faz autoajuste de `sdk.dir` quando possível.
 
