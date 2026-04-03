@@ -5,6 +5,8 @@ plugins {
 
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.util.regex.Pattern
+import java.util.zip.ZipFile
 
 android {
     namespace = 'com.vectras.vm'
@@ -563,6 +565,99 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
         reportVariants.each { entry ->
             logger.lifecycle("[verifyDeliveredCompiledArtifacts] variant=${entry.variant} artifacts=${entry.artifactCount}")
         }
+    }
+}
+
+def globToRegex = { String glob ->
+    def escaped = Pattern.quote(glob)
+        .replace("\\*\\*", "__GLOBSTAR__")
+        .replace("\\*", "__GLOB__")
+        .replace("\\?", "__QMARK__")
+
+    return "^${escaped
+        .replace("__GLOBSTAR__", ".*")
+        .replace("__GLOB__", "[^/]*")
+        .replace("__QMARK__", ".")}\$"
+}
+
+tasks.register("verifyTermuxBootstrapPackagingRules") {
+    group = "verification"
+    description = "Falha se alguma regra de packaging.jniLibs.excludes remover lib/<abi>/libtermux-bootstrap.so para ABIs suportadas."
+
+    doLast {
+        def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
+        def officialAbis = (rootProject.ext.officialAbis ?: []) as List<String>
+        def excludes = (android.packaging.jniLibs.excludes ?: [] as Set<String>).collect { it.toString() }
+
+        if (!supportedAbis.every { it in officialAbis }) {
+            throw new GradleException("SUPPORTED_ABIS (${supportedAbis}) contém ABI fora da matriz oficial (${officialAbis}).")
+        }
+
+        def violations = []
+        supportedAbis.each { abi ->
+            def expectedEntry = "lib/${abi}/libtermux-bootstrap.so"
+            excludes.each { pattern ->
+                if (expectedEntry ==~ globToRegex(pattern)) {
+                    violations << [abi: abi, pattern: pattern]
+                }
+            }
+        }
+
+        if (!violations.isEmpty()) {
+            def details = violations.collect { "ABI=${it.abi} bloqueada por exclude='${it.pattern}'" }.join("; ")
+            throw new GradleException("packaging.jniLibs.excludes remove indevidamente libtermux-bootstrap.so: ${details}")
+        }
+
+        logger.lifecycle("[verifyTermuxBootstrapPackagingRules] Regras de packaging não removem libtermux-bootstrap.so para SUPPORTED_ABIS=${supportedAbis}.")
+    }
+}
+
+tasks.register("verifyTermuxBootstrapAbiCoverage") {
+    group = "verification"
+    description = "Executa assemble do variant selecionado e falha se SUPPORTED_ABIS não tiver lib/<abi>/libtermux-bootstrap.so no APK."
+
+    dependsOn(":app:${checkVariantAssembleTask}")
+    dependsOn(tasks.named("verifyTermuxBootstrapPackagingRules"))
+
+    doLast {
+        def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
+        def officialAbis = (rootProject.ext.officialAbis ?: []) as List<String>
+        def apkDir = file("${buildDir}/outputs/apk/${checkVariant}")
+        def apkFiles = fileTree(apkDir) {
+            include "**/*.apk"
+        }.files.sort { it.name }
+
+        if (apkFiles.isEmpty()) {
+            throw new GradleException("Nenhum APK encontrado em ${apkDir}. Execute :app:${checkVariantAssembleTask} antes da validação.")
+        }
+
+        if (!supportedAbis.every { it in officialAbis }) {
+            throw new GradleException("SUPPORTED_ABIS (${supportedAbis}) contém ABI fora da matriz oficial (${officialAbis}).")
+        }
+
+        def apkFile = apkFiles.last()
+        def entries = [] as Set<String>
+        new ZipFile(apkFile).withCloseable { zip ->
+            entries.addAll(zip.entries().collect { it.name })
+        }
+
+        def missingAbis = supportedAbis.findAll { abi ->
+            !entries.contains("lib/${abi}/libtermux-bootstrap.so")
+        }
+
+        def extraAbis = officialAbis.findAll { abi ->
+            !supportedAbis.contains(abi) && entries.contains("lib/${abi}/libtermux-bootstrap.so")
+        }
+
+        if (!missingAbis.isEmpty()) {
+            throw new GradleException("Cobertura ABI incompleta para libtermux-bootstrap.so no APK (${apkFile.name}). ABIs ausentes: ${missingAbis}. SUPPORTED_ABIS=${supportedAbis}.")
+        }
+
+        if (!extraAbis.isEmpty()) {
+            throw new GradleException("libtermux-bootstrap.so presente em ABIs fora de SUPPORTED_ABIS: ${extraAbis}. SUPPORTED_ABIS=${supportedAbis}.")
+        }
+
+        logger.lifecycle("[verifyTermuxBootstrapAbiCoverage] APK=${apkFile.name} contém libtermux-bootstrap.so para todas as SUPPORTED_ABIS=${supportedAbis}.")
     }
 }
 
