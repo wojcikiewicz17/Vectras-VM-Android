@@ -34,13 +34,20 @@ android {
         unitTests.returnDefaultValues = true
     }
 
+    def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
+    def terminalEmulatorSupportedAbis = ['arm64-v8a']
+    def allKnownAndroidAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64', 'riscv64']
+
+    def unsupportedRequestedAbis = supportedAbis.findAll { !(it in terminalEmulatorSupportedAbis) }
+    if (!unsupportedRequestedAbis.isEmpty()) {
+        throw new GradleException("terminal-emulator suporta apenas ${terminalEmulatorSupportedAbis}. APP_ABI_POLICY/SUPPORTED_ABIS solicitou ABIs não suportadas: ${unsupportedRequestedAbis}. Ajuste APP_ABI_POLICY para 'arm64-only' (ou SUPPORTED_ABIS=arm64-v8a).")
+    }
+
     packagingOptions {
         jniLibs {
-            excludes += [
-                    "**/armeabi-v7a/*.so",
-                    "**/x86/*.so",
-                    "**/x86_64/*.so"
-            ]
+            excludes += allKnownAndroidAbis
+                    .findAll { !(it in supportedAbis) }
+                    .collect { "**/${it}/*.so" }
         }
     }
 
