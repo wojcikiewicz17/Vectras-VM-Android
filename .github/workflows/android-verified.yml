@@ -238,15 +238,16 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          # Wrapper is the source of truth for JVM policy (17/21) and local.properties bootstrap.
           BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
 
-          ./gradlew verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
+          ./tools/gradle_with_jdk21.sh verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
 
           for TASK in ${{ needs.preflight.outputs.gradle_checks }}; do
-            ./gradlew "$TASK" --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
+            ./tools/gradle_with_jdk21.sh "$TASK" --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
           done
 
-          ./gradlew assembleDebug --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
+          ./tools/gradle_with_jdk21.sh assembleDebug --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
 
       - name: Verify native output
         run: |
@@ -396,11 +397,11 @@ jobs:
           fi
 
           if [[ "${{ needs.preflight.outputs.native_matrix }}" == "true" ]]; then
-            ./gradlew checkNativeAllMatrix --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
+            ./tools/gradle_with_jdk21.sh checkNativeAllMatrix --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
           fi
 
-          ./gradlew verifyTargetApiBaseline --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PTARGET_API=${{ env.TARGET_API }} -PRELEASE_MIN_TARGET_API=35
-          ./gradlew assembleRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
+          ./tools/gradle_with_jdk21.sh verifyTargetApiBaseline --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PTARGET_API=${{ env.TARGET_API }} -PRELEASE_MIN_TARGET_API=35
+          ./tools/gradle_with_jdk21.sh assembleRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
 
           rm -f "${GENERATED_KEYSTORE_PATH}"
 

@@ -73,22 +73,17 @@ jobs:
             "cmake;${CMAKE_VERSION}" \
             "ndk;${NDK_VERSION}"
 
-      - name: Generate local.properties
-        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
-
       - name: Materialize Firebase config (optional fallback for debug/tests)
         env:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
         run: ./tools/ci/materialize_google_services_placeholder.sh
 
-      - name: Make Gradle executable
-        run: chmod +x ./gradlew
-
       - name: Build debug APK
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew --no-daemon --stacktrace \
+          # Wrapper is the source of truth for JVM policy (17/21) and local.properties bootstrap.
+          ./tools/gradle_with_jdk21.sh --no-daemon --stacktrace \
             :app:assembleDebug \
             -PbuildStrict=false \
             -PcheckVariant=debug \

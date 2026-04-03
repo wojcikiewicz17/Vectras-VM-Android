@@ -214,9 +214,6 @@ jobs:
             'ndk;27.2.12479018' \
             'cmake;3.22.1'
 
-      - name: Generate local.properties
-        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
-
       - name: Materialize Firebase config (optional fallback for debug/tests)
         env:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
@@ -228,7 +225,8 @@ jobs:
       - name: Print Java and Gradle runtime versions
         run: |
           java -version
-          ./gradlew --version
+          # Wrapper is the source of truth for JVM policy (17/21) and local.properties bootstrap.
+          ./tools/gradle_with_jdk21.sh --version
 
       - name: Detect release signing mode
         id: release_mode
@@ -440,9 +438,6 @@ jobs:
             'ndk;27.2.12479018' \
             'cmake;3.22.1'
 
-      - name: Generate local.properties
-        run: echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
-
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
@@ -453,7 +448,7 @@ jobs:
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: ./gradlew :app:syncShellLoaderBootstrap ${{ env.GRADLE_ARGS }}
+        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap ${{ env.GRADLE_ARGS }}
 
       - name: Validate bootstrap assets (fail-fast)
         run: python3 tools/verify_bootstrap_assets.py
@@ -462,7 +457,7 @@ jobs:
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: ./gradlew :app:testDebugUnitTest --no-daemon --stacktrace --info --tests com.vectras.vm.core.ProotCommandBuilderTest ${{ env.GRADLE_ARGS }}
+        run: ./tools/gradle_with_jdk21.sh :app:testDebugUnitTest --no-daemon --stacktrace --info --tests com.vectras.vm.core.ProotCommandBuilderTest ${{ env.GRADLE_ARGS }}
 
       - name: Upload ProotCommandBuilder unit test reports
         if: always()
@@ -486,13 +481,13 @@ jobs:
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: ./gradlew verifyRepoFileDependencies ${{ env.GRADLE_ARGS }}
+        run: ./tools/gradle_with_jdk21.sh verifyRepoFileDependencies ${{ env.GRADLE_ARGS }}
 
       - name: Verify bootstrap assets and non-Markdown inventory
         env:
           ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: ./gradlew verifyBootstrapAssets auditNonMdInventory ${{ env.GRADLE_ARGS }}
+        run: ./tools/gradle_with_jdk21.sh verifyBootstrapAssets auditNonMdInventory ${{ env.GRADLE_ARGS }}
 
       - name: Native ABI matrix gate
         if: ${{ needs.preflight.outputs.diagnostic_mode != 'fast' }}
@@ -525,9 +520,9 @@ jobs:
         continue-on-error: true
         run: |
           mkdir -p diagnostics
-          ./gradlew tasks --all > diagnostics/gradle-tasks.txt
-          ./gradlew :app:dependencies --configuration debugRuntimeClasspath > diagnostics/debug-dependencies.txt
-          ./gradlew :app:androidDependencies > diagnostics/android-dependencies.txt
+          ./tools/gradle_with_jdk21.sh tasks --all > diagnostics/gradle-tasks.txt
+          ./tools/gradle_with_jdk21.sh :app:dependencies --configuration debugRuntimeClasspath > diagnostics/debug-dependencies.txt
+          ./tools/gradle_with_jdk21.sh :app:androidDependencies > diagnostics/android-dependencies.txt
 
       - name: Upload diagnostics bundle
         if: always()
@@ -615,10 +610,6 @@ jobs:
           'ndk;${{ env.NDK_VERSION }}' \
           'cmake;${{ env.CMAKE_VERSION }}'
 
-    - name: Generate local.properties
-      run: |
-        echo "sdk.dir=${ANDROID_SDK_ROOT}" > local.properties
-
     - name: Materialize Firebase config (optional fallback for debug/tests)
       env:
         VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
@@ -630,19 +621,19 @@ jobs:
     - name: Print Java and Gradle runtime versions
       run: |
         java -version
-        ./gradlew --version
+        ./tools/gradle_with_jdk21.sh --version
 
     - name: Run ProotCommandBuilder unit tests
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./gradlew :app:testDebugUnitTest --tests com.vectras.vm.core.ProotCommandBuilderTest ${{ env.GRADLE_ARGS }}
+      run: ./tools/gradle_with_jdk21.sh :app:testDebugUnitTest --tests com.vectras.vm.core.ProotCommandBuilderTest ${{ env.GRADLE_ARGS }}
 
     - name: Verify repository file dependencies
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./gradlew verifyRepoFileDependencies ${{ env.GRADLE_ARGS }}
+      run: ./tools/gradle_with_jdk21.sh verifyRepoFileDependencies ${{ env.GRADLE_ARGS }}
 
     - name: Validate release version metadata consistency
       run: |
@@ -707,7 +698,7 @@ jobs:
       env:
         ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
         ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./gradlew assembleDebug -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
+      run: ./tools/gradle_with_jdk21.sh assembleDebug -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
 
     - name: Validate native binaries are arm64-v8a
       if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
@@ -783,7 +774,7 @@ jobs:
         if [[ -z "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" && !(("${{ github.event_name }}" == "workflow_dispatch" && "${{ github.event.inputs.sign_release }}" == "true") || "${{ needs.preflight.outputs.has_signing_secrets }}" == "true") ]]; then
           EXTRA_VALIDATE_FLAGS="-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true -PCI_INTERNAL_VALIDATION=true"
         fi
-        ./gradlew :app:validateFirebaseReleaseConfig ${{ env.GRADLE_ARGS }} ${EXTRA_VALIDATE_FLAGS}
+        ./tools/gradle_with_jdk21.sh :app:validateFirebaseReleaseConfig ${{ env.GRADLE_ARGS }} ${EXTRA_VALIDATE_FLAGS}
 
     - name: Build Release APK (unsigned fallback)
       if: ${{ needs.preflight.outputs.selected_build_release == 'true' && !((github.event_name == 'workflow_dispatch' && github.event.inputs.sign_release == 'true') || needs.preflight.outputs.has_signing_secrets == 'true') && (github.event_name != 'workflow_dispatch' || github.event.inputs.allow_unsigned_release == 'true') }}
@@ -803,7 +794,7 @@ jobs:
         VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
       run: |
         echo "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}" | base64 --decode > "$VECTRAS_RELEASE_STORE_FILE"
-        ./gradlew assembleRelease \
+        ./tools/gradle_with_jdk21.sh assembleRelease \
           -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION} \
           -Pandroid.injected.signing.store.file="$VECTRAS_RELEASE_STORE_FILE" \
           -Pandroid.injected.signing.store.password="$VECTRAS_RELEASE_STORE_PASSWORD" \
