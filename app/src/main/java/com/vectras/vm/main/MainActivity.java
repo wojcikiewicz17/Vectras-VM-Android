@@ -90,8 +90,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.ExecutorService;
-import java.util.stream.Collectors;
 
 public class MainActivity extends AppCompatActivity implements RomStoreFragment.RomStoreCallToHomeListener, VmsFragment.VmsCallToHomeListener, SoftwareStoreFragment.SoftwareStoreCallToHomeListener {
     private final String TAG = "HomeActivity";
@@ -622,25 +620,15 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
     @SuppressLint("NotifyDataSetChanged")
     private void search(String keyword) {
         try {
-            // Extract data from JSON and store into ArrayList as class objects
-            List<DataRoms> filteredData = new ArrayList<>();
+            List<DataRoms> sourceData = currentSearchMode == SEARCH_ROM_STORE ? SharedData.dataRomStore : SharedData.dataSoftwareStore;
+            List<DataRoms> filteredData = new ArrayList<>(sourceData.size());
+            String keywordLower = keyword.toLowerCase();
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                filteredData = (currentSearchMode == SEARCH_ROM_STORE ? SharedData.dataRomStore.stream() : SharedData.dataSoftwareStore.stream())
-                        .filter(rom -> {
-                            String romName = (rom.romName != null) ? rom.romName : "";
-                            String romKernel = (rom.romKernel != null) ? rom.romKernel : "";
-
-                            return romName.toLowerCase().contains(keyword.toLowerCase())
-                                    || romKernel.toLowerCase().contains(keyword.toLowerCase());
-                        })
-                        .collect(Collectors.toList());
-            } else {
-                for (DataRoms rom : (currentSearchMode == SEARCH_ROM_STORE ? SharedData.dataRomStore : SharedData.dataSoftwareStore)) {
-                    if (rom.romName.toLowerCase().contains(keyword.toLowerCase()) ||
-                            rom.romKernel.toLowerCase().contains(keyword.toLowerCase())) {
-                        filteredData.add(rom);
-                    }
+            for (DataRoms rom : sourceData) {
+                String romNameLower = rom.romName != null ? rom.romName.toLowerCase() : "";
+                String romKernelLower = rom.romKernel != null ? rom.romKernel.toLowerCase() : "";
+                if (romNameLower.contains(keywordLower) || romKernelLower.contains(keywordLower)) {
+                    filteredData.add(rom);
                 }
             }
 
