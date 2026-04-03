@@ -149,58 +149,57 @@ public final class OptimizationStrategies {
     // ========== Memory Optimizations ==========
     
     /**
-     * Simple object pool for reducing allocations.
-     * Thread-safe using lock-free stack.
+     * Fixed-capacity object pool backed by a raw object array ({@code Object[]}).
+     *
+     * <p>Concurrency model: synchronized methods with an explicit monitor on this instance.
+     * This implementation is thread-safe, but it is not lock-free.
+     *
+     * <p>Allocation behavior:
+     * <ul>
+     *   <li>Normal acquire/release path does not allocate.</li>
+     *   <li>{@link #acquire()} allocates only when the pool is empty (factory fallback).</li>
+     * </ul>
      */
     public static class ObjectPool<T> {
-        private final PooledObject<T>[] pool;
-        private volatile int top;
+        private final Object[] pool;
+        private int top;
         private final ObjectFactory<T> factory;
-        
-        @SuppressWarnings("unchecked")
+
         public ObjectPool(ObjectFactory<T> factory, int capacity) {
+            if (factory == null) {
+                throw new IllegalArgumentException("factory must not be null");
+            }
+            if (capacity < 1) {
+                throw new IllegalArgumentException("capacity must be >= 1");
+            }
             this.factory = factory;
-            this.pool = new PooledObject[capacity];
-            this.top = 0;
-            
-            // Pre-populate pool
+            this.pool = new Object[capacity];
+
+            // Pre-populate pool.
             for (int i = 0; i < capacity; i++) {
-                pool[i] = new PooledObject<>(factory.create());
+                pool[i] = factory.create();
             }
             this.top = capacity;
         }
-        
-        public T acquire() {
-            int idx = top - 1;
-            if (idx >= 0 && idx < pool.length) {
-                // Try to pop
-                PooledObject<T> obj = pool[idx];
-                if (obj != null) {
-                    top = idx;
-                    return obj.get();
-                }
+
+        @SuppressWarnings("unchecked")
+        public synchronized T acquire() {
+            if (top > 0) {
+                int idx = --top;
+                T obj = (T) pool[idx];
+                pool[idx] = null;
+                return obj;
             }
-            // Pool empty, create new
+            // Pool empty, create new (fallback path).
             return factory.create();
         }
-        
-        public void release(T obj) {
-            int idx = top;
-            if (idx >= 0 && idx < pool.length) {
-                pool[idx] = new PooledObject<>(obj);
-                top = idx + 1;
+
+        public synchronized void release(T obj) {
+            if (obj == null) {
+                return;
             }
-        }
-        
-        private static class PooledObject<T> {
-            private final T object;
-            
-            PooledObject(T object) {
-                this.object = object;
-            }
-            
-            T get() {
-                return object;
+            if (top < pool.length) {
+                pool[top++] = obj;
             }
         }
     }
