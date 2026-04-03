@@ -590,6 +590,7 @@ int RmR_UnifiedKernel_Init(RmR_UnifiedKernel *kernel, const RmR_UnifiedConfig *c
   uint8_t *arena_base;
   uint32_t arena_bytes;
   if (!kernel || !config) return RMR_KERNEL_ERR_ARG;
+
   rmr_mem_set(kernel, 0u, sizeof(*kernel));
 
   if (config->arena_ptr && config->arena_bytes < RMR_UNIFIED_ARENA_MIN_BYTES) return RMR_KERNEL_ERR_ARG;
