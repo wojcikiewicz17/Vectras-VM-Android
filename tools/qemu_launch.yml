@@ -85,11 +85,11 @@ build_env:
 # ── RMR engine compile flags ────────────────────────────────
 engine_flags:
   common:
-    - "-O3"
-    - "-ffast-math"
+    - "-O2"
+    - "-fno-fast-math"
     - "-fvisibility=hidden"
-    - "-DRMR_BAREMETAL=1"
     - "-DRMR_JNI_BUILD=1"
+    - "-DRMR_BUILD_HOST_TOOLING=1"
   arm64:
     - "-march=armv8-a+crc"
     - "-mabi=lp64"

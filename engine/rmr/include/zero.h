@@ -42,6 +42,16 @@
 #define RMR_ZERO_ENV_BAREMETAL_U8     0x10u
 #define RMR_ZERO_ENV_JNI_U8           0x11u
 
+/* Optional feature module toggles (default-off unless build system defines). */
+#ifndef RMR_ENABLE_POLICY_MODULE
+#define RMR_ENABLE_POLICY_MODULE 0
+#endif
+
+/* Optional BITRAF module toggle (kept for parity with Android CMake options). */
+#ifndef RMR_ENABLE_BITRAF_MODULE
+#define RMR_ENABLE_BITRAF_MODULE 0
+#endif
+
 /* POLICY_KERNEL domain: deterministic hash + CRC constants. */
 #define RMR_ZERO_POLICY_KERNEL_SIG_MIX64_U64   0x9E3779B97F4A7C15ull /* golden-ratio 64b mixer */
 #define RMR_ZERO_POLICY_KERNEL_CRC32C_INIT_U32 0xFFFFFFFFu            /* CRC32C initial all-ones */

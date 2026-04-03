@@ -71,6 +71,8 @@ on:
     secrets:
       VECTRAS_RELEASE_STORE_FILE:
         required: false
+      VECTRAS_RELEASE_KEYSTORE_B64:
+        required: false
       VECTRAS_RELEASE_STORE_PASSWORD:
         required: false
       VECTRAS_RELEASE_KEY_ALIAS:
@@ -295,6 +297,7 @@ jobs:
         shell: bash
         env:
           VECTRAS_RELEASE_STORE_FILE: ${{ secrets.VECTRAS_RELEASE_STORE_FILE }}
+          VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
           VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
           VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
           VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
@@ -303,23 +306,71 @@ jobs:
           set -euo pipefail
           BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
           EXTRA_RELEASE_FLAGS=""
+          GENERATED_KEYSTORE_PATH="/tmp/release.keystore"
+          KEYSTORE_READY="false"
+
+          has_required_signing_secrets() {
+            [[ -n "${VECTRAS_RELEASE_STORE_PASSWORD:-}" && -n "${VECTRAS_RELEASE_KEY_ALIAS:-}" && -n "${VECTRAS_RELEASE_KEY_PASSWORD:-}" ]]
+          }
+
+          resolve_keystore_source() {
+            if [[ -n "${VECTRAS_RELEASE_STORE_FILE:-}" ]]; then
+              if [[ -s "${VECTRAS_RELEASE_STORE_FILE}" ]]; then
+                KEYSTORE_READY="true"
+              else
+                echo "::error::VECTRAS_RELEASE_STORE_FILE foi definido, mas o arquivo não existe ou está vazio: ${VECTRAS_RELEASE_STORE_FILE}"
+                return 1
+              fi
+            elif [[ -n "${VECTRAS_RELEASE_KEYSTORE_B64:-}" ]]; then
+              echo "${VECTRAS_RELEASE_KEYSTORE_B64}" | base64 -d > "${GENERATED_KEYSTORE_PATH}"
+              if [[ -s "${GENERATED_KEYSTORE_PATH}" ]]; then
+                export VECTRAS_RELEASE_STORE_FILE="${GENERATED_KEYSTORE_PATH}"
+                KEYSTORE_READY="true"
+              else
+                echo "::error::VECTRAS_RELEASE_KEYSTORE_B64 foi fornecido, mas não gerou um keystore válido"
+                return 1
+              fi
+            elif [[ -n "${ANDROID_SIGNING_KEYSTORE:-}" ]]; then
+              echo "::warning::Usando fallback legado ANDROID_SIGNING_KEYSTORE; prefira VECTRAS_RELEASE_STORE_FILE ou VECTRAS_RELEASE_KEYSTORE_B64"
+              echo "${ANDROID_SIGNING_KEYSTORE}" | base64 -d > "${GENERATED_KEYSTORE_PATH}"
+              if [[ -s "${GENERATED_KEYSTORE_PATH}" ]]; then
+                export VECTRAS_RELEASE_STORE_FILE="${GENERATED_KEYSTORE_PATH}"
+                KEYSTORE_READY="true"
+              else
+                echo "::error::ANDROID_SIGNING_KEYSTORE (fallback legado) não gerou um keystore válido"
+                return 1
+              fi
+            fi
+          }
+
+          resolve_keystore_source
 
           if [[ "${{ needs.preflight.outputs.signing_mode }}" == "unsigned" ]]; then
             EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
           elif [[ "${{ needs.preflight.outputs.signing_mode }}" == "signed" ]]; then
-            if [[ -z "${VECTRAS_RELEASE_STORE_PASSWORD}" || -z "${VECTRAS_RELEASE_KEY_ALIAS}" || -z "${VECTRAS_RELEASE_KEY_PASSWORD}" ]]; then
-              echo "::error::signing_mode=signed exigiu secrets de assinatura, mas eles não estão disponíveis"
+            if ! has_required_signing_secrets; then
+              echo "::error::signing_mode=signed requer VECTRAS_RELEASE_STORE_PASSWORD, VECTRAS_RELEASE_KEY_ALIAS e VECTRAS_RELEASE_KEY_PASSWORD"
+              exit 1
+            fi
+            if [[ "${KEYSTORE_READY}" != "true" ]]; then
+              echo "::error::signing_mode=signed requer keystore válido via VECTRAS_RELEASE_STORE_FILE ou VECTRAS_RELEASE_KEYSTORE_B64 (fallback legado: ANDROID_SIGNING_KEYSTORE)"
               exit 1
             fi
           else
-            if [[ -z "${VECTRAS_RELEASE_STORE_PASSWORD}" || -z "${VECTRAS_RELEASE_KEY_ALIAS}" || -z "${VECTRAS_RELEASE_KEY_PASSWORD}" ]]; then
+            if ! has_required_signing_secrets || [[ "${KEYSTORE_READY}" != "true" ]]; then
               EXTRA_RELEASE_FLAGS="-PALLOW_UNSIGNED_RELEASE=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
             fi
           fi
 
-          if [ -n "$ANDROID_SIGNING_KEYSTORE" ]; then
-            echo "$ANDROID_SIGNING_KEYSTORE" | base64 -d > /tmp/release.keystore
-            export VECTRAS_RELEASE_STORE_FILE=/tmp/release.keystore
+          if [[ -z "${EXTRA_RELEASE_FLAGS}" ]]; then
+            if [[ -z "${VECTRAS_RELEASE_STORE_FILE:-}" || ! -s "${VECTRAS_RELEASE_STORE_FILE}" ]]; then
+              echo "::error::Keystore ausente ou vazio antes do assembleRelease"
+              exit 1
+            fi
+            if ! has_required_signing_secrets; then
+              echo "::error::Secrets obrigatórios ausentes antes do assembleRelease: VECTRAS_RELEASE_STORE_PASSWORD, VECTRAS_RELEASE_KEY_ALIAS, VECTRAS_RELEASE_KEY_PASSWORD"
+              exit 1
+            fi
           fi
 
           if [[ "${{ needs.preflight.outputs.native_matrix }}" == "true" ]]; then
@@ -329,7 +380,7 @@ jobs:
           ./gradlew verifyTargetApiBaseline --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} -PTARGET_API=${{ env.TARGET_API }} -PRELEASE_MIN_TARGET_API=35
           ./gradlew assembleRelease --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
 
-          rm -f /tmp/release.keystore
+          rm -f "${GENERATED_KEYSTORE_PATH}"
 
       - name: Upload release artifacts
         if: always()

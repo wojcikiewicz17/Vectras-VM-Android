@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.22.1)
 project(vectra_core_accel C ASM)
+set(CMAKE_C_STANDARD 11)
+set(CMAKE_C_STANDARD_REQUIRED ON)
 
 option(RMR_ENABLE_POLICY_MODULE "Enable RMR policy module" ON)
 option(RMR_ENABLE_BITRAF_MODULE "Enable BITRAF module" ON)
