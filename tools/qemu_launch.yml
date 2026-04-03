@@ -35,7 +35,7 @@ profiles:
       efi: "app/src/main/assets/roms/RELEASEX64_OVMF.fd"
       efi_vars: "app/src/main/assets/roms/RELEASEX64_OVMF_VARS.fd"
       bios_fallback: "app/src/main/assets/roms/bios-vectras.bin"
-    accel_priority: [kvm, hvf, tcg]
+    accel_priority: [kvm, tcg]
     extra_args: *common_virtio_devices
 
   arm64_virt:
