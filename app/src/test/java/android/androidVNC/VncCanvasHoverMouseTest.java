@@ -79,6 +79,17 @@ public class VncCanvasHoverMouseTest {
         RecordingVncCanvas canvas = new RecordingVncCanvas(context);
 
         long time = SystemClock.uptimeMillis();
+        MotionEvent.PointerProperties[] properties = new MotionEvent.PointerProperties[1];
+        MotionEvent.PointerProperties pointerProperties = new MotionEvent.PointerProperties();
+        pointerProperties.id = 0;
+        properties[0] = pointerProperties;
+        MotionEvent.PointerCoords[] coords = new MotionEvent.PointerCoords[1];
+        MotionEvent.PointerCoords pointerCoords = new MotionEvent.PointerCoords();
+        pointerCoords.x = 10f;
+        pointerCoords.y = 20f;
+        pointerCoords.pressure = 1f;
+        pointerCoords.size = 1f;
+        coords[0] = pointerCoords;
         MotionEvent event = MotionEvent.obtain(
             time,
             time,

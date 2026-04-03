@@ -37,4 +37,8 @@ public class RamInfo {
             return Math.max(freeRamInt - 100, 256);
         }
     }
+
+    public static int ensureMinimumVmMemoryMb(int requestedMb) {
+        return Math.max(MIN_VM_MEMORY_MB, requestedMb);
+    }
 }

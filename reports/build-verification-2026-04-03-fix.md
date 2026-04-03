@@ -18,9 +18,9 @@
 
 ## Unit test failure summary
 
-Compilation errors in test sources (not in main app build):
-- `RamInfo.ensureMinimumVmMemoryMb(int)` missing in tests.
-- `CrashHandlerTest` contains invalid override.
-- `VncCanvasHoverMouseTest` uses mismatched `MotionEvent.obtain(...)` signature.
+Test compilation was fixed, but runtime execution still fails in current environment due:
+- dependency/network fetch issues in Robolectric lanes (`MavenArtifactFetcher`, `SocketException`),
+- native/log initialization errors in some VM/core benchmark tests,
+- existing behavioral assertions failing in multiple legacy tests.
 
 Main deliverable build (`assembleDebug`) remains successful.
