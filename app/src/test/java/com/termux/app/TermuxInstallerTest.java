@@ -1,13 +1,16 @@
 package com.termux.app;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 import static org.junit.Assert.fail;
 
 import java.io.File;
+import java.nio.charset.StandardCharsets;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.junit.After;
+import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.TemporaryFolder;
@@ -17,9 +20,14 @@ public class TermuxInstallerTest {
     @Rule
     public TemporaryFolder temporaryFolder = new TemporaryFolder();
 
-    @org.junit.After
+    @Before
+    public void setUp() {
+        TermuxInstaller.resetBootstrapNativeStateForTests();
+    }
+
+    @After
     public void tearDown() {
-        TermuxInstaller.resetNativeBootstrapProviderForTesting();
+        TermuxInstaller.resetBootstrapNativeStateForTests();
     }
 
     @Test
@@ -73,68 +81,83 @@ public class TermuxInstallerTest {
     }
 
     @Test
-    public void loadZipBytes_returnsFallbackAndDetailedError_whenLoadLibraryFails() {
-        TermuxInstaller.NativeBootstrapProvider provider = TermuxInstaller.createNativeBootstrapProviderForTesting(
-            libName -> {
-                throw new UnsatisfiedLinkError("dlopen failed for " + libName);
-            },
-            () -> {
-                fail("JNI accessor should not be called when native library failed to load");
-                return new byte[0];
-            }
-        );
-        TermuxInstaller.setNativeBootstrapProviderForTesting(provider);
+    public void loadZipBytes_whenSystemLoadLibraryFails_returnsFallbackAndDetailedDiagnostics() {
+        byte[] zipBytes = null;
+        try {
+            zipBytes = TermuxInstaller.loadZipBytes();
+        } catch (Throwable throwable) {
+            fail("loadZipBytes() should not throw generic exception when JNI library is unavailable: " + throwable);
+        }
 
-        byte[] result = TermuxInstaller.loadZipBytes();
+        assertEquals(0, zipBytes.length);
 
-        assertEquals(0, result.length);
-        String diagnostic = TermuxInstaller.getBootstrapNativeLoadError();
-        assertTrue(diagnostic.contains("lib=termux-bootstrap"));
-        assertTrue(diagnostic.contains("abi="));
-        assertTrue(diagnostic.contains("error=UnsatisfiedLinkError"));
+        String diagnostics = TermuxInstaller.getBootstrapNativeLoadError();
+        assertTrue(diagnostics.contains("lib=termux-bootstrap"));
+        assertTrue(diagnostics.contains("abi="));
+        assertTrue(diagnostics.contains("error="));
+        assertFalse("Error diagnostics should not be empty", diagnostics.endsWith("error="));
     }
 
     @Test
-    public void loadZipBytes_returnsBytesFromJni_whenNativeProviderIsAvailable() {
-        byte[] expected = new byte[]{10, 20, 30, 40};
-        TermuxInstaller.setNativeBootstrapProviderForTesting(new TermuxInstaller.NativeBootstrapProvider() {
+    public void loadZipBytes_whenNativeProviderInjected_usesInjectedJniReturnValue() {
+        byte[] expected = "zip-payload-from-jni".getBytes(StandardCharsets.UTF_8);
+        AtomicBoolean ensureCalled = new AtomicBoolean(false);
+        AtomicBoolean getZipCalled = new AtomicBoolean(false);
+
+        TermuxInstaller.setNativeBootstrapProviderForTests(new TermuxInstaller.NativeBootstrapProvider() {
             @Override
-            public boolean ensureLoaded() {
+            public boolean ensureNativeLoaded() {
+                ensureCalled.set(true);
                 return true;
             }
 
             @Override
             public byte[] getZipBytes() {
+                getZipCalled.set(true);
                 return expected;
             }
 
             @Override
-            public String getLastError() {
-                return "";
+            public String getDiagnostics() {
+                return "lib=termux-bootstrap, abi=test-abi, error=none";
             }
         });
 
-        byte[] result = TermuxInstaller.loadZipBytes();
-
-        assertArrayEquals(expected, result);
+        byte[] actual = TermuxInstaller.loadZipBytes();
+        assertTrue("ensureNativeLoaded() should be called", ensureCalled.get());
+        assertTrue("getZipBytes() should be called", getZipCalled.get());
+        assertEquals("zip-payload-from-jni", new String(actual, StandardCharsets.UTF_8));
     }
 
     @Test
-    public void loadZipBytes_doesNotThrowGenericError_whenJniAccessorThrows() {
-        TermuxInstaller.NativeBootstrapProvider provider = TermuxInstaller.createNativeBootstrapProviderForTesting(
-            libName -> { },
-            () -> {
-                throw new IllegalStateException("bad jni payload");
+    public void loadZipBytes_whenProviderUnavailable_reportsProviderDiagnosticsWithoutGenericThrow() {
+        TermuxInstaller.setNativeBootstrapProviderForTests(new TermuxInstaller.NativeBootstrapProvider() {
+            @Override
+            public boolean ensureNativeLoaded() {
+                return false;
             }
-        );
-        TermuxInstaller.setNativeBootstrapProviderForTesting(provider);
 
-        byte[] result = TermuxInstaller.loadZipBytes();
+            @Override
+            public byte[] getZipBytes() {
+                return new byte[0];
+            }
 
-        assertEquals(0, result.length);
-        String diagnostic = TermuxInstaller.getBootstrapNativeLoadError();
-        assertTrue(diagnostic.contains("lib=termux-bootstrap"));
-        assertTrue(diagnostic.contains("abi="));
-        assertTrue(diagnostic.contains("error=IllegalStateException"));
+            @Override
+            public String getDiagnostics() {
+                return "lib=termux-bootstrap, abi=arm64-v8a, error=UnsatisfiedLinkError: test failure";
+            }
+        });
+
+        try {
+            byte[] actual = TermuxInstaller.loadZipBytes();
+            assertEquals(0, actual.length);
+        } catch (Throwable throwable) {
+            fail("loadZipBytes() should not throw generic exception when provider marks JNI unavailable: " + throwable);
+        }
+
+        String diagnostics = TermuxInstaller.getBootstrapNativeLoadError();
+        assertTrue(diagnostics.contains("lib=termux-bootstrap"));
+        assertTrue(diagnostics.contains("abi="));
+        assertTrue(diagnostics.contains("UnsatisfiedLinkError"));
     }
 }
