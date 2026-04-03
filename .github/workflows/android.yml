@@ -97,10 +97,13 @@ env:
   TOOLS_VERSION: '35.0.0'
   CMAKE_VERSION: '3.22.1'
   NDK_VERSION: '27.2.12479018'
+  APP_ABI_POLICY: arm64-only
+  SUPPORTED_ABIS: arm64-v8a
   GRADLE_ARGS: >-
     -PCOMPILE_API=35 -PTARGET_API=35 -PRELEASE_MIN_TARGET_API=35
     -PTOOLS_VERSION=35.0.0 -PJAVA_LANGUAGE_VERSION=17
     -PCMAKE_VERSION=3.22.1 -PNDK_VERSION=27.2.12479018
+    -PAPP_ABI_POLICY=arm64-only -PSUPPORTED_ABIS=arm64-v8a
 
 jobs:
   preflight:
@@ -395,8 +398,11 @@ jobs:
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
-      - name: Verify ABI policy alignment (gradle.properties vs qemu_launch.yml)
-        run: python3 tools/check_abi_policy_alignment.py
+      - name: Enforce ABI contract gate (mandatory)
+        uses: ./.github/actions/abi-contract-gate
+        with:
+          abi_policy: ${{ env.APP_ABI_POLICY }}
+          supported_abis: ${{ env.SUPPORTED_ABIS }}
 
       - name: Build shell-loader bootstrap asset (fail-fast)
         env:
@@ -509,6 +515,7 @@ jobs:
         -PCOMPILE_API=${COMPILE_API} -PTARGET_API=${TARGET_API} -PRELEASE_MIN_TARGET_API=${RELEASE_MIN_TARGET_API}
         -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION}
         -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
+        -PAPP_ABI_POLICY=arm64-only -PSUPPORTED_ABIS=arm64-v8a
 
     steps:
     - uses: actions/checkout@v5

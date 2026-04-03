@@ -37,6 +37,7 @@ jobs:
       TOOLS_VERSION: '35.0.0'
       NDK_VERSION: '27.2.12479018'
       CMAKE_VERSION: '3.22.1'
+      SUPPORTED_ABIS: 'arm64-v8a'
 
     steps:
       - name: Checkout
@@ -110,6 +111,12 @@ jobs:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
         run: ./tools/ci/materialize_google_services_placeholder.sh
 
+      - name: Enforce ABI contract gate (mandatory)
+        uses: ./.github/actions/abi-contract-gate
+        with:
+          abi_policy: arm64-only
+          supported_abis: ${{ env.SUPPORTED_ABIS }}
+
       - name: Build debug APK
         shell: bash
         run: |
@@ -120,6 +127,7 @@ jobs:
             -PbuildStrict=false \
             -PcheckVariant=debug \
             -PAPP_ABI_POLICY=arm64-only \
+            -PSUPPORTED_ABIS=${SUPPORTED_ABIS} \
             -Pcompile.api=${COMPILE_API} \
             -Ptarget.api=${TARGET_API} \
             -Pmin.api=${MIN_API} \

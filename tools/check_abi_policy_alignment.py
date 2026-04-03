@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
-"""Checks ABI policy alignment between gradle.properties and tools/qemu_launch.yml."""
+"""Checks ABI policy alignment between workflow params, gradle.properties and tools/qemu_launch.yml."""
 
 from __future__ import annotations
 
+import argparse
 import re
 import sys
 from pathlib import Path
@@ -10,6 +11,11 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 GRADLE_PROPERTIES = ROOT / "gradle.properties"
 QEMU_LAUNCH = ROOT / "tools" / "qemu_launch.yml"
+
+ABI_CONTRACT_PREFIX = (
+    "ABI_CONTRACT_VIOLATION: APP_ABI_POLICY/SUPPORTED_ABIS devem permanecer coerentes entre "
+    "workflow, gradle.properties e tools/qemu_launch.yml"
+)
 
 ALLOWED_SCOPES = {"official_distribution", "internal_validation"}
 POLICY_TO_SCOPE = {
@@ -70,11 +76,25 @@ def parse_qemu_abi_scopes(path: Path) -> tuple[str, dict[str, list[str]]]:
 
 
 def fail(message: str) -> int:
-    print(f"[check_abi_policy_alignment] FAIL: {message}")
+    print(f"[{ABI_CONTRACT_PREFIX}] {message}")
     return 1
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--policy", dest="workflow_policy", default="", help="Workflow ABI policy (optional)")
+    parser.add_argument(
+        "--supported-abis",
+        dest="workflow_supported_abis",
+        default="",
+        help="Workflow SUPPORTED_ABIS (comma-separated, optional)",
+    )
+    return parser.parse_args()
+
+
 def main() -> int:
+    args = parse_args()
+
     if not GRADLE_PROPERTIES.exists():
         return fail(f"missing file: {GRADLE_PROPERTIES}")
     if not QEMU_LAUNCH.exists():
@@ -83,8 +103,20 @@ def main() -> int:
     policy, gradle_supported_abis = parse_gradle_properties(GRADLE_PROPERTIES)
     qemu_scope, qemu_scope_abis = parse_qemu_abi_scopes(QEMU_LAUNCH)
 
-    if policy not in {"arm64-only"}:
+    if policy not in POLICY_TO_SCOPE:
         return fail(f"unsupported APP_ABI_POLICY={policy!r}")
+
+    workflow_supported_abis = [abi.strip() for abi in args.workflow_supported_abis.split(",") if abi.strip()]
+    if args.workflow_policy and args.workflow_policy != policy:
+        return fail(
+            "workflow abi_policy differs from gradle.properties "
+            f"(workflow={args.workflow_policy}, gradle.properties={policy})"
+        )
+    if workflow_supported_abis and workflow_supported_abis != gradle_supported_abis:
+        return fail(
+            "workflow SUPPORTED_ABIS differs from gradle.properties "
+            f"(workflow={workflow_supported_abis}, gradle.properties={gradle_supported_abis})"
+        )
 
     if qemu_scope not in ALLOWED_SCOPES:
         return fail(f"tools/qemu_launch.yml abi_filters.scope must be one of {sorted(ALLOWED_SCOPES)}, got {qemu_scope!r}")
@@ -96,7 +128,6 @@ def main() -> int:
     if qemu_scope != "official_distribution":
         return fail("tools/qemu_launch.yml abi_filters.scope must default to official_distribution")
 
-    expected_abis: list[str]
     mapped_scope = POLICY_TO_SCOPE[policy]
     expected_abis = qemu_scope_abis[mapped_scope]
 

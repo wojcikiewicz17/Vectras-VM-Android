@@ -122,6 +122,7 @@ env:
   TARGET_API: "35"
   MIN_API: "23"
   TOOLS_VERSION: "35.0.0"
+  SUPPORTED_ABIS: "arm64-v8a"
 
 jobs:
   preflight:
@@ -308,6 +309,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Enforce ABI contract gate (mandatory)
+        uses: ./.github/actions/abi-contract-gate
+        with:
+          abi_policy: ${{ needs.preflight.outputs.abi_policy }}
+          supported_abis: ${{ env.SUPPORTED_ABIS }}
+
       - name: Bootstrap shell-loader asset (mandatory)
         run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
 
@@ -321,7 +328,7 @@ jobs:
         run: |
           set -euo pipefail
           # Wrapper is the source of truth for JVM policy (17/21) and local.properties bootstrap.
-          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
+          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PSUPPORTED_ABIS=${{ env.SUPPORTED_ABIS }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
 
           ./tools/gradle_with_jdk21.sh verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
 
@@ -428,6 +435,12 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Enforce ABI contract gate (mandatory)
+        uses: ./.github/actions/abi-contract-gate
+        with:
+          abi_policy: ${{ needs.preflight.outputs.abi_policy }}
+          supported_abis: ${{ env.SUPPORTED_ABIS }}
+
       - name: Bootstrap shell-loader asset (mandatory)
         run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
 
@@ -449,7 +462,7 @@ jobs:
           ANDROID_SIGNING_KEYSTORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
         run: |
           set -euo pipefail
-          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
+          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PSUPPORTED_ABIS=${{ env.SUPPORTED_ABIS }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
           EXTRA_RELEASE_FLAGS=""
           GENERATED_KEYSTORE_PATH="/tmp/release.keystore"
           KEYSTORE_READY="false"
@@ -603,7 +616,7 @@ PY
           ANDROID_SIGNING_KEYSTORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
         run: |
           set -euo pipefail
-          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
+          BASE_FLAGS="-PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PMIN_API=${{ env.MIN_API }} -PNDK_VERSION=${{ needs.preflight.outputs.ndk_version }} -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }} -PAPP_ABI_POLICY=${{ needs.preflight.outputs.abi_policy }} -PSUPPORTED_ABIS=${{ env.SUPPORTED_ABIS }} -PRMR_ENABLE_POLICY_MODULE=${{ needs.preflight.outputs.rmr_policy }} -PRMR_ENABLE_BITRAF_MODULE=${{ needs.preflight.outputs.rmr_bitraf }}"
           EXTRA_RELEASE_FLAGS=""
           GENERATED_KEYSTORE_PATH="/tmp/perf-release.keystore"
           KEYSTORE_READY="false"

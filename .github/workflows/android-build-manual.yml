@@ -177,12 +177,14 @@ jobs:
       TOOLS_VERSION: ${{ inputs.build_tools || '35.0.0' }}
       NDK_VERSION: ${{ inputs.ndk_version || '27.2.12479018' }}
       CMAKE_VERSION: ${{ inputs.cmake_version || '3.22.1' }}
+      SUPPORTED_ABIS: arm64-v8a
       MODE: ${{ inputs.mode || 'moderado' }}
       GRADLE_EXTRA_ARGS: ${{ inputs.gradle_extra_args || '' }}
       GRADLE_ARGS: >-
         -PCOMPILE_API=${{ inputs.android_api || '35' }} -PTARGET_API=${{ inputs.android_api || '35' }} -PRELEASE_MIN_TARGET_API=${{ inputs.android_api || '35' }}
         -PTOOLS_VERSION=${{ inputs.build_tools || '35.0.0' }} -PJAVA_LANGUAGE_VERSION=${{ inputs.java_version || '17' }}
         -PCMAKE_VERSION=${{ inputs.cmake_version || '3.22.1' }} -PNDK_VERSION=${{ inputs.ndk_version || '27.2.12479018' }}
+        -PAPP_ABI_POLICY=arm64-only -PSUPPORTED_ABIS=arm64-v8a
 
     steps:
       - uses: actions/checkout@v5
@@ -264,6 +266,12 @@ jobs:
               exit 1
               ;;
           esac
+
+      - name: Enforce ABI contract gate (mandatory)
+        uses: ./.github/actions/abi-contract-gate
+        with:
+          abi_policy: arm64-only
+          supported_abis: ${{ env.SUPPORTED_ABIS }}
 
       - name: Bootstrap shell-loader asset (mandatory)
         run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
