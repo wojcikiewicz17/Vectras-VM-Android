@@ -3,6 +3,7 @@ package com.vectras.vm.core;
 import android.util.Log;
 
 import com.vectras.vm.logger.VectrasStatus;
+import com.vectras.vm.qemu.VmProfile;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -39,7 +40,7 @@ public class ShellExecutor {
     }
 
     public ShellExecutor() {
-        this(ExecutionExecutors.get().newShellExecutorPool());
+        this(ExecutionExecutors.get().newShellExecutorPool(resolveShellRejectionPolicy()));
     }
 
     ShellExecutor(ThreadPoolExecutor executorService) {
@@ -134,6 +135,17 @@ public class ShellExecutor {
 
     public ExecutionExecutors.Snapshot observabilitySnapshot() {
         return ExecutionExecutors.snapshotOf(executorService, "shell-executor");
+    }
+
+    private static ExecutionBudgetPolicy.RejectionPolicy resolveShellRejectionPolicy() {
+        try {
+            int cpus = Runtime.getRuntime().availableProcessors();
+            ExecutionBudget budget = CoreExecutionBudgetPolicy.resolve(VmProfile.BALANCED, cpus, "UNKNOWN");
+            ThreadPoolBudget.RejectionPolicy resolved = budget.getThreadPoolBudget().getRejectionPolicy();
+            return ExecutionBudgetPolicy.RejectionPolicy.valueOf(resolved.name());
+        } catch (Exception ignored) {
+            return ExecutionBudgetPolicy.RejectionPolicy.CALLER_RUNS;
+        }
     }
 
     private class CallableExec implements Runnable {

@@ -4,7 +4,6 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
-import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.RejectedExecutionHandler;
 import java.util.concurrent.RunnableFuture;
 import java.util.concurrent.ThreadFactory;
@@ -186,16 +185,18 @@ public final class ExecutionExecutors {
 
     private static final class MetricsRejectedHandler implements RejectedExecutionHandler {
         private final InstrumentedExecutor owner;
+        private final RejectedExecutionHandler delegate;
 
-        MetricsRejectedHandler(InstrumentedExecutor owner) {
+        MetricsRejectedHandler(InstrumentedExecutor owner, RejectedExecutionHandler delegate) {
             this.owner = owner;
+            this.delegate = delegate == null ? new ThreadPoolExecutor.CallerRunsPolicy() : delegate;
         }
 
         @Override
         public void rejectedExecution(Runnable r, ThreadPoolExecutor executor) {
             owner.rejectedTasks.incrementAndGet();
             owner.saturations.incrementAndGet();
-            throw new RejectedExecutionException(owner.domain + " saturated: queue=" + executor.getQueue().size());
+            delegate.rejectedExecution(r, executor);
         }
     }
 
@@ -229,6 +230,7 @@ public final class ExecutionExecutors {
 
     private static InstrumentedExecutor buildShared(Domain domain, ExecutionBudgetPolicy.Budget budget) {
         MetricThreadFactory threadFactory = new MetricThreadFactory(domain.threadPrefix);
+        RejectedExecutionHandler baseHandler = toRejectedExecutionHandler(budget.rejectionPolicy);
         InstrumentedExecutor[] holder = new InstrumentedExecutor[1];
         holder[0] = new InstrumentedExecutor(
                 domain.threadPrefix,
@@ -237,14 +239,43 @@ public final class ExecutionExecutors {
                 budget.keepAliveMs,
                 new ArrayBlockingQueue<>(budget.queueCapacity),
                 threadFactory,
-                new ThreadPoolExecutor.AbortPolicy()
+                baseHandler
         );
-        holder[0].setRejectedExecutionHandler(new MetricsRejectedHandler(holder[0]));
+        holder[0].setRejectedExecutionHandler(new MetricsRejectedHandler(holder[0], baseHandler));
         return holder[0];
     }
 
+    private static RejectedExecutionHandler toRejectedExecutionHandler(ExecutionBudgetPolicy.RejectionPolicy policy) {
+        ExecutionBudgetPolicy.RejectionPolicy safePolicy = policy == null
+                ? ExecutionBudgetPolicy.RejectionPolicy.CALLER_RUNS
+                : policy;
+        switch (safePolicy) {
+            case ABORT:
+                return new ThreadPoolExecutor.AbortPolicy();
+            case DISCARD:
+                return new ThreadPoolExecutor.DiscardPolicy();
+            case DISCARD_OLDEST:
+                return new ThreadPoolExecutor.DiscardOldestPolicy();
+            case CALLER_RUNS:
+            default:
+                return new ThreadPoolExecutor.CallerRunsPolicy();
+        }
+    }
+
+    ThreadPoolExecutor newShellExecutorPool(ExecutionBudgetPolicy.RejectionPolicy rejectionPolicy) {
+        ExecutionBudgetPolicy.Budget configured = policy.shellExecutor();
+        ExecutionBudgetPolicy.Budget effective = new ExecutionBudgetPolicy.Budget(
+                configured.coreThreads,
+                configured.maxThreads,
+                configured.queueCapacity,
+                configured.keepAliveMs,
+                rejectionPolicy == null ? configured.rejectionPolicy : rejectionPolicy
+        );
+        return buildShared(Domain.SHELL_EXECUTOR, effective);
+    }
+
     public ThreadPoolExecutor newShellExecutorPool() {
-        return buildShared(Domain.SHELL_EXECUTOR, policy.shellExecutor());
+        return newShellExecutorPool(policy.shellExecutor().rejectionPolicy);
     }
 
     public Future<?> submitTerminalIo(Runnable runnable) {

@@ -5,13 +5,25 @@ package com.vectras.vm.core;
  */
 public final class ExecutionBudgetPolicy {
 
+    public enum RejectionPolicy {
+        ABORT,
+        CALLER_RUNS,
+        DISCARD,
+        DISCARD_OLDEST
+    }
+
     public static final class Budget {
         public final int coreThreads;
         public final int maxThreads;
         public final int queueCapacity;
         public final long keepAliveMs;
+        public final RejectionPolicy rejectionPolicy;
 
-        Budget(int coreThreads, int maxThreads, int queueCapacity, long keepAliveMs) {
+        Budget(int coreThreads,
+               int maxThreads,
+               int queueCapacity,
+               long keepAliveMs,
+               RejectionPolicy rejectionPolicy) {
             if (coreThreads <= 0) {
                 throw new IllegalArgumentException("coreThreads must be > 0");
             }
@@ -31,6 +43,7 @@ public final class ExecutionBudgetPolicy {
             this.maxThreads = maxThreads;
             this.queueCapacity = queueCapacity;
             this.keepAliveMs = keepAliveMs;
+            this.rejectionPolicy = rejectionPolicy == null ? RejectionPolicy.CALLER_RUNS : rejectionPolicy;
         }
     }
 
@@ -54,10 +67,10 @@ public final class ExecutionBudgetPolicy {
 
     public static ExecutionBudgetPolicy defaults() {
         return new ExecutionBudgetPolicy(
-                new Budget(2, 2, 64, 0L),
-                new Budget(1, 1, 32, 0L),
-                new Budget(2, 2, 32, 0L),
-                new Budget(1, 1, 16, 0L),
+                new Budget(2, 2, 64, 0L, RejectionPolicy.CALLER_RUNS),
+                new Budget(1, 1, 32, 0L, RejectionPolicy.CALLER_RUNS),
+                new Budget(2, 2, 32, 0L, RejectionPolicy.CALLER_RUNS),
+                new Budget(1, 1, 16, 0L, RejectionPolicy.CALLER_RUNS),
                 1_200L
         );
     }
