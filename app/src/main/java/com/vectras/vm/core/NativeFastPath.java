@@ -120,6 +120,10 @@ public final class NativeFastPath {
         return NATIVE_AVAILABLE;
     }
 
+    public static boolean isFallbackActive() {
+        return !NATIVE_AVAILABLE;
+    }
+
     public static boolean isArenaAvailable() {
         return ARENA_AVAILABLE;
     }
