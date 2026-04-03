@@ -96,6 +96,25 @@ jobs:
             -Pcmake.version=${CMAKE_VERSION} \
             -Pjava.language.version=${JAVA_VERSION}
 
+      - name: Upload compiled artifacts report (required)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-compiled-artifacts-report
+          path: app/build/reports/artifacts/compiled-artifacts-report.json
+          if-no-files-found: error
+
+      - name: Upload compiled outputs bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-compiled-outputs
+          path: |
+            app/build/outputs/apk/**
+            app/build/outputs/bundle/**
+            app/build/outputs/mapping/**
+          if-no-files-found: error
+
       - name: Upload debug APK
         if: always()
         uses: actions/upload-artifact@v4
