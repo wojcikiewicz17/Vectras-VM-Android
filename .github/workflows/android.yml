@@ -779,6 +779,23 @@ jobs:
           -Pandroid.injected.signing.key.alias="$VECTRAS_RELEASE_KEY_ALIAS" \
           -Pandroid.injected.signing.key.password="$VECTRAS_RELEASE_KEY_PASSWORD"
 
+    - name: Build PerfRelease APK
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+      run: ./tools/gradle_with_jdk21.sh :app:assemblePerfRelease -PCOMPILE_API=${COMPILE_API} -PTOOLS_VERSION=${TOOLS_VERSION} -PJAVA_LANGUAGE_VERSION=${JAVA_VERSION} -PCMAKE_VERSION=${CMAKE_VERSION} -PNDK_VERSION=${NDK_VERSION}
+
+    - name: Verify delivered compiled artifacts (debug, release, perfRelease)
+      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' && needs.preflight.outputs.selected_build_release == 'true' }}
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+      shell: bash
+      run: |
+        set -euo pipefail
+        ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=debug,release,perfRelease
+
     - name: Resolve release artifact path
       id: release_artifact
       if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
