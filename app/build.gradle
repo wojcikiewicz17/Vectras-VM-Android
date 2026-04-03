@@ -205,18 +205,8 @@ tasks.register("verifyTermuxBootstrapAbiCoverage") {
                     throw new GradleException("APP_ABI_POLICY=arm64-only exige SUPPORTED_ABIS=arm64-v8a (atual: ${supportedAbis}).")
                 }
                 break
-            case "with-32bit":
-                if (!supportedAbis.contains('armeabi-v7a')) {
-                    throw new GradleException("APP_ABI_POLICY=with-32bit exige armeabi-v7a em SUPPORTED_ABIS (atual: ${supportedAbis}).")
-                }
-                break
-            case "all":
-                if ((supportedAbis as Set) != (officialAbis as Set)) {
-                    throw new GradleException("APP_ABI_POLICY=all exige todas as ABIs oficiais ${officialAbis} (atual: ${supportedAbis}).")
-                }
-                break
             default:
-                throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only, with-32bit ou all.")
+                throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only.")
         }
 
         def unsupportedByBootstrap = supportedAbis.findAll { !(it in termuxBootstrapSupportedAbis) }
@@ -359,7 +349,7 @@ tasks.matching { task ->
 def officialNativeCheckAbiPolicies = ['arm64-only'].sort()
 def officialNativeCheckBuildVariants = ['release', 'perfRelease'].sort()
 
-def extendedNativeCheckAbiPolicies = (officialNativeCheckAbiPolicies + ['all']).unique().sort()
+def extendedNativeCheckAbiPolicies = officialNativeCheckAbiPolicies
 def extendedNativeCheckBuildVariants = (officialNativeCheckBuildVariants + ['debug']).unique().sort()
 
 def enableExtendedAbiMatrix = providers.gradleProperty("ENABLE_EXTENDED_ABI_MATRIX")

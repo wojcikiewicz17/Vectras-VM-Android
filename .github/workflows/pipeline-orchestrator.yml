@@ -179,7 +179,7 @@ jobs:
       provenance_manifest_hash: ${{ needs.provenance.outputs.manifest_hash }}
 
   android-baseline:
-    name: 04 · Android Baseline (canônico)
+    name: 04 · Android Internal Validation (canônico unsigned)
     needs: [changes, proof-build]
     if: >-
       always() && needs.proof-build.result != 'failure' && (
@@ -191,15 +191,16 @@ jobs:
       expected_sha: ${{ needs.provenance.outputs.expected_sha }}
       provenance_manifest_hash: ${{ needs.provenance.outputs.manifest_hash }}
       mode: ${{ github.event_name == 'workflow_dispatch' && inputs.mode || 'moderado' }}
-      build_debug: true
-      build_release: false
+      build_variant: both
       run_lint: true
       run_native_matrix: true
+      signing_mode: unsigned
+      abi_policy: arm64-only
       run_unit_tests: false
     secrets: inherit
 
   android-verified:
-    name: 05 · Android Verified (promoção após baseline)
+    name: 05 · Android Verified Official (promoção após validação interna)
     needs: [changes, android-baseline]
     if: >-
       always() && needs.android-baseline.result == 'success' && (
@@ -226,7 +227,7 @@ jobs:
     if: >-
       always() && needs.android-verified.result != 'failure' && (
       (github.event_name == 'workflow_dispatch' && inputs.run_android_ci)
-      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.android == 'true'))
+      || (github.event_name != 'workflow_dispatch' && needs.changes.outputs.android_canonical == 'true'))
     uses: ./.github/workflows/android-minimal-debug.yml
     with:
       provenance_run_id: ${{ needs.provenance.outputs.run_id }}

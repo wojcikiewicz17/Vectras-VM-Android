@@ -14,7 +14,6 @@ QEMU_LAUNCH = ROOT / "tools" / "qemu_launch.yml"
 ALLOWED_SCOPES = {"official_distribution", "internal_validation"}
 POLICY_TO_SCOPE = {
     "arm64-only": "official_distribution",
-    "all": "internal_validation",
 }
 
 
@@ -84,7 +83,7 @@ def main() -> int:
     policy, gradle_supported_abis = parse_gradle_properties(GRADLE_PROPERTIES)
     qemu_scope, qemu_scope_abis = parse_qemu_abi_scopes(QEMU_LAUNCH)
 
-    if policy not in {"arm64-only", "with-32bit", "all"}:
+    if policy not in {"arm64-only"}:
         return fail(f"unsupported APP_ABI_POLICY={policy!r}")
 
     if qemu_scope not in ALLOWED_SCOPES:
@@ -98,18 +97,8 @@ def main() -> int:
         return fail("tools/qemu_launch.yml abi_filters.scope must default to official_distribution")
 
     expected_abis: list[str]
-    if policy in POLICY_TO_SCOPE:
-        mapped_scope = POLICY_TO_SCOPE[policy]
-        expected_abis = qemu_scope_abis[mapped_scope]
-    else:
-        expected_abis = ["arm64-v8a", "armeabi-v7a"]
-        if expected_abis != gradle_supported_abis:
-            return fail(
-                "APP_ABI_POLICY=with-32bit requires SUPPORTED_ABIS=arm64-v8a,armeabi-v7a "
-                f"(found {','.join(gradle_supported_abis)})"
-            )
-        if not set(expected_abis).issubset(set(qemu_scope_abis["internal_validation"])):
-            return fail("with-32bit ABI subset must be included inside qemu internal_validation scope")
+    mapped_scope = POLICY_TO_SCOPE[policy]
+    expected_abis = qemu_scope_abis[mapped_scope]
 
     if gradle_supported_abis != expected_abis:
         return fail(

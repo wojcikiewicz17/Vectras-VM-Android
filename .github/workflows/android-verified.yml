@@ -28,7 +28,7 @@ on:
       abi_policy:
         description: "ABI policy"
         type: choice
-        options: [arm64-only, with-32bit]
+        options: [arm64-only]
         default: arm64-only
       ndk_version:
         description: "NDK version (override)"
@@ -106,40 +106,6 @@ on:
         required: false
       ANDROID_SIGNING_KEYSTORE:
         required: false
-  workflow_dispatch:
-    inputs:
-      build_variant:
-        description: "Build variant"
-        type: choice
-        options: [debug, release, both]
-        default: debug
-      build_mode:
-        description: "Execution mode (11 níveis)"
-        type: choice
-        options: [fast, moderado, profundo, ultra_minucioso, diagnostico, interoperavel, confiavel, portavel, hardening, matrix_total, forense]
-        default: moderado
-      abi_policy:
-        description: "ABI policy"
-        type: choice
-        options: [arm64-only, with-32bit]
-        default: arm64-only
-      ndk_version:
-        description: "NDK version (override)"
-        default: "27.2.12479018"
-      signing_mode:
-        description: "Release signing mode"
-        type: choice
-        options: [auto, unsigned, signed]
-        default: auto
-      enable_policy_module:
-        description: "Enable RMR policy module"
-        type: boolean
-        default: true
-      enable_bitraf_module:
-        description: "Enable BITRAF module"
-        type: boolean
-        default: true
-
 permissions:
   contents: read
   actions: read
@@ -342,6 +308,14 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Bootstrap shell-loader asset (mandatory)
+        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
+
+      - name: Verify bootstrap assets (mandatory)
+        run: |
+          python3 tools/verify_bootstrap_assets.py
+          ./tools/gradle_with_jdk21.sh verifyBootstrapAssets --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }}
+
       - name: Build debug with mode policy
         shell: bash
         run: |
@@ -439,6 +413,14 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Bootstrap shell-loader asset (mandatory)
+        run: ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
+
+      - name: Verify bootstrap assets (mandatory)
+        run: |
+          python3 tools/verify_bootstrap_assets.py
+          ./tools/gradle_with_jdk21.sh verifyBootstrapAssets --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }}
+
       - name: Assemble release (auto/signed/unsigned)
         shell: bash
         env:
@@ -513,17 +495,20 @@ jobs:
             echo "${VECTRAS_GOOGLE_SERVICES_JSON_B64}" | base64 --decode > app/google-services.json
             echo "Loaded production Firebase config from VECTRAS_GOOGLE_SERVICES_JSON_B64."
           elif [[ "${EXTRA_RELEASE_FLAGS}" == *"-PCI_INTERNAL_VALIDATION=true"* ]]; then
-            cat > app/google-services.json <<'JSON'
-            {
-              "project_info": {
-                "project_number": "0",
-                "project_id": "placeholder-internal-validation",
-                "storage_bucket": "placeholder-internal-validation.appspot.com"
-              },
-              "client": [],
-              "configuration_version": "1"
-            }
-            JSON
+            python3 - <<'PY'
+import json
+from pathlib import Path
+payload = {
+    "project_info": {
+        "project_number": "0",
+        "project_id": "placeholder-internal-validation",
+        "storage_bucket": "placeholder-internal-validation.appspot.com",
+    },
+    "client": [],
+    "configuration_version": "1",
+}
+Path("app/google-services.json").write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+PY
             echo "Using placeholder Firebase config for unsigned internal validation."
           else
             echo "::error::google-services.json de produção ausente para caminho oficial assinado."
@@ -610,9 +595,12 @@ jobs:
           retention-days: 30
           if-no-files-found: ignore
           path: |
-            app/build/outputs/apk/release/*.apk
-            app/build/outputs/mapping/release/**
+            app/build/outputs/apk/**
+            app/build/outputs/bundle/**
+            app/build/outputs/mapping/**
+            app/build/reports/artifacts/compiled-artifacts-report.json
             app/build/reports/**
+            **/*.log
 
   summary:
     name: "Summary"
