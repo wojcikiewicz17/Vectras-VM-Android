@@ -109,7 +109,7 @@ jobs:
       - name: Materialize Firebase config (optional fallback for debug/tests)
         env:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
-        run: ./tools/ci/materialize_google_services_placeholder.sh
+        run: ./tools/ci/materialize_firebase_config.sh --policy internal
 
       - name: Enforce ABI contract gate (mandatory)
         uses: ./.github/actions/abi-contract-gate

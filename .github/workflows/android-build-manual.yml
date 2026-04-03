@@ -88,32 +88,209 @@ permissions:
   actions: read
 
 jobs:
-  canonical-manual:
-    if: github.event_name == 'workflow_dispatch'
-    name: Delegar execução manual para fluxo canônico
-    uses: ./.github/workflows/android-verified.yml
-    with:
-      provenance_run_id: ""
-      expected_sha: ""
-      provenance_manifest_hash: ""
-      mode: ${{ github.event.inputs.mode }}
-      build_variant: ${{ github.event.inputs.build_variant }}
-      run_lint: ${{ github.event.inputs.run_lint == 'true' }}
-      run_native_matrix: ${{ github.event.inputs.run_native_matrix == 'true' }}
-      signing_mode: ${{ github.event.inputs.signing_mode }}
-    secrets: inherit
+  android-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    env:
+      JAVA_VERSION: ${{ inputs.java_version || '17' }}
+      COMPILE_API: ${{ inputs.android_api || '35' }}
+      TARGET_API: ${{ inputs.android_api || '35' }}
+      TOOLS_VERSION: ${{ inputs.build_tools || '35.0.0' }}
+      NDK_VERSION: ${{ inputs.ndk_version || '27.2.12479018' }}
+      CMAKE_VERSION: ${{ inputs.cmake_version || '3.22.1' }}
+      MODE: ${{ inputs.mode || 'moderado' }}
+      GRADLE_EXTRA_ARGS: ${{ inputs.gradle_extra_args || '' }}
+      GRADLE_ARGS: >-
+        -PCOMPILE_API=${{ inputs.android_api || '35' }} -PTARGET_API=${{ inputs.android_api || '35' }} -PRELEASE_MIN_TARGET_API=${{ inputs.android_api || '35' }}
+        -PTOOLS_VERSION=${{ inputs.build_tools || '35.0.0' }} -PJAVA_LANGUAGE_VERSION=${{ inputs.java_version || '17' }}
+        -PCMAKE_VERSION=${{ inputs.cmake_version || '3.22.1' }} -PNDK_VERSION=${{ inputs.ndk_version || '27.2.12479018' }}
 
-  canonical-called:
-    if: github.event_name == 'workflow_call'
-    name: Delegar workflow_call para fluxo canônico
-    uses: ./.github/workflows/android-verified.yml
-    with:
-      provenance_run_id: ${{ inputs.provenance_run_id }}
-      expected_sha: ${{ inputs.expected_sha }}
-      provenance_manifest_hash: ${{ inputs.provenance_manifest_hash }}
-      mode: ${{ inputs.mode }}
-      build_variant: ${{ inputs.build_variant }}
-      run_lint: ${{ inputs.run_lint }}
-      run_native_matrix: ${{ inputs.run_native_matrix }}
-      signing_mode: ${{ inputs.signing_mode }}
-    secrets: inherit
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Validate provenance chain-of-custody
+        if: ${{ github.event_name == 'workflow_call' }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PROVENANCE_RUN_ID: ${{ inputs.provenance_run_id }}
+          EXPECTED_SHA: ${{ inputs.expected_sha }}
+          EXPECTED_MANIFEST_HASH: ${{ inputs.provenance_manifest_hash }}
+          CURRENT_SHA: ${{ github.sha }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$EXPECTED_SHA" == "$CURRENT_SHA" ]] || { echo "SHA mismatch: expected=$EXPECTED_SHA current=$CURRENT_SHA" >&2; exit 1; }
+          python3 - <<'PY'
+          import hashlib, io, json, os, urllib.request, zipfile
+          token = os.environ["GITHUB_TOKEN"]; repo = os.environ["REPO"]; run_id = os.environ["PROVENANCE_RUN_ID"]
+          expected_sha = os.environ["EXPECTED_SHA"]; expected_hash = os.environ["EXPECTED_MANIFEST_HASH"]
+          req = urllib.request.Request(f"https://api.github.com/repos/{repo}/actions/runs/{run_id}/artifacts?per_page=100", headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})
+          with urllib.request.urlopen(req) as r: artifacts = json.load(r).get("artifacts", [])
+          artifact = next((a for a in artifacts if a.get("name") == "chain-of-custody"), None)
+          if not artifact: raise SystemExit("Artifact chain-of-custody not found")
+          with urllib.request.urlopen(urllib.request.Request(artifact["archive_download_url"], headers={"Authorization": f"Bearer {token}", "Accept": "application/vnd.github+json"})) as r: blob = r.read()
+          with zipfile.ZipFile(io.BytesIO(blob)) as zf: raw = zf.read("provenance.json")
+          got_hash = hashlib.sha256(raw).hexdigest()
+          if got_hash != expected_hash: raise SystemExit(f"Manifest hash mismatch: expected={expected_hash} got={got_hash}")
+          data = json.loads(raw)
+          if data["github"]["sha"] != expected_sha: raise SystemExit("Manifest SHA differs from expected SHA")
+          if str(data["github"]["run_id"]) != str(run_id): raise SystemExit("Manifest run_id differs from provenance_run_id")
+          print("Provenance validation passed")
+          PY
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android packages
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
+
+      - name: Build local.properties
+        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}" --require-sdkmanager
+
+      - name: Materialize Firebase config (debug/tests)
+        env:
+          VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
+        run: ./tools/ci/materialize_firebase_config.sh --policy internal
+
+      - name: Resolve diagnostic profile
+        id: mode
+        run: |
+          set -euo pipefail
+          case "${MODE}" in
+            fast)
+              echo "run_repo_checks=false" >> "$GITHUB_OUTPUT"
+              echo "run_connected_tests=false" >> "$GITHUB_OUTPUT"
+              ;;
+            moderado)
+              echo "run_repo_checks=true" >> "$GITHUB_OUTPUT"
+              echo "run_connected_tests=false" >> "$GITHUB_OUTPUT"
+              ;;
+            profundo|ultra_minucioso|interoperabilidade|confiabilidade|diagnostico|release_ready|hardware_focus|matrix_total|holistico)
+              echo "run_repo_checks=true" >> "$GITHUB_OUTPUT"
+              echo "run_connected_tests=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Modo inválido: ${MODE}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Enforce bootstrap contract (sync -> verify)
+        run: ./tools/ci/verify_bootstrap_contract.sh ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+
+      - name: Verify Gradle baseline gates
+        if: steps.mode.outputs.run_repo_checks == 'true'
+        run: |
+          ./tools/gradle_with_jdk21.sh \
+            verifyGradleRuntimeJvm verifyTargetApiBaseline verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility \
+            verifyBootstrapAssets verifyRepoFileDependencies \
+            ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+
+      - name: Run optional lint/tests
+        run: |
+          set -euo pipefail
+          tasks=()
+          if [[ "${{ inputs.run_lint }}" == 'true' ]]; then
+            tasks+=(":app:lintDebug")
+          fi
+          if [[ "${{ inputs.run_unit_tests }}" == 'true' ]]; then
+            tasks+=(":app:testDebugUnitTest")
+          fi
+          if [[ ${#tasks[@]} -gt 0 ]]; then
+            ./tools/gradle_with_jdk21.sh "${tasks[@]}" ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+          fi
+
+      - name: Run native matrix
+        if: inputs.run_native_matrix
+        run: ./tools/gradle_with_jdk21.sh checkNativeAllMatrix -PbuildStrict=true ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+
+      - name: Assemble Debug
+        if: inputs.build_debug
+        run: ./tools/gradle_with_jdk21.sh :app:assembleDebug --stacktrace ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+
+      - name: Build unsigned internal release/perfRelease
+        if: inputs.build_release && !inputs.sign_release
+        run: |
+          ./tools/gradle_with_jdk21.sh :app:assembleRelease :app:assemblePerfRelease --stacktrace \
+            -PALLOW_UNSIGNED_RELEASE=true \
+            -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true \
+            -PCI_INTERNAL_VALIDATION=true \
+            ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+
+      - name: Decode release keystore
+        if: inputs.build_release && inputs.sign_release
+        env:
+          VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
+          VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
+          VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
+          VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          mkdir -p .ci-keystore
+          ./tools/ci/prepare_release_signing.sh --mode signed --keystore-out "$PWD/.ci-keystore/release.jks"
+
+      - name: Build signed release/perfRelease
+        if: inputs.build_release && inputs.sign_release
+        run: |
+          set -euo pipefail
+          ./tools/gradle_with_jdk21.sh :app:assembleRelease :app:assemblePerfRelease --stacktrace \
+            ${VECTRAS_CI_SIGNING_ARGS} \
+            ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+
+      - name: Verify delivered compiled artifacts
+        if: inputs.build_debug || inputs.build_release
+        run: |
+          set -euo pipefail
+          variants=()
+          if [[ "${{ inputs.build_debug }}" == 'true' ]]; then variants+=("debug"); fi
+          if [[ "${{ inputs.build_release }}" == 'true' ]]; then variants+=("release" "perfRelease"); fi
+          artifact_variants=$(IFS=,; echo "${variants[*]}")
+          ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts \
+            -PartifactVariants="${artifact_variants}" \
+            ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+          ./tools/ci/verify_artifact_contract.sh --variants "${artifact_variants}"
+
+      - name: Upload compiled artifacts report (required)
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: android-compiled-artifacts-report
+          path: app/build/reports/artifacts/compiled-artifacts-report.json
+          if-no-files-found: error
+
+      - name: Upload compiled outputs bundle
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: android-compiled-outputs
+          path: |
+            app/build/outputs/apk/**
+            app/build/outputs/bundle/**
+            app/build/outputs/mapping/**
+          if-no-files-found: error
+
+      - name: Upload diagnostics and logs
+        if: always()
+        uses: actions/upload-artifact@v5
+        with:
+          name: android-manual-diagnostics-${{ github.run_number }}
+          path: |
+            **/build/reports/**
+            **/build/test-results/**
+            **/*.log
+          if-no-files-found: warn
+
+      - name: Cleanup signing material
+        if: always()
+        run: rm -rf .ci-keystore
