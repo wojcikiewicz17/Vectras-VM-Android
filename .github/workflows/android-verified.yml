@@ -1,16 +1,69 @@
 name: "Android Build (Interoperable & Reliable)"
 
 on:
+  push:
+    branches: [main, master, dev, release/**]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:
+    inputs:
+      build_variant:
+        description: "Build variant"
+        type: choice
+        options: [debug, release, both]
+        default: debug
+      mode:
+        description: "Execution mode profile"
+        type: choice
+        options: [fast, moderado, profundo, ultra_minucioso, diagnostico, interoperavel, confiavel, portavel, hardening, matrix_total, forense]
+        default: moderado
+      run_lint:
+        description: "Run lint checks"
+        type: boolean
+        default: true
+      run_native_matrix:
+        description: "Run native matrix checks"
+        type: boolean
+        default: false
+      abi_policy:
+        description: "ABI policy"
+        type: choice
+        options: [arm64-only, with-32bit]
+        default: arm64-only
+      ndk_version:
+        description: "NDK version (override)"
+        default: "27.2.12479018"
+      signing_mode:
+        description: "Release signing mode"
+        type: choice
+        options: [auto, unsigned, signed]
+        default: auto
+      enable_policy_module:
+        description: "Enable RMR policy module"
+        type: boolean
+        default: true
+      enable_bitraf_module:
+        description: "Enable BITRAF module"
+        type: boolean
+        default: true
   workflow_call:
     inputs:
       build_variant:
         required: false
         type: string
         default: "debug"
-      build_mode:
+      mode:
         required: false
         type: string
         default: "moderado"
+      run_lint:
+        required: false
+        type: boolean
+        default: true
+      run_native_matrix:
+        required: false
+        type: boolean
+        default: false
       abi_policy:
         required: false
         type: string
@@ -101,14 +154,15 @@ jobs:
     outputs:
       run_debug: ${{ steps.resolve.outputs.run_debug }}
       run_release: ${{ steps.resolve.outputs.run_release }}
-      build_mode: ${{ steps.resolve.outputs.build_mode }}
+      mode: ${{ steps.resolve.outputs.mode }}
       abi_policy: ${{ steps.resolve.outputs.abi_policy }}
       ndk_version: ${{ steps.resolve.outputs.ndk_version }}
       signing_mode: ${{ steps.resolve.outputs.signing_mode }}
       rmr_policy: ${{ steps.resolve.outputs.rmr_policy }}
       rmr_bitraf: ${{ steps.resolve.outputs.rmr_bitraf }}
-      gradle_checks: ${{ steps.mode.outputs.gradle_checks }}
-      native_matrix: ${{ steps.mode.outputs.native_matrix }}
+      run_lint: ${{ steps.resolve.outputs.run_lint }}
+      run_native_matrix: ${{ steps.resolve.outputs.run_native_matrix }}
+      run_unit_tests: ${{ steps.mode.outputs.run_unit_tests }}
       gradle_log_flags: ${{ steps.mode.outputs.gradle_log_flags }}
       collect_deep_diagnostics: ${{ steps.mode.outputs.collect_deep_diagnostics }}
     steps:
@@ -124,7 +178,9 @@ jobs:
             if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
               case "$key" in
                 build_variant) v="${{ github.event.inputs.build_variant }}" ;;
-                build_mode) v="${{ github.event.inputs.build_mode }}" ;;
+                mode) v="${{ github.event.inputs.mode }}" ;;
+                run_lint) v="${{ github.event.inputs.run_lint }}" ;;
+                run_native_matrix) v="${{ github.event.inputs.run_native_matrix }}" ;;
                 abi_policy) v="${{ github.event.inputs.abi_policy }}" ;;
                 ndk_version) v="${{ github.event.inputs.ndk_version }}" ;;
                 signing_mode) v="${{ github.event.inputs.signing_mode }}" ;;
@@ -134,7 +190,9 @@ jobs:
             elif [[ "${{ github.event_name }}" == "workflow_call" ]]; then
               case "$key" in
                 build_variant) v="${{ inputs.build_variant }}" ;;
-                build_mode) v="${{ inputs.build_mode }}" ;;
+                mode) v="${{ inputs.mode }}" ;;
+                run_lint) v="${{ inputs.run_lint }}" ;;
+                run_native_matrix) v="${{ inputs.run_native_matrix }}" ;;
                 abi_policy) v="${{ inputs.abi_policy }}" ;;
                 ndk_version) v="${{ inputs.ndk_version }}" ;;
                 signing_mode) v="${{ inputs.signing_mode }}" ;;
@@ -146,7 +204,9 @@ jobs:
           }
 
           VARIANT="$(get_input build_variant debug)"
-          MODE="$(get_input build_mode moderado)"
+          MODE="$(get_input mode moderado)"
+          RUN_LINT="$(get_input run_lint true)"
+          RUN_NATIVE_MATRIX="$(get_input run_native_matrix false)"
           ABI_POLICY="$(get_input abi_policy arm64-only)"
           NDK_VERSION="$(get_input ndk_version 27.2.12479018)"
           SIGNING_MODE="$(get_input signing_mode auto)"
@@ -156,40 +216,39 @@ jobs:
           [[ "$VARIANT" == "both" || "$VARIANT" == "debug" ]] && echo "run_debug=true" >> "$GITHUB_OUTPUT" || echo "run_debug=false" >> "$GITHUB_OUTPUT"
           [[ "$VARIANT" == "both" || "$VARIANT" == "release" ]] && echo "run_release=true" >> "$GITHUB_OUTPUT" || echo "run_release=false" >> "$GITHUB_OUTPUT"
 
-          echo "build_mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          [[ "$RUN_LINT" == "false" ]] && echo "run_lint=false" >> "$GITHUB_OUTPUT" || echo "run_lint=true" >> "$GITHUB_OUTPUT"
+          [[ "$RUN_NATIVE_MATRIX" == "true" ]] && echo "run_native_matrix=true" >> "$GITHUB_OUTPUT" || echo "run_native_matrix=false" >> "$GITHUB_OUTPUT"
           echo "abi_policy=$ABI_POLICY" >> "$GITHUB_OUTPUT"
           echo "ndk_version=$NDK_VERSION" >> "$GITHUB_OUTPUT"
           echo "signing_mode=$SIGNING_MODE" >> "$GITHUB_OUTPUT"
           [[ "$POLICY_MODULE" == "false" ]] && echo "rmr_policy=OFF" >> "$GITHUB_OUTPUT" || echo "rmr_policy=ON" >> "$GITHUB_OUTPUT"
           [[ "$BITRAF_MODULE" == "false" ]] && echo "rmr_bitraf=OFF" >> "$GITHUB_OUTPUT" || echo "rmr_bitraf=ON" >> "$GITHUB_OUTPUT"
 
-      - name: Build mode policy (fast/moderado/profundo + 8)
+      - name: Build mode policy (see docs/ci/android-mode-matrix.md)
         id: mode
         shell: bash
         run: |
           set -euo pipefail
-          MODE="${{ steps.resolve.outputs.build_mode }}"
+          MODE="${{ steps.resolve.outputs.mode }}"
           case "$MODE" in
             fast)
-              echo "gradle_checks=lintDebug" >> "$GITHUB_OUTPUT"
-              echo "native_matrix=false" >> "$GITHUB_OUTPUT"
+              echo "run_unit_tests=false" >> "$GITHUB_OUTPUT"
               echo "gradle_log_flags=--console=plain" >> "$GITHUB_OUTPUT"
               echo "collect_deep_diagnostics=false" >> "$GITHUB_OUTPUT"
               ;;
             moderado)
-              echo "gradle_checks=lintDebug testDebugUnitTest" >> "$GITHUB_OUTPUT"
-              echo "native_matrix=false" >> "$GITHUB_OUTPUT"
+              echo "run_unit_tests=true" >> "$GITHUB_OUTPUT"
               echo "gradle_log_flags=--stacktrace" >> "$GITHUB_OUTPUT"
               echo "collect_deep_diagnostics=false" >> "$GITHUB_OUTPUT"
               ;;
             profundo|ultra_minucioso|diagnostico|interoperavel|confiavel|portavel|hardening|matrix_total|forense)
-              echo "gradle_checks=lintDebug testDebugUnitTest checkNativeAllMatrix" >> "$GITHUB_OUTPUT"
-              echo "native_matrix=true" >> "$GITHUB_OUTPUT"
+              echo "run_unit_tests=true" >> "$GITHUB_OUTPUT"
               echo "gradle_log_flags=--stacktrace --info" >> "$GITHUB_OUTPUT"
               echo "collect_deep_diagnostics=true" >> "$GITHUB_OUTPUT"
               ;;
             *)
-              echo "::error::Unsupported build_mode: $MODE"
+              echo "::error::Unsupported mode: $MODE"
               exit 1
               ;;
           esac
@@ -251,9 +310,17 @@ jobs:
 
           ./tools/gradle_with_jdk21.sh verifyMinApiAbiCompatibility verifyArm64ToolchainCompatibility --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
 
-          for TASK in ${{ needs.preflight.outputs.gradle_checks }}; do
-            ./tools/gradle_with_jdk21.sh "$TASK" --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
-          done
+          if [[ "${{ needs.preflight.outputs.run_lint }}" == "true" ]]; then
+            ./tools/gradle_with_jdk21.sh lintDebug --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
+          fi
+
+          if [[ "${{ needs.preflight.outputs.run_unit_tests }}" == "true" ]]; then
+            ./tools/gradle_with_jdk21.sh testDebugUnitTest --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
+          fi
+
+          if [[ "${{ needs.preflight.outputs.run_native_matrix }}" == "true" ]]; then
+            ./tools/gradle_with_jdk21.sh checkNativeAllMatrix --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
+          fi
 
           ./tools/gradle_with_jdk21.sh assembleDebug --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS
 
@@ -433,7 +500,7 @@ jobs:
             fi
           fi
 
-          if [[ "${{ needs.preflight.outputs.native_matrix }}" == "true" ]]; then
+          if [[ "${{ needs.preflight.outputs.run_native_matrix }}" == "true" ]]; then
             ./tools/gradle_with_jdk21.sh checkNativeAllMatrix --no-daemon ${{ needs.preflight.outputs.gradle_log_flags }} $BASE_FLAGS $EXTRA_RELEASE_FLAGS
           fi
 
@@ -517,7 +584,7 @@ jobs:
           echo "=============================================="
           echo " Android Build (Interoperable & Reliable)"
           echo "=============================================="
-          echo " mode:      ${{ needs.preflight.outputs.build_mode }}"
+          echo " mode:      ${{ needs.preflight.outputs.mode }}"
           echo " debug:     ${{ needs.build_debug.result }}"
           echo " release:   ${{ needs.build_release.result }}"
           echo "=============================================="
