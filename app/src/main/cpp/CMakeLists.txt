@@ -62,8 +62,20 @@ add_library(vectra_core_accel SHARED
     ${VECTRA_LOWLEVEL_SOURCES}
     ${VECTRA_CASM_SOURCES})
 
-add_library(termux-bootstrap SHARED
-    termux_bootstrap_bridge.c)
+set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS arm64-v8a armeabi-v7a x86 x86_64)
+set(TERMUX_BOOTSTRAP_BUILD_ENABLED ON)
+if(ANDROID)
+    list(FIND TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "${CMAKE_ANDROID_ARCH_ABI}" TERMUX_BOOTSTRAP_ABI_INDEX)
+    if(TERMUX_BOOTSTRAP_ABI_INDEX EQUAL -1)
+        set(TERMUX_BOOTSTRAP_BUILD_ENABLED OFF)
+        message(STATUS "termux-bootstrap disabled for unsupported ABI: ${CMAKE_ANDROID_ARCH_ABI}")
+    endif()
+endif()
+
+if(TERMUX_BOOTSTRAP_BUILD_ENABLED)
+    add_library(termux-bootstrap SHARED
+        termux_bootstrap_bridge.c)
+endif()
 
 if(VECTRA_CASM_SOURCES)
     target_compile_definitions(vectra_core_accel PRIVATE VECTRA_HAS_CASM_MARKER=1)
@@ -80,8 +92,6 @@ if(RMR_ENABLE_BITRAF_MODULE)
     add_library(bitraf_static STATIC
         ../../../../engine/rmr/src/bitraf.c)
 endif()
-
-find_library(log-lib log)
 
 if(ANDROID)
     find_library(log-lib log)
@@ -161,9 +171,11 @@ endif()
 target_compile_options(vectra_core_accel PRIVATE
     ${VECTRA_COMMON_COMPILE_OPTIONS}
     ${VECTRA_ABI_COMPILE_OPTIONS})
-target_compile_options(termux-bootstrap PRIVATE
-    ${VECTRA_COMMON_COMPILE_OPTIONS}
-    ${VECTRA_ABI_COMPILE_OPTIONS})
+if(TARGET termux-bootstrap)
+    target_compile_options(termux-bootstrap PRIVATE
+        ${VECTRA_COMMON_COMPILE_OPTIONS}
+        ${VECTRA_ABI_COMPILE_OPTIONS})
+endif()
 
 target_compile_definitions(vectra_core_accel PRIVATE
     RMR_ASM_CORE_EXPERIMENTAL=$<BOOL:${RMR_ASM_CORE_EXPERIMENTAL}>
@@ -172,24 +184,32 @@ target_compile_definitions(vectra_core_accel PRIVATE
     RMR_ASM_CORE_RISCV64_VALIDATED=$<BOOL:${RMR_ASM_CORE_RISCV64_VALIDATED}>)
 
 target_link_libraries(vectra_core_accel PRIVATE ${log-lib})
-target_link_libraries(termux-bootstrap PRIVATE ${log-lib})
+if(TARGET termux-bootstrap)
+    target_link_libraries(termux-bootstrap PRIVATE ${log-lib})
+endif()
 
 target_include_directories(vectra_core_accel PRIVATE
     ${VECTRA_RMR_INCLUDE_DIR})
 
-target_include_directories(termux-bootstrap PRIVATE
-    ${VECTRA_RMR_INCLUDE_DIR})
+if(TARGET termux-bootstrap)
+    target_include_directories(termux-bootstrap PRIVATE
+        ${VECTRA_RMR_INCLUDE_DIR})
+endif()
 
 if(NOT ANDROID)
     target_include_directories(vectra_core_accel PRIVATE ${JNI_INCLUDE_DIRS})
-    target_include_directories(termux-bootstrap PRIVATE ${JNI_INCLUDE_DIRS})
+    if(TARGET termux-bootstrap)
+        target_include_directories(termux-bootstrap PRIVATE ${JNI_INCLUDE_DIRS})
+    endif()
 endif()
 
 if(CMAKE_ANDROID_NDK)
     target_include_directories(vectra_core_accel PRIVATE
         ${CMAKE_ANDROID_NDK}/sysroot/usr/include
         ${CMAKE_ANDROID_NDK}/sysroot/usr/include/${CMAKE_ANDROID_ARCH_TRIPLE})
-    target_include_directories(termux-bootstrap PRIVATE
-        ${CMAKE_ANDROID_NDK}/sysroot/usr/include
-        ${CMAKE_ANDROID_NDK}/sysroot/usr/include/${CMAKE_ANDROID_ARCH_TRIPLE})
+    if(TARGET termux-bootstrap)
+        target_include_directories(termux-bootstrap PRIVATE
+            ${CMAKE_ANDROID_NDK}/sysroot/usr/include
+            ${CMAKE_ANDROID_NDK}/sysroot/usr/include/${CMAKE_ANDROID_ARCH_TRIPLE})
+    endif()
 endif()
