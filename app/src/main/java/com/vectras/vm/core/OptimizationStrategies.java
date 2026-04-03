@@ -149,16 +149,10 @@ public final class OptimizationStrategies {
     // ========== Memory Optimizations ==========
     
     /**
-     * Fixed-capacity object pool backed by a raw object array ({@code Object[]}).
-     *
-     * <p>Concurrency model: synchronized methods with an explicit monitor on this instance.
-     * This implementation is thread-safe, but it is not lock-free.
-     *
-     * <p>Allocation behavior:
-     * <ul>
-     *   <li>Normal acquire/release path does not allocate.</li>
-     *   <li>{@link #acquire()} allocates only when the pool is empty (factory fallback).</li>
-     * </ul>
+     * Simple object pool for reducing allocations.
+     * <p>
+     * This implementation is optimized for single-threaded usage and is not thread-safe.
+     * </p>
      */
     public static class ObjectPool<T> {
         private final Object[] pool;
@@ -174,27 +168,30 @@ public final class OptimizationStrategies {
             }
             this.factory = factory;
             this.pool = new Object[capacity];
-
-            // Pre-populate pool.
+            this.top = 0;
+            
+            // Pre-populate pool
             for (int i = 0; i < capacity; i++) {
                 pool[i] = factory.create();
             }
             this.top = capacity;
         }
-
+        
         @SuppressWarnings("unchecked")
-        public synchronized T acquire() {
+        public T acquire() {
             if (top > 0) {
                 int idx = --top;
                 T obj = (T) pool[idx];
                 pool[idx] = null;
-                return obj;
+                if (obj != null) {
+                    return obj;
+                }
             }
             // Pool empty, create new (fallback path).
             return factory.create();
         }
-
-        public synchronized void release(T obj) {
+        
+        public void release(T obj) {
             if (obj == null) {
                 return;
             }
