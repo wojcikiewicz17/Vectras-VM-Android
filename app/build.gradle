@@ -356,25 +356,6 @@ tasks.matching { task ->
     dependsOn(tasks.named("validateReleaseSigningConfig"))
 }
 
-
-
-
-def resolveGradleWrapperCommandLine(String taskPath, List<String> extraArgs = []) {
-    def osName = System.getProperty('os.name', '').toLowerCase()
-    def isWindows = osName.contains('windows')
-    def wrapperFile = rootProject.file(isWindows ? 'gradlew.bat' : 'gradlew')
-
-    if (!wrapperFile.exists()) {
-        throw new GradleException("Gradle wrapper não encontrado em ${wrapperFile}. Gere/restaure gradlew antes de executar checks nativos.")
-    }
-
-    if (!isWindows && !wrapperFile.canExecute()) {
-        throw new GradleException("Arquivo gradlew sem permissão de execução (${wrapperFile}). Execute: chmod +x gradlew")
-    }
-
-    return [wrapperFile.absolutePath, taskPath] + extraArgs
-}
-
 def officialNativeCheckAbiPolicies = ['arm64-only', 'with-32bit'].sort()
 def officialNativeCheckBuildVariants = ['release', 'perfRelease'].sort()
 
@@ -404,7 +385,7 @@ def registerNativeMatrixTasks = { List<String> abiPolicies, List<String> buildVa
             def nativeTaskName = "checkNative${taskNameSuffix}${abiPolicyTaskPart(policy)}${variantTaskPart(variant)}"
             matrixTasks << nativeTaskName
 
-            tasks.register(nativeTaskName, Exec) {
+            tasks.register(nativeTaskName, GradleBuild) {
                 group = "verification"
                 def isInternalValidationVariant = (variant == 'debug')
                 def releaseImpactDescription = matrixLabel == 'official'
@@ -418,7 +399,6 @@ def registerNativeMatrixTasks = { List<String> abiPolicies, List<String> buildVa
                 } else {
                     gradleArgs << "-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=false"
                 }
-                commandLine(resolveGradleWrapperCommandLine(':app:assemble' + variantTaskPart(variant), gradleArgs))
             }
         }
     }
@@ -444,7 +424,7 @@ def checkNativeExtendedMatrixTasks = registerNativeMatrixTasks(
 
 tasks.register('checkNativeExtendedMatrix') {
     group = "verification"
-    description = "[diagnóstico] Matriz expandida opcional (não bloqueante para release). Requer -PENABLE_EXTENDED_ABI_MATRIX=true para executar combinações não-oficiais."
+    description = "[diagnóstico determinístico] Matriz expandida opcional via Gradle interno (sem shell-out); mantém combinação oficial + não-oficiais somente com -PENABLE_EXTENDED_ABI_MATRIX=true."
 
     if (enableExtendedAbiMatrix) {
         dependsOn(checkNativeExtendedMatrixTasks)
@@ -459,7 +439,7 @@ tasks.register('checkNativeExtendedMatrix') {
 
 tasks.register('checkNativeAllMatrix') {
     group = "verification"
-    description = "[bloqueante release] Alvo canônico de CI oficial: executa apenas combinações aprovadas de APP_ABI_POLICY/variants e validações de compatibilidade."
+    description = "[bloqueante release determinístico] Alvo canônico de CI oficial via Gradle interno (sem shell-out): executa exatamente combinações aprovadas APP_ABI_POLICY/variant + validações de compatibilidade."
 
     // Matriz oficial de assemble da app por política/variant.
     dependsOn(checkNativeOfficialMatrixTasks)
