@@ -801,6 +801,32 @@ jobs:
         echo "No release APK found after release build" >&2
         exit 1
 
+    - name: Verify delivered compiled artifacts report
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
+      env:
+        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
+        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+      run: ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=release ${{ env.GRADLE_ARGS }}
+
+    - name: Upload compiled artifacts report
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-compiled-artifacts-report
+        path: app/build/reports/artifacts/compiled-artifacts-report.json
+        if-no-files-found: error
+
+    - name: Upload compiled outputs bundle
+      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: android-compiled-outputs
+        path: |
+          app/build/outputs/apk/**
+          app/build/outputs/bundle/**
+          app/build/outputs/mapping/**
+        if-no-files-found: error
+
     - name: Upload Debug APK as artifact
       if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
       uses: actions/upload-artifact@v4

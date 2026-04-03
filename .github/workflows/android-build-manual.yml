@@ -306,6 +306,26 @@ jobs:
           set -euo pipefail
           ./gradlew --no-daemon --stacktrace ":${GRADLE_MODULE}:assembleRelease" ${GRADLE_EXTRA_ARGS}
 
+      - name: Verify delivered compiled artifacts report
+        if: inputs.build_debug || inputs.build_release
+        run: |
+          set -euo pipefail
+          variants=()
+          if [[ "${{ inputs.build_debug }}" == 'true' ]]; then
+            variants+=("debug")
+          fi
+          if [[ "${{ inputs.build_release }}" == 'true' ]]; then
+            variants+=("release")
+          fi
+
+          if [[ ${#variants[@]} -eq 0 ]]; then
+            echo "No build variants selected; skipping compiled artifacts verification."
+            exit 0
+          fi
+
+          artifact_variants=$(IFS=,; echo "${variants[*]}")
+          ./gradlew --no-daemon --stacktrace ":${GRADLE_MODULE}:verifyDeliveredCompiledArtifacts" -PartifactVariants="${artifact_variants}" ${GRADLE_EXTRA_ARGS}
+
       - name: Sign Release APK
         if: inputs.build_release && inputs.sign_release
         env:
@@ -353,13 +373,31 @@ jobs:
             echo "- API: ${COMPILE_API}, Build Tools: ${TOOLS_VERSION}, NDK: ${NDK_VERSION}, CMake: ${CMAKE_VERSION}"
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Upload compiled artifacts report
+        if: always() && (inputs.build_debug || inputs.build_release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-compiled-artifacts-report
+          path: app/build/reports/artifacts/compiled-artifacts-report.json
+          if-no-files-found: error
+
+      - name: Upload compiled outputs bundle
+        if: always() && (inputs.build_debug || inputs.build_release)
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-compiled-outputs
+          path: |
+            app/build/outputs/apk/**
+            app/build/outputs/bundle/**
+            app/build/outputs/mapping/**
+          if-no-files-found: error
+
       - name: Upload APK and diagnostic artifacts
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: android-manual-artifacts-${{ github.run_number }}
           path: |
-            ${{ env.GRADLE_MODULE }}/build/outputs/**/*.apk
             **/build/reports/**
             **/build/test-results/**
             **/*.log
