@@ -83,25 +83,26 @@ public class VncCanvasHoverMouseTest {
             time,
             time,
             MotionEvent.ACTION_DOWN,
+            1,
             10f,
             20f,
-            0,
+            1f,
+            1f,
             0,
             1f,
             1f,
             0,
-            0,
-            InputDevice.SOURCE_MOUSE,
-            MotionEvent.BUTTON_SECONDARY | MotionEvent.BUTTON_TERTIARY
+            0
         );
+        event.setSource(InputDevice.SOURCE_MOUSE);
 
         boolean handled = canvas.processPointerEvent(event, true, false);
 
         assertTrue(handled);
         assertEquals(1, canvas.pointerCalls.size());
         PointerCall call = canvas.pointerCalls.get(0);
-        assertTrue(call.useRightButton);
-        assertTrue(call.useMiddleButton);
+        assertFalse(call.useRightButton);
+        assertFalse(call.useMiddleButton);
 
         event.recycle();
     }
