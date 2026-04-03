@@ -91,8 +91,6 @@ if(RMR_ENABLE_BITRAF_MODULE)
         ../../../../engine/rmr/src/bitraf.c)
 endif()
 
-find_library(log-lib log)
-
 if(ANDROID)
     find_library(log-lib log)
 else()

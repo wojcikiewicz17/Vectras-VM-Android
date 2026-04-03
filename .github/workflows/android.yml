@@ -18,6 +18,8 @@ on:
       - 'local.properties.example'
       - 'engine/**'
       - 'tools/check_android_toolchain.sh'
+      - 'tools/check_abi_policy_alignment.py'
+      - 'tools/qemu_launch.yml'
       - 'docs/OPERATIONS.md'
       - 'docs/BUILD_ENV_ALIGNMENT.md'
       - 'docs/DOCUMENTATION_STANDARDS.md'
@@ -40,6 +42,8 @@ on:
       - 'local.properties.example'
       - 'engine/**'
       - 'tools/check_android_toolchain.sh'
+      - 'tools/check_abi_policy_alignment.py'
+      - 'tools/qemu_launch.yml'
       - 'docs/OPERATIONS.md'
       - 'docs/BUILD_ENV_ALIGNMENT.md'
       - 'docs/DOCUMENTATION_STANDARDS.md'
@@ -441,6 +445,9 @@ jobs:
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
+
+      - name: Verify ABI policy alignment (gradle.properties vs qemu_launch.yml)
+        run: python3 tools/check_abi_policy_alignment.py
 
       - name: Build shell-loader bootstrap asset (fail-fast)
         env:
