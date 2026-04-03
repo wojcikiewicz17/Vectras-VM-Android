@@ -49,18 +49,19 @@ afterEvaluate {
     def appAndroid = project(':app').extensions.findByName('android')
     def signingConfig = appAndroid?.signingConfigs?.findByName('debug')
 
-    if (signingConfig?.storeFile?.exists() && signingConfig?.keyAlias && signingConfig?.keyPassword) {
+    if (signingConfig?.storeFile?.exists() && signingConfig?.keyAlias && signingConfig?.storePassword) {
         try {
             def keyStore = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
             signingConfig.storeFile.withInputStream { stream ->
-                keyStore.load(stream, signingConfig.keyPassword.toCharArray())
+                keyStore.load(stream, signingConfig.storePassword.toCharArray())
             }
             def cert = keyStore.getCertificate(signingConfig.keyAlias)
             if (cert != null) {
                 def md = java.security.MessageDigest.getInstance("SHA-256")
                 signatureDigestsSha256Csv = md.digest(cert.getEncoded()).collect { String.format("%02x", it & 0xff) }.join("")
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            logger.warn("Unable to calculate SIGNATURE_DIGESTS_SHA256 from debug keystore", e)
             signatureDigestsSha256Csv = ""
         }
     }
