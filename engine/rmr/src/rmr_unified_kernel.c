@@ -465,6 +465,62 @@ rmr_status_t rmr_legacy_kernel_get_capabilities(const rmr_legacy_kernel_t *kerne
   return RMR_STATUS_OK;
 }
 
+static uint32_t rmr_feature_mask_canonical_from_hw(const RmR_HW_Info *hw) {
+  uint32_t feature_mask;
+  uint32_t f0;
+  uint32_t f1;
+
+  if (!hw) return 0u;
+
+  f0 = hw->feature_bits_0;
+  f1 = hw->feature_bits_1;
+  feature_mask = (f0 | f1) & RMR_UK_FEATURE_ALL_CANONICAL;
+
+  switch (hw->arch) {
+    case 4u: /* ARM64 */
+      feature_mask |= (RMR_UK_FEATURE_NEON | RMR_UK_FEATURE_SIMD);
+#if defined(__ARM_FEATURE_CRYPTO)
+      feature_mask |= RMR_UK_FEATURE_AES;
+#endif
+#if defined(__ARM_FEATURE_CRC32)
+      feature_mask |= RMR_UK_FEATURE_CRC32;
+#endif
+      break;
+    case 3u: /* ARM32 */
+#if defined(__ARM_NEON) || defined(__ARM_NEON__)
+      feature_mask |= (RMR_UK_FEATURE_NEON | RMR_UK_FEATURE_SIMD);
+#endif
+      break;
+    case 2u: /* X64 */
+    case 1u: /* X86 */
+      if ((f0 & (1u << 20u)) != 0u) { /* CPUID.01H:ECX.SSE4_2 */
+        feature_mask |= (RMR_UK_FEATURE_SSE42 | RMR_UK_FEATURE_CRC32);
+      }
+      if ((f0 & (1u << 23u)) != 0u) { /* CPUID.01H:ECX.POPCNT */
+        feature_mask |= RMR_UK_FEATURE_POPCNT;
+      }
+      if ((f0 & (1u << 25u)) != 0u) { /* CPUID.01H:ECX.AES */
+        feature_mask |= RMR_UK_FEATURE_AES;
+      }
+      if ((f1 & (1u << 5u)) != 0u) { /* Optional feed: CPUID.07H:EBX.AVX2 */
+        feature_mask |= RMR_UK_FEATURE_AVX2;
+      }
+      if ((feature_mask & (RMR_UK_FEATURE_SSE42 | RMR_UK_FEATURE_AVX2)) != 0u) {
+        feature_mask |= RMR_UK_FEATURE_SIMD;
+      }
+      break;
+    case 5u: /* RISCV64 */
+      if ((f0 & (1u << 21u)) != 0u) { /* misa.V vector extension */
+        feature_mask |= RMR_UK_FEATURE_SIMD;
+      }
+      break;
+    default:
+      break;
+  }
+
+  return feature_mask & RMR_UK_FEATURE_ALL_CANONICAL;
+}
+
 static void rmr_unified_caps_from_hw(const RmR_HW_Info *hw, RmR_UnifiedCapabilities *out) {
   uint32_t arch_signature = RMR_SIG_ARCH_UNKNOWN;
 
@@ -512,7 +568,7 @@ static void rmr_unified_caps_from_hw(const RmR_HW_Info *hw, RmR_UnifiedCapabilit
   out->pointer_bits = hw->ptr_bits;
   out->cache_line_bytes = hw->cacheline_bytes;
   out->page_bytes = hw->page_bytes;
-  out->feature_mask = hw->feature_bits_0;
+  out->feature_mask = rmr_feature_mask_canonical_from_hw(hw);
   out->reg_signature_0 = hw->reg_signature_0;
   out->reg_signature_1 = hw->reg_signature_1;
   out->reg_signature_2 = hw->reg_signature_2;

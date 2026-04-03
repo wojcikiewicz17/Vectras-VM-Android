@@ -106,7 +106,11 @@ public final class BareMetalProfile {
         }
 
         int nativeFeatures = hw.featureMask;
-        if ((nativeFeatures & NativeFastPath.FEATURE_SIMD) != 0) {
+        boolean hasCanonicalSimd = (nativeFeatures & NativeFastPath.FEATURE_SIMD) != 0
+                || (nativeFeatures & NativeFastPath.FEATURE_NEON) != 0
+                || (nativeFeatures & NativeFastPath.FEATURE_SSE42) != 0
+                || (nativeFeatures & NativeFastPath.FEATURE_AVX2) != 0;
+        if (hasCanonicalSimd) {
             flags |= CAP_SIMD;
         }
         if ((nativeFeatures & NativeFastPath.FEATURE_AES) != 0) {

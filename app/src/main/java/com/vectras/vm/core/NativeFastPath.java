@@ -60,6 +60,7 @@ public final class NativeFastPath {
     public static final int OS_ANDROID = 0x0010;
     public static final int OS_LINUX = 0x0020;
 
+    // Canonical JNI feature-mask contract (must match RMR_UK_FEATURE_* in native headers).
     public static final int FEATURE_NEON = 1 << 0;
     public static final int FEATURE_AES = 1 << 1;
     public static final int FEATURE_CRC32 = 1 << 2;
