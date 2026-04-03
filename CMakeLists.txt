@@ -224,6 +224,8 @@ target_link_libraries(rmr_asm_equivalence_selftest PRIVATE rmr)
 rmr_apply_common_flags(rmr_asm_equivalence_selftest)
 
 add_executable(rmr_unified_arena_selftest demo_cli/src/rmr_unified_arena_selftest.c)
+target_link_libraries(rmr_unified_arena_selftest PRIVATE bitraf_static rmr)
+rmr_apply_common_flags(rmr_unified_arena_selftest)
 
 add_executable(rmr_legacy_kernel_selftest demo_cli/src/rmr_legacy_kernel_selftest.c)
 target_link_libraries(rmr_legacy_kernel_selftest PRIVATE rmr)
@@ -242,9 +244,6 @@ if(RMR_HAS_NEON_SELFTEST)
   target_link_libraries(rmr_neon_simd_selftest PRIVATE rmr)
   rmr_apply_common_flags(rmr_neon_simd_selftest)
 endif()
-
-target_link_libraries(rmr_unified_arena_selftest PRIVATE bitraf_static rmr)
-rmr_apply_common_flags(rmr_unified_arena_selftest)
 
 
 set(RMR_RUN_SELFTEST_COMMANDS
