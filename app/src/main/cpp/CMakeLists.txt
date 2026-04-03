@@ -62,19 +62,17 @@ add_library(vectra_core_accel SHARED
     ${VECTRA_LOWLEVEL_SOURCES}
     ${VECTRA_CASM_SOURCES})
 
-set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS arm64-v8a armeabi-v7a x86 x86_64)
-set(TERMUX_BOOTSTRAP_BUILD_ENABLED ON)
-if(ANDROID)
-    list(FIND TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "${CMAKE_ANDROID_ARCH_ABI}" TERMUX_BOOTSTRAP_ABI_INDEX)
-    if(TERMUX_BOOTSTRAP_ABI_INDEX EQUAL -1)
-        set(TERMUX_BOOTSTRAP_BUILD_ENABLED OFF)
-        message(STATUS "termux-bootstrap disabled for unsupported ABI: ${CMAKE_ANDROID_ARCH_ABI}")
-    endif()
-endif()
+set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS
+    arm64-v8a
+    armeabi-v7a
+    x86_64
+    x86)
 
-if(TERMUX_BOOTSTRAP_BUILD_ENABLED)
+if(NOT ANDROID OR CMAKE_ANDROID_ARCH_ABI IN_LIST TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS)
     add_library(termux-bootstrap SHARED
         termux_bootstrap_bridge.c)
+else()
+    message(STATUS "Skipping termux-bootstrap for unsupported ABI: ${CMAKE_ANDROID_ARCH_ABI}")
 endif()
 
 if(VECTRA_CASM_SOURCES)
