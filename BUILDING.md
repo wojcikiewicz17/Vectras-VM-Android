@@ -57,19 +57,13 @@ The ABI baseline is also declared in `tools/qemu_launch.yml` with explicit scope
 
 Accepted policies in code and docs are exactly:
 - `APP_ABI_POLICY=arm64-only` → `SUPPORTED_ABIS=arm64-v8a` (official minimum distribution)
-- `APP_ABI_POLICY=with-32bit` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (official distribution with 32-bit ARM)
-- `APP_ABI_POLICY=all` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64` (**internal validation only; not for official distribution**)
+- `APP_ABI_POLICY=internal-5abi` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` (**internal validation only; not for official distribution**, requires `CI_INTERNAL_VALIDATION=true` and `min.api>=35`)
 
 Default is arm64-only.
 
-To include 32-bit ARM:
-```bash
-./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=with-32bit -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a :app:assembleDebug
-```
-
 To run full internal ABI validation coverage:
 ```bash
-./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=all -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64 :app:assembleDebug
+./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=internal-5abi -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64 -PCI_INTERNAL_VALIDATION=true -Pmin.api=35 :app:assembleDebug
 ```
 
 Alignment check command (used by CI before build):

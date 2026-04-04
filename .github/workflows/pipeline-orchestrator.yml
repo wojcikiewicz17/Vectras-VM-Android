@@ -28,6 +28,13 @@ on:
         type: choice
         default: info
         options: [lifecycle, info, debug]
+      abi_profile:
+        description: "Perfil ABI Android"
+        type: choice
+        default: official_arm64
+        options:
+          - official_arm64
+          - internal_5abi
 
 permissions:
   contents: read
@@ -69,6 +76,7 @@ jobs:
       build_variant: debug
       signing_mode: auto
       log_level: ${{ inputs.log_level || 'info' }}
+      abi_profile: ${{ inputs.abi_profile || 'official_arm64' }}
       run_lint: true
       run_native_checks: true
     secrets: inherit

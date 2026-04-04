@@ -49,6 +49,11 @@ on:
         type: choice
         default: auto
         options: [auto, signed, unsigned]
+      abi_profile:
+        description: "Perfil ABI (oficial arm64 ou validação interna multi-ABI)"
+        type: choice
+        default: official_arm64
+        options: [official_arm64, internal_5abi]
       log_level:
         description: "Nível de logs Gradle"
         type: choice
@@ -76,6 +81,10 @@ on:
         required: false
         type: string
         default: auto
+      abi_profile:
+        required: false
+        type: string
+        default: official_arm64
       log_level:
         required: false
         type: string
@@ -119,6 +128,11 @@ jobs:
       gradle_log_flags: ${{ steps.flags.outputs.gradle_log_flags }}
       should_sign_release: ${{ steps.flags.outputs.should_sign_release }}
       log_bundle_name: ${{ steps.flags.outputs.log_bundle_name }}
+      app_abi_policy: ${{ steps.flags.outputs.app_abi_policy }}
+      supported_abis: ${{ steps.flags.outputs.supported_abis }}
+      effective_min_api: ${{ steps.flags.outputs.effective_min_api }}
+      ci_internal_validation: ${{ steps.flags.outputs.ci_internal_validation }}
+      artifact_name_suffix: ${{ steps.flags.outputs.artifact_name_suffix }}
     steps:
       - id: flags
         shell: bash
@@ -128,6 +142,7 @@ jobs:
           run_workfile="${{ inputs.run_workfile || 'unit_loader' }}"
           build_variant="${{ inputs.build_variant || 'debug' }}"
           signing_mode="${{ inputs.signing_mode || 'auto' }}"
+          abi_profile="${{ inputs.abi_profile || 'official_arm64' }}"
           log_level="${{ inputs.log_level || 'info' }}"
 
           case "${build_variant}" in
@@ -167,11 +182,36 @@ jobs:
             *) echo "log_level inválido: ${log_level}" >&2; exit 1 ;;
           esac
 
+          case "${abi_profile}" in
+            official_arm64)
+              app_abi_policy="arm64-only"
+              supported_abis="arm64-v8a"
+              effective_min_api="${MIN_API}"
+              ci_internal_validation="false"
+              artifact_name_suffix="arm64-only"
+              ;;
+            internal_5abi)
+              app_abi_policy="internal-5abi"
+              supported_abis="arm64-v8a,armeabi-v7a,x86,x86_64,riscv64"
+              effective_min_api="${COMPILE_API}"
+              ci_internal_validation="true"
+              artifact_name_suffix="internal-5abi"
+              if [[ "${signing_mode}" == "signed" ]]; then
+                echo "abi_profile=internal_5abi não permite signing_mode=signed (uso interno apenas)." >&2
+                exit 1
+              fi
+              ;;
+            *)
+              echo "abi_profile inválido: ${abi_profile}" >&2
+              exit 1
+              ;;
+          esac
+
           should_sign_release=false
           if [[ "${run_release}" == "true" ]]; then
-            if [[ "${signing_mode}" == "signed" ]]; then
+            if [[ "${signing_mode}" == "signed" && "${ci_internal_validation}" != "true" ]]; then
               should_sign_release=true
-            elif [[ "${signing_mode}" == "auto" && -n "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 || '' }}" ]]; then
+            elif [[ "${signing_mode}" == "auto" && -n "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 || '' }}" && "${ci_internal_validation}" != "true" ]]; then
               should_sign_release=true
             fi
           fi
@@ -192,6 +232,11 @@ jobs:
           echo "gradle_log_flags=${log_flags}" >> "$GITHUB_OUTPUT"
           echo "should_sign_release=${should_sign_release}" >> "$GITHUB_OUTPUT"
           echo "log_bundle_name=android-logs-${run_workfile}-${log_level}-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+          echo "app_abi_policy=${app_abi_policy}" >> "$GITHUB_OUTPUT"
+          echo "supported_abis=${supported_abis}" >> "$GITHUB_OUTPUT"
+          echo "effective_min_api=${effective_min_api}" >> "$GITHUB_OUTPUT"
+          echo "ci_internal_validation=${ci_internal_validation}" >> "$GITHUB_OUTPUT"
+          echo "artifact_name_suffix=${artifact_name_suffix}" >> "$GITHUB_OUTPUT"
 
   build:
     runs-on: ubuntu-latest
@@ -263,23 +308,27 @@ jobs:
           set -euo pipefail
           ./tools/gradle_with_jdk21.sh --no-daemon \
             -PbuildStrict=true \
-            -PAPP_ABI_POLICY=arm64-only \
-            -PSUPPORTED_ABIS=${SUPPORTED_ABIS} \
+            -PAPP_ABI_POLICY=${{ needs.resolve.outputs.app_abi_policy }} \
+            -PSUPPORTED_ABIS=${{ needs.resolve.outputs.supported_abis }} \
             -Pcompile.api=${COMPILE_API} \
             -Ptarget.api=${TARGET_API} \
-            -Pmin.api=${MIN_API} \
+            -Pmin.api=${{ needs.resolve.outputs.effective_min_api }} \
             -Ptools.version=${TOOLS_VERSION} \
             -Pndk.version=${NDK_VERSION} \
             -Pcmake.version=${CMAKE_VERSION} \
             -Pjava.language.version=${JAVA_VERSION} \
+            -PCI_INTERNAL_VALIDATION=${{ needs.resolve.outputs.ci_internal_validation }} \
             ${VECTRAS_CI_RELEASE_FLAGS:-} \
             ${VECTRAS_CI_SIGNING_ARGS:-} \
             ${{ needs.resolve.outputs.gradle_log_flags }} \
             ${{ needs.resolve.outputs.gradle_tasks }}
 
           if [[ "${{ needs.resolve.outputs.expect_app_artifacts }}" == "true" ]]; then
-            ./tools/gradle_with_jdk21.sh --no-daemon \
+          ./tools/gradle_with_jdk21.sh --no-daemon \
               -PbuildStrict=true \
+              -PAPP_ABI_POLICY=${{ needs.resolve.outputs.app_abi_policy }} \
+              -PSUPPORTED_ABIS=${{ needs.resolve.outputs.supported_abis }} \
+              -PCI_INTERNAL_VALIDATION=${{ needs.resolve.outputs.ci_internal_validation }} \
               -PartifactVariants="${{ needs.resolve.outputs.artifact_variants }}" \
               ${{ needs.resolve.outputs.gradle_log_flags }} \
               :app:verifyDeliveredCompiledArtifacts
@@ -293,7 +342,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: android-outputs-${{ github.run_id }}
+          name: android-outputs-${{ needs.resolve.outputs.artifact_name_suffix }}-${{ github.run_id }}
           path: |
             app/build/outputs/apk/**
             app/build/outputs/bundle/**
