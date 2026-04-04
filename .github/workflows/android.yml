@@ -93,6 +93,7 @@ permissions:
   contents: read
 
 env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
   JAVA_VERSION: '17'
   COMPILE_API: '35'
   TARGET_API: '35'
@@ -112,6 +113,7 @@ jobs:
     outputs:
       run_debug: ${{ steps.flags.outputs.run_debug }}
       run_release: ${{ steps.flags.outputs.run_release }}
+      expect_app_artifacts: ${{ steps.flags.outputs.expect_app_artifacts }}
       gradle_tasks: ${{ steps.flags.outputs.gradle_tasks }}
       gradle_log_flags: ${{ steps.flags.outputs.gradle_log_flags }}
       should_sign_release: ${{ steps.flags.outputs.should_sign_release }}
@@ -137,15 +139,19 @@ jobs:
           case "${run_workfile}" in
             smoke_debug)
               tasks=":app:assembleDebug"
+              expect_app_artifacts=true
               ;;
             unit_loader)
               tasks=":shell-loader:testDebugUnitTest"
+              expect_app_artifacts=false
               ;;
             full_debug)
               tasks=":app:assembleDebug :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :shell-loader:testDebugUnitTest"
+              expect_app_artifacts=true
               ;;
             release_gate)
               tasks=":app:assembleRelease :app:testReleaseUnitTest :shell-loader:testReleaseUnitTest"
+              expect_app_artifacts=true
               ;;
             *)
               echo "run_workfile inválido: ${run_workfile}" >&2
@@ -171,6 +177,7 @@ jobs:
 
           echo "run_debug=${run_debug}" >> "$GITHUB_OUTPUT"
           echo "run_release=${run_release}" >> "$GITHUB_OUTPUT"
+          echo "expect_app_artifacts=${expect_app_artifacts}" >> "$GITHUB_OUTPUT"
           echo "gradle_tasks=${tasks}" >> "$GITHUB_OUTPUT"
           echo "gradle_log_flags=${log_flags}" >> "$GITHUB_OUTPUT"
           echo "should_sign_release=${should_sign_release}" >> "$GITHUB_OUTPUT"
@@ -254,7 +261,7 @@ jobs:
             ${{ needs.resolve.outputs.gradle_tasks }}
 
       - name: Validate expected artifacts
-        if: always()
+        if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
         run: ./tools/ci/validate_expected_android_artifacts.sh "${{ inputs.build_variant || 'debug' }}"
 
       - name: Upload Android outputs
