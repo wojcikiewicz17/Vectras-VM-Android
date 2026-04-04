@@ -97,18 +97,15 @@ find . -maxdepth 2 -type d | sort
 ## Como rodar manualmente
 - Fluxo recomendado: acesse **Actions > Pipeline Orchestrator > Run workflow** e ajuste os toggles (`run_host_ci`, `run_android_ci`, `run_termux_orchestrator`) e `mode`.
 - Depuração pontual: execute diretamente um workflow filho apenas quando necessário para troubleshooting local de pipeline.
-- No workflow **Android CI** (debug manual), use os inputs do `workflow_dispatch` abaixo:
-- Inputs booleanos:
-  - `build_debug` (`true`/`false`): executa `assembleDebug`.
-  - `build_release` (`true`/`false`): executa `assembleRelease`.
-  - `sign_release` (`true`/`false`): assina release com segredos `VECTRAS_RELEASE_*` (use com `build_release=true`).
+- No workflow **Android CI** (debug manual), use os inputs canônicos do `workflow_dispatch` abaixo:
+- Inputs principais:
+  - `build_variant` (`debug`|`release`|`both`): define quais variantes serão construídas.
+  - `mode` (`fast`|`moderado`|`profundo`|`ultra_minucioso`|`diagnostico`|`interoperavel`|`confiavel`|`portavel`|`hardening`|`matrix_total`|`forense`): perfil de execução.
+  - `run_lint` (`true`/`false`): habilita/desabilita lint Android.
+  - `run_native_matrix` (`true`/`false`): habilita matriz de validação nativa.
+  - `signing_mode` (`auto`|`unsigned`|`signed`): política de assinatura de release.
+  - `allow_legacy_fallback` (`true`/`false`): permite fallback legado de assinatura apenas quando explicitamente habilitado.
   - `upload_telegram` (`true`/`false`): habilita notificação/upload no Telegram.
-- Inputs de versão (string):
-  - `compile_api` (padrão `35`)
-  - `tools_version` (padrão `35.0.0`)
-  - `ndk_version` (padrão `27.2.12479018`)
-  - `cmake_version` (padrão `3.22.1`)
-  - `java_version` (padrão `17`)
 - Para manter valores padrão por repositório em CI, configure variáveis em **Settings > Secrets and variables > Actions > Variables** (prefira canônicas: `compile.api`, `tools.version`, `ndk.version`, `cmake.version`, `java.language.version`; aliases legados como `COMPILE_API`, `TOOLS_VERSION`, `NDK_VERSION`, `CMAKE_VERSION`, `JAVA_VERSION` ficam como fallback de compatibilidade).
 
 ## Setup rápido de build
