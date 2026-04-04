@@ -29,7 +29,7 @@ Camada técnica central de documentação do Vectras VM Android.
 ## Eixos técnicos especializados
 - Arquitetura: `ARCHITECTURE.md`, `API.md`, `RAFAELIA_COHESION_ENTERPRISE_STACK.md`
 - Operação e benchmark: `OPERATIONS.md`, `BENCHMARKS.md`, `BENCHMARK_MANAGER.md`
-- Build e ambiente: `BUILD_ENV_ALIGNMENT.md`
+- Build e ambiente: `BUILD_ENV_ALIGNMENT.md`, `BUILD_REFACTOR_SCOPE.md`
 - Compilador autoral (cabeçalho C → ASM): `RAFCODE_PHI_COMPILER_HEADER.md`
 - Qualidade e conformidade: `SECURITY.md`, `LEGAL_AND_LICENSES.md`, `SOURCE_TRACEABILITY_MATRIX.md`, `IP_MAP.md`
 - Fullstack (código-fonte ponta a ponta): `FULLSTACK_SOURCE_MAP.md`

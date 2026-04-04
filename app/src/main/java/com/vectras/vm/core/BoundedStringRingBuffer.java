@@ -15,6 +15,7 @@ import java.nio.charset.CharsetDecoder;
  */
 public class BoundedStringRingBuffer {
     public static final String TRUNCATED_MARKER = "...[TRUNCATED]";
+    private static final String TAG = "BoundedStringRingBuffer";
 
     private static final int UTF8_REPLACEMENT_BYTES = 3;
     private static final ThreadLocal<DecodeState> DECODE_STATE = ThreadLocal.withInitial(DecodeState::new);

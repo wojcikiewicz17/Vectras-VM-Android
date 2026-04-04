@@ -36,3 +36,9 @@ sdk.dir=/workspace/android-sdk
   - `./tools/gradle_with_jdk21.sh :app:assembleDebug`
 - Result: failed with existing compilation errors in repository sources (duplicate methods/symbol resolution issues), unrelated to SDK/JDK provisioning.
 
+## Revalidation (2026-04-03, requested steps)
+
+- `./tools/gradle_with_jdk21.sh --version`: **OK** (Gradle 8.7 under JDK 21).
+- `./tools/gradle_with_jdk21.sh :app:assembleDebug`: **failed** due existing Java compile errors in source tree:
+  - `app/src/main/java/com/vectras/qemu/utils/RamInfo.java`: duplicate method `ensureMinimumVmMemoryMb(int)`.
+  - `app/src/main/java/com/vectras/qemu/utils/RamInfo.java`: unresolved symbol `MIN_VM_MEMORY_MB`.

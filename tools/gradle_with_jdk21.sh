@@ -104,7 +104,22 @@ echo "[gradle_with_jdk21] JAVA_HOME=$JAVA_HOME (major=$JAVA_MAJOR)"
 ensure_local_properties_sdk_dir
 
 if [[ -x "$REPO_ROOT/tools/check_android_toolchain.sh" ]]; then
-  "$REPO_ROOT/tools/check_android_toolchain.sh" --quick >/dev/null || true
+  TOOLCHAIN_CHECK_STRICT="${TOOLCHAIN_CHECK_STRICT:-auto}"
+  if [[ "$TOOLCHAIN_CHECK_STRICT" == "auto" ]]; then
+    if [[ "${CI:-}" == "true" || -n "${GITHUB_ACTIONS:-}" ]]; then
+      TOOLCHAIN_CHECK_STRICT="true"
+    else
+      TOOLCHAIN_CHECK_STRICT="false"
+    fi
+  fi
+
+  if [[ "$TOOLCHAIN_CHECK_STRICT" == "true" ]]; then
+    "$REPO_ROOT/tools/check_android_toolchain.sh" --quick >/dev/null
+  else
+    "$REPO_ROOT/tools/check_android_toolchain.sh" --quick >/dev/null || {
+      echo "[gradle_with_jdk21] aviso: check_android_toolchain.sh falhou (modo não estrito). Defina TOOLCHAIN_CHECK_STRICT=true para falhar localmente."
+    }
+  fi
 fi
 
 cd "$REPO_ROOT"

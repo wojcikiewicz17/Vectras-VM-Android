@@ -182,6 +182,10 @@ public class AppConfig {
         cvbiFolder = maindirpath + "cvbi/";
     }
 
+    public static Context getAppContext() {
+        return VectrasApp.getApp();
+    }
+
     private static String withTrailingSeparator(String path) {
         if (path.endsWith(File.separator)) {
             return path;

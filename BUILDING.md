@@ -24,6 +24,7 @@ from `ANDROID_SDK_ROOT` (or `ANDROID_HOME`) when the directory exists.
 ./tools/gradle_with_jdk21.sh clean
 ./tools/gradle_with_jdk21.sh :app:assembleDebug --stacktrace
 ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace
+./tools/gradle_with_jdk21.sh :app:assemblePerfRelease --stacktrace
 ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=debug,release,perfRelease
 ./tools/gradle_with_jdk21.sh :app:lintDebug --stacktrace
 ```
@@ -56,19 +57,13 @@ The ABI baseline is also declared in `tools/qemu_launch.yml` with explicit scope
 
 Accepted policies in code and docs are exactly:
 - `APP_ABI_POLICY=arm64-only` → `SUPPORTED_ABIS=arm64-v8a` (official minimum distribution)
-- `APP_ABI_POLICY=with-32bit` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (official distribution with 32-bit ARM)
-- `APP_ABI_POLICY=all` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64` (**internal validation only; not for official distribution**)
+- `APP_ABI_POLICY=internal-5abi` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` (**internal validation only; not for official distribution**, requires `CI_INTERNAL_VALIDATION=true` and `min.api>=35`)
 
 Default is arm64-only.
 
-To include 32-bit ARM:
-```bash
-./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=with-32bit -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a :app:assembleDebug
-```
-
 To run full internal ABI validation coverage:
 ```bash
-./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=all -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64 :app:assembleDebug
+./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=internal-5abi -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64 -PCI_INTERNAL_VALIDATION=true -Pmin.api=35 :app:assembleDebug
 ```
 
 Alignment check command (used by CI before build):
@@ -109,6 +104,16 @@ Strictness control by pipeline context:
 - Local/dev or debug CI (`buildStrict=false`):
   - Same checks run, but max-JVM/API-ABI non-release gates can warn.
   - Python-dependent checks are skipped with warning if Python is unavailable.
+
+## Release oficial vs validação interna (unsigned/placeholder)
+- **Release oficial (assinado)**:
+  - exige keystore + credenciais de signing de produção;
+  - exige `app/google-services.json` real (sem placeholder);
+  - **não** usar `-PCI_INTERNAL_VALIDATION=true`.
+- **Validação interna (unsigned)**:
+  - permite `-PALLOW_UNSIGNED_RELEASE=true`;
+  - permite placeholder Firebase **somente** com sinal explícito `-PCI_INTERNAL_VALIDATION=true` (opcionalmente junto de `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true`);
+  - usada para CI interno quando segredos de produção não estão disponíveis.
 
 
 ## Selftest matrix expectations

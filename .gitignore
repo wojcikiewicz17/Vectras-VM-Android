@@ -93,3 +93,7 @@ README.html
 *.pfx
 secrets.*
 credentials.*
+# Local Android SDK/toolchain bootstrap artifacts
+.android-sdk/
+.build-spill/
+

@@ -9,7 +9,7 @@
 #include <cpuid.h>
 #endif
 
-#if defined(__linux__)
+#if defined(__linux__) && (defined(__aarch64__) || defined(__arm__) || defined(__riscv))
 #include <asm/hwcap.h>
 #endif
 

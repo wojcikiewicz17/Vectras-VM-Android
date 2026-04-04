@@ -27,3 +27,10 @@ If any check fails, setup stops with explicit reason codes.
 ## Bootstrap URL errors
 The app validates host/scheme and normalizes duplicated slashes in URL path.
 If metadata contains malformed URLs or unsupported host, remote setup is rejected.
+
+## Release/perfRelease falha com erro de Firebase em CI
+- Caminho **oficial assinado** requer `app/google-services.json` real (secret `VECTRAS_GOOGLE_SERVICES_JSON_B64` no workflow).
+- Caminho de **validação interna unsigned** pode usar placeholder, mas deve sinalizar explicitamente:
+  - `-PCI_INTERNAL_VALIDATION=true`
+  - (compatibilidade) `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true`
+- Sem o sinal explícito de CI interno, builds `release/perfRelease` continuam bloqueando placeholder.

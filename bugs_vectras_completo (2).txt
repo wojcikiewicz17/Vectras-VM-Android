@@ -1,0 +1,570 @@
+VECTRAS-VM-ANDROID — RELATÓRIO COMPLETO DE BUGS, ERROS, FALHAS E INCONSISTÊNCIAS
+Do maior ao menor volume de ocorrências. Formato: descrição breve | linha | path/arquivo
+==================================================================================
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 1 — IDs DUPLICADOS EM LAYOUTS XML (79 IDs repetidos)
+IDs idênticos em múltiplos arquivos de layout causam crash silencioso em
+findViewById e comportamento imprevisível em fragments reutilizados.
+════════════════════════════════════════════════════════════════
+
+1.  ID "toolbar" duplicado em múltiplos layouts                     | vários  | app/src/main/res/layout/
+2.  ID "title" duplicado em múltiplos layouts                       | vários  | app/src/main/res/layout/
+3.  ID "progressIndicator" duplicado                                | vários  | app/src/main/res/layout/
+4.  ID "appbar" duplicado                                           | vários  | app/src/main/res/layout/
+5.  ID "header" duplicado                                           | vários  | app/src/main/res/layout/
+6.  ID "icon" duplicado                                             | vários  | app/src/main/res/layout/
+7.  ID "main" duplicado                                             | vários  | app/src/main/res/layout/
+8.  ID "scrollView" duplicado                                       | vários  | app/src/main/res/layout/
+9.  ID "drawer_layout" duplicado                                    | vários  | app/src/main/res/layout/
+10. ID "description_text" duplicado                                 | vários  | app/src/main/res/layout/
+11. ID "dpad" duplicado                                             | vários  | app/src/main/res/layout/
+12. ID "drag_handle" duplicado                                      | vários  | app/src/main/res/layout/
+13. ID "ivIcon" duplicado                                           | vários  | app/src/main/res/layout/
+14. ID "iv_open_terminal" duplicado                                 | vários  | app/src/main/res/layout/
+15. ID "iv_error_large" duplicado                                   | vários  | app/src/main/res/layout/
+16. ID "collapsingToolbarLayout" duplicado                          | vários  | app/src/main/res/layout/
+17. ID "btn_copy" duplicado                                         | vários  | app/src/main/res/layout/
+18. ID "btn_export_diagnostic" duplicado                            | vários  | app/src/main/res/layout/
+19. ID "btn_retry_setup" duplicado                                  | vários  | app/src/main/res/layout/
+20. ID "btn_rollback_setup" duplicado                               | vários  | app/src/main/res/layout/
+21. ID "btn_allow_permission" duplicado                             | vários  | app/src/main/res/layout/
+22. ID "btn_let_start" duplicado                                    | vários  | app/src/main/res/layout/
+23. ID "btn_skip_system_update" duplicado                           | vários  | app/src/main/res/layout/
+24. ID "btn_system_update" duplicado                                | vários  | app/src/main/res/layout/
+25. ID "buttontryagain" duplicado                                   | vários  | app/src/main/res/layout/
+26. ID "bn_update" duplicado                                        | vários  | app/src/main/res/layout/
+27. ID "cd_commandsetup" duplicado                                  | vários  | app/src/main/res/layout/
+28. ID "cd_install_status" duplicado                                | vários  | app/src/main/res/layout/
+29. ID "clear_all_button" duplicado                                 | vários  | app/src/main/res/layout/
+30. ID "cpi_extracting_system_files" duplicado                      | vários  | app/src/main/res/layout/
+31. ID "cpi_getting_data" duplicado                                 | vários  | app/src/main/res/layout/
+32. ID "cpi_installing_packages" duplicado                          | vários  | app/src/main/res/layout/
+33. ID "custom_setup_option" duplicado                              | vários  | app/src/main/res/layout/
+34. ID "custom_setup_option_arrow" duplicado                        | vários  | app/src/main/res/layout/
+35. ID "dpad" duplicado                                             | vários  | app/src/main/res/layout/
+36. ID "language_modules_recycler" duplicado                        | vários  | app/src/main/res/layout/
+37. ID "layoutProgress" duplicado                                   | vários  | app/src/main/res/layout/
+38. ID "linearload" duplicado                                       | vários  | app/src/main/res/layout/
+39. ID "linearnothinghere" duplicado                                | vários  | app/src/main/res/layout/
+40. ID "ln_32_bit_warning" duplicado                                | vários  | app/src/main/res/layout/
+41. ID "ln_all_options" duplicado                                   | vários  | app/src/main/res/layout/
+42. ID "ln_allow_permission" duplicado                              | vários  | app/src/main/res/layout/
+43. ID "ln_enabled" duplicado                                       | vários  | app/src/main/res/layout/
+44. ID "ln_extracting_system_files" duplicado                       | vários  | app/src/main/res/layout/
+45. ID "ln_getting_data" duplicado                                  | vários  | app/src/main/res/layout/
+46. ID "ln_installing_packages" duplicado                           | vários  | app/src/main/res/layout/
+47. ID "ln_installing_packages_failed" duplicado                    | vários  | app/src/main/res/layout/
+48. ID "ln_setup_options" duplicado                                 | vários  | app/src/main/res/layout/
+49. ID "ln_system_update" duplicado                                 | vários  | app/src/main/res/layout/
+50. ID "ln_try_again_container" duplicado                           | vários  | app/src/main/res/layout/
+51. ID "ln_welcome" duplicado                                       | vários  | app/src/main/res/layout/
+52. ID "loading_progress" duplicado                                 | vários  | app/src/main/res/layout/
+53. ID "lol" duplicado                                              | vários  | app/src/main/res/layout/
+54. ID "lpi_extracting_system_files" duplicado                      | vários  | app/src/main/res/layout/
+55. ID "lpi_getting_data" duplicado                                 | vários  | app/src/main/res/layout/
+56. ID "lpi_installing_packages" duplicado                          | vários  | app/src/main/res/layout/
+57. ID "mainTerminal" duplicado                                     | vários  | app/src/main/res/layout/
+58. ID "progress_bar" duplicado                                     | vários  | app/src/main/res/layout/
+59. ID "rv_romlist" duplicado                                       | vários  | app/src/main/res/layout/
+60. ID "select_mirror_option" duplicado                             | vários  | app/src/main/res/layout/
+61. ID "select_mirror_option_arrow" duplicado                       | vários  | app/src/main/res/layout/
+62. ID "standard_setup_option" duplicado                            | vários  | app/src/main/res/layout/
+63. ID "standard_setup_option_arrow" duplicado                      | vários  | app/src/main/res/layout/
+64. ID "sw_enabled" duplicado                                       | vários  | app/src/main/res/layout/
+65. ID "textName" duplicado                                         | vários  | app/src/main/res/layout/
+66. ID "textSize" duplicado                                         | vários  | app/src/main/res/layout/
+67. ID "total_size_text" duplicado                                  | vários  | app/src/main/res/layout/
+68. ID "tvProgressText" duplicado                                   | vários  | app/src/main/res/layout/
+69. ID "tvTerminalOutput" duplicado                                 | vários  | app/src/main/res/layout/
+70. ID "tv_content" duplicado                                       | vários  | app/src/main/res/layout/
+71. ID "tv_error_log_content" duplicado                             | vários  | app/src/main/res/layout/
+72. ID "tv_error_subtitle" duplicado                                | vários  | app/src/main/res/layout/
+73. ID "tv_error_title" duplicado                                   | vários  | app/src/main/res/layout/
+74. ID "tv_install_current_step" duplicado                          | vários  | app/src/main/res/layout/
+75. ID "tv_install_last_error" duplicado                            | vários  | app/src/main/res/layout/
+76. ID "tv_install_recommended_action" duplicado                    | vários  | app/src/main/res/layout/
+77. ID "tv_lastest_command_result" duplicado                        | vários  | app/src/main/res/layout/
+78. ID "tv_title" duplicado                                         | vários  | app/src/main/res/layout/
+79. ID "versionname" duplicado                                      | vários  | app/src/main/res/layout/
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 2 — CATCH(EXCEPTION) GENÉRICO (82 ocorrências)
+Engole erros reais sem log adequado; dificulta diagnóstico em produção.
+════════════════════════════════════════════════════════════════
+
+80.  catch(Exception) genérico engole falha real                    | 203   | app/src/main/java/android/androidVNC/VncCanvas.java
+81.  catch(Exception) genérico                                      | 592   | app/src/main/java/android/androidVNC/VncCanvas.java
+82.  catch(Exception) genérico                                      | 680   | app/src/main/java/android/androidVNC/VncCanvas.java
+83.  catch(Exception) genérico                                      | 1055  | app/src/main/java/android/androidVNC/VncCanvas.java
+84.  catch(Exception) genérico                                      | 1257  | app/src/main/java/android/androidVNC/VncCanvas.java
+85.  catch(Exception) genérico                                      | 1499  | app/src/main/java/android/androidVNC/VncCanvas.java
+86.  catch(Exception) genérico em Activity                          | 814   | app/src/main/java/android/androidVNC/VncCanvasActivity.java
+87.  catch(Exception) genérico                                      | 337   | app/src/main/java/android/androidVNC/RfbProto.java
+88.  catch(Exception) genérico                                      | 372   | app/src/main/java/android/androidVNC/RfbProto.java
+89.  catch(Exception) genérico                                      | 387   | app/src/main/java/android/androidVNC/RfbProto.java
+90.  catch(Exception) genérico                                      | 399   | app/src/main/java/com/termux/app/BackgroundJob.java
+91.  catch(Exception) genérico                                      | 233   | app/src/main/java/com/termux/app/RunCommandService.java
+92.  catch(Exception) genérico                                      | 190   | app/src/main/java/com/termux/app/TermuxActivity.java
+93.  catch(Exception) genérico                                      | 184   | app/src/main/java/com/termux/app/TermuxPreferences.java
+94.  catch(Exception) genérico                                      | 353   | app/src/main/java/com/termux/app/TermuxInstaller.java
+95.  catch(Exception) genérico                                      | 387   | app/src/main/java/com/termux/app/TermuxInstaller.java
+96.  catch(Exception) genérico                                      | 551   | app/src/main/java/com/termux/app/TermuxInstaller.java
+97.  catch(Exception) genérico                                      | 278   | app/src/main/java/com/termux/app/TermuxService.java
+98.  catch(Exception) genérico                                      | 123   | app/src/main/java/com/termux/filepicker/TermuxFileReceiverActivity.java
+99.  catch(Exception) genérico                                      | 199   | app/src/main/java/com/vectras/qemu/utils/FileUtils.java
+100. catch(Exception) genérico                                      | 226   | app/src/main/java/com/vectras/qemu/utils/FileUtils.java
+101. catch(Exception) genérico                                      | 436   | app/src/main/java/com/vectras/qemu/utils/FileUtils.java
+102. catch(Exception) genérico                                      | 190   | app/src/main/java/com/vectras/qemu/utils/FileInstaller.java
+103. catch(Exception) genérico                                      | 238   | app/src/main/java/com/vectras/qemu/utils/FileInstaller.java
+104. catch(Exception) genérico                                      | 279   | app/src/main/java/com/vectras/qemu/utils/FileInstaller.java
+105. catch(Exception) genérico em QmpClient                         | 121   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+106. catch(Exception) genérico                                      | 152   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+107. catch(Exception) genérico                                      | 211   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+108. catch(Exception) genérico                                      | 240   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+109. catch(Exception) genérico                                      | 265   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+110. catch(Exception) genérico                                      | 283   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+111. catch(Exception) genérico                                      | 353   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+112. catch(Exception) genérico                                      | 373   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+113. catch(Exception) genérico                                      | 390   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+114. catch(Exception) genérico                                      | 409   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+115. catch(Exception) genérico                                      | 426   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+116. catch(Exception) genérico                                      | 444   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+117. catch(Exception) genérico                                      | 466   | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+118. catch(Exception) genérico                                      | 432   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+119. catch(Exception) genérico                                      | 443   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+120. catch(Exception) genérico                                      | 488   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+121. catch(Exception) genérico                                      | 522   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+122. catch(Exception) genérico                                      | 549   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+123. catch(Exception) genérico                                      | 622   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+124. catch(Exception) genérico                                      | 676   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+125. catch(Exception) genérico                                      | 720   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+126. catch(Exception) genérico                                      | 731   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+127. catch(Exception) genérico                                      | 879   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+128. catch(Exception) genérico                                      | 887   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+129. catch(Exception) genérico                                      | 905   | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+130. catch(Exception) genérico                                      | 1107  | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+131. catch(Exception) genérico                                      | 1117  | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+132. catch(Exception) genérico                                      | 1128  | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+133. catch(Exception) genérico                                      | 146   | app/src/main/java/com/vectras/vm/SplashActivity.java
+134. catch(Exception) genérico em telemetria                        | 80    | app/src/main/java/com/vectras/vm/telemetry/LocalTelemetrySink.java
+135. catch(Exception) genérico                                      | 132   | app/src/main/java/com/vectras/vm/telemetry/LocalTelemetrySink.java
+136. catch(Exception) genérico                                      | 182   | app/src/main/java/com/vectras/vm/telemetry/LocalTelemetrySink.java
+137. catch(Exception) genérico                                      | 199   | app/src/main/java/com/vectras/vm/telemetry/LocalTelemetrySink.java
+138. catch(Exception) genérico                                      | 48    | app/src/main/java/com/vectras/vm/utils/DeviceUtils.java
+139. catch(Exception) genérico                                      | 85    | app/src/main/java/com/vectras/vm/utils/DeviceUtils.java
+140. catch(Exception) genérico                                      | 27    | app/src/main/java/com/vectras/vm/utils/PackageUtils.java
+141. catch(Exception) genérico                                      | 37    | app/src/main/java/com/vectras/vm/utils/PackageUtils.java
+142. catch(Exception) genérico                                      | 47    | app/src/main/java/com/vectras/vm/utils/PackageUtils.java
+143. catch(Exception) genérico                                      | 239   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+144. catch(Exception) genérico                                      | 318   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+145. catch(Exception) genérico                                      | 376   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+146. catch(Exception) genérico                                      | 504   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+147. catch(Exception) genérico                                      | 555   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+148. catch(Exception) genérico                                      | 567   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+149. catch(Exception) genérico                                      | 678   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+150. catch(Exception) genérico                                      | 686   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+151. catch(Exception) genérico                                      | 926   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+152. catch(Exception) genérico                                      | 961   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+153. catch(Exception) genérico                                      | 975   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+154. catch(Exception) genérico                                      | 1035  | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+155. catch(Exception) genérico                                      | 17    | app/src/main/java/com/vectras/vm/utils/JSONUtils.java
+156. catch(Exception) genérico                                      | 52    | app/src/main/java/com/vectras/vm/utils/AppUpdater.java
+157. catch(Exception) genérico                                      | 56    | app/src/main/java/com/vectras/vm/utils/AppUpdater.java
+158. catch(Exception) genérico                                      | 125   | app/src/main/java/com/vectras/vm/utils/NotificationUtils.java
+159. catch(Exception) genérico                                      | 139   | app/src/main/java/com/vectras/vm/utils/NotificationUtils.java
+160. catch(Exception) em SplashActivity                             | 146   | app/src/main/java/com/vectras/vm/SplashActivity.java
+161. catch(Exception) em JSONUtils parseando config                  | 17    | app/src/main/java/com/vectras/vm/utils/JSONUtils.java
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 3 — STREAMS SEM FECHAR / SEM try-with-resources (49 ocorrências)
+FileInputStream/OutputStream/BufferedReader abertos sem garantia de close()
+em bloco finally ou try-with-resources: vazamento de file descriptor.
+════════════════════════════════════════════════════════════════
+
+162. FileInputStream sem close garantido                            | 137   | app/src/main/java/com/termux/app/BackgroundJob.java
+163. FileOutputStream sem close garantido                           | 157   | app/src/main/java/com/termux/app/BackgroundJob.java
+164. InputStreamReader sem close garantido                          | 230   | app/src/main/java/com/termux/app/RunCommandService.java
+165. BufferedReader sem close garantido                             | 181   | app/src/main/java/com/termux/app/TermuxPreferences.java
+166. FileInputStream sem close garantido                            | 119   | app/src/main/java/com/termux/app/TermuxInstaller.java
+167. FileOutputStream sem close garantido                           | 244   | app/src/main/java/com/termux/app/TermuxInstaller.java
+168. FileInputStream sem close garantido                            | 84    | app/src/main/java/com/termux/filepicker/TermuxFileReceiverActivity.java
+169. FileInputStream sem close garantido                            | 150   | app/src/main/java/com/vectras/qemu/utils/FileUtils.java
+170. FileOutputStream sem close garantido                           | 310   | app/src/main/java/com/vectras/qemu/utils/FileUtils.java
+171. BufferedWriter sem close garantido                             | 311   | app/src/main/java/com/vectras/qemu/utils/FileUtils.java
+172. FileInputStream sem close garantido                            | 356   | app/src/main/java/com/vectras/qemu/utils/FileUtils.java
+173. FileInputStream sem close garantido                            | 179   | app/src/main/java/com/vectras/qemu/utils/FileInstaller.java
+174. FileOutputStream sem close garantido                           | 269   | app/src/main/java/com/vectras/qemu/utils/FileInstaller.java
+175. InputStreamReader (socket) sem close garantido                 | 84    | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+176. PrintWriter (socket) sem close garantido                       | 92    | app/src/main/java/com/vectras/qemu/utils/QmpClient.java
+177. BufferedReader sem close garantido                             | 83    | app/src/main/java/com/vectras/vm/utils/DeviceUtils.java
+178. FileInputStream (tarball) sem close garantido                  | 55    | app/src/main/java/com/vectras/vm/utils/TarUtils.java
+179. FileOutputStream (tarball) sem close garantido                 | 106   | app/src/main/java/com/vectras/vm/utils/TarUtils.java
+180. BufferedOutputStream sem close garantido                       | 108   | app/src/main/java/com/vectras/vm/utils/TarUtils.java
+181. FileReader sem close garantido                                 | 307   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+182. FileInputStream sem close garantido                            | 364   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+183. BufferedReader sem close garantido                             | 441   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+184. FileInputStream sem close garantido                            | 674   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+185. FileOutputStream sem close garantido                           | 751   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+186. BufferedOutputStream sem close garantido                       | 752   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+187. FileInputStream sem close garantido                            | 780   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+188. FileOutputStream sem close garantido                           | 874   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+189. FileInputStream sem close garantido                            | 895   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+190. FileInputStream sem close garantido (download)                 | 45    | app/src/main/java/com/vectras/vm/utils/AppUpdater.java
+191. FileOutputStream sem close garantido                           | 30    | app/src/main/java/com/vectras/vm/utils/ImageUtils.java
+192. FileInputStream sem close garantido                            | 48    | app/src/main/java/com/vectras/vm/utils/ImageUtils.java
+193. ZipInputStream sem close garantido                             | 69    | app/src/main/java/com/vectras/vm/utils/ZipUtils.java
+194. FileOutputStream (zip entry) sem close garantido               | 88    | app/src/main/java/com/vectras/vm/utils/ZipUtils.java
+195. ZipOutputStream sem close garantido                            | 187   | app/src/main/java/com/vectras/vm/utils/ZipUtils.java
+196. FileOutputStream (download chunk) sem close garantido          | 254   | app/src/main/java/com/vectras/vm/download/DownloadWorker.java
+197. FileOutputStream sem close garantido                           | 345   | app/src/main/java/com/vectras/vm/download/DownloadWorker.java
+198. BufferedOutputStream sem close garantido                       | 426   | app/src/main/java/com/vectras/vm/download/DownloadWorker.java
+199. FileInputStream sem close garantido                            | 326   | app/src/main/java/com/vectras/vm/DataExplorerActivity.java
+200. FileOutputStream sem close garantido                           | 676   | app/src/main/java/com/vectras/vm/VMManager.java
+201. FileOutputStream sem close garantido                           | 981   | app/src/main/java/com/vectras/vm/VMCreatorActivity.java
+202. FileInputStream sem close garantido                            | 65    | app/src/main/java/com/vectras/vm/core/PulseAudio.java
+203. FileInputStream sem close garantido                            | 342   | app/src/main/java/com/vectras/vm/Minitools.java
+204. FileOutputStream sem close garantido                           | 1115  | app/src/main/java/com/vectras/vm/setupwizard/SetupFeatureCore.java
+205. FileOutputStream sem close garantido (benchmark)               | 1312  | app/src/main/java/com/vectras/vm/benchmark/BenchmarkManager.java
+206. FileInputStream sem close garantido (benchmark)                | 1326  | app/src/main/java/com/vectras/vm/benchmark/BenchmarkManager.java
+207. FileOutputStream sem close garantido (benchmark)               | 627   | app/src/main/java/com/vectras/vm/benchmark/BenchmarkActivity.java
+208. FileInputStream sem close garantido (importação)               | 107   | app/src/main/java/com/vectras/vm/importer/ImportSessionWorker.java
+209. FileOutputStream sem close garantido                           | 536   | app/src/main/java/com/vectras/vterm/Terminal.java
+210. FileOutputStream sem close garantido                           | 194   | app/src/main/java/com/vectras/vterm/TerminalBottomSheetDialog.java
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 4 — ACTIONS GITHUB @v5 INEXISTENTES (50 ocorrências)
+checkout@v5, setup-java@v5 e upload-artifact@v5 não existem.
+Versão máxima disponível é @v4. Quebra imediata em todos os runners.
+════════════════════════════════════════════════════════════════
+
+211. actions/checkout@v5 não existe                                 | 188   | .github/workflows/android-build-manual.yml
+212. actions/setup-java@v5 não existe                               | 222   | .github/workflows/android-build-manual.yml
+213. actions/upload-artifact@v5 não existe                          | 359   | .github/workflows/android-build-manual.yml
+214. actions/upload-artifact@v5 não existe                          | 367   | .github/workflows/android-build-manual.yml
+215. actions/upload-artifact@v5 não existe                          | 378   | .github/workflows/android-build-manual.yml
+216. actions/checkout@v5 não existe                                 | 43    | .github/workflows/android-minimal-debug.yml
+217. actions/setup-java@v5 não existe                               | 77    | .github/workflows/android-minimal-debug.yml
+218. actions/upload-artifact@v5 não existe                          | 133   | .github/workflows/android-minimal-debug.yml
+219. actions/upload-artifact@v5 não existe                          | 141   | .github/workflows/android-minimal-debug.yml
+220. actions/upload-artifact@v5 não existe                          | 152   | .github/workflows/android-minimal-debug.yml
+221. actions/setup-java@v5 não existe                               | 263   | .github/workflows/android-verified.yml
+222. actions/checkout@v5 não existe                                 | 283   | .github/workflows/android-verified.yml
+223. actions/setup-java@v5 não existe                               | 287   | .github/workflows/android-verified.yml
+224. actions/upload-artifact@v5 não existe                          | 359   | .github/workflows/android-verified.yml
+225. actions/upload-artifact@v5 não existe                          | 367   | .github/workflows/android-verified.yml
+226. actions/upload-artifact@v5 não existe                          | 378   | .github/workflows/android-verified.yml
+227. actions/checkout@v5 não existe                                 | 394   | .github/workflows/android-verified.yml
+228. actions/setup-java@v5 não existe                               | 398   | .github/workflows/android-verified.yml
+229. actions/upload-artifact@v5 não existe                          | 585   | .github/workflows/android-verified.yml
+230. actions/checkout@v5 não existe                                 | 119   | .github/workflows/android.yml
+231. actions/setup-java@v5 não existe                               | 126   | .github/workflows/android.yml
+232. actions/checkout@v5 não existe                                 | 347   | .github/workflows/android.yml
+233. actions/setup-java@v5 não existe                               | 350   | .github/workflows/android.yml
+234. actions/upload-artifact@v5 não existe                          | 418   | .github/workflows/android.yml
+235. actions/upload-artifact@v5 não existe                          | 428   | .github/workflows/android.yml
+236. actions/upload-artifact@v5 não existe                          | 483   | .github/workflows/android.yml
+237. actions/checkout@v5 não existe                                 | 514   | .github/workflows/android.yml
+238. actions/setup-java@v5 não existe                               | 534   | .github/workflows/android.yml
+239. actions/upload-artifact@v5 não existe                          | 823   | .github/workflows/android.yml
+240. actions/upload-artifact@v5 não existe                          | 831   | .github/workflows/android.yml
+241. actions/upload-artifact@v5 não existe                          | 842   | .github/workflows/android.yml
+242. actions/upload-artifact@v5 não existe                          | 849   | .github/workflows/android.yml
+243. actions/checkout@v5 não existe                                 | 36    | .github/workflows/ci.yml
+244. actions/upload-artifact@v5 não existe                          | 137   | .github/workflows/ci.yml
+245. actions/checkout@v5 não existe                                 | 73    | .github/workflows/engine-ci.yml
+246. actions/upload-artifact@v5 não existe                          | 186   | .github/workflows/engine-ci.yml
+247. actions/upload-artifact@v5 não existe                          | 197   | .github/workflows/engine-ci.yml
+248. actions/upload-artifact@v5 não existe                          | 208   | .github/workflows/engine-ci.yml
+249. actions/checkout@v5 não existe                                 | 225   | .github/workflows/engine-ci.yml
+250. actions/upload-artifact@v5 não existe                          | 285   | .github/workflows/engine-ci.yml
+251. actions/checkout@v5 não existe                                 | 297   | .github/workflows/engine-ci.yml
+252. actions/upload-artifact@v5 não existe                          | 91    | .github/workflows/pipeline-orchestrator.yml
+253. actions/checkout@v5 não existe                                 | 107   | .github/workflows/pipeline-orchestrator.yml
+254. actions/checkout@v5 não existe                                 | 36    | .github/workflows/proof-build.yml
+255. actions/upload-artifact@v5 não existe                          | 121   | .github/workflows/proof-build.yml
+256. actions/checkout@v5 não existe                                 | 39    | .github/workflows/rafcode-phi-baremetal-ci.yml
+257. actions/checkout@v5 não existe                                 | 61    | .github/workflows/termux-orchestrator.yml
+258. actions/setup-java@v5 não existe                               | 95    | .github/workflows/termux-orchestrator.yml
+259. actions/upload-artifact@v5 não existe                          | 144   | .github/workflows/termux-orchestrator.yml
+260. actions/checkout@v5 não existe                                 | 29    | .github/workflows/zipdrop.yml
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 5 — getIntent() SEM NULL CHECK (68 ocorrências)
+getStringExtra() retorna null quando a chave não existe;
+uso direto sem verificação → NullPointerException em runtime.
+════════════════════════════════════════════════════════════════
+
+261. getStringExtra sem null check                                  | 67    | app/src/main/java/com/vectras/qemu/MainSettingsManager.java
+262. getStringExtra sem null check                                  | 73    | app/src/main/java/com/vectras/qemu/MainSettingsManager.java
+263. getStringExtra sem null check                                  | 46    | app/src/main/java/com/vectras/vm/WebViewActivity.java
+264. getStringExtra sem null check                                  | 25    | app/src/main/java/com/vectras/vm/ImagePrvActivity.java
+265. getStringExtra sem null check                                  | 42    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+266. getStringExtra sem null check                                  | 67    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+267. getStringExtra sem null check                                  | 70    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+268. getStringExtra sem null check                                  | 71    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+269. getStringExtra sem null check                                  | 72    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+270. getStringExtra sem null check                                  | 78    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+271. getStringExtra sem null check                                  | 79    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+272. getStringExtra sem null check                                  | 85    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+273. getStringExtra sem null check                                  | 90    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+274. getStringExtra sem null check                                  | 91    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+275. getStringExtra sem null check                                  | 93    | app/src/main/java/com/vectras/vm/CqcmActivity.java
+276. getStringExtra sem null check                                  | 40    | app/src/main/java/com/vectras/vm/QemuParamsEditorActivity.java
+277. getStringExtra sem null check (leitura de ROM)                 | 128   | app/src/main/java/com/vectras/vm/RomInfo.java
+278. getStringExtra sem null check                                  | 152   | app/src/main/java/com/vectras/vm/RomInfo.java
+279. getStringExtra sem null check                                  | 154   | app/src/main/java/com/vectras/vm/RomInfo.java
+280. getStringExtra sem null check                                  | 178   | app/src/main/java/com/vectras/vm/RomInfo.java
+281. getStringExtra sem null check                                  | 184   | app/src/main/java/com/vectras/vm/RomInfo.java
+282. getStringExtra sem null check                                  | 204   | app/src/main/java/com/vectras/vm/RomInfo.java
+283. getStringExtra sem null check                                  | 205   | app/src/main/java/com/vectras/vm/RomInfo.java
+284. getStringExtra sem null check                                  | 206   | app/src/main/java/com/vectras/vm/RomInfo.java
+285. getStringExtra sem null check                                  | 208   | app/src/main/java/com/vectras/vm/RomInfo.java
+286. getStringExtra sem null check                                  | 209   | app/src/main/java/com/vectras/vm/RomInfo.java
+287. getStringExtra sem null check                                  | 210   | app/src/main/java/com/vectras/vm/RomInfo.java
+288. getStringExtra sem null check                                  | 214   | app/src/main/java/com/vectras/vm/RomInfo.java
+289. getStringExtra sem null check                                  | 216   | app/src/main/java/com/vectras/vm/RomInfo.java
+290. getStringExtra sem null check                                  | 219   | app/src/main/java/com/vectras/vm/RomInfo.java
+291. getStringExtra sem null check                                  | 221   | app/src/main/java/com/vectras/vm/RomInfo.java
+292. getStringExtra sem null check                                  | 246   | app/src/main/java/com/vectras/vm/RomInfo.java
+293. getStringExtra sem null check                                  | 248   | app/src/main/java/com/vectras/vm/RomInfo.java
+294. getStringExtra sem null check                                  | 252   | app/src/main/java/com/vectras/vm/RomInfo.java
+295. getStringExtra sem null check                                  | 271   | app/src/main/java/com/vectras/vm/RomInfo.java
+296. getStringExtra sem null check                                  | 275   | app/src/main/java/com/vectras/vm/RomInfo.java
+297. getStringExtra sem null check                                  | 279   | app/src/main/java/com/vectras/vm/RomInfo.java
+298. getStringExtra sem null check                                  | 282   | app/src/main/java/com/vectras/vm/RomInfo.java
+299. getStringExtra sem null check                                  | 285   | app/src/main/java/com/vectras/vm/RomInfo.java
+300. getStringExtra sem null check                                  | 287   | app/src/main/java/com/vectras/vm/RomInfo.java
+301. getStringExtra sem null check                                  | 306   | app/src/main/java/com/vectras/vm/RomInfo.java
+302. getStringExtra sem null check                                  | 309   | app/src/main/java/com/vectras/vm/RomInfo.java
+303. getStringExtra sem null check                                  | 312   | app/src/main/java/com/vectras/vm/RomInfo.java
+304. getStringExtra sem null check                                  | 316   | app/src/main/java/com/vectras/vm/RomInfo.java
+305. getStringExtra sem null check                                  | 322   | app/src/main/java/com/vectras/vm/RomInfo.java
+306. getStringExtra sem null check                                  | 356   | app/src/main/java/com/vectras/vm/RomInfo.java
+307. getStringExtra sem null check                                  | 367   | app/src/main/java/com/vectras/vm/RomInfo.java
+308. getStringExtra sem null check                                  | 378   | app/src/main/java/com/vectras/vm/RomInfo.java
+309. getStringExtra sem null check                                  | 389   | app/src/main/java/com/vectras/vm/RomInfo.java
+310. getStringExtra sem null check                                  | 416   | app/src/main/java/com/vectras/vm/RomInfo.java
+311. getStringExtra sem null check                                  | 543   | app/src/main/java/com/vectras/vm/RomInfo.java
+312. getStringExtra sem null check                                  | 544   | app/src/main/java/com/vectras/vm/RomInfo.java
+313. getStringExtra sem null check                                  | 553   | app/src/main/java/com/vectras/vm/RomInfo.java
+314. getStringExtra sem null check                                  | 555   | app/src/main/java/com/vectras/vm/RomInfo.java
+315. getStringExtra sem null check                                  | 556   | app/src/main/java/com/vectras/vm/RomInfo.java
+316. getStringExtra sem null check                                  | 557   | app/src/main/java/com/vectras/vm/RomInfo.java
+317. getStringExtra sem null check                                  | 567   | app/src/main/java/com/vectras/vm/RomInfo.java
+318. getStringExtra sem null check                                  | 571   | app/src/main/java/com/vectras/vm/RomInfo.java
+319. getStringExtra sem null check                                  | 588   | app/src/main/java/com/vectras/vm/RomInfo.java
+320. getStringExtra sem null check                                  | 590   | app/src/main/java/com/vectras/vm/RomInfo.java
+321. getStringExtra sem null check (criação de VM)                  | 250   | app/src/main/java/com/vectras/vm/VMCreatorActivity.java
+322. getStringExtra sem null check                                  | 274   | app/src/main/java/com/vectras/vm/VMCreatorActivity.java
+323. getStringExtra sem null check                                  | 277   | app/src/main/java/com/vectras/vm/VMCreatorActivity.java
+324. getStringExtra sem null check                                  | 280   | app/src/main/java/com/vectras/vm/VMCreatorActivity.java
+325. getStringExtra sem null check                                  | 282   | app/src/main/java/com/vectras/vm/VMCreatorActivity.java
+326. getStringExtra sem null check                                  | 283   | app/src/main/java/com/vectras/vm/VMCreatorActivity.java
+327. getStringExtra sem null check                                  | 286   | app/src/main/java/com/vectras/vm/VMCreatorActivity.java
+328. getStringExtra sem null check                                  | 289   | app/src/main/java/com/vectras/vm/VMCreatorActivity.java
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 6 — GRADLE_ARGS: EXPANSÃO DE VARIÁVEL SHELL NO BLOCO env: (10 ocorrências)
+Em GitHub Actions o bloco env: não faz shell expansion.
+${COMPILE_API} etc chegam como string literal ao Gradle, não como valor.
+════════════════════════════════════════════════════════════════
+
+329. GRADLE_ARGS usa ${COMPILE_API} literal no env: block            | 182   | .github/workflows/android-build-manual.yml
+330. GRADLE_ARGS usa ${TARGET_API} literal no env: block             | 183   | .github/workflows/android-build-manual.yml
+331. GRADLE_ARGS usa ${TOOLS_VERSION} literal no env: block          | 184   | .github/workflows/android-build-manual.yml
+332. GRADLE_ARGS usa ${JAVA_VERSION} literal no env: block           | 185   | .github/workflows/android-build-manual.yml
+333. GRADLE_ARGS usa ${CMAKE_VERSION} literal no env: block          | 186   | .github/workflows/android-build-manual.yml
+334. GRADLE_ARGS usa ${NDK_VERSION} literal no env: block            | 187   | .github/workflows/android-build-manual.yml
+335. GRADLE_ARGS shell expansion inválida em env: block              | 505   | .github/workflows/android.yml
+336. GRADLE_ARGS shell expansion inválida em env: block              | 506   | .github/workflows/android.yml
+337. GRADLE_ARGS shell expansion inválida em env: block              | 507   | .github/workflows/android.yml
+338. GRADLE_ARGS shell expansion inválida em env: block              | 508   | .github/workflows/android.yml
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 7 — TEXTOS HARDCODED EM LAYOUTS XML (21 ocorrências)
+android:text com string literal em vez de @string/; impede localização.
+════════════════════════════════════════════════════════════════
+
+339. android:text="Unknown" hardcoded                               | 78    | app/src/main/res/layout/content_about.xml
+340. android:text="TextView" hardcoded (placeholder)                | 15    | app/src/main/res/layout/simple_layout_list_view_with_check.xml
+341. android:text="VM Flow: IDLE" hardcoded                         | 88    | app/src/main/res/layout/bottomsheetdialog_logger.xml
+342. android:text="TextView" hardcoded (placeholder)                | 11    | app/src/main/res/layout/simple_layout_for_spiner.xml
+343. android:text="Button" hardcoded (placeholder)                  | 13    | app/src/main/res/layout/widgetlayout.xml
+344. android:text="New virtual disk" hardcoded                      | 47    | app/src/main/res/layout/create_vhd.xml
+345. android:text="R" hardcoded (botão controle)                    | 147   | app/src/main/res/layout/game_controls.xml
+346. android:text="E" hardcoded (botão controle)                    | 162   | app/src/main/res/layout/game_controls.xml
+347. android:text="X" hardcoded (botão controle)                    | 177   | app/src/main/res/layout/game_controls.xml
+348. android:text="Q" hardcoded (botão controle)                    | 192   | app/src/main/res/layout/game_controls.xml
+349. android:text="TAB" hardcoded (botão controle)                  | 207   | app/src/main/res/layout/game_controls.xml
+350. android:text="TextView" hardcoded (placeholder)                | 26    | app/src/main/res/layout/layout_for_send_keys.xml
+351. android:text="X" hardcoded (botão fechar)                      | 113   | app/src/main/res/layout/activity_x11.xml
+352. android:text="L" hardcoded (botão mouse)                       | 134   | app/src/main/res/layout/activity_x11.xml
+353. android:text="M" hardcoded (botão mouse)                       | 149   | app/src/main/res/layout/activity_x11.xml
+354. android:text="R" hardcoded (botão mouse)                       | 164   | app/src/main/res/layout/activity_x11.xml
+355. android:text="L" hardcoded (segundo grupo mouse)               | 198   | app/src/main/res/layout/activity_x11.xml
+356. android:text="M" hardcoded                                     | 215   | app/src/main/res/layout/activity_x11.xml
+357. android:text="R" hardcoded                                     | 232   | app/src/main/res/layout/activity_x11.xml
+358. android:text="START X11" hardcoded                             | 76    | app/src/main/res/layout/activity_terminal.xml
+359. android:text="TextView" hardcoded (placeholder)                | 26    | app/src/main/res/layout/layout_for_send_keys.xml
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 8 — EDITTEXT SEM android:inputType (8 ocorrências)
+Sem inputType o teclado virtual padrão não valida tipo de entrada;
+permite texto em campo numérico e vice-versa.
+════════════════════════════════════════════════════════════════
+
+360. EditText sem inputType (campo de caminho de arquivo)           | 17    | app/src/main/res/layout/importexport.xml
+361. EditText sem inputType (segundo campo)                         | 39    | app/src/main/res/layout/importexport.xml
+362. EditText sem inputType (configuração de teclas)                | 11    | app/src/main/res/layout/extra_keys_config.xml
+363. EditText sem inputType (terminal bottom sheet)                 | 77    | app/src/main/res/layout/terminal_bottom_sheet.xml
+364. EditText sem inputType (envio de tecla)                        | 43    | app/src/main/res/layout/send_key_dialog.xml
+365. EditText sem inputType (endereço VNC)                          | 77    | app/src/main/res/layout/main_vnc.xml
+366. EditText sem inputType (input toolbar)                         | 12    | app/src/main/res/layout/view_terminal_toolbar_text_input.xml
+367. EditText sem inputType (editor de parâmetros QEMU)             | 110   | app/src/main/res/layout/activity_qemu_params_editor.xml
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 9 — System.out.println / System.err.println (17 ocorrências)
+Android deve usar android.util.Log; println vai para stdout ignorado
+e vaza informação sem nível de log controlável.
+════════════════════════════════════════════════════════════════
+
+368. System.out.println em autenticação VNC                         | 571   | app/src/main/java/android/androidVNC/RfbProto.java
+369. System.out.println aviso encoding Raw                          | 941   | app/src/main/java/android/androidVNC/RfbProto.java
+370. System.out.println aviso Tight recompressão                    | 950   | app/src/main/java/android/androidVNC/RfbProto.java
+371. System.out.println (comentado mas erro ainda existe próximo)   | 379   | app/src/main/java/android/androidVNC/RfbProto.java
+372. System.out.println arquivo não suportado                       | 80    | app/src/main/java/com/vectras/vm/utils/TarUtils.java
+373. System.err.println fallback hardware                           | 888   | app/src/main/java/com/vectras/vm/core/NativeFastPath.java
+374. System.err.println fallback kernel                             | 896   | app/src/main/java/com/vectras/vm/core/NativeFastPath.java
+375. System.err.println erro X11                                    | 36    | app/src/main/java/com/vectras/vm/core/TermuxX11.java
+376. System.err.println requisição de conexão                       | 162   | app/src/main/java/com/vectras/vm/x11/CmdEntryPoint.java
+377. System.err.println falha em carregar lib nativa                | 235   | app/src/main/java/com/vectras/vm/x11/CmdEntryPoint.java
+378. System.err.println falha em adquirir lib nativa                | 243   | app/src/main/java/com/vectras/vm/x11/CmdEntryPoint.java
+379. System.out.println header benchmark                            | 2063  | app/src/main/java/com/vectras/vm/benchmark/VectraBenchmark.java
+380. System.out.println running metrics                             | 2064  | app/src/main/java/com/vectras/vm/benchmark/VectraBenchmark.java
+381. System.out.println resultado benchmark                         | 2068  | app/src/main/java/com/vectras/vm/benchmark/VectraBenchmark.java
+382. System.out.println resultado salvo                             | 2080  | app/src/main/java/com/vectras/vm/benchmark/VectraBenchmark.java
+383. System.out.println CSV exportado                               | 2089  | app/src/main/java/com/vectras/vm/benchmark/VectraBenchmark.java
+384. System.out.println JSONL exportado                             | 2090  | app/src/main/java/com/vectras/vm/benchmark/VectraBenchmark.java
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 10 — STATIC ACTIVITY / CONTEXT LEAK (3 diretos, críticos)
+Referência estática a Activity impede GC e vaza toda a hierarquia de View.
+════════════════════════════════════════════════════════════════
+
+385. public static Activity activity (leak direto de Activity)      | 68    | app/src/main/java/android/androidVNC/VncCanvasActivity.java
+386. public static MainVNCActivity getContext (leak de Activity)    | 82    | app/src/main/java/com/vectras/qemu/MainVNCActivity.java
+387. static TerminalSession getCurrentSession(TermuxActivity)       | 163   | app/src/main/java/com/termux/app/TermuxPreferences.java
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 11 — CAMINHOS HARDCODED NO CÓDIGO (5 ocorrências)
+Paths absolutos não funcionam em todos os devices e violam
+o modelo de sandbox do Android moderno.
+════════════════════════════════════════════════════════════════
+
+388. "/sdcard/Documents/VectrasVM/" hardcoded como fallback          | 18    | app/src/main/java/com/vectras/vm/AppConfig.java
+389. "/data/data/com.vectras.vm/files/" hardcoded                   | 77    | app/src/main/java/com/vectras/vm/AppConfig.java
+390. "/data/data/com.termux/files/usr/bin/top" em comentário-doc    | 53    | app/src/main/java/com/termux/app/RunCommandService.java
+391. "/data/data/com.termux/files/home" em comentário-doc           | 55    | app/src/main/java/com/termux/app/RunCommandService.java
+392. "/data/data/" + packageName construído manualmente             | 484   | app/src/main/java/com/vectras/vm/utils/FileUtils.java
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 12 — BUGS EM CÓDIGO C NATIVO (engine + app/cpp)
+════════════════════════════════════════════════════════════════
+
+393. g_crc32c_table_ready sem volatile/atomic — race em multithreading | 181 | engine/rmr/src/rmr_policy_kernel.c
+394. init_crc32c_table() sem mutex — TOCTOU se chamada concorrente  | 184   | engine/rmr/src/rmr_policy_kernel.c
+395. g_crc32c_table escrita sem barreira de memória                 | 190   | engine/rmr/src/rmr_policy_kernel.c
+396. fseek() com cast (long) em idx*sizeof(uint32_t) — overflow >2GB| 90   | engine/rmr/src/rafa_cti_scan.c
+397. fseek() com cast (long) byte_idx — overflow em arquivo >2GB    | 108   | engine/rmr/src/rafa_cti_scan.c
+398. fseek() com cast (long) byte_idx — overflow em arquivo >2GB    | 112   | engine/rmr/src/rafa_cti_scan.c
+399. fseek() com cast (long) off — overflow em arquivo >2GB         | 265   | engine/rmr/src/rafa_cti_scan.c
+400. malloc() sem verificação de NULL antes de uso                  | 243   | engine/rmr/src/rafa_cti_scan.c
+401. malloc() sem verificação de NULL (bridge)                      | 62    | engine/rmr/src/rmr_host_compat.c
+402. rmr_realloc: old pointer vec->v perdido em OOM                 | 147   | engine/rmr/src/rmr_policy_kernel.c
+403. snprintf resultado não verificado — truncação silenciosa       | 807   | engine/rmr/src/rafaelia_bitraf_core.c
+404. strcpy sem verificação de bounds (buffer fixo)                 | 101   | demo_cli/src/main.c
+405. strcpy sem verificação de bounds (buffer fixo)                 | 106   | demo_cli/src/main.c
+406. crc32c_aarch64_update usa __crc32cd sem runtime HW check       | 214   | engine/rmr/src/rmr_policy_kernel.c
+407. (int) cast em sizeof(line) passado para fgets                  | 491   | app/src/main/cpp/vectra_core_accel.c
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 13 — BUGS DE BUILD / GRADLE / CMAKE
+════════════════════════════════════════════════════════════════
+
+408. annotationProcessor Glide não funciona com Kotlin; precisa kapt | 643  | app/build.gradle
+409. KOTLIN_VERSION=1.9.24 incompatível com AGP_VERSION=8.5.2       | —    | gradle.properties
+410. app/google-services.json ausente — bloqueia todo release build  | —    | app/ (arquivo ausente)
+411. local.properties ausente — SDK não localizado sem ANDROID_HOME  | —    | / (arquivo ausente)
+412. shell-loader e app com mesmo namespace com.vectras.vm           | —    | shell-loader/build.gradle + app/build.gradle
+413. kotlin-kapt plugin não declarado mas necessário para Glide      | —    | app/build.gradle
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 14 — INCONSISTÊNCIAS DE CI / WORKFLOW
+════════════════════════════════════════════════════════════════
+
+414. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 é variável fantasma sem efeito | 92 | .github/workflows/android.yml
+415. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 sem efeito                  | 57   | .github/workflows/pipeline-orchestrator.yml
+416. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 sem efeito                  | 118  | .github/workflows/android-verified.yml
+417. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 sem efeito                  | 167  | .github/workflows/android-build-manual.yml
+418. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 sem efeito                  | 25   | .github/workflows/android-minimal-debug.yml
+419. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 sem efeito                  | 18   | .github/workflows/zipdrop.yml
+420. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 sem efeito                  | 28   | .github/workflows/proof-build.yml
+421. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 sem efeito                  | 33   | .github/workflows/rafcode-phi-baremetal-ci.yml
+422. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 sem efeito                  | 46   | .github/workflows/termux-orchestrator.yml
+423. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 sem efeito                  | 28   | .github/workflows/ci.yml
+424. FORCE_JAVASCRIPT_ACTIONS_TO_NODE24 sem efeito                  | 56   | .github/workflows/engine-ci.yml
+425. accept-android-sdk-licenses:false + aceite manual = race       | 147  | .github/workflows/android.yml
+426. accept-android-sdk-licenses:false + aceite manual = race       | 371  | .github/workflows/android.yml
+427. accept-android-sdk-licenses:false + aceite manual = race       | 543  | .github/workflows/android.yml
+428. ANDROID_SDK_ROOT usada antes de ser garantida pelo setup-android | 403 | .github/workflows/android.yml
+429. ANDROID_SDK_ROOT usada antes de ser garantida pelo setup-android | 412 | .github/workflows/android.yml
+430. ANDROID_SDK_ROOT usada antes de ser garantida                  | 582  | .github/workflows/android.yml
+431. gradle_with_jdk21.sh aceita Java 17 mas nome diz 21 (enganoso) | —   | tools/gradle_with_jdk21.sh
+432. GRADLE_ARGS usa ${MATRIX_FLAGS} antes de definição garantida    | 470  | .github/workflows/android.yml
+433. GRADLE_ARGS usa ${EXTRA_VALIDATE_FLAGS} antes de definição     | 740  | .github/workflows/android.yml
+434. GRADLE_ARGS usa ${EXTRA_FLAGS} antes de definição              | 779  | .github/workflows/android.yml
+435. GRADLE_ARGS usa ${GRADLE_EXTRA_ARGS} antes de definição        | 269  | .github/workflows/android-build-manual.yml
+436. GRADLE_ARGS usa ${GRADLE_EXTRA_ARGS} antes de definição        | 280  | .github/workflows/android-build-manual.yml
+437. GRADLE_ARGS usa ${GRADLE_EXTRA_ARGS} antes de definição        | 293  | .github/workflows/android-build-manual.yml
+438. GRADLE_ARGS usa ${GRADLE_EXTRA_ARGS} antes de definição        | 298  | .github/workflows/android-build-manual.yml
+439. GRADLE_ARGS usa ${GRADLE_EXTRA_ARGS} antes de definição        | 302  | .github/workflows/android-build-manual.yml
+440. GRADLE_ARGS usa ${GRADLE_EXTRA_ARGS} antes de definição        | 311  | .github/workflows/android-build-manual.yml
+441. GRADLE_ARGS usa ${GRADLE_EXTRA_ARGS} antes de definição        | 343  | .github/workflows/android-build-manual.yml
+442. GRADLE_ARGS usa ${GRADLE_EXTRA_ARGS} antes de definição        | 355  | .github/workflows/android-build-manual.yml
+
+
+════════════════════════════════════════════════════════════════
+BLOCO 15 — INCONSISTÊNCIAS DE NOMENCLATURA E CÓDIGO MORTO
+════════════════════════════════════════════════════════════════
+
+443. Arquivo nomeado gradle_with_jdk21.sh mas aceita JDK 17         | —    | tools/gradle_with_jdk21.sh
+444. URL morta "http://code.google.com/p/android-vnc-viewer" (2008) | 28   | app/src/main/java/android/androidVNC/Utils.java
+445. Comentário de linha comentada System.out.println ainda no fonte | 379  | app/src/main/java/android/androidVNC/RfbProto.java
+446. Método LoadFile com L maiúsculo (viola convenção Java)          | 348  | app/src/main/java/com/vectras/qemu/utils/FileUtils.java
+447. Campo "lol" como ID de resource (sem semântica)                | vários| app/src/main/res/layout/
+448. SDK_VERSION=21 em gradle.properties ignorado (redundante)      | 3    | gradle.properties
+449. Tag "fazer hotfix" como nome de diretório com espaço           | —    | bug/fazer hotfix/
+450. Tag "feito" como diretório de bugs (não é controle de versão)  | —    | bug/feito/
+
+==================================================================================
+TOTAL DE OCORRÊNCIAS CATALOGADAS: 450
+(79 IDs duplicados + 82 catch genérico + 49 streams + 50 actions@v5 +
+ 68 null intent + 10 gradle_args + 21 hardcoded text + 8 edittext +
+ 17 println + 3 static leak + 5 hardcoded path + 15 C native +
+ 6 build/gradle + 29 CI + 8 misc)
+==================================================================================

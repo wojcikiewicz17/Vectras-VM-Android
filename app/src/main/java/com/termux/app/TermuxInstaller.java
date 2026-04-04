@@ -8,6 +8,7 @@ import android.os.Build;
 import android.os.Environment;
 import android.os.UserManager;
 import android.system.Os;
+import android.system.ErrnoException;
 import android.text.TextUtils;
 import android.util.Log;
 import android.util.Pair;
@@ -50,6 +51,7 @@ final class TermuxInstaller {
     private static final String BOOTSTRAP_FAILURE_JNI_UNAVAILABLE = "jni_unavailable";
     private static final String BOOTSTRAP_FAILURE_BOOTSTRAP_ARCHIVE_MISSING = "bootstrap_archive_missing";
     private static final String BOOTSTRAP_FAILURE_BOOTSTRAP_ARCHIVE_CORRUPTED = "bootstrap_archive_corrupted";
+    private static final String BOOTSTRAP_FAILURE_BOOTSTRAP_ARCHIVE_INVALID = BOOTSTRAP_FAILURE_BOOTSTRAP_ARCHIVE_CORRUPTED;
     private static final String BOOTSTRAP_FAILURE_UNKNOWN = "unknown";
     private static volatile String bootstrapNativeFailureType = "";
     private static volatile String bootstrapNativeFailureMessage = "";
@@ -488,49 +490,6 @@ final class TermuxInstaller {
         return getBootstrapNativeDiagnostics(TERMUX_BOOTSTRAP_LIB, bootstrapNativeLoadError);
     }
 
-    private static int getBootstrapDialogMessageResId(Exception e) {
-        if (e instanceof BootstrapInstallException) {
-            return ((BootstrapInstallException) e).getDialogMessageResId();
-        }
-        return resolveBootstrapErrorMessageResId();
-    }
-
-    private static int resolveBootstrapErrorMessageResId() {
-        if (BOOTSTRAP_FAILURE_JNI_UNAVAILABLE.equals(bootstrapZipFailureCategory)) {
-            return R.string.bootstrap_error_jni_unavailable_body;
-        }
-        return R.string.bootstrap_error_archive_invalid_body;
-    }
-
-    private static void logBootstrapFailureTelemetry(String event, Exception e, int dialogMessageResId) {
-        Log.e(EmulatorDebug.LOG_TAG,
-            event + ": category=" + bootstrapZipFailureCategory +
-                ", detail=" + bootstrapZipFailureDetail +
-                ", exception=" + e.getClass().getSimpleName() +
-                ", dialogResId=" + dialogMessageResId +
-                ", diagnostics=" + getBootstrapNativeLoadError());
-    }
-
-    private static String extractLinkerMessage(Throwable throwable) {
-        Throwable cursor = throwable;
-        while (cursor != null) {
-            String message = cursor.getMessage();
-            if (!TextUtils.isEmpty(message)) {
-                return message;
-            }
-            cursor = cursor.getCause();
-        }
-        return "";
-    }
-
-    private static void updateBootstrapNativeLoadError() {
-        bootstrapNativeLoadError = "type=" + bootstrapNativeFailureType +
-            ", message=" + bootstrapNativeFailureMessage +
-            ", linker=" + bootstrapNativeFailureLinkerMessage +
-            ", category=" + bootstrapZipFailureCategory +
-            ", detail=" + bootstrapZipFailureDetail;
-    }
-
     private static native byte[] nativeGetZip();
 
     /** Delete a folder and all its content or throw. Don't follow symlinks. */
@@ -605,7 +564,11 @@ final class TermuxInstaller {
         if (!target.exists() && !target.mkdirs()) {
             throw new IOException("Unable to create app-scoped external dir for " + type + ": " + target.getAbsolutePath());
         }
-        Os.symlink(target.getAbsolutePath(), new File(storageDir, alias).getAbsolutePath());
+        try {
+            Os.symlink(target.getAbsolutePath(), new File(storageDir, alias).getAbsolutePath());
+        } catch (ErrnoException errnoException) {
+            throw new IOException("Unable to create symlink for " + alias, errnoException);
+        }
     }
 
 }

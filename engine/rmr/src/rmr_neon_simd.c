@@ -188,9 +188,15 @@ void rmr_neon_memcpy(u8 *dst, const u8 *src, u32 len) {
 u32 rmr_neon_crc32c(u32 seed, const u8 *data, u32 len) {
 #if defined(__SSE4_2__)
     u32 crc = seed, i = 0;
+#if defined(__x86_64__)
     for (; i + 8u <= len; i += 8u) {
         u64 w; __builtin_memcpy(&w, data + i, 8);
         crc = (u32)_mm_crc32_u64(crc, w);
+    }
+#endif
+    for (; i + 4u <= len; i += 4u) {
+        u32 w; __builtin_memcpy(&w, data + i, 4);
+        crc = _mm_crc32_u32(crc, w);
     }
     for (; i < len; ++i) crc = _mm_crc32_u8(crc, data[i]);
     return crc;

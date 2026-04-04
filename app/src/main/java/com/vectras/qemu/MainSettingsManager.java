@@ -44,6 +44,9 @@ public class MainSettingsManager extends AppCompatActivity
     public static final int THEME_DEFAULT = 0;
     public static final int THEME_LIGHT = 1;
     public static final int THEME_DARK = 2;
+    public static final int ONBOARDING_PERMISSION_UNKNOWN = 0;
+    public static final int ONBOARDING_PERMISSION_GRANTED = 1;
+    public static final int ONBOARDING_PERMISSION_FAILED = 2;
 
     public static MainSettingsManager activity;
 
@@ -1347,5 +1350,15 @@ public class MainSettingsManager extends AppCompatActivity
     public static Boolean getShowVirtualMouse(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         return prefs.getBoolean("showVirtualMouse", false);
+    }
+
+    public static void setOnboardingPermStorageSaf(Context context, int status) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        prefs.edit().putInt("onboardingPermStorageSaf", status).apply();
+    }
+
+    public static int getOnboardingPermStorageSaf(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getInt("onboardingPermStorageSaf", ONBOARDING_PERMISSION_UNKNOWN);
     }
 }

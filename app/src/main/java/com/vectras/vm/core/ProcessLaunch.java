@@ -38,6 +38,10 @@ public final class ProcessLaunch {
         void write(BufferedWriter writer) throws IOException;
     }
 
+    public interface ProcessStarter {
+        Process start() throws IOException;
+    }
+
     public static final class LaunchResult {
         public final LaunchStatus status;
         public final int exitCode;
@@ -71,6 +75,82 @@ public final class ProcessLaunch {
 
         public boolean isSuccess() {
             return status == LaunchStatus.SUCCESS;
+        }
+    }
+
+    public static final class LaunchTicket implements AutoCloseable {
+        private final String registryId;
+        private final Process process;
+        private final long timeoutMs;
+        private final String feature;
+        private final String tag;
+        private final String caller;
+        private boolean closed;
+
+        private LaunchTicket(String registryId, Process process, long timeoutMs, String feature, String tag, String caller) {
+            this.registryId = registryId;
+            this.process = process;
+            this.timeoutMs = timeoutMs;
+            this.feature = feature;
+            this.tag = tag;
+            this.caller = caller;
+        }
+
+        public Process process() {
+            return process;
+        }
+
+        public long timeoutMs() {
+            return timeoutMs;
+        }
+
+        public String diagnosticPrefix() {
+            return ProcessLaunch.diagnosticPrefix(feature, tag, caller);
+        }
+
+        public void release(String reason) {
+            close();
+        }
+
+        @Override
+        public synchronized void close() {
+            if (closed) return;
+            closed = true;
+            VMManager.unregisterVmProcess(registryId, process);
+            if (process != null && process.isAlive()) {
+                process.destroy();
+            }
+        }
+    }
+
+    public static final class LaunchLease implements AutoCloseable {
+        private final LaunchTicket ticket;
+
+        private LaunchLease(LaunchTicket ticket) {
+            this.ticket = ticket;
+        }
+
+        public Process getProcess() {
+            return ticket == null ? null : ticket.process();
+        }
+
+        public Process process() {
+            return getProcess();
+        }
+
+        public ProcessRuntimeOps.TimeoutExecutionResult waitFor(ProcessRuntimeOps.ExecutionCategory category) throws InterruptedException {
+            return ProcessRuntimeOps.waitForByCategory(getProcess(), category);
+        }
+
+        public void release(String reason) {
+            close();
+        }
+
+        @Override
+        public void close() {
+            if (ticket != null) {
+                ticket.close();
+            }
         }
     }
 
@@ -142,6 +222,35 @@ public final class ProcessLaunch {
                 }
             }
         }
+    }
+
+    public static LaunchLease withBudget(ProcessBuilder processBuilder,
+                                         String feature,
+                                         String tag,
+                                         String caller,
+                                         @Nullable String vmOrRegistryId) throws IOException {
+        String registryId = buildRegistryId(feature, tag, caller, vmOrRegistryId);
+        Process process = processBuilder.start();
+        VMManager.registerVmProcess(null, registryId, process);
+        return new LaunchLease(new LaunchTicket(registryId, process, 0L, feature, tag, caller));
+    }
+
+    public static LaunchTicket withBudget(String feature,
+                                          String tag,
+                                          String caller,
+                                          long timeoutMs,
+                                          ProcessStarter starter) throws IOException {
+        if (starter == null) {
+            throw new IOException("starter_missing");
+        }
+        String registryId = buildRegistryId(feature, tag, caller, null);
+        Process process = starter.start();
+        VMManager.registerVmProcess(null, registryId, process);
+        return new LaunchTicket(registryId, process, timeoutMs, feature, tag, caller);
+    }
+
+    public static String diagnosticPrefix(String feature, String tag, String caller) {
+        return "feature=" + sanitize(feature) + ",tag=" + sanitize(tag) + ",caller=" + sanitize(caller);
     }
 
     private static LaunchStatus mapStatus(ProcessRuntimeOps.TimeoutExecutionResult waitResult) {

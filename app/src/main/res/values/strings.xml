@@ -1130,4 +1130,20 @@ CPU1 %3$d%% · CPUm %4$d%% · MEM %5$d%% · IO %6$d%% · INT %7$d%% · EMU %8$d%
     <string name="setup_open_terminal">Open terminal</string>
     <string name="setup_step_status_default">Setup progress</string>
     <string name="setup_stepper_progress_content_description">Setup progress indicator</string>
+
+    <string name="unknown">Unknown</string>
+    <string name="placeholder_textview">TextView</string>
+    <string name="placeholder_button">Button</string>
+    <string name="vm_flow_idle">VM Flow: IDLE</string>
+    <string name="new_virtual_disk">New virtual disk</string>
+    <string name="start_x11">START X11</string>
+    <string name="key_tab">TAB</string>
+    <string name="key_r">R</string>
+    <string name="key_e">E</string>
+    <string name="key_x">X</string>
+    <string name="key_q">Q</string>
+    <string name="key_mouse_left">L</string>
+    <string name="key_mouse_middle">M</string>
+    <string name="key_mouse_right">R</string>
+
 </resources>
