@@ -1,38 +1,29 @@
 # Android CI canonical mode matrix
 
-Este é o ponto único de documentação dos modos Android usados por `.github/workflows/android-verified.yml` (fluxo canônico) e acionados por `.github/workflows/pipeline-orchestrator.yml`.
+Este é o ponto único de documentação dos perfis Android usados por `.github/workflows/android.yml` e acionados por `.github/workflows/pipeline-orchestrator.yml`.
 
 ## Modelo de pipeline Android (fonte de verdade)
 
-Existe **um único fluxo canônico**:
+Existe **um único workflow Android canônico** (`android.yml`) com seleção por `run_workfile`:
 
-1. **internal validation (unsigned explícito)**
-   `android-verified.yml` com `signing_mode=unsigned`, para validação interna com trilha explícita.
-2. **official verified (signed/auto)**
-   `android-verified.yml` com `signing_mode=auto` (ou `signed`) após sucesso da trilha interna.
+1. `smoke_debug` → `:app:assembleDebug`
+2. `unit_loader` → `:shell-loader:testDebugUnitTest`
+3. `full_debug` → build + testes unitários de app/terminal-emulator/shell-loader
+4. `release_gate` → build/testes unitários de release
 
-Wrappers manuais/reutilizáveis (`android.yml` e `android-build-manual.yml`) apenas delegam para o fluxo canônico via `workflow_dispatch`/`workflow_call`, sem semântica paralela de build.
+## Matriz de logs (`log_level`)
 
-## Matriz de modos (`mode`)
-
-| mode | unit tests | gradle logs | deep diagnostics | uso recomendado |
-|---|---:|---|---:|---|
-| `fast` | não | `--console=plain` | não | baseline/smoke |
-| `moderado` | sim | `--stacktrace` | não | PR padrão |
-| `profundo` | sim | `--stacktrace --info` | sim | validação aprofundada |
-| `ultra_minucioso` | sim | `--stacktrace --info` | sim | investigação extensa |
-| `diagnostico` | sim | `--stacktrace --info` | sim | troubleshooting CI |
-| `interoperavel` | sim | `--stacktrace --info` | sim | compatibilidade transversal |
-| `confiavel` | sim | `--stacktrace --info` | sim | hardening de confiabilidade |
-| `portavel` | sim | `--stacktrace --info` | sim | portabilidade |
-| `hardening` | sim | `--stacktrace --info` | sim | endurecimento release |
-| `matrix_total` | sim | `--stacktrace --info` | sim | cobertura máxima |
-| `forense` | sim | `--stacktrace --info` | sim | análise forense |
+| log_level | flags Gradle | uso recomendado |
+|---|---|---|
+| `lifecycle` | `--console=plain` | execução mais limpa/curta |
+| `info` | `--console=plain --info` | padrão para CI diária |
+| `debug` | `--console=plain --debug --stacktrace` | diagnóstico profundo |
 
 ## Flags complementares
 
 - `build_variant`: `debug`, `release` ou `both`.
-- `run_lint`: controla execução de `lintDebug`.
-- `run_native_matrix`: controla execução de `checkNativeAllMatrix`.
+- `signing_mode`: `auto`, `signed` ou `unsigned`.
+- `run_lint`: controla execução de `:app:lintDebug`.
+- `run_native_checks`: controla validação de contrato Make/CMake.
 
-> Nota: `run_lint` e `run_native_matrix` são flags de perfil e podem ser sobrescritas pelo orquestrador sem criar workflows Android paralelos.
+> Nota: o orquestrador seleciona pipeline (`host_only`, `android_only`, `full`) e repassa `run_workfile`/`log_level` para reduzir drift entre execução manual e execução automática.

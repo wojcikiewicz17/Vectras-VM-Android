@@ -90,22 +90,22 @@ find . -maxdepth 2 -type d | sort
 - [docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md](docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md)
 
 ## Execução padrão de CI/CD
-- A execução normal deve ocorrer via **Actions > Pipeline Orchestrator** (`.github/workflows/pipeline-orchestrator.yml`), que é o único workflow que recebe eventos de branch/PR.
-- Workflows filhos (`engine-ci.yml`, `proof-build.yml`, `android.yml`, `android-verified.yml`, `android-minimal-debug.yml`, `termux-orchestrator.yml`) executam em modo reutilizável via `uses: ./.github/workflows/<arquivo>.yml`.
-- `workflow_dispatch` nos workflows filhos fica apenas para depuração manual controlada.
+- A execução normal ocorre em **Actions > Pipeline Orchestrator** (`.github/workflows/pipeline-orchestrator.yml`), único ponto de entrada para branch/PR/manual.
+- O repositório foi consolidado para **3 workflows canônicos**: `pipeline-orchestrator.yml`, `ci.yml` (host) e `android.yml` (Android).
+- `pipeline-orchestrator.yml` escolhe o fluxo com `pipeline_profile` (`host_only`, `android_only`, `full`) e injeta `run_workfile`/`log_level` para o Android.
 
 ## Como rodar manualmente
-- Fluxo recomendado: acesse **Actions > Pipeline Orchestrator > Run workflow** e ajuste os toggles (`run_host_ci`, `run_android_ci`, `run_termux_orchestrator`) e `mode`.
-- Depuração pontual: execute diretamente um workflow filho apenas quando necessário para troubleshooting local de pipeline.
-- No workflow **Android CI** (debug manual), use os inputs canônicos do `workflow_dispatch` abaixo:
-- Inputs principais:
-  - `build_variant` (`debug`|`release`|`both`): define quais variantes serão construídas.
-  - `mode` (`fast`|`moderado`|`profundo`|`ultra_minucioso`|`diagnostico`|`interoperavel`|`confiavel`|`portavel`|`hardening`|`matrix_total`|`forense`): perfil de execução.
-  - `run_lint` (`true`/`false`): habilita/desabilita lint Android.
-  - `run_native_matrix` (`true`/`false`): habilita matriz de validação nativa.
-  - `signing_mode` (`auto`|`unsigned`|`signed`): política de assinatura de release.
-  - `allow_legacy_fallback` (`true`/`false`): permite fallback legado de assinatura apenas quando explicitamente habilitado.
-  - `upload_telegram` (`true`/`false`): habilita notificação/upload no Telegram.
+- Fluxo recomendado: acesse **Actions > Pipeline Orchestrator > Run workflow** e selecione:
+  - `pipeline_profile`: host-only, android-only ou full.
+  - `run_workfile`: `smoke_debug`, `unit_loader`, `full_debug`, `release_gate`.
+  - `log_level`: `lifecycle`, `info`, `debug`.
+- Depuração pontual: execute o workflow **android-ci** diretamente quando quiser isolar build/test Android.
+- Inputs principais do workflow **android-ci**:
+  - `run_workfile`: define o conjunto de tarefas Gradle.
+  - `build_variant` (`debug`|`release`|`both`): define variante alvo.
+  - `signing_mode` (`auto`|`signed`|`unsigned`): política de assinatura de release.
+  - `run_lint` e `run_native_checks`: habilitam gates opcionais.
+  - `log_level`: controla verbosidade e rastreabilidade dos logs.
 - Para manter valores padrão por repositório em CI, configure variáveis em **Settings > Secrets and variables > Actions > Variables** (prefira canônicas: `compile.api`, `tools.version`, `ndk.version`, `cmake.version`, `java.language.version`; aliases legados como `COMPILE_API`, `TOOLS_VERSION`, `NDK_VERSION`, `CMAKE_VERSION`, `JAVA_VERSION` ficam como fallback de compatibilidade).
 
 ## Setup rápido de build

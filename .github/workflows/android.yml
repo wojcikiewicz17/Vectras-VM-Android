@@ -1,914 +1,271 @@
-name: Android CI (delegated to canonical)
+name: android-ci
 
 on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'terminal-emulator/**'
+      - 'terminal-view/**'
+      - 'shell-loader/**'
+      - 'gradle/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'settings.gradle'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android.yml'
+  push:
+    branches: [main, master, dev, 'release/**']
+    paths:
+      - 'app/**'
+      - 'terminal-emulator/**'
+      - 'terminal-view/**'
+      - 'shell-loader/**'
+      - 'gradle/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'settings.gradle'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android.yml'
   workflow_dispatch:
     inputs:
+      run_workfile:
+        description: "Perfil de execução Gradle"
+        type: choice
+        default: unit_loader
+        options:
+          - smoke_debug
+          - unit_loader
+          - full_debug
+          - release_gate
       build_variant:
-        description: "Build variant"
+        description: "Variante Android"
         type: choice
+        default: debug
         options: [debug, release, both]
-        default: both
-      mode:
-        description: "Execution mode profile"
-        type: choice
-        options: [fast, moderado, profundo, ultra_minucioso, diagnostico, interoperavel, confiavel, portavel, hardening, matrix_total, forense]
-        default: moderado
-      run_lint:
-        description: "Run lint checks"
-        type: boolean
-        default: true
-      run_native_matrix:
-        description: "Run native matrix checks"
-        type: boolean
-        default: true
       signing_mode:
-        description: "Release signing mode"
+        description: "Assinatura release (não enfraquece trilha oficial)"
         type: choice
-        options: [auto, unsigned, signed]
         default: auto
-      allow_legacy_fallback:
-        description: "Allow legacy ANDROID_SIGNING_KEYSTORE fallback in signed/auto mode"
+        options: [auto, signed, unsigned]
+      log_level:
+        description: "Nível de logs Gradle"
+        type: choice
+        default: info
+        options: [lifecycle, info, debug]
+      run_lint:
+        description: "Executar lint"
         type: boolean
-        default: false
-      upload_telegram:
-        description: "Upload release artifact to Telegram"
+        default: true
+      run_native_checks:
+        description: "Executar verificações nativas"
         type: boolean
-        default: false
+        default: true
   workflow_call:
     inputs:
-      provenance_run_id:
-        required: true
+      run_workfile:
+        required: false
         type: string
-      expected_sha:
-        required: true
-        type: string
-      provenance_manifest_hash:
-        required: true
-        type: string
+        default: unit_loader
       build_variant:
         required: false
         type: string
-        default: "both"
-      mode:
+        default: debug
+      signing_mode:
         required: false
         type: string
-        default: "moderado"
+        default: auto
+      log_level:
+        required: false
+        type: string
+        default: info
       run_lint:
         required: false
         type: boolean
         default: true
-      run_native_matrix:
+      run_native_checks:
         required: false
         type: boolean
         default: true
-      signing_mode:
-        required: false
-        type: string
-        default: "auto"
-      allow_legacy_fallback:
-        required: false
-        type: boolean
-        default: false
-      upload_telegram:
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: read
-
-concurrency:
-  group: android-ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 env:
   JAVA_VERSION: '17'
   COMPILE_API: '35'
   TARGET_API: '35'
-  RELEASE_MIN_TARGET_API: '35'
+  MIN_API: '23'
   TOOLS_VERSION: '35.0.0'
-  CMAKE_VERSION: '3.22.1'
   NDK_VERSION: '27.2.12479018'
-  ANDROID_SDK_ROOT: '/usr/local/lib/android/sdk'
-  ANDROID_HOME: '/usr/local/lib/android/sdk'
-  GRADLE_ARGS: >-
-    -PCOMPILE_API=35 -PTARGET_API=35 -PRELEASE_MIN_TARGET_API=35
-    -PTOOLS_VERSION=35.0.0 -PJAVA_LANGUAGE_VERSION=17
-    -PCMAKE_VERSION=3.22.1 -PNDK_VERSION=27.2.12479018
+  CMAKE_VERSION: '3.22.1'
+  SUPPORTED_ABIS: 'arm64-v8a'
+
+concurrency:
+  group: android-ci-${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: true
 
 jobs:
-  preflight:
-    name: '01 • Preflight Checks'
+  resolve:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
     outputs:
-      has_signing_secrets: ${{ steps.release_mode.outputs.has_signing_secrets }}
-      has_telegram_secrets: ${{ steps.release_mode.outputs.has_telegram_secrets }}
-      selected_build_debug: ${{ steps.dispatch_controls.outputs.selected_build_debug }}
-      selected_build_release: ${{ steps.dispatch_controls.outputs.selected_build_release }}
-      diagnostic_mode: ${{ steps.dispatch_controls.outputs.diagnostic_mode }}
-      deep_diagnostics: ${{ steps.dispatch_controls.outputs.deep_diagnostics }}
-      signing_mode: ${{ steps.dispatch_controls.outputs.signing_mode }}
-      allow_legacy_fallback: ${{ steps.dispatch_controls.outputs.allow_legacy_fallback }}
+      run_debug: ${{ steps.flags.outputs.run_debug }}
+      run_release: ${{ steps.flags.outputs.run_release }}
+      gradle_tasks: ${{ steps.flags.outputs.gradle_tasks }}
+      gradle_log_flags: ${{ steps.flags.outputs.gradle_log_flags }}
+      should_sign_release: ${{ steps.flags.outputs.should_sign_release }}
+      log_bundle_name: ${{ steps.flags.outputs.log_bundle_name }}
+    steps:
+      - id: flags
+        shell: bash
+        run: |
+          set -euo pipefail
 
+          run_workfile="${{ inputs.run_workfile || 'unit_loader' }}"
+          build_variant="${{ inputs.build_variant || 'debug' }}"
+          signing_mode="${{ inputs.signing_mode || 'auto' }}"
+          log_level="${{ inputs.log_level || 'info' }}"
+
+          case "${build_variant}" in
+            debug) run_debug=true; run_release=false ;;
+            release) run_debug=false; run_release=true ;;
+            both) run_debug=true; run_release=true ;;
+            *) echo "build_variant inválido: ${build_variant}" >&2; exit 1 ;;
+          esac
+
+          case "${run_workfile}" in
+            smoke_debug)
+              tasks=":app:assembleDebug"
+              ;;
+            unit_loader)
+              tasks=":shell-loader:testDebugUnitTest"
+              ;;
+            full_debug)
+              tasks=":app:assembleDebug :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :shell-loader:testDebugUnitTest"
+              ;;
+            release_gate)
+              tasks=":app:assembleRelease :app:testReleaseUnitTest :shell-loader:testReleaseUnitTest"
+              ;;
+            *)
+              echo "run_workfile inválido: ${run_workfile}" >&2
+              exit 1
+              ;;
+          esac
+
+          case "${log_level}" in
+            lifecycle) log_flags="--console=plain" ;;
+            info) log_flags="--console=plain --info" ;;
+            debug) log_flags="--console=plain --debug --stacktrace" ;;
+            *) echo "log_level inválido: ${log_level}" >&2; exit 1 ;;
+          esac
+
+          should_sign_release=false
+          if [[ "${run_release}" == "true" ]]; then
+            if [[ "${signing_mode}" == "signed" ]]; then
+              should_sign_release=true
+            elif [[ "${signing_mode}" == "auto" && -n "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 || '' }}" ]]; then
+              should_sign_release=true
+            fi
+          fi
+
+          echo "run_debug=${run_debug}" >> "$GITHUB_OUTPUT"
+          echo "run_release=${run_release}" >> "$GITHUB_OUTPUT"
+          echo "gradle_tasks=${tasks}" >> "$GITHUB_OUTPUT"
+          echo "gradle_log_flags=${log_flags}" >> "$GITHUB_OUTPUT"
+          echo "should_sign_release=${should_sign_release}" >> "$GITHUB_OUTPUT"
+          echo "log_bundle_name=android-logs-${run_workfile}-${log_level}-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: resolve
     steps:
       - uses: actions/checkout@v4
 
-      - name: Block sensitive artifacts in repository (warn only)
-        continue-on-error: true
-        run: bash tools/security/block_sensitive_artifacts.sh
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
+      - uses: actions/setup-java@v4
         with:
-          java-version: ${{ env.JAVA_VERSION }}
           distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
           cache: gradle
 
-      - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Cache Android SDK state
-        uses: actions/cache@v4
-        with:
-          path: ~/.android
-          key: android-sdk-${{ runner.os }}-${{ env.COMPILE_API }}-${{ env.TOOLS_VERSION }}-${{ env.NDK_VERSION }}-${{ env.CMAKE_VERSION }}
-          restore-keys: |
-            android-sdk-${{ runner.os }}-${{ env.COMPILE_API }}-${{ env.TOOLS_VERSION }}-
-            android-sdk-${{ runner.os }}-
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: true
-
-      - name: Accept Android SDK licenses (non-interactive)
-        run: |
-          licenses_input_file="$(mktemp)"
-          trap 'rm -f "${licenses_input_file}"' EXIT
-          for _ in $(seq 1 200); do
-            echo 'y'
-          done > "${licenses_input_file}"
-
-          sdkmanager --licenses < "${licenses_input_file}" > /dev/null
-          echo "Android SDK licenses accepted"
+      - uses: android-actions/setup-android@v3
 
       - name: Install Android SDK packages
+        shell: bash
         run: |
-          sdkmanager --install \
-            'platform-tools' \
-            'platforms;android-35' \
-            'build-tools;35.0.0' \
-            'platforms;android-34' \
-            'build-tools;34.0.0' \
-            'ndk;27.2.12479018' \
-            'cmake;3.22.1'
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
 
-      - name: Materialize Firebase config (optional fallback for debug/tests)
+      - name: Prepare Android env
+        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}" --require-sdkmanager
+
+      - name: Materialize Firebase config (internal)
         env:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
         run: ./tools/ci/materialize_firebase_config.sh --policy internal
 
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+      - name: Prepare release signing (only when selected)
+        if: ${{ needs.resolve.outputs.should_sign_release == 'true' }}
+        env:
+          VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
+          VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
+          VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
+          VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
+        run: ./tools/ci/prepare_release_signing.sh
 
-      - name: Print Java and Gradle runtime versions
-        run: |
-          java -version
-          # Wrapper is the source of truth for JVM policy (17/21) and local.properties bootstrap.
-          ./tools/gradle_with_jdk21.sh --version
+      - name: Enforce bootstrap contract
+        run: ./tools/ci/verify_bootstrap_contract.sh
 
-      - name: Detect release signing mode
-        id: release_mode
-        run: |
-          if [[ -n "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}" \
-            && -n "${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}" \
-            && -n "${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}" \
-            && -n "${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}" ]]; then
-            echo "has_signing_secrets=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_signing_secrets=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Lint (optional)
+        if: ${{ inputs.run_lint != false }}
+        run: ./tools/gradle_with_jdk21.sh --no-daemon :app:lintDebug
 
-          if [[ -n "${{ secrets.TELEGRAM_BOT_TOKEN }}" \
-            && ( -n "${{ secrets.TELEGRAM_CHAT_ID }}" || -n "${{ secrets.TELEGRAM_CHAT_ID_VEC }}" ) ]]; then
-            echo "has_telegram_secrets=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "has_telegram_secrets=false" >> "$GITHUB_OUTPUT"
-          fi
+      - name: Native checks (optional)
+        if: ${{ inputs.run_native_checks != false }}
+        run: ./tools/ci/assert_make_cmake_build_config.sh
 
-      - name: Validate Telegram credentials when upload is requested
+      - name: Execute selected Android workfile
         shell: bash
         run: |
           set -euo pipefail
+          ./tools/gradle_with_jdk21.sh --no-daemon \
+            -PbuildStrict=true \
+            -PAPP_ABI_POLICY=arm64-only \
+            -PSUPPORTED_ABIS=${SUPPORTED_ABIS} \
+            -Pcompile.api=${COMPILE_API} \
+            -Ptarget.api=${TARGET_API} \
+            -Pmin.api=${MIN_API} \
+            -Ptools.version=${TOOLS_VERSION} \
+            -Pndk.version=${NDK_VERSION} \
+            -Pcmake.version=${CMAKE_VERSION} \
+            -Pjava.language.version=${JAVA_VERSION} \
+            ${{ needs.resolve.outputs.gradle_log_flags }} \
+            ${{ needs.resolve.outputs.gradle_tasks }}
 
-          upload_requested='false'
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ github.event.inputs.upload_telegram }}" == "true" ]]; then
-            upload_requested='true'
-          fi
+      - name: Validate expected artifacts
+        if: always()
+        run: ./tools/ci/validate_expected_android_artifacts.sh "${{ inputs.build_variant || 'debug' }}"
 
-          if [[ "${upload_requested}" != "true" ]]; then
-            echo "Telegram upload not requested; skipping credential validation."
-            exit 0
-          fi
-
-          missing_credentials='false'
-
-          if [[ -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" ]]; then
-            echo "::error::Telegram upload requested, but TELEGRAM_BOT_TOKEN is missing. Configure this repository secret before running with upload_telegram=true."
-            missing_credentials='true'
-          fi
-
-          if [[ -z "${{ secrets.TELEGRAM_CHAT_ID }}" && -z "${{ secrets.TELEGRAM_CHAT_ID_VEC }}" ]]; then
-            echo "::error::Telegram upload requested, but no destination chat is configured. Set TELEGRAM_CHAT_ID or TELEGRAM_CHAT_ID_VEC as repository secret."
-            missing_credentials='true'
-          fi
-
-          if [[ "${missing_credentials}" == "true" ]]; then
-            exit 1
-          fi
-
-          echo "Telegram credentials validated for requested upload."
-
-      - name: Resolve dispatch controls and diagnostic profile
-        id: dispatch_controls
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          selected_build_debug='true'
-          selected_build_release='true'
-          diagnostic_mode='moderado'
-          signing_mode='auto'
-          allow_legacy_fallback='false'
-
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" ]]; then
-            build_variant='${{ github.event.inputs.build_variant }}'
-            case "${build_variant}" in
-              debug) selected_build_release='false' ;;
-              release) selected_build_debug='false' ;;
-              both|'') ;;
-              *)
-                echo "::error::Unsupported build_variant: ${build_variant}"
-                exit 1
-                ;;
-            esac
-
-            diagnostic_mode='${{ github.event.inputs.mode }}'
-            signing_mode='${{ github.event.inputs.signing_mode }}'
-            allow_legacy_fallback='${{ github.event.inputs.allow_legacy_fallback }}'
-          elif [[ "${GITHUB_EVENT_NAME}" == "workflow_call" ]]; then
-            build_variant='${{ inputs.build_variant }}'
-            case "${build_variant}" in
-              debug) selected_build_release='false' ;;
-              release) selected_build_debug='false' ;;
-              both|'') ;;
-              *)
-                echo "::error::Unsupported build_variant: ${build_variant}"
-                exit 1
-                ;;
-            esac
-
-            diagnostic_mode='${{ inputs.mode }}'
-            signing_mode='${{ inputs.signing_mode }}'
-            allow_legacy_fallback='${{ inputs.allow_legacy_fallback }}'
-          fi
-
-          deep_diagnostics='false'
-          case "${diagnostic_mode}" in
-            profundo|ultra_minucioso|diagnostico|compatibilidade|interoperabilidade|confiabilidade|release_hardening|forense|maximo)
-              deep_diagnostics='true'
-              ;;
-          esac
-
-          echo "selected_build_debug=${selected_build_debug}" >> "$GITHUB_OUTPUT"
-          echo "selected_build_release=${selected_build_release}" >> "$GITHUB_OUTPUT"
-          echo "diagnostic_mode=${diagnostic_mode}" >> "$GITHUB_OUTPUT"
-          echo "deep_diagnostics=${deep_diagnostics}" >> "$GITHUB_OUTPUT"
-          echo "signing_mode=${signing_mode}" >> "$GITHUB_OUTPUT"
-          echo "allow_legacy_fallback=${allow_legacy_fallback}" >> "$GITHUB_OUTPUT"
-
-          echo "Resolved profile => build_debug=${selected_build_debug}, build_release=${selected_build_release}, diagnostic_mode=${diagnostic_mode}, deep_diagnostics=${deep_diagnostics}, signing_mode=${signing_mode}, allow_legacy_fallback=${allow_legacy_fallback}"
-
-      - name: Validate release version metadata consistency
-        run: |
-          set -euo pipefail
-          changelog_version="$(sed -n 's/^## \[\([^]]*\)\].*/\1/p' CHANGELOG.md | grep -v '^Unreleased$' | head -n1)"
-          gradle_version="$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)"/\1/p' app/build.gradle | head -n1)"
-
-          if [[ -z "${changelog_version}" || -z "${gradle_version}" ]]; then
-            echo "Unable to extract version from CHANGELOG.md or app/build.gradle" >&2
-            exit 1
-          fi
-
-          echo "CHANGELOG version: ${changelog_version}"
-          echo "Gradle versionName: ${gradle_version}"
-
-          if [[ "${changelog_version}" != "${gradle_version}" ]]; then
-            echo "Version mismatch: CHANGELOG.md (${changelog_version}) != app/build.gradle (${gradle_version})" >&2
-            exit 1
-          fi
-
-      - name: Enforce release target API baseline
-        run: ./tools/check_target_api_baseline.sh gradle.properties
-
-      - name: Validate local markdown links (optional)
-        continue-on-error: true
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-          import re
-
-          md_files = [Path('README.md'), *Path('docs').rglob('*.md')]
-          link_pattern = re.compile(r'\[[^\]]+\]\(([^)]+)\)')
-          failures = []
-
-          for md_file in md_files:
-            content = md_file.read_text(encoding='utf-8')
-            for raw_target in link_pattern.findall(content):
-              target = raw_target.strip()
-              if not target or target.startswith(('http://', 'https://', 'mailto:', '#')):
-                continue
-              target = target.split('#', 1)[0]
-              if not target:
-                continue
-              if target.startswith('/'):
-                resolved = Path(target.lstrip('/'))
-              else:
-                resolved = (md_file.parent / target).resolve().relative_to(Path.cwd().resolve())
-              if not Path(resolved).exists():
-                failures.append(f"{md_file}: missing -> {raw_target}")
-
-          if failures:
-            print('Local markdown link validation failures:')
-            for failure in failures:
-              print(f' - {failure}')
-            raise SystemExit(1)
-
-          print(f'Validated local markdown links in {len(md_files)} files.')
-          PY
-
-  test_and_verify:
-    name: '02 • Test and Verify'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    needs: preflight
-
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: ${{ env.JAVA_VERSION }}
-          distribution: temurin
-          cache: gradle
-
-      - name: Set up Gradle cache
-        uses: gradle/actions/setup-gradle@v4
-
-      - name: Cache Android SDK state
-        uses: actions/cache@v4
-        with:
-          path: ~/.android
-          key: android-sdk-${{ runner.os }}-${{ env.COMPILE_API }}-${{ env.TOOLS_VERSION }}-${{ env.NDK_VERSION }}-${{ env.CMAKE_VERSION }}
-          restore-keys: |
-            android-sdk-${{ runner.os }}-${{ env.COMPILE_API }}-${{ env.TOOLS_VERSION }}-
-            android-sdk-${{ runner.os }}-
-
-      - name: Set up Android SDK
-        uses: android-actions/setup-android@v3
-        with:
-          accept-android-sdk-licenses: true
-
-      - name: Accept Android SDK licenses (non-interactive)
-        run: |
-          licenses_input_file="$(mktemp)"
-          trap 'rm -f "${licenses_input_file}"' EXIT
-          for _ in $(seq 1 200); do
-            echo 'y'
-          done > "${licenses_input_file}"
-
-          sdkmanager --licenses < "${licenses_input_file}" > /dev/null
-          echo "Android SDK licenses accepted"
-
-      - name: Install Android SDK packages
-        run: |
-          sdkmanager --install \
-            'platform-tools' \
-            'platforms;android-35' \
-            'build-tools;35.0.0' \
-            'platforms;android-34' \
-            'build-tools;34.0.0' \
-            'ndk;27.2.12479018' \
-            'cmake;3.22.1'
-
-      - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
-
-      - name: Verify ABI policy alignment (gradle.properties vs qemu_launch.yml)
-        run: python3 tools/check_abi_policy_alignment.py
-
-      - name: Enforce bootstrap contract (sync -> verify)
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: ./tools/ci/verify_bootstrap_contract.sh ${{ env.GRADLE_ARGS }}
-
-      - name: Run ProotCommandBuilder unit tests
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: ./tools/gradle_with_jdk21.sh :app:testDebugUnitTest --no-daemon --stacktrace --info --tests com.vectras.vm.core.ProotCommandBuilderTest ${{ env.GRADLE_ARGS }}
-
-      - name: Upload ProotCommandBuilder unit test reports
+      - name: Upload Android outputs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: unit-test-reports-test_and_verify
+          name: android-outputs-${{ github.run_id }}
           path: |
-            app/build/reports/tests/**
-            app/build/test-results/**
-          if-no-files-found: ignore
-
-      - name: Upload ProotCommandBuilder failure logs
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: unit-test-logs-test_and_verify
-          path: ./**/*.log
-          if-no-files-found: ignore
-
-      - name: Verify repository file dependencies
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: ./tools/gradle_with_jdk21.sh verifyRepoFileDependencies ${{ env.GRADLE_ARGS }}
-
-      - name: Verify bootstrap assets and non-Markdown inventory
-        env:
-          ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-        run: |
-          ./tools/ci/verify_bootstrap_contract.sh ${{ env.GRADLE_ARGS }}
-          ./tools/gradle_with_jdk21.sh auditNonMdInventory ${{ env.GRADLE_ARGS }}
-
-      - name: Native ABI matrix gate
-        if: ${{ needs.preflight.outputs.diagnostic_mode != 'fast' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          MATRIX_FLAGS=""
-          if [[ -n "${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}" ]]; then
-            export VECTRAS_GOOGLE_SERVICES_JSON_B64="${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}"
-            ./tools/ci/materialize_firebase_config.sh --policy official
-            echo "Native matrix will use production Firebase config from secret."
-          else
-            ./tools/ci/materialize_firebase_config.sh --policy internal
-            MATRIX_FLAGS="-PCI_INTERNAL_VALIDATION=true -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
-            echo "Native matrix will use placeholder Firebase config for internal validation."
-          fi
-          ./tools/gradle_with_jdk21.sh checkNativeAllMatrix ${{ env.GRADLE_ARGS }} ${MATRIX_FLAGS}
-
-      - name: Deep diagnostics bundle
-        if: ${{ needs.preflight.outputs.deep_diagnostics == 'true' }}
-        continue-on-error: true
-        run: |
-          mkdir -p diagnostics
-          ./tools/gradle_with_jdk21.sh tasks --all > diagnostics/gradle-tasks.txt
-          ./tools/gradle_with_jdk21.sh :app:dependencies --configuration debugRuntimeClasspath > diagnostics/debug-dependencies.txt
-          ./tools/gradle_with_jdk21.sh :app:androidDependencies > diagnostics/android-dependencies.txt
-
-      - name: Upload diagnostics bundle
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: android-diagnostics-test_and_verify
-          path: |
-            diagnostics/**
+            app/build/outputs/apk/**
+            app/build/outputs/bundle/**
             app/build/reports/**
-            app/build/test-results/**
+            **/build/test-results/**
           if-no-files-found: warn
 
-  build_debug:
-    name: '03 • Build Debug APK'
-    runs-on: ubuntu-latest
-    timeout-minutes: 60
-    needs:
-      - test_and_verify
-      - preflight
-    environment: BuildAPK
-    env:
-      COMPILE_API: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.compile_api || vars.COMPILE_API || '35' }}
-      TARGET_API: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.compile_api || vars.TARGET_API || '35' }}
-      RELEASE_MIN_TARGET_API: ${{ vars.RELEASE_MIN_TARGET_API || '35' }}
-      TOOLS_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tools_version || vars.TOOLS_VERSION || '35.0.0' }}
-      NDK_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.ndk_version || vars.NDK_VERSION || '27.2.12479018' }}
-      CMAKE_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.cmake_version || vars.CMAKE_VERSION || '3.22.1' }}
-      JAVA_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.java_version || vars.JAVA_VERSION || '17' }}
-      GRADLE_ARGS: >-
-        -PCOMPILE_API=${{ env.COMPILE_API }} -PTARGET_API=${{ env.TARGET_API }} -PRELEASE_MIN_TARGET_API=${{ env.RELEASE_MIN_TARGET_API }}
-        -PTOOLS_VERSION=${{ env.TOOLS_VERSION }} -PJAVA_LANGUAGE_VERSION=${{ env.JAVA_VERSION }}
-        -PCMAKE_VERSION=${{ env.CMAKE_VERSION }} -PNDK_VERSION=${{ env.NDK_VERSION }}
-
-    steps:
-    - uses: actions/checkout@v4
-
-    - name: Print selected inputs
-      run: |
-        echo "event_name=${GITHUB_EVENT_NAME}"
-        echo "selected_build_debug=${{ needs.preflight.outputs.selected_build_debug }}"
-        echo "selected_build_release=${{ needs.preflight.outputs.selected_build_release }}"
-        echo "signing_mode=${{ needs.preflight.outputs.signing_mode }}"
-        echo "allow_legacy_fallback=${{ needs.preflight.outputs.allow_legacy_fallback }}"
-        echo "upload_telegram=${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram || 'false' }}"
-        echo "compile_api=${COMPILE_API}"
-        echo "tools_version=${TOOLS_VERSION}"
-        echo "ndk_version=${NDK_VERSION}"
-        echo "cmake_version=${CMAKE_VERSION}"
-        echo "java_version=${JAVA_VERSION}"
-
-    - name: Block sensitive artifacts in repository (warn only)
-      continue-on-error: true
-      run: bash tools/security/block_sensitive_artifacts.sh
-
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        java-version: ${{ env.JAVA_VERSION }}
-        distribution: 'temurin'
-        cache: gradle
-
-    - name: Set up Android SDK
-      uses: android-actions/setup-android@v3
-      with:
-        accept-android-sdk-licenses: true
-
-    - name: Accept Android SDK licenses (non-interactive)
-      run: |
-        licenses_input_file="$(mktemp)"
-        trap 'rm -f "${licenses_input_file}"' EXIT
-        for _ in $(seq 1 200); do
-          echo 'y'
-        done > "${licenses_input_file}"
-
-        sdkmanager --licenses < "${licenses_input_file}" > /dev/null
-        echo "Android SDK licenses accepted"
-
-    - name: Install Android SDK packages
-      run: |
-        sdkmanager --install \
-          'platform-tools' \
-          'platforms;android-${{ env.COMPILE_API }}' \
-          'build-tools;${{ env.TOOLS_VERSION }}' \
-          'platforms;android-34' \
-          'build-tools;34.0.0' \
-          'ndk;${{ env.NDK_VERSION }}' \
-          'cmake;${{ env.CMAKE_VERSION }}'
-
-    - name: Materialize Firebase config (optional fallback for debug/tests)
-      env:
-        VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
-      run: ./tools/ci/materialize_firebase_config.sh --policy internal
-
-    - name: Grant execute permission for gradlew
-      run: chmod +x gradlew
-
-    - name: Print Java and Gradle runtime versions
-      run: |
-        java -version
-        ./tools/gradle_with_jdk21.sh --version
-
-    - name: Enforce bootstrap contract (sync -> verify)
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./tools/ci/verify_bootstrap_contract.sh ${{ env.GRADLE_ARGS }}
-
-    - name: Run ProotCommandBuilder unit tests
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./tools/gradle_with_jdk21.sh :app:testDebugUnitTest --tests com.vectras.vm.core.ProotCommandBuilderTest ${{ env.GRADLE_ARGS }}
-
-    - name: Verify repository file dependencies
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./tools/gradle_with_jdk21.sh verifyRepoFileDependencies ${{ env.GRADLE_ARGS }}
-
-    - name: Validate release version metadata consistency
-      run: |
-        set -euo pipefail
-        changelog_version="$(sed -n 's/^## \[\([^]]*\)\].*/\1/p' CHANGELOG.md | grep -v '^Unreleased$' | head -n1)"
-        gradle_version="$(sed -n 's/^[[:space:]]*versionName = "\([^"]*\)"/\1/p' app/build.gradle | head -n1)"
-
-        if [[ -z "${changelog_version}" || -z "${gradle_version}" ]]; then
-          echo "Unable to extract version from CHANGELOG.md or app/build.gradle" >&2
-          exit 1
-        fi
-
-        echo "CHANGELOG version: ${changelog_version}"
-        echo "Gradle versionName: ${gradle_version}"
-
-        if [[ "${changelog_version}" != "${gradle_version}" ]]; then
-          echo "Version mismatch: CHANGELOG.md (${changelog_version}) != app/build.gradle (${gradle_version})" >&2
-          exit 1
-        fi
-
-    - name: Enforce release target API baseline
-      run: ./tools/check_target_api_baseline.sh gradle.properties
-
-    - name: Validate local markdown links (optional)
-      continue-on-error: true
-      run: |
-        python3 - <<'PY'
-        from pathlib import Path
-        import re
-
-        md_files = [Path('README.md'), *Path('docs').rglob('*.md')]
-        link_pattern = re.compile(r'\[[^\]]+\]\(([^)]+)\)')
-        failures = []
-
-        for md_file in md_files:
-          content = md_file.read_text(encoding='utf-8')
-          for raw_target in link_pattern.findall(content):
-            target = raw_target.strip()
-            if not target or target.startswith(('http://', 'https://', 'mailto:', '#')):
-              continue
-            target = target.split('#', 1)[0]
-            if not target:
-              continue
-            if target.startswith('/'):
-              resolved = Path(target.lstrip('/'))
-            else:
-              resolved = (md_file.parent / target).resolve().relative_to(Path.cwd().resolve())
-            if not Path(resolved).exists():
-              failures.append(f"{md_file}: missing -> {raw_target}")
-
-        if failures:
-          print('Local markdown link validation failures:')
-          for failure in failures:
-            print(f' - {failure}')
-          raise SystemExit(1)
-
-        print(f'Validated local markdown links in {len(md_files)} files.')
-        PY
-
-    - name: Build Debug APK
-      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./tools/gradle_with_jdk21.sh :app:assembleDebug --stacktrace ${{ env.GRADLE_ARGS }}
-
-    - name: Validate native binaries are arm64-v8a
-      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        NDK_ROOT="${ANDROID_SDK_ROOT}/ndk/${NDK_VERSION}"
-        READELF="${NDK_ROOT}/toolchains/llvm/prebuilt/linux-x86_64/bin/llvm-readelf"
-        if [[ ! -x "${READELF}" ]]; then
-          READELF="$(command -v readelf || true)"
-        fi
-        if [[ -z "${READELF}" ]]; then
-          echo "No readelf implementation found for ELF validation." >&2
-          exit 1
-        fi
-
-        mapfile -t native_libs < <(find app/build -type f -path '*/obj/arm64-v8a/*.so' | sort)
-        if [[ ${#native_libs[@]} -eq 0 ]]; then
-          echo "No arm64-v8a native binaries found under app/build/**/obj/arm64-v8a/*.so" >&2
-          exit 1
-        fi
-
-        for lib in "${native_libs[@]}"; do
-          echo "Validating ELF machine for ${lib}"
-          "${READELF}" -h "${lib}" | tee /tmp/elf_header.txt
-          grep -q 'Machine:.*AArch64' /tmp/elf_header.txt || {
-            echo "Unexpected ELF machine for ${lib}; expected AArch64." >&2
-            exit 1
-          }
-        done
-
-        if find app/build -type f -path '*/obj/*/*.so' | grep -qv '/obj/arm64-v8a/'; then
-          echo "Unexpected non-arm64 native output detected in obj directory." >&2
-          find app/build -type f -path '*/obj/*/*.so' | grep -v '/obj/arm64-v8a/' >&2
-          exit 1
-        fi
-
-
-    - name: Resolve release signing policy
-      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
-      shell: bash
-      env:
-        VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
-        VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
-        VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
-        VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
-        ANDROID_SIGNING_KEYSTORE: ${{ secrets.ANDROID_SIGNING_KEYSTORE }}
-      run: |
-        set -euo pipefail
-        LEGACY_FLAG=""
-        if [[ "${{ needs.preflight.outputs.allow_legacy_fallback }}" == "true" ]]; then
-          LEGACY_FLAG="--allow-legacy-fallback"
-        fi
-        ./tools/ci/prepare_release_signing.sh \
-          --mode "${{ needs.preflight.outputs.signing_mode }}" \
-          --keystore-out "${RUNNER_TEMP}/vectras-release.jks" \
-          ${LEGACY_FLAG}
-
-    - name: Materialize Firebase config for release path
-      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
-      shell: bash
-      env:
-        VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
-      run: |
-        set -euo pipefail
-        if [[ -n "${VECTRAS_GOOGLE_SERVICES_JSON_B64:-}" ]]; then
-          ./tools/ci/materialize_firebase_config.sh --policy official
-          echo "Firebase config loaded from VECTRAS_GOOGLE_SERVICES_JSON_B64 for release build."
-        elif [[ "${VECTRAS_CI_RELEASE_FLAGS:-}" == *"ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"* ]]; then
-          ./tools/ci/materialize_firebase_config.sh --policy internal
-          echo "::warning::Using placeholder google-services.json for internal unsigned validation."
-        else
-          echo "::error::official policy requires VECTRAS_GOOGLE_SERVICES_JSON_B64 for signed release path."
-          exit 1
-        fi
-
-    - name: Validate Firebase release config
-      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./tools/gradle_with_jdk21.sh :app:validateFirebaseReleaseConfig ${{ env.GRADLE_ARGS }} ${VECTRAS_CI_RELEASE_FLAGS}
-
-    - name: Build Release APK
-      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      run: ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace ${{ env.GRADLE_ARGS }} ${VECTRAS_CI_RELEASE_FLAGS} ${VECTRAS_CI_SIGNING_ARGS}
-
-    - name: Build PerfRelease APK
-      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        ./tools/gradle_with_jdk21.sh :app:assemblePerfRelease --stacktrace ${{ env.GRADLE_ARGS }} ${VECTRAS_CI_RELEASE_FLAGS} ${VECTRAS_CI_SIGNING_ARGS}
-
-    - name: Verify delivered compiled artifacts
-      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' || needs.preflight.outputs.selected_build_release == 'true' }}
-      env:
-        ANDROID_HOME: ${{ env.ANDROID_SDK_ROOT }}
-        ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        variants=()
-        if [[ "${{ needs.preflight.outputs.selected_build_debug }}" == "true" ]]; then
-          variants+=("debug")
-        fi
-        if [[ "${{ needs.preflight.outputs.selected_build_release }}" == "true" ]]; then
-          variants+=("release" "perfRelease")
-        fi
-        artifact_variants="$(IFS=,; echo "${variants[*]}")"
-        ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants="${artifact_variants}"
-        ./tools/ci/verify_artifact_contract.sh --variants "${artifact_variants}"
-
-    - name: Resolve release artifact path
-      id: release_artifact
-      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        signed_apk="app/build/outputs/apk/release/app-release.apk"
-        unsigned_apk="app/build/outputs/apk/release/app-release-unsigned.apk"
-
-        if [[ -f "${signed_apk}" ]]; then
-          echo "path=${signed_apk}" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-
-        if [[ -f "${unsigned_apk}" ]]; then
-          echo "path=${unsigned_apk}" >> "$GITHUB_OUTPUT"
-          exit 0
-        fi
-
-        echo "No release APK found after release build" >&2
-        exit 1
-
-    - name: Upload compiled artifacts report (required)
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-compiled-artifacts-report
-        path: app/build/reports/artifacts/compiled-artifacts-report.json
-        if-no-files-found: error
-
-    - name: Upload compiled outputs bundle
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-compiled-outputs
-        path: |
-          app/build/outputs/apk/**
-          app/build/outputs/bundle/**
-          app/build/outputs/mapping/**
-        if-no-files-found: error
-
-    - name: Upload Debug APK as artifact
-      if: ${{ needs.preflight.outputs.selected_build_debug == 'true' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-debug-apk
-        path: app/build/outputs/apk/debug/app-debug.apk
-
-    - name: Upload Release APK as artifact
-      if: ${{ needs.preflight.outputs.selected_build_release == 'true' }}
-      uses: actions/upload-artifact@v4
-      with:
-        name: android-release-apk
-        path: ${{ steps.release_artifact.outputs.path }}
-
-    - name: Stage Release APKs for Telegram upload
-      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && needs.preflight.outputs.selected_build_release == 'true' && needs.preflight.outputs.has_telegram_secrets == 'true' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-        shopt -s nullglob
-        mkdir -p artifacts/release
-        release_apks=(app/build/outputs/apk/release/*.apk)
-        if [[ ${#release_apks[@]} -eq 0 ]]; then
-          echo "No APK files found under app/build/outputs/apk/release for Telegram staging." >&2
-          exit 1
-        fi
-        cp app/build/outputs/apk/release/*.apk artifacts/release/
-
-    - name: Upload to Telegram
-      id: upload_to_telegram
-      if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.upload_telegram == 'true' && needs.preflight.outputs.selected_build_release == 'true' && needs.preflight.outputs.has_telegram_secrets == 'true' }}
-      shell: bash
-      run: |
-        set -euo pipefail
-
-        if [[ -z "${{ secrets.TELEGRAM_BOT_TOKEN }}" || ( -z "${{ secrets.TELEGRAM_CHAT_ID }}" && -z "${{ secrets.TELEGRAM_CHAT_ID_VEC }}" ) ]]; then
-          echo "Telegram secrets/chat IDs are not configured; skipping Telegram upload gracefully."
-          exit 0
-        fi
-
-        shopt -s nullglob
-        release_apks=(artifacts/release/*.apk)
-        if [[ ${#release_apks[@]} -eq 0 ]]; then
-          echo "Upload requested but no staged release APK found in artifacts/release/*.apk." >&2
-          exit 1
-        fi
-
-        caption="Done! Note that this is a version that is automatically built when there are changes in the GitHub repository, not the official version. Please only install it if you really want to see what is new.\nExplore beta releases here: https://github.com/AnBui2004/Vectras-VM-Emu-Android/releases\nRun ID: ${GITHUB_RUN_ID}"
-
-        for file in "${release_apks[@]}"; do
-          if [[ -n "${{ secrets.TELEGRAM_CHAT_ID }}" ]]; then
-            curl --fail --silent --show-error --retry 3 --retry-all-errors -o /dev/null \
-              -F "document=@${file}" \
-              -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID }}" \
-              -F "message_thread_id=8" \
-              -F "caption=${caption}" \
-              "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
-          fi
-
-          if [[ -n "${{ secrets.TELEGRAM_CHAT_ID_VEC }}" ]]; then
-            curl --fail --silent --show-error --retry 3 --retry-all-errors -o /dev/null \
-              -F "document=@${file}" \
-              -F "chat_id=${{ secrets.TELEGRAM_CHAT_ID_VEC }}" \
-              -F "caption=${caption}" \
-              "https://api.telegram.org/bot${{ secrets.TELEGRAM_BOT_TOKEN }}/sendDocument"
-          fi
-        done
-
-    - name: Publish final upload summary
-      if: always()
-      shell: bash
-      run: |
-        upload_requested='no'
-        upload_executed='no'
-
-        if [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ github.event.inputs.upload_telegram }}" == "true" ]]; then
-          upload_requested='yes'
-        fi
-
-        if [[ "${upload_requested}" == 'yes' \
-          && "${{ needs.preflight.outputs.selected_build_release }}" == 'true' \
-          && "${{ needs.preflight.outputs.has_telegram_secrets }}" == 'true' \
-          && "${{ steps.upload_to_telegram.outcome }}" == 'success' ]]; then
-          upload_executed='yes'
-        fi
-
-        {
-          echo "### Telegram Upload Summary"
-          echo "- upload requested: ${upload_requested}"
-          echo "- upload executed: ${upload_executed}"
-        } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload Android logs bundle
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.resolve.outputs.log_bundle_name }}
+          path: |
+            **/build/reports/**
+            **/build/outputs/logs/**
+            **/build/test-results/**
+          if-no-files-found: warn
