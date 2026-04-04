@@ -48,6 +48,14 @@ on:
           - auto
           - unsigned
           - signed
+      abi_profile:
+        description: "Perfil de ABI (official para release de loja, internal_5abi para validação interna unsigned)"
+        required: false
+        type: choice
+        default: internal_5abi
+        options:
+          - official
+          - internal_5abi
   workflow_call:
     inputs:
       provenance_run_id:
@@ -82,6 +90,10 @@ on:
         required: false
         type: string
         default: "auto"
+      abi_profile:
+        required: false
+        type: string
+        default: "internal_5abi"
 
 permissions:
   contents: read
@@ -195,6 +207,29 @@ jobs:
       - name: Enforce bootstrap contract (sync -> verify)
         run: ./tools/ci/verify_bootstrap_contract.sh ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
+      - name: Resolve ABI profile
+        id: abi
+        shell: bash
+        run: |
+          set -euo pipefail
+          abi_profile="${{ inputs.abi_profile || 'internal_5abi' }}"
+          case "${abi_profile}" in
+            official)
+              echo "app_abi_policy=arm64-only" >> "$GITHUB_OUTPUT"
+              echo "supported_abis=arm64-v8a" >> "$GITHUB_OUTPUT"
+              echo "min_api=23" >> "$GITHUB_OUTPUT"
+              ;;
+            internal_5abi)
+              echo "app_abi_policy=internal-5abi" >> "$GITHUB_OUTPUT"
+              echo "supported_abis=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64" >> "$GITHUB_OUTPUT"
+              echo "min_api=35" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Perfil de ABI inválido: ${abi_profile}" >&2
+              exit 1
+              ;;
+          esac
+
       - name: Verify Gradle baseline gates
         if: steps.mode.outputs.run_repo_checks == 'true'
         run: |
@@ -232,6 +267,9 @@ jobs:
             -PALLOW_UNSIGNED_RELEASE=true \
             -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true \
             -PCI_INTERNAL_VALIDATION=true \
+            -PAPP_ABI_POLICY=${{ steps.abi.outputs.app_abi_policy }} \
+            -PSUPPORTED_ABIS=${{ steps.abi.outputs.supported_abis }} \
+            -PMIN_API=${{ steps.abi.outputs.min_api }} \
             ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
 
       - name: Decode release keystore
@@ -252,7 +290,18 @@ jobs:
           set -euo pipefail
           ./tools/gradle_with_jdk21.sh :app:assembleRelease :app:assemblePerfRelease --stacktrace \
             ${VECTRAS_CI_SIGNING_ARGS} \
+            -PAPP_ABI_POLICY=arm64-only \
+            -PSUPPORTED_ABIS=arm64-v8a \
+            -PMIN_API=23 \
             ${{ env.GRADLE_ARGS }} ${GRADLE_EXTRA_ARGS}
+
+      - name: Verify unsigned release APK has expected 5-ABI coverage
+        if: inputs.build_release && !inputs.sign_release && steps.abi.outputs.app_abi_policy == 'internal-5abi'
+        run: |
+          set -euo pipefail
+          bash tools/ci/verify_apk_abi_set.sh \
+            --apk app/build/outputs/apk/release/app-release-unsigned.apk \
+            --expected-abis "${{ steps.abi.outputs.supported_abis }}"
 
       - name: Verify delivered compiled artifacts
         if: inputs.build_debug || inputs.build_release

@@ -137,6 +137,7 @@ find . -maxdepth 2 -type d | sort
   - `APP_ABI_POLICY=with-32bit` + `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (distribuição oficial com ARM 32-bit).
 - **Política Gradle de validação técnica interna**:
   - `APP_ABI_POLICY=all` + `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64` para cobertura interna (**não usar para distribuição oficial**).
+  - `APP_ABI_POLICY=internal-5abi` + `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` para validação interna unsigned em GitHub Actions (exige `CI_INTERNAL_VALIDATION=true` e `MIN_API>=35`).
 - O CI executa `tools/check_abi_policy_alignment.py` para garantir alinhamento entre `gradle.properties` (`APP_ABI_POLICY`/`SUPPORTED_ABIS`) e os escopos ABI em `tools/qemu_launch.yml`.
 - Entradas condicionais para ABIs fora dessa matriz no CMake (ex.: `riscv64`) são apenas roadmap e não representam ABI ativa no empacotamento Gradle.
 
