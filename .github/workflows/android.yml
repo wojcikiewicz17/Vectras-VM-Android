@@ -113,6 +113,7 @@ jobs:
     outputs:
       run_debug: ${{ steps.flags.outputs.run_debug }}
       run_release: ${{ steps.flags.outputs.run_release }}
+      artifact_variants: ${{ steps.flags.outputs.artifact_variants }}
       expect_app_artifacts: ${{ steps.flags.outputs.expect_app_artifacts }}
       gradle_tasks: ${{ steps.flags.outputs.gradle_tasks }}
       gradle_log_flags: ${{ steps.flags.outputs.gradle_log_flags }}
@@ -175,8 +176,17 @@ jobs:
             fi
           fi
 
+          artifact_variants=()
+          if [[ "${run_debug}" == "true" ]]; then
+            artifact_variants+=("debug")
+          fi
+          if [[ "${run_release}" == "true" ]]; then
+            artifact_variants+=("release")
+          fi
+
           echo "run_debug=${run_debug}" >> "$GITHUB_OUTPUT"
           echo "run_release=${run_release}" >> "$GITHUB_OUTPUT"
+          echo "artifact_variants=$(IFS=,; echo "${artifact_variants[*]}")" >> "$GITHUB_OUTPUT"
           echo "expect_app_artifacts=${expect_app_artifacts}" >> "$GITHUB_OUTPUT"
           echo "gradle_tasks=${tasks}" >> "$GITHUB_OUTPUT"
           echo "gradle_log_flags=${log_flags}" >> "$GITHUB_OUTPUT"
@@ -201,7 +211,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +o pipefail
           yes | sdkmanager --licenses >/dev/null
+          sdkmanager_license_rc=${PIPESTATUS[1]}
+          set -o pipefail
+          if [[ "${sdkmanager_license_rc}" -ne 0 ]]; then
+            echo "sdkmanager --licenses failed with exit code ${sdkmanager_license_rc}" >&2
+            exit "${sdkmanager_license_rc}"
+          fi
           sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
 
       - name: Prepare Android env
@@ -260,9 +277,17 @@ jobs:
             ${{ needs.resolve.outputs.gradle_log_flags }} \
             ${{ needs.resolve.outputs.gradle_tasks }}
 
+          if [[ "${{ needs.resolve.outputs.expect_app_artifacts }}" == "true" ]]; then
+            ./tools/gradle_with_jdk21.sh --no-daemon \
+              -PbuildStrict=true \
+              -PartifactVariants="${{ needs.resolve.outputs.artifact_variants }}" \
+              ${{ needs.resolve.outputs.gradle_log_flags }} \
+              :app:verifyDeliveredCompiledArtifacts
+          fi
+
       - name: Validate expected artifacts
         if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
-        run: ./tools/ci/validate_expected_android_artifacts.sh "${{ inputs.build_variant || 'debug' }}"
+        run: ./tools/ci/validate_expected_android_artifacts.sh "${{ needs.resolve.outputs.artifact_variants }}"
 
       - name: Upload Android outputs
         if: always()
