@@ -5,7 +5,9 @@ import android.content.pm.Signature;
 
 import org.junit.Assert;
 import org.junit.Test;
+import org.robolectric.RobolectricTestRunner;
 import org.robolectric.annotation.Config;
+import org.junit.runner.RunWith;
 
 import java.security.MessageDigest;
 import java.util.ArrayList;
@@ -13,6 +15,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 
+@RunWith(RobolectricTestRunner.class)
 public class LoaderSignatureVerificationTest {
     private static Signature signature(String hex) {
         return new Signature(hex);
