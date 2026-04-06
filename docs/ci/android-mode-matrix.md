@@ -29,8 +29,8 @@ Existe **um único workflow Android canônico** (`android.yml`) com seleção po
 
 ### Regras de assinatura e segurança de entrega
 
-- `build_variant=release|both`: ativa contexto de distribuição (`-PciRelease=true`) e exige assinatura oficial (`signingConfigs.release`) no Gradle.
-- Jobs de release em `.github/workflows/android.yml` falham cedo se qualquer segredo de assinatura estiver ausente (`VECTRAS_RELEASE_KEYSTORE_B64`, `VECTRAS_RELEASE_STORE_PASSWORD`, `VECTRAS_RELEASE_KEY_ALIAS`, `VECTRAS_RELEASE_KEY_PASSWORD`).
+- `build_variant=release|both`: ativa contexto de distribuição (`-PciRelease=true`) e exige assinatura oficial (`signingConfigs.release`) no Gradle para `buildTypes.release` e `buildTypes.perfRelease`.
+- Jobs de release em `.github/workflows/android.yml` definem explicitamente `-PciRelease=true` (via `ci_release_gradle_arg`) e falham cedo se qualquer segredo de assinatura estiver ausente (`VECTRAS_RELEASE_KEYSTORE_B64`, `VECTRAS_RELEASE_STORE_PASSWORD`, `VECTRAS_RELEASE_KEY_ALIAS`, `VECTRAS_RELEASE_KEY_PASSWORD`).
 - `signing_mode=signed`: permanece o modo explícito para assinatura oficial em trilhas de distribuição.
 - `signing_mode=auto|unsigned`: continuam válidos apenas para trilhas internas/debug sem contexto de distribuição (`-PciRelease=false`).
 - `abi_profile=official_arm64`: injeta `APP_ABI_POLICY=arm64-only` e `SUPPORTED_ABIS=arm64-v8a`.

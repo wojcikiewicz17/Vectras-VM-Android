@@ -40,8 +40,8 @@
 
 ## Contrato de distribuição Android (`ciRelease`)
 - **Contexto de distribuição explícito:** jobs de release passam `-PciRelease=true` para o Gradle.
-- **Fail-fast obrigatório:** `buildTypes.release` e `buildTypes.perfRelease` abortam com `GradleException` se `signingConfigs.release` não estiver disponível quando `ciRelease=true`.
-- **Gate de CI antes do build:** `.github/workflows/android.yml` valida segredos de assinatura e interrompe o job de release antes de chamar o Gradle quando houver ausência de credenciais.
+- **Fail-fast obrigatório:** `buildTypes.release` e `buildTypes.perfRelease` abortam com `GradleException` se `signingConfigs.release` não estiver disponível quando `ciRelease=true` (contexto explícito de distribuição).
+- **Gate de CI antes do build:** `.github/workflows/android.yml` valida segredos de assinatura no início do job de release, interrompe execução antes de bootstrap Android quando houver ausência de credenciais e injeta explicitamente `-PciRelease=true` nos comandos Gradle de distribuição.
 - **Debug sem acoplamento de produção:** `buildTypes.debug` permanece desacoplado de assinatura de release e não depende de segredos de produção.
 
 ## Segurança de egress/rede
