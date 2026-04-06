@@ -419,7 +419,8 @@ jobs:
             app/build/outputs/bundle/**
             app/build/reports/**
             **/build/test-results/**
-          if-no-files-found: warn
+          if-no-files-found: error
+          overwrite:true
 
       - name: Upload Android logs bundle
         if: always()
