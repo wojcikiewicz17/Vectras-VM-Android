@@ -339,6 +339,41 @@ jobs:
         if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
         run: ./tools/ci/validate_expected_android_artifacts.sh "${{ needs.resolve.outputs.artifact_variants }}"
 
+      - name: Generate canonical build status snapshot
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ci-artifacts
+          snapshot="ci-artifacts/CANONICAL_BUILD_STATUS.md"
+          {
+            echo "# CI Snapshot — Canonical Build Status"
+            echo
+            echo "- generated_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo "- workflow: ${GITHUB_WORKFLOW}"
+            echo "- run_id: ${GITHUB_RUN_ID}"
+            echo "- run_attempt: ${GITHUB_RUN_ATTEMPT}"
+            echo "- repository: ${GITHUB_REPOSITORY}"
+            echo "- ref: ${GITHUB_REF}"
+            echo "- commit_sha: ${GITHUB_SHA}"
+            echo "- selected_tasks: ${{ needs.resolve.outputs.gradle_tasks }}"
+            echo "- artifact_variants: ${{ needs.resolve.outputs.artifact_variants }}"
+            echo "- ci_internal_validation: ${{ needs.resolve.outputs.ci_internal_validation }}"
+            echo "- job_status: ${{ job.status }}"
+            echo
+            echo "---"
+            echo
+            cat reports/CANONICAL_BUILD_STATUS.md
+          } > "${snapshot}"
+
+      - name: Upload canonical build status
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: canonical-build-status-${{ github.run_id }}
+          path: ci-artifacts/CANONICAL_BUILD_STATUS.md
+          if-no-files-found: error
+
       - name: Upload Android outputs
         if: always()
         uses: actions/upload-artifact@v4

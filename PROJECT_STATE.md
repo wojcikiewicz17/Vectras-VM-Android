@@ -23,6 +23,7 @@ Veja `FIXES_SUMMARY.md` para tabela completa.
 - ✅ Todos os 56 pontos corrigidos e documentados
 
 ## Documentos canônicos
+- `reports/CANONICAL_BUILD_STATUS.md` — status canônico de validação de build/release (fonte de verdade operacional)
 - `FIXES_SUMMARY.md` — tabela completa 56 fixes
 - `docs/SETUP_SDK_NDK.md` — setup local
 - `tools/qemu_launch.yml` — QEMU configuration

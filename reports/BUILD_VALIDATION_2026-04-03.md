@@ -1,5 +1,7 @@
 # Build Validation Report — 2026-04-03
 
+> superseded by `reports/CANONICAL_BUILD_STATUS.md`
+
 ## Scope executed
 
 1. Installed Android SDK components:

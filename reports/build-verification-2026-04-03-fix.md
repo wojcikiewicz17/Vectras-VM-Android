@@ -1,5 +1,7 @@
 # Build Verification Report — 2026-04-03 (fix run)
 
+> superseded by `reports/CANONICAL_BUILD_STATUS.md`
+
 ## Canonical build command
 
 `./tools/gradle_with_jdk21.sh clean :app:assembleDebug --stacktrace`
