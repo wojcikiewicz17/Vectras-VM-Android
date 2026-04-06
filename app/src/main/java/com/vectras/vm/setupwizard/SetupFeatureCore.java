@@ -758,25 +758,28 @@ public class SetupFeatureCore {
         String filesDir = context.getFilesDir().getAbsolutePath();
         File distroDir = new File(filesDir + "/distro");
         File binDir = new File(distroDir + "/bin");
-        if (!binDir.exists()) {
-            if (!isInstalledProot(context)) {
-                if (!extractSystemFiles(context, "bootstrap", "", bootstrapExpectedSha256)) return false;
-            }
-
-            if (isInstalledDistro(context)) return true;
-
-            File tmpDir = new File(context.getFilesDir(), "usr/tmp");
-            if (!tmpDir.isDirectory()) {
-                if (tmpDir.mkdirs()) {
-                    FileUtils.chmod(tmpDir, 0771);
-                } else {
-                    Log.e(TAG, "startExtractSystemFiles: Failed to create folder: tmp.");
-                }
-            }
-
-            return extractSystemFiles(context, "alpine19", "distro");
+        if (SetupFlowOrchestrator.shouldAbortWhenBinDirExists(binDir.exists())) {
+            return false;
         }
-        return false;
+
+        if (SetupFlowOrchestrator.shouldRunBootstrapExtraction(isInstalledProot(context))) {
+            if (!extractSystemFiles(context, "bootstrap", "", bootstrapExpectedSha256)) return false;
+        }
+
+        if (!SetupFlowOrchestrator.shouldRunDistroExtraction(isInstalledDistro(context))) {
+            return true;
+        }
+
+        File tmpDir = new File(context.getFilesDir(), "usr/tmp");
+        if (!tmpDir.isDirectory()) {
+            if (tmpDir.mkdirs()) {
+                FileUtils.chmod(tmpDir, 0771);
+            } else {
+                Log.e(TAG, "startExtractSystemFiles: Failed to create folder: tmp.");
+            }
+        }
+
+        return extractSystemFiles(context, "alpine19", "distro");
     }
 
     public static boolean extractSystemFiles(Context context, String fromAsset, String extractTo) {
@@ -889,35 +892,14 @@ public class SetupFeatureCore {
                 synchronized (errorOutput) {
                     stderrSummary = errorOutput.toString().trim();
                 }
-                if (waitResult.status == ProcessLaunch.LaunchStatus.TIMEOUT) {
-                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_TIMEOUT ["
-                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                            + "] asset=" + assetPath
-                            + " cmd=" + commandSummary
-                            + " detail=" + waitResult.diagnosis
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
-                    Log.e(TAG, lastErrorLog);
-                    return false;
-                }
-
-                if (waitResult.status != ProcessLaunch.LaunchStatus.SUCCESS) {
-                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_EXECUTION_ERROR ["
-                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                            + "] asset=" + assetPath
-                            + " cmd=" + commandSummary
-                            + " detail=" + waitResult.diagnosis
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
-                    Log.e(TAG, lastErrorLog);
-                    return false;
-                }
-
-                if (waitResult.exitCode != 0 || !stderrSummary.isEmpty()) {
-                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_NON_ZERO_OR_OUTPUT_VALIDATION_FAIL ["
-                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                            + "] asset=" + assetPath
-                            + " cmd=" + commandSummary
-                            + " exit=" + waitResult.exitCode
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                String processValidationError = SetupProcessIntegration.validateTarLaunchResult(
+                        waitResult,
+                        stderrSummary,
+                        assetPath,
+                        commandSummary
+                );
+                if (processValidationError != null) {
+                    lastErrorLog = processValidationError;
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -1001,33 +983,7 @@ public class SetupFeatureCore {
     }
 
     private static String validateExtractedTarFile(Path extractedTarPath) {
-        File extractedTarFile = extractedTarPath.toFile();
-        if (!extractedTarPath.toString().endsWith(".tar")) {
-            return "TAR_INTEGRITY_FAIL: invalid-extension"
-                    + " path=" + extractedTarPath;
-        }
-        if (!extractedTarFile.exists()) {
-            return "TAR_INTEGRITY_FAIL: missing-file"
-                    + " path=" + extractedTarPath;
-        }
-        if (!extractedTarFile.isFile()) {
-            return "TAR_INTEGRITY_FAIL: not-regular-file"
-                    + " path=" + extractedTarPath;
-        }
-
-        long tarLength = extractedTarFile.length();
-        if (tarLength <= 0L) {
-            return "TAR_INTEGRITY_FAIL: empty-file"
-                    + " path=" + extractedTarPath
-                    + " length=" + tarLength;
-        }
-        if (tarLength < MIN_TAR_BYTES) {
-            return "TAR_INTEGRITY_FAIL: below-min-size"
-                    + " path=" + extractedTarPath
-                    + " length=" + tarLength
-                    + " min=" + MIN_TAR_BYTES;
-        }
-        return null;
+        return SetupValidationParser.validateExtractedTarFile(extractedTarPath, MIN_TAR_BYTES);
     }
 
     public static boolean copyAssetToFile(Context context, String assetPath, String outputPath) {
@@ -1078,7 +1034,7 @@ public class SetupFeatureCore {
     }
 
     public static void checkabi(Context context) {
-        if (!DeviceUtils.is64bit())
+        if (SetupUiState.shouldShowAbiWarning(DeviceUtils.is64bit()))
             DialogUtils.oneDialog((Activity) context,
                     context.getResources().getString(R.string.warning),
                     context.getResources().getString(R.string.cpu_not_support_64),

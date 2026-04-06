@@ -101,14 +101,17 @@ sequenceDiagram
 | Orquestração de fluxo | `VMManager` | Coordena ciclo de vida da VM, delegando regras puras e integrações especializadas. |
 | Validações e parsing | `VmCommandSafetyValidator` | Regras puras de segurança para comando de inicialização do QEMU. |
 | Validações e parsing | `VmJsonParser` | Parse de lista de VMs e validação de posição sem acoplamento à UI. |
+| Validações e parsing | `VmImageCommandRules` | Regra pura de limites de tamanho para criação de imagem RAW, isolando parsing do token final. |
 | UI/estado de tela | `VMManager` (`latestUnsafeCommandReason`) | Mapeia `Reason` para mensagens de UI (`R.string.*`). |
 
 ### 9.2 Setup wizard / preflight
 | Camada | Módulo/Classe | Papel |
 |---|---|---|
-| Orquestração de fluxo | `VmStartPreflightOrchestrator` | Pipeline de preflight (binários + pacotes), agregando resultado para a UI. |
-| Integração com processos/shell/QEMU | `SetupBinaryLocator` | Descoberta de binários no rootfs/bootstrap. |
+| Orquestração de fluxo | `SetupFlowOrchestrator` | Decisão incremental de fluxo bootstrap/distro e gate do diretório `distro/bin`. |
+| Integração com processos/shell/QEMU | `SetupProcessIntegration` | Normaliza validação de retorno de extração `tar` (timeout/erro/exit/stderr). |
 | Validações e parsing | `SetupPreflightRules` | Parsing de tokens de pacotes e verificação em `apk/db/installed`. |
+| Validações e parsing | `SetupValidationParser` | Validação de integridade do arquivo TAR extraído (`extensão`, existência, tamanho mínimo). |
+| UI/estado de tela | `SetupUiState` | Regra de exibição de aviso de ABI em setup wizard sem acoplamento de `DialogUtils` na regra. |
 | UI/estado de tela | `SetupFeatureCore.PreflightResult` | `uiSummary()` e serialização de falhas para interação de tela. |
 
 ### 9.3 Meta de tamanho de classe (incremental)
