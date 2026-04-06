@@ -1328,34 +1328,10 @@ public class VMManager {
             return false;
         }
         if (!command.contains("qcow2")) {
-            String _getsize = command.substring(command.lastIndexOf(" ") + 1);
-            if (_getsize.toLowerCase().endsWith("t") || _getsize.toLowerCase().endsWith("p") || _getsize.toLowerCase().endsWith("e")) {
+            String sizeToken = command.substring(command.lastIndexOf(" ") + 1);
+            if (!VmImageCommandRules.isRawImageSizeTokenSafe(sizeToken)) {
                 latestUnsafeCommandReason = _context.getString(R.string.size_too_large_try_qcow2_format);
                 return false;
-            }
-            if (_getsize.toLowerCase().endsWith("g")) {
-                if (_getsize.length() <= 2) {
-                    return true;
-                } else {
-                    latestUnsafeCommandReason = _context.getString(R.string.size_too_large_try_qcow2_format);
-                    return false;
-                }
-            }
-            if (_getsize.toLowerCase().endsWith("m")) {
-                if (_getsize.length() <= 4) {
-                    return true;
-                } else {
-                    latestUnsafeCommandReason = _context.getString(R.string.size_too_large_try_qcow2_format);
-                    return false;
-                }
-            }
-            if (_getsize.toLowerCase().endsWith("k")) {
-                if (_getsize.length() <= 8) {
-                    return true;
-                } else {
-                    latestUnsafeCommandReason = _context.getString(R.string.size_too_large_try_qcow2_format);
-                    return false;
-                }
             }
         }
         return true;
