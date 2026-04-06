@@ -60,6 +60,10 @@ public class SetupFeatureCore {
     private static final String BOOTSTRAP_LOG_PREFIX = "PROOT_BOOTSTRAP";
     private static final long MIN_TAR_BYTES = 1024L;
 
+    interface TextFileReader {
+        String read(String path);
+    }
+
     public static boolean isInstalledSystemFiles(Context context) {
         return isInstalledProot(context) && isInstalledDistro(context);
     }
@@ -151,7 +155,7 @@ public class SetupFeatureCore {
         public final ArrayList<String> missingOptionalModeBinaries;
         public final ArrayList<String> missingPackages;
 
-        private PreflightResult(
+        PreflightResult(
                 boolean ok,
                 ArrayList<String> missingBinaries,
                 ArrayList<String> missingOptionalModeBinaries,
@@ -391,43 +395,7 @@ public class SetupFeatureCore {
             String requiredQemuBinary,
             VmStartPreflightOptions options
     ) {
-        ArrayList<String> missingBinaries = new ArrayList<>();
-        ArrayList<String> missingOptionalModeBinaries = new ArrayList<>();
-        ArrayList<String> missingPackages = new ArrayList<>();
-
-        VmStartPreflightOptions resolvedOptions = options == null
-                ? new VmStartPreflightOptions("", false, false)
-                : options;
-
-        if (!hasBinary(context, requiredQemuBinary)) {
-            missingBinaries.add(requiredQemuBinary);
-        }
-        if (resolvedOptions.shouldRequireXterm()) {
-            if (!hasBinary(context, "xterm")) {
-                missingBinaries.add("xterm");
-            }
-        } else if (!hasBinary(context, "xterm")) {
-            missingOptionalModeBinaries.add("xterm");
-        }
-
-        String pkgDbPath = context.getFilesDir().getAbsolutePath() + "/distro/lib/apk/db/installed";
-        String pkgDb = readTextFile(pkgDbPath);
-        if (pkgDb.isEmpty()) {
-            missingPackages.add("apk-db-unavailable");
-        } else {
-            Set<String> expectedPkgs = new LinkedHashSet<>();
-            expectedPkgs.addAll(parsePackageTokens(AppConfig.neededPkgs()));
-            expectedPkgs.addAll(parsePackageTokens(AppConfig.neededPkgs32bit()));
-
-            for (String pkg : expectedPkgs) {
-                if (!isPkgInstalled(pkgDb, pkg)) {
-                    missingPackages.add(pkg);
-                }
-            }
-        }
-
-        boolean ok = missingBinaries.isEmpty() && missingPackages.isEmpty();
-        return new PreflightResult(ok, missingBinaries, missingOptionalModeBinaries, missingPackages);
+        return VmStartPreflightOrchestrator.run(context, requiredQemuBinary, options, SetupFeatureCore::readTextFile);
     }
 
     public static void launchReinstallSetup(Context context) {
@@ -677,54 +645,6 @@ public class SetupFeatureCore {
             this.result = result;
             this.details = details;
         }
-    }
-
-    private static ArrayList<String> parsePackageTokens(String rawPkgs) {
-        if (rawPkgs == null || rawPkgs.trim().isEmpty()) {
-            return new ArrayList<>();
-        }
-        return new ArrayList<>(Arrays.asList(rawPkgs.trim().split("\\s+")));
-    }
-
-    private static boolean isPkgInstalled(String pkgDb, String pkgName) {
-        if (pkgDb == null || pkgName == null) {
-            return false;
-        }
-
-        String normalizedPkgName = pkgName.trim();
-        if (pkgDb.trim().isEmpty() || normalizedPkgName.isEmpty()) {
-            return false;
-        }
-
-        String[] lines = pkgDb.split("\\R");
-        for (String line : lines) {
-            if (!line.startsWith("P:")) {
-                continue;
-            }
-
-            String installedPkg = line.substring(2);
-            if (installedPkg.equals(normalizedPkgName)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static boolean hasBinary(Context context, String binary) {
-        if (binary == null || binary.isEmpty()) return false;
-        String filesDir = context.getFilesDir().getAbsolutePath();
-        String[] binSearchPaths = new String[]{
-                filesDir + "/distro/usr/local/bin/" + binary,
-                filesDir + "/distro/usr/bin/" + binary,
-                filesDir + "/usr/bin/" + binary
-        };
-        for (String binPath : binSearchPaths) {
-            if (FileUtils.isFileExists(binPath)) {
-                return true;
-            }
-        }
-        return false;
     }
 
     private static ArrayList<File> buildRequiredExecutablesForExtractFlow(Context context, String fromAsset) {

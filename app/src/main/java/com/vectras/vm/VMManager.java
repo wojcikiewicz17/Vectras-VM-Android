@@ -42,6 +42,8 @@ import com.vectras.vm.core.VmFlowState;
 import com.vectras.vm.core.VmFlowTracker;
 import com.vectras.vm.core.ProcessRuntimeOps;
 import com.vectras.vm.core.ProcessBudgetRegistry;
+import com.vectras.vm.core.VmCommandSafetyValidator;
+import com.vectras.vm.core.VmJsonParser;
 import com.vectras.vm.main.core.MainStartVM;
 import com.vectras.vm.rafaelia.RafaeliaEventRecorder;
 import com.vectras.vm.settings.VNCSettingsActivity;
@@ -769,21 +771,11 @@ public class VMManager {
     }
 
     static ArrayList<HashMap<String, Object>> parseVmListJson(String json) {
-        if (json == null || json.trim().isEmpty()) {
-            return new ArrayList<>();
-        }
-        try {
-            ArrayList<HashMap<String, Object>> vmList = new Gson().fromJson(json, new TypeToken<ArrayList<HashMap<String, Object>>>() {
-            }.getType());
-            return vmList != null ? vmList : new ArrayList<>();
-        } catch (RuntimeException parseError) {
-            Log.w(TAG, "parseVmListJson: invalid JSON, using empty list", parseError);
-            return new ArrayList<>();
-        }
+        return VmJsonParser.parseVmListJson(json, TAG);
     }
 
     static boolean isValidVmPosition(ArrayList<HashMap<String, Object>> vmList, int position) {
-        return vmList != null && position >= 0 && position < vmList.size();
+        return VmJsonParser.isValidVmPosition(vmList, position);
     }
 
     public static void deleteVM(int position) {
@@ -1298,46 +1290,36 @@ public class VMManager {
             Log.d("VMManager.isthiscommandsafe", _command);
         }
 
-        String command = _command.trim();
-        if (command.isEmpty()) {
-            latestUnsafeCommandReason = _context.getString(R.string.not_the_command_to_run_qemu);
-            return false;
+        VmCommandSafetyValidator.ValidationResult validationResult =
+                VmCommandSafetyValidator.validateQemuCommand(_command);
+        if (validationResult.safe) {
+            return true;
         }
 
-        if (!SAFE_COMMAND_CHARS.matcher(command).matches()) {
-            latestUnsafeCommandReason = _context.getString(R.string.command_are_not_allowed_to_contain_multiple_lines);
-            return false;
-        }
-
-        if (command.contains("&&") || command.contains("||") || command.contains("$")
-                || command.contains("`") || command.contains("<") || command.contains(">")
-                || command.contains("(") || command.contains(")")) {
-            latestUnsafeCommandReason = _context.getString(R.string.command_are_not_allowed_to_contain_semicolons);
-            return false;
-        }
-
-        if (command.startsWith("qemu")) {
-            if (!command.contains("&")) {
-                if (!command.contains("\n")) {
-                    if (!command.contains(";")) {
-                        if (!command.contains("|")) {
-                            return true;
-                        } else {
-                            latestUnsafeCommandReason = _context.getString(R.string.command_are_not_allowed_to_contain_vertical_bars);
-                        }
-                    } else {
-                        latestUnsafeCommandReason = _context.getString(R.string.command_are_not_allowed_to_contain_semicolons);
-                    }
-                } else {
-                    latestUnsafeCommandReason = _context.getString(R.string.command_are_not_allowed_to_contain_multiple_lines);
-                }
-            } else {
-                latestUnsafeCommandReason = _context.getString(R.string.command_are_not_allowed_to_contain_amp);
-            }
-        } else {
-            latestUnsafeCommandReason = _context.getString(R.string.not_the_command_to_run_qemu);
-        }
+        latestUnsafeCommandReason = mapUnsafeCommandReason(validationResult.reason, _context);
         return false;
+    }
+
+    private static String mapUnsafeCommandReason(VmCommandSafetyValidator.Reason reason, Context context) {
+        if (reason == null) {
+            return context.getString(R.string.not_the_command_to_run_qemu);
+        }
+        switch (reason) {
+            case HAS_PIPE:
+                return context.getString(R.string.command_are_not_allowed_to_contain_vertical_bars);
+            case HAS_AMPERSAND:
+                return context.getString(R.string.command_are_not_allowed_to_contain_amp);
+            case HAS_SEMICOLON:
+            case HAS_CONTROL_OPERATOR:
+                return context.getString(R.string.command_are_not_allowed_to_contain_semicolons);
+            case HAS_NEWLINE:
+            case ILLEGAL_CHARS:
+                return context.getString(R.string.command_are_not_allowed_to_contain_multiple_lines);
+            case EMPTY:
+            case NOT_QEMU:
+            default:
+                return context.getString(R.string.not_the_command_to_run_qemu);
+        }
     }
 
     public static boolean isthiscommandsafeimg(@NonNull String _command, Context _context) {

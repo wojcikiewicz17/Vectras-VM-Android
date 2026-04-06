@@ -92,8 +92,32 @@ sequenceDiagram
 - Para `perfRelease`/`release`, o arquivo `app/google-services.json` real continua obrigatório e validado por `validateFirebaseReleaseConfig`.
 - No CI, builds de release/perfRelease só rodam quando o segredo `VECTRAS_GOOGLE_SERVICES_JSON_B64` está configurado; sem segredo, o pipeline pula essa trilha explicitamente.
 
+
+## 9) Mapa de módulos — refatoração incremental (VMManager + SetupFeatureCore)
+
+### 9.1 VM lifecycle / start path
+| Camada | Módulo/Classe | Papel |
+|---|---|---|
+| Orquestração de fluxo | `VMManager` | Coordena ciclo de vida da VM, delegando regras puras e integrações especializadas. |
+| Validações e parsing | `VmCommandSafetyValidator` | Regras puras de segurança para comando de inicialização do QEMU. |
+| Validações e parsing | `VmJsonParser` | Parse de lista de VMs e validação de posição sem acoplamento à UI. |
+| UI/estado de tela | `VMManager` (`latestUnsafeCommandReason`) | Mapeia `Reason` para mensagens de UI (`R.string.*`). |
+
+### 9.2 Setup wizard / preflight
+| Camada | Módulo/Classe | Papel |
+|---|---|---|
+| Orquestração de fluxo | `VmStartPreflightOrchestrator` | Pipeline de preflight (binários + pacotes), agregando resultado para a UI. |
+| Integração com processos/shell/QEMU | `SetupBinaryLocator` | Descoberta de binários no rootfs/bootstrap. |
+| Validações e parsing | `SetupPreflightRules` | Parsing de tokens de pacotes e verificação em `apk/db/installed`. |
+| UI/estado de tela | `SetupFeatureCore.PreflightResult` | `uiSummary()` e serialização de falhas para interação de tela. |
+
+### 9.3 Meta de tamanho de classe (incremental)
+- Meta operacional: **600–800 linhas por classe** para classes de domínio/app.
+- Estado atual prioritário: `VMManager` e `SetupFeatureCore` seguem acima da meta e passam por extrações progressivas por camada.
+- Regra de evolução: cada alteração funcional nessas classes deve extrair ao menos uma unidade coesa para módulo dedicado + teste unitário focado.
+
 ## Metadados
-- Versão do documento: 1.2
-- Última atualização: 2026-03-06
+- Versão do documento: 1.3
+- Última atualização: 2026-04-06
 - Commit de referência: `a70a4d9`
 - Domínio de código coberto: Arquitetura operacional VM (app Android + supervisor/runtime + engine C/JNI).
