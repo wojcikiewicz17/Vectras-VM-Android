@@ -275,14 +275,34 @@ jobs:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
         run: ./tools/ci/materialize_firebase_config.sh --policy internal
 
-      - name: Prepare release signing (only when selected)
+      - name: Validate release signing secrets (distribution context)
         if: ${{ needs.resolve.outputs.run_release == 'true' }}
         env:
           VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
           VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
           VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
           VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
-        run: ./tools/ci/prepare_release_signing.sh --mode "${{ inputs.signing_mode || 'auto' }}" --allow-legacy-fallback
+        shell: bash
+        run: |
+          set -euo pipefail
+          missing=()
+          [[ -n "${VECTRAS_RELEASE_KEYSTORE_B64:-}" ]] || missing+=("VECTRAS_RELEASE_KEYSTORE_B64")
+          [[ -n "${VECTRAS_RELEASE_STORE_PASSWORD:-}" ]] || missing+=("VECTRAS_RELEASE_STORE_PASSWORD")
+          [[ -n "${VECTRAS_RELEASE_KEY_ALIAS:-}" ]] || missing+=("VECTRAS_RELEASE_KEY_ALIAS")
+          [[ -n "${VECTRAS_RELEASE_KEY_PASSWORD:-}" ]] || missing+=("VECTRAS_RELEASE_KEY_PASSWORD")
+          if [[ ${#missing[@]} -gt 0 ]]; then
+            echo "::error::Release job requer assinatura oficial e segredos obrigatórios. Ausentes: ${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Prepare release signing (distribution context)
+        if: ${{ needs.resolve.outputs.run_release == 'true' }}
+        env:
+          VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
+          VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
+          VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
+          VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
+        run: ./tools/ci/prepare_release_signing.sh --mode signed
 
       - name: Enforce bootstrap contract
         run: ./tools/ci/verify_bootstrap_contract.sh
@@ -319,6 +339,7 @@ jobs:
             -Pcmake.version=${CMAKE_VERSION} \
             -Pjava.language.version=${JAVA_VERSION} \
             -PCI_INTERNAL_VALIDATION=${{ needs.resolve.outputs.ci_internal_validation }} \
+            -PciRelease=${{ needs.resolve.outputs.run_release }} \
             ${VECTRAS_CI_RELEASE_FLAGS:-} \
             ${VECTRAS_CI_SIGNING_ARGS:-} \
             ${{ needs.resolve.outputs.gradle_log_flags }} \
@@ -330,6 +351,7 @@ jobs:
               -PAPP_ABI_POLICY=${{ needs.resolve.outputs.app_abi_policy }} \
               -PSUPPORTED_ABIS=${{ needs.resolve.outputs.supported_abis }} \
               -PCI_INTERNAL_VALIDATION=${{ needs.resolve.outputs.ci_internal_validation }} \
+              -PciRelease=${{ needs.resolve.outputs.run_release }} \
               -PartifactVariants="${{ needs.resolve.outputs.artifact_variants }}" \
               ${{ needs.resolve.outputs.gradle_log_flags }} \
               :app:verifyDeliveredCompiledArtifacts

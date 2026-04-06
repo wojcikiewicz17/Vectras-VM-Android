@@ -87,12 +87,16 @@ android {
         }
     }
 
+    def ciRelease = providers.gradleProperty("ciRelease").map { it.toBoolean() }.orElse(false).get()
+
     buildTypes {
         release {
             if (signingConfigs.findByName('release') != null) {
                 signingConfig = signingConfigs.release
+            } else if (ciRelease) {
+                throw new GradleException("buildTypes.release exige signingConfigs.release quando -PciRelease=true (contexto de distribuição).")
             } else {
-                logger.lifecycle("Release signing não configurado: build de release seguirá sem assinatura de produção.")
+                logger.lifecycle("Release signing não configurado fora de distribuição (ciRelease=false).")
             }
             minifyEnabled = true
             shrinkResources = true
@@ -107,6 +111,11 @@ android {
         perfRelease {
             initWith release
             matchingFallbacks = ['release']
+            if (signingConfigs.findByName('release') != null) {
+                signingConfig = signingConfigs.release
+            } else if (ciRelease) {
+                throw new GradleException("buildTypes.perfRelease exige signingConfigs.release quando -PciRelease=true (contexto de distribuição).")
+            }
         }
     }
 
