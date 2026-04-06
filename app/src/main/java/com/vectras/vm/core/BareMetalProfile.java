@@ -2,6 +2,7 @@ package com.vectras.vm.core;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+
 import java.io.IOException;
 import java.nio.ByteOrder;
 
@@ -106,7 +107,11 @@ public final class BareMetalProfile {
         }
 
         int nativeFeatures = hw.featureMask;
-        if ((nativeFeatures & NativeFastPath.FEATURE_SIMD) != 0) {
+        boolean hasCanonicalSimd = (nativeFeatures & NativeFastPath.FEATURE_SIMD) != 0
+                || (nativeFeatures & NativeFastPath.FEATURE_NEON) != 0
+                || (nativeFeatures & NativeFastPath.FEATURE_SSE42) != 0
+                || (nativeFeatures & NativeFastPath.FEATURE_AVX2) != 0;
+        if (hasCanonicalSimd) {
             flags |= CAP_SIMD;
         }
         if ((nativeFeatures & NativeFastPath.FEATURE_AES) != 0) {
@@ -195,7 +200,8 @@ public final class BareMetalProfile {
                 return -1;
             }
             return (end - start) + 1;
-        } catch (IOException | NumberFormatException ignored) {
+        } catch (IOException | NumberFormatException e) {
+            RuntimeErrorReporter.warn("VRT-BMP-0001", "parse_cpu_range", path, e);
             return -1;
         }
     }

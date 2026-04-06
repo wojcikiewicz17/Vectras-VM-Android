@@ -5,6 +5,11 @@
 ## Abstract
 Esta revisão consolida a documentação em três camadas por diretório (propósito, estrutura e arquivo-a-arquivo), conectando documentação raiz, mapas locais e cadeia de comandos de inspeção. O objetivo é eliminar lacunas entre arquivos soltos, módulos ativos e documentação técnica, com navegação formal e auditável.
 
+## Atualização da revisão documental (2026-04-03)
+- Fluxo de revisão contínua padronizado em `docs/README.md`.
+- Navegação de `docs/` refatorada para estrutura numerada de 5 níveis.
+- Metadados de governança documental atualizados para acompanhamento de ciclo.
+
 
 ## Governança e estado — navegação rápida
 - Estado do projeto: [`PROJECT_STATE.md`](PROJECT_STATE.md)
@@ -84,19 +89,25 @@ find . -maxdepth 2 -type d | sort
 - [docs/README.md](docs/README.md)
 - [docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md](docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md)
 
+## Execução padrão de CI/CD
+- A execução normal ocorre em **Actions > Pipeline Orchestrator** (`.github/workflows/pipeline-orchestrator.yml`), único ponto de entrada para branch/PR/manual.
+- O repositório foi consolidado para **3 workflows canônicos**: `pipeline-orchestrator.yml`, `ci.yml` (host) e `android.yml` (Android).
+- `pipeline-orchestrator.yml` escolhe o fluxo com `pipeline_profile` (`host_only`, `android_only`, `full`) e injeta `run_workfile`/`log_level` para o Android.
+
 ## Como rodar manualmente
-- Acesse **Actions > Android CI > Run workflow** e selecione os inputs do `workflow_dispatch`.
-- Inputs booleanos:
-  - `build_debug` (`true`/`false`): executa `assembleDebug`.
-  - `build_release` (`true`/`false`): executa `assembleRelease`.
-  - `sign_release` (`true`/`false`): assina release com segredos `VECTRAS_RELEASE_*` (use com `build_release=true`).
-  - `upload_telegram` (`true`/`false`): habilita notificação/upload no Telegram.
-- Inputs de versão (string):
-  - `compile_api` (padrão `35`)
-  - `tools_version` (padrão `35.0.0`)
-  - `ndk_version` (padrão `27.2.12479018`)
-  - `cmake_version` (padrão `3.22.1`)
-  - `java_version` (padrão `17`)
+- Fluxo recomendado: acesse **Actions > Pipeline Orchestrator > Run workflow** e selecione:
+  - `pipeline_profile`: host-only, android-only ou full.
+  - `run_workfile`: `smoke_debug`, `unit_loader`, `full_debug`, `release_gate`.
+  - `log_level`: `lifecycle`, `info`, `debug`.
+  - `abi_profile`: `official_arm64` (trilha oficial no workflow canônico).
+- Depuração pontual: execute o workflow **android-ci** diretamente quando quiser isolar build/test Android.
+- Inputs principais do workflow **android-ci**:
+  - `run_workfile`: define o conjunto de tarefas Gradle.
+  - `build_variant` (`debug`|`release`|`both`): define variante alvo.
+  - `signing_mode` (`auto`|`signed`|`unsigned`): política de assinatura de release.
+  - `abi_profile` (`official_arm64`): mantém a trilha ABI oficial no workflow canônico.
+  - `run_lint` e `run_native_checks`: habilitam gates opcionais.
+  - `log_level`: controla verbosidade e rastreabilidade dos logs.
 - Para manter valores padrão por repositório em CI, configure variáveis em **Settings > Secrets and variables > Actions > Variables** (prefira canônicas: `compile.api`, `tools.version`, `ndk.version`, `cmake.version`, `java.language.version`; aliases legados como `COMPILE_API`, `TOOLS_VERSION`, `NDK_VERSION`, `CMAKE_VERSION`, `JAVA_VERSION` ficam como fallback de compatibilidade).
 
 ## Setup rápido de build
@@ -117,12 +128,15 @@ find . -maxdepth 2 -type d | sort
 - Uso de alias legado gera warning de depreciação no bootstrap Gradle para facilitar migração sem quebra imediata.
 
 ### ABIs oficialmente suportadas
-- Matriz oficial única de ABI (build/Gradle): `arm64-v8a`, `armeabi-v7a`, `x86` e `x86_64`.
-- **Suporte de distribuição oficial**:
-  - `APP_ABI_POLICY=arm64-only`: empacota apenas `arm64-v8a` (distribuição mínima).
-  - `APP_ABI_POLICY=with-32bit`: empacota `arm64-v8a,armeabi-v7a` (distribuição completa).
-- **Suporte de validação interna**:
-  - `APP_ABI_POLICY=all`: valida/empacota toda a matriz oficial (`arm64-v8a,armeabi-v7a,x86,x86_64`) para cobertura técnica interna (**não usar para distribuição oficial**).
+- Escopos ABI em `tools/qemu_launch.yml`:
+  - `official_distribution`: padrão oficial de distribuição, com `arm64-v8a`.
+  - `internal_validation`: matriz técnica expandida (`arm64-v8a,armeabi-v7a,x86,x86_64`) para validação interna.
+- **Política Gradle de distribuição oficial**:
+  - `APP_ABI_POLICY=arm64-only` + `SUPPORTED_ABIS=arm64-v8a` (default oficial).
+- **Política Gradle de validação técnica interna**:
+  - `APP_ABI_POLICY=internal-5abi` + `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` para validação interna unsigned em GitHub Actions (exige `CI_INTERNAL_VALIDATION=true` e `MIN_API>=35`).
+  - a validação `internal-5abi` permanece para execução técnica interna explícita via Gradle local/diagnóstico, fora da trilha canônica de release no workflow principal.
+- O CI executa `tools/check_abi_policy_alignment.py` para garantir alinhamento entre `gradle.properties` (`APP_ABI_POLICY`/`SUPPORTED_ABIS`) e os escopos ABI em `tools/qemu_launch.yml`.
 - Entradas condicionais para ABIs fora dessa matriz no CMake (ex.: `riscv64`) são apenas roadmap e não representam ABI ativa no empacotamento Gradle.
 
 ### Exemplo de configuração de Java para build

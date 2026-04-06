@@ -216,6 +216,40 @@ public class BenchmarkManager {
         }
     }
 
+    private boolean detectAbiCpuMismatch() {
+        String abi = (Build.SUPPORTED_ABIS != null && Build.SUPPORTED_ABIS.length > 0) ? Build.SUPPORTED_ABIS[0] : "";
+        String cpuInfo = readCpuInfo().toLowerCase();
+        if (abi.contains("arm64")) {
+            return !(cpuInfo.contains("aarch64") || cpuInfo.contains("armv8"));
+        }
+        if (abi.contains("armeabi")) {
+            return !(cpuInfo.contains("armv7") || cpuInfo.contains("arm"));
+        }
+        if (abi.contains("x86_64")) {
+            return !(cpuInfo.contains("x86_64") || cpuInfo.contains("amd64"));
+        }
+        if (abi.contains("x86")) {
+            return !(cpuInfo.contains("x86") || cpuInfo.contains("i686"));
+        }
+        return false;
+    }
+
+    private String readCpuInfo() {
+        File file = new File("/proc/cpuinfo");
+        if (!file.exists()) return "";
+        StringBuilder sb = new StringBuilder();
+        try (BufferedReader reader = new BufferedReader(new FileReader(file))) {
+            String line;
+            while ((line = reader.readLine()) != null) {
+                sb.append(line).append('\n');
+                if (sb.length() > 16_384) break;
+            }
+        } catch (Exception ignored) {
+            return "";
+        }
+        return sb.toString();
+    }
+
     public static final class TuningProfile {
         public final ExecutionProfile mode;
         public final int copyStripeBytes;

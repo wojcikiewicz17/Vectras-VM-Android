@@ -1,7 +1,9 @@
 package com.vectras.vm.core;
 
 import android.content.Context;
+import android.os.Build;
 import android.os.SystemClock;
+import android.util.Log;
 
 import androidx.annotation.Nullable;
 
@@ -15,28 +17,12 @@ import java.util.List;
 import java.util.Locale;
 
 public final class HardwareProfileBridge {
+    private static final String TAG = "HardwareProfileBridge";
     private static final int SIMD_NEON = 1;
     private static final int SIMD_SSE2 = 1 << 1;
     private static final int SIMD_SSE42 = 1 << 2;
     private static final int SIMD_AVX = 1 << 3;
     private static final int SIMD_RVV = 1 << 4;
-
-    private static final boolean LOADED;
-    private static final String LOAD_ERROR;
-
-    static {
-        boolean ok;
-        String error = "";
-        try {
-            System.loadLibrary("vectra_core_accel");
-            ok = true;
-        } catch (Throwable t) {
-            ok = false;
-            error = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
-        }
-        LOADED = ok;
-        LOAD_ERROR = error;
-    }
 
     public static final class Snapshot {
         public final int schema;
@@ -102,24 +88,39 @@ public final class HardwareProfileBridge {
     }
 
     public static boolean isNativeAvailable() {
-        return LOADED;
+        return NativeFastPath.isNativeAvailable();
+    }
+
+    public static boolean isFallbackActive() {
+        return NativeFastPath.isFallbackActive();
+    }
+
+    public static int getNativeInitStatus() {
+        return NativeFastPath.getNativeInitStatus();
     }
 
     public static String getLoadError() {
-        return LOAD_ERROR;
+        return NativeFastPath.getNativeInitError();
     }
 
     public static Snapshot captureCurrentSnapshot() {
-        int[] raw = LOADED ? nativeCollectSnapshot() : null;
-        String abi = LOADED ? nativeEffectiveAbi() : "";
-        if (raw == null || raw.length < 9) {
-            return new Snapshot(1, SystemClock.elapsedRealtime(), abi, 0, 0, 0, 1, 0, 0, 0, 0, 0);
-        }
+        NativeFastPath.HardwareProfile profile = NativeFastPath.getHardwareProfile();
+        String abi = resolveEffectiveAbi(profile.signature);
+        int simdMask = resolveSimdMask(profile.featureMask);
+        int hasAsmProbe = NativeFastPath.asmBridgeMarker() != 0x4A564D31 ? 1 : 0;
         return new Snapshot(
                 1,
                 SystemClock.elapsedRealtime(),
                 abi,
-                raw[0], raw[1], raw[2], raw[3], raw[4], raw[5], raw[6], raw[7], raw[8]
+                profile.signature,
+                profile.signature,
+                profile.pointerBits,
+                1,
+                0,
+                hasAsmProbe,
+                profile.featureMask,
+                0,
+                simdMask
         );
     }
 
@@ -194,7 +195,8 @@ public final class HardwareProfileBridge {
             object.put("f0", snapshot.featureBits0);
             object.put("f1", snapshot.featureBits1);
             object.put("simd", snapshot.simdMask);
-        } catch (JSONException ignored) {
+        } catch (JSONException e) {
+            RuntimeErrorReporter.warn("VRT-HPB-0001", "serialize_hardware_snapshot", String.valueOf(snapshot != null ? snapshot.effectiveAbi : "null"), e);
             return "";
         }
         return object.toString();
@@ -218,7 +220,9 @@ public final class HardwareProfileBridge {
                     object.optInt("f1", 0),
                     object.optInt("simd", 0)
             );
-        } catch (JSONException ignored) {
+        } catch (JSONException e) {
+            RuntimeErrorReporter.warn("VRT-HPB-0002", "deserialize_hardware_snapshot", encoded, e);
+            Log.w(TAG, "Invalid persisted hardware snapshot");
             return null;
         }
     }
@@ -240,7 +244,26 @@ public final class HardwareProfileBridge {
         return out.toString();
     }
 
-    private static native int[] nativeCollectSnapshot();
+    private static int resolveSimdMask(int featureMask) {
+        int simdMask = 0;
+        if ((featureMask & NativeFastPath.FEATURE_NEON) != 0) simdMask |= SIMD_NEON;
+        if ((featureMask & NativeFastPath.FEATURE_SSE42) != 0) simdMask |= SIMD_SSE42 | SIMD_SSE2;
+        if ((featureMask & NativeFastPath.FEATURE_AVX2) != 0) simdMask |= SIMD_AVX;
+        if ((featureMask & NativeFastPath.FEATURE_SIMD) != 0 && simdMask == 0) simdMask |= SIMD_NEON;
+        return simdMask;
+    }
 
-    private static native String nativeEffectiveAbi();
+    private static String resolveEffectiveAbi(int signature) {
+        int arch = signature & 0xFF00;
+        if (arch == NativeFastPath.ARCH_ARM64) return "arm64-v8a";
+        if (arch == NativeFastPath.ARCH_ARM32) return "armeabi-v7a";
+        if (arch == NativeFastPath.ARCH_X64) return "x86_64";
+        if (arch == NativeFastPath.ARCH_X86) return "x86";
+        if (arch == NativeFastPath.ARCH_RISCV64) return "riscv64";
+        String[] supportedAbis = Build.SUPPORTED_ABIS;
+        if (supportedAbis != null && supportedAbis.length > 0) {
+            return supportedAbis[0];
+        }
+        return "unknown";
+    }
 }

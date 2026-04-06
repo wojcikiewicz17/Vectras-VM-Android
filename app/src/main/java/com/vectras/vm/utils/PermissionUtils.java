@@ -347,13 +347,6 @@ public class PermissionUtils {
      * Battery optimization whitelist (REQUEST_IGNORE_BATTERY_OPTIMIZATIONS): API >= 23 via ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS +
      * post-return check with isIgnoringBatteryOptimizations().
      */
-    public static boolean canDrawOverlays(Activity activity) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-        return Settings.canDrawOverlays(activity);
-    }
-
     public static void openOverlayPermissionSettings(Activity activity, int requestCode) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M || canDrawOverlays(activity)) {
             return;
@@ -364,14 +357,6 @@ public class PermissionUtils {
             intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + activity.getPackageName()));
         }
         activity.startActivityForResult(intent, requestCode);
-    }
-
-    public static boolean isIgnoringBatteryOptimizations(Activity activity) {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
-            return true;
-        }
-        PowerManager pm = (PowerManager) activity.getSystemService(Activity.POWER_SERVICE);
-        return pm != null && pm.isIgnoringBatteryOptimizations(activity.getPackageName());
     }
 
     public static void openBatteryOptimizationSettings(Activity activity, int requestCode) {

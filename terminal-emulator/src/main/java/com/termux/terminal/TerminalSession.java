@@ -235,8 +235,11 @@ public final class TerminalSession extends TerminalOutput {
                 mMainThreadHandler.sendMessage(mMainThreadHandler.obtainMessage(MSG_PROCESS_EXITED, processExitCode));
             });
         } catch (RejectedExecutionException e) {
-            cleanupResources(-1);
-            throw new IllegalStateException("TerminalSession executor saturated", e);
+            Log.e(EmulatorDebug.LOG_TAG,
+                    "Terminal executors rejected work unexpectedly; applying deterministic shutdown fallback",
+                    e);
+            mMainThreadHandler.sendMessage(mMainThreadHandler.obtainMessage(MSG_PROCESS_EXITED, -1));
+            return;
         }
 
     }

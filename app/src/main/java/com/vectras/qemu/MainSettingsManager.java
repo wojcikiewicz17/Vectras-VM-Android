@@ -44,6 +44,9 @@ public class MainSettingsManager extends AppCompatActivity
     public static final int THEME_DEFAULT = 0;
     public static final int THEME_LIGHT = 1;
     public static final int THEME_DARK = 2;
+    public static final int ONBOARDING_PERMISSION_UNKNOWN = 0;
+    public static final int ONBOARDING_PERMISSION_GRANTED = 1;
+    public static final int ONBOARDING_PERMISSION_FAILED = 2;
 
     public static MainSettingsManager activity;
 
@@ -1184,13 +1187,11 @@ public class MainSettingsManager extends AppCompatActivity
     }
 
     /** @deprecated Use {@link #setForceRefreshVNCDisplay(Context, Boolean)} instead. TODO(remove in v3.5): retained temporarily for binary compatibility. */
-    @Deprecated
     public static void setForceRefeshVNCDisplay(Context context, Boolean _boolean) {
         setForceRefreshVNCDisplay(context, _boolean);
     }
 
     /** @deprecated Use {@link #getForceRefreshVNCDisplay(Context)} instead. TODO(remove in v3.5): retained temporarily for binary compatibility. */
-    @Deprecated
     public static Boolean getForceRefeshVNCDisplay(Context context) {
         return getForceRefreshVNCDisplay(context);
     }
@@ -1349,5 +1350,15 @@ public class MainSettingsManager extends AppCompatActivity
     public static Boolean getShowVirtualMouse(Context context) {
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         return prefs.getBoolean("showVirtualMouse", false);
+    }
+
+    public static void setOnboardingPermStorageSaf(Context context, int status) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        prefs.edit().putInt("onboardingPermStorageSaf", status).apply();
+    }
+
+    public static int getOnboardingPermStorageSaf(Context context) {
+        SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
+        return prefs.getInt("onboardingPermStorageSaf", ONBOARDING_PERMISSION_UNKNOWN);
     }
 }

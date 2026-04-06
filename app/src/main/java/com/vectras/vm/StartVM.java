@@ -14,6 +14,7 @@ import com.vectras.vm.rafaelia.RafaeliaQemuTuning;
 import com.vectras.vm.rafaelia.RafaeliaSettings;
 import com.vectras.vm.qemu.KvmProbe;
 import com.vectras.vm.qemu.QemuArgsBuilder;
+import com.vectras.vm.qemu.QemuBinaryResolver;
 import com.vectras.vm.qemu.VmProfile;
 
 import java.io.File;
@@ -32,8 +33,12 @@ public class StartVM {
     public static volatile boolean lastKvmEnabled = false;
     public static volatile String lastKvmReason = "unknown";
 
+    public static String resolvedArch(Context context) {
+        return QemuBinaryResolver.normalizeArch(MainSettingsManager.getArch(context));
+    }
+
     public static String requiredQemuBinary(Context context) {
-        return QemuArgsBuilder.binaryForArch(MainSettingsManager.getArch(context));
+        return QemuArgsBuilder.binaryForArch(resolvedArch(context));
     }
 
     public static String env(Activity activity, String extras, String img, boolean isQuickRun) {

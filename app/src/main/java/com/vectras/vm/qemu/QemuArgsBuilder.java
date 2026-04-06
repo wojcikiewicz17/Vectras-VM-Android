@@ -15,11 +15,7 @@ public final class QemuArgsBuilder {
     }
 
     public static String binaryForArch(String arch) {
-        if ("I386".equals(arch)) return "qemu-system-i386";
-        if ("X86_64".equals(arch)) return "qemu-system-x86_64";
-        if ("ARM64".equals(arch)) return "qemu-system-aarch64";
-        if ("PPC".equals(arch)) return "qemu-system-ppc";
-        return "qemu-system-x86_64";
+        return QemuBinaryResolver.primaryBinaryForArch(arch);
     }
 
     public static String resolveDriveInterface(Activity activity, String arch) {

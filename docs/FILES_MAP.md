@@ -27,6 +27,11 @@ Mapa arquivo-a-arquivo em três linhas por item: papel, ligação e comando de i
 - **Liga com**: ver [`docs/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
 - **Inspeção**: `file "docs/BENCHMARK_MANAGER.md"` e, quando texto, `sed -n "1,80p" "docs/BENCHMARK_MANAGER.md"`.
 
+## `docs/BUILD_REFACTOR_SCOPE.md`
+- **Papel**: plano técnico de refatoração estrutural para build/release/CI com foco em causa-raiz e critérios de aceite.
+- **Liga com**: ver [`docs/README.md`](README.md), [`../README.md`](../README.md) e [`../.github/workflows/android.yml`](../.github/workflows/android.yml).
+- **Inspeção**: `file "docs/BUILD_REFACTOR_SCOPE.md"` e `sed -n "1,200p" "docs/BUILD_REFACTOR_SCOPE.md"`.
+
 ## `docs/BIBLIOGRAPHY.md`
 - **Papel**: documentação textual e/ou especificação técnica.
 - **Liga com**: ver [`docs/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.

@@ -3,6 +3,7 @@ package com.vectras.vm.utils;
 import android.app.Activity;
 
 import com.vectras.vm.VectrasApp;
+import com.vectras.vm.qemu.QemuBinaryResolver;
 import com.vectras.vterm.Terminal;
 
 import java.util.ArrayList;
@@ -127,10 +128,20 @@ public class CommandUtils {
     }
 
     public static String getQemuVersion() {
-        return VectrasApp.getContext() == null ? "Unknow" : Terminal.executeShellCommandWithResult("qemu-system-x86_64 --version | head -n1 | awk '{print $4}'", VectrasApp.getContext()).replace("\n", "");
+        if (VectrasApp.getContext() == null) {
+            return "Unknow";
+        }
+        QemuBinaryResolver.Resolution resolution = QemuBinaryResolver.resolveAny(VectrasApp.getContext(), "CommandUtils");
+        String binary = resolution.found ? resolution.fullPath : QemuBinaryResolver.primaryBinaryForArch("X86_64");
+        return Terminal.executeShellCommandWithResult(binary + " --version | head -n1 | awk '{print $4}'", VectrasApp.getContext()).replace("\n", "");
     }
 
     public static boolean is3dfxVersion() {
-        return VectrasApp.getContext() != null && Terminal.executeShellCommandWithResult("qemu-system-x86_64 --version", VectrasApp.getContext()).contains("3dfx");
+        if (VectrasApp.getContext() == null) {
+            return false;
+        }
+        QemuBinaryResolver.Resolution resolution = QemuBinaryResolver.resolveAny(VectrasApp.getContext(), "CommandUtils");
+        String binary = resolution.found ? resolution.fullPath : QemuBinaryResolver.primaryBinaryForArch("X86_64");
+        return Terminal.executeShellCommandWithResult(binary + " --version", VectrasApp.getContext()).contains("3dfx");
     }
 }

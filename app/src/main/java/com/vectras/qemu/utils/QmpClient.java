@@ -5,6 +5,7 @@ import android.net.LocalSocketAddress;
 import android.util.Log;
 
 import com.vectras.qemu.Config;
+import com.vectras.vm.core.RuntimeErrorReporter;
 
 import org.json.JSONObject;
 import org.json.JSONArray;
@@ -53,7 +54,7 @@ public class QmpClient {
 		} else {
 			key = "unix:" + Config.getLocalQMPSocketPath();
 		}
-		return VM_SOCKET_LOCKS.computeIfAbsent(key, ignored -> new Object());
+		return VM_SOCKET_LOCKS.computeIfAbsent(key, socketKey -> new Object());
 	}
 
 	public static String sendCommand(String command) {
@@ -148,7 +149,8 @@ public class QmpClient {
 		try {
 			JSONObject object = new JSONObject(command);
 			return "query-migrate".equals(object.optString("execute"));
-		} catch (Exception ignored) {
+		} catch (Exception e) {
+			RuntimeErrorReporter.warn("VRT-QMP-0001", "parse_query_migrate_command", command, e);
 			return false;
 		}
 	}
@@ -206,7 +208,8 @@ public class QmpClient {
 				if (object.has(key) && !object.isNull(key)) {
 					return true;
 				}
-			} catch (Exception ignored) {
+			} catch (Exception e) {
+				RuntimeErrorReporter.warn("VRT-QMP-0002", "scan_qmp_response_line", line, e);
 				// Keep searching until retries are exhausted.
 			}
 		}
@@ -234,7 +237,8 @@ public class QmpClient {
 				if (object.has("return") && !object.isNull("return")) {
 					hasCapabilitiesAck = true;
 				}
-			} catch (Exception ignored) {
+			} catch (Exception e) {
+				RuntimeErrorReporter.warn("VRT-QMP-0003", "validate_qmp_contract", line, e);
 				return false;
 			}
 		}
@@ -258,7 +262,8 @@ public class QmpClient {
 			JSONObject object = new JSONObject(request);
 			sanitizeJsonObjectForLogs(object);
 			return object.toString();
-		} catch (Exception ignored) {
+		} catch (Exception e) {
+			RuntimeErrorReporter.warn("VRT-QMP-0004", "sanitize_qmp_request", request, e);
 			return request;
 		}
 	}
@@ -275,7 +280,8 @@ public class QmpClient {
 			if (isSensitiveField(key)) {
                     try {
                         object.put(key, MASKED_VALUE);
-                    } catch (Exception ignored) {
+                    } catch (Exception e) {
+                        RuntimeErrorReporter.warn("VRT-QMP-0005", "mask_sensitive_qmp_field", key, e);
                     }
 				continue;
 			}

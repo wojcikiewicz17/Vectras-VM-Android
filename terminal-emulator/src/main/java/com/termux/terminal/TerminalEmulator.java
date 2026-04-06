@@ -5,7 +5,6 @@ import android.util.Log;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
-import java.util.Locale;
 import java.util.Objects;
 import java.util.Stack;
 
@@ -162,6 +161,8 @@ public final class TerminalEmulator {
 
     /** Holds OSC and device control arguments, which can be strings. */
     private final StringBuilder mOSCOrDeviceControlArgs = new StringBuilder();
+    /** Reusable buffer for small escape responses to avoid temporary String allocations. */
+    private final StringBuilder mEscapeWriteBuffer = new StringBuilder(64);
 
     /**
      * True if the current escape sequence should continue, false if the current escape sequence should be terminated.
@@ -313,7 +314,7 @@ public final class TerminalEmulator {
         if (mouseButton == MOUSE_LEFT_BUTTON_MOVED && !isDecsetInternalBitSet(DECSET_BIT_MOUSE_TRACKING_BUTTON_EVENT)) {
             // Do not send tracking.
         } else if (isDecsetInternalBitSet(DECSET_BIT_MOUSE_PROTOCOL_SGR)) {
-            mSession.write(String.format("\033[<%d;%d;%d" + (pressed ? 'M' : 'm'), mouseButton, column, row));
+            writeResponseEscaped("\033[<", mouseButton, ';', column, ';', row, pressed ? 'M' : 'm');
         } else {
             mouseButton = pressed ? mouseButton : 3; // 3 for release of all buttons.
             // Clip to screen, and clip to the limits of 8-bit data.
@@ -757,7 +758,7 @@ public final class TerminalEmulator {
                                     value = 0; // 0=not recognized, 3=permanently set, 4=permanently reset
                                 }
                             }
-                            mSession.write(String.format(Locale.US, "\033[?%d;%d$y", mode, value));
+                            writeResponseEscaped("\033[?", mode, ';', value, "$y");
                         } else {
                             unknownSequence(b);
                         }
@@ -922,7 +923,7 @@ public final class TerminalEmulator {
                             } else {
                                 hexEncoded.setLength(0);
                                 for (int j = 0; j < responseValue.length(); j++) {
-                                    hexEncoded.append(String.format("%02X", (int) responseValue.charAt(j)));
+                                    appendHex2Upper(hexEncoded, responseValue.charAt(j));
                                 }
                                 mSession.write("\033P1+r" + part + "=" + hexEncoded + "\033\\");
                             }
@@ -1018,7 +1019,7 @@ public final class TerminalEmulator {
                 switch (getArg0(-1)) {
                     case 6:
                         // Extended Cursor Position (DECXCPR - http://www.vt100.net/docs/vt510-rm/DECXCPR). Page=1.
-                        mSession.write(String.format(Locale.US, "\033[?%d;%d;1R", mCursorRow + 1, mCursorCol + 1));
+                        writeResponseEscaped("\033[?", mCursorRow + 1, ';', mCursorCol + 1, ";1R");
                         break;
                     default:
                         finishSequence();
@@ -1616,7 +1617,7 @@ public final class TerminalEmulator {
                     case 6: // Cursor position report (CPR):
                         // Answer is ESC [ y ; x R, where x,y is
                         // the cursor location.
-                        mSession.write(String.format(Locale.US, "\033[%d;%dR", mCursorRow + 1, mCursorCol + 1));
+                        writeResponseEscaped("\033[", mCursorRow + 1, ';', mCursorCol + 1, 'R');
                         break;
                     default:
                         break;
@@ -1660,14 +1661,14 @@ public final class TerminalEmulator {
                         break;
                     case 14: // Report xterm window in pixels. Result is CSI 4 ; height ; width t
                         // We just report characters time 12 here.
-                        mSession.write(String.format(Locale.US, "\033[4;%d;%dt", mRows * 12, mColumns * 12));
+                        writeResponseEscaped("\033[4;", mRows * 12, ';', mColumns * 12, 't');
                         break;
                     case 18: // Report the size of the text area in characters. Result is CSI 8 ; height ; width t
-                        mSession.write(String.format(Locale.US, "\033[8;%d;%dt", mRows, mColumns));
+                        writeResponseEscaped("\033[8;", mRows, ';', mColumns, 't');
                         break;
                     case 19: // Report the size of the screen in characters. Result is CSI 9 ; height ; width t
                         // We report the same size as the view, since it's the view really isn't resizable from the shell.
-                        mSession.write(String.format(Locale.US, "\033[9;%d;%dt", mRows, mColumns));
+                        writeResponseEscaped("\033[9;", mRows, ';', mColumns, 't');
                         break;
                     case 20: // Report xterm windows icon label. Result is OSC L label ST. Disabled due to security concerns:
                         mSession.write("\033]LIconLabel\033\\");
@@ -1807,7 +1808,7 @@ public final class TerminalEmulator {
                 mBackColor = code - 100 + 8;
             } else {
                 if (LOG_ESCAPE_SEQUENCES)
-                    Log.w(EmulatorDebug.LOG_TAG, String.format("SGR unknown code %d", code));
+                    Log.w(EmulatorDebug.LOG_TAG, "SGR unknown code " + code);
             }
         }
     }
@@ -1919,8 +1920,15 @@ public final class TerminalEmulator {
                                 int r = (65535 * ((rgb & 0x00FF0000) >> 16)) / 255;
                                 int g = (65535 * ((rgb & 0x0000FF00) >> 8)) / 255;
                                 int b = (65535 * ((rgb & 0x000000FF))) / 255;
-                                mSession.write("\033]" + value + ";rgb:" + String.format(Locale.US, "%04x", r) + "/" + String.format(Locale.US, "%04x", g) + "/"
-                                    + String.format(Locale.US, "%04x", b) + bellOrStringTerminator);
+                                mEscapeWriteBuffer.setLength(0);
+                                mEscapeWriteBuffer.append("\033]").append(value).append(";rgb:");
+                                appendHex4Lower(mEscapeWriteBuffer, r);
+                                mEscapeWriteBuffer.append('/');
+                                appendHex4Lower(mEscapeWriteBuffer, g);
+                                mEscapeWriteBuffer.append('/');
+                                appendHex4Lower(mEscapeWriteBuffer, b);
+                                mEscapeWriteBuffer.append(bellOrStringTerminator);
+                                mSession.write(mEscapeWriteBuffer.toString());
                             } else {
                                 mColors.tryParseColor(specialIndex, colorSpec);
                                 mSession.onColorsChanged();
@@ -2097,8 +2105,42 @@ public final class TerminalEmulator {
     }
 
     private void unimplementedSequence(int b) {
-        logError("Unimplemented sequence char '" + (char) b + "' (U+" + String.format("%04x", b) + ")");
+        mEscapeWriteBuffer.setLength(0);
+        mEscapeWriteBuffer.append("Unimplemented sequence char '").append((char) b).append("' (U+");
+        appendHex4Lower(mEscapeWriteBuffer, b);
+        mEscapeWriteBuffer.append(')');
+        logError(mEscapeWriteBuffer.toString());
         finishSequence();
+    }
+
+    private void writeResponseEscaped(String prefix, int value1, char separator, int value2, String suffix) {
+        mEscapeWriteBuffer.setLength(0);
+        mEscapeWriteBuffer.append(prefix).append(value1).append(separator).append(value2).append(suffix);
+        mSession.write(mEscapeWriteBuffer.toString());
+    }
+
+    private void writeResponseEscaped(String prefix, int value1, char separator, int value2, char suffix) {
+        mEscapeWriteBuffer.setLength(0);
+        mEscapeWriteBuffer.append(prefix).append(value1).append(separator).append(value2).append(suffix);
+        mSession.write(mEscapeWriteBuffer.toString());
+    }
+
+    private void writeResponseEscaped(String prefix, int value1, char separator1, int value2, char separator2, int value3, char suffix) {
+        mEscapeWriteBuffer.setLength(0);
+        mEscapeWriteBuffer.append(prefix).append(value1).append(separator1).append(value2).append(separator2).append(value3).append(suffix);
+        mSession.write(mEscapeWriteBuffer.toString());
+    }
+
+    private static void appendHex2Upper(StringBuilder out, int value) {
+        out.append(Character.toUpperCase(Character.forDigit((value >> 4) & 0xF, 16)));
+        out.append(Character.toUpperCase(Character.forDigit(value & 0xF, 16)));
+    }
+
+    private static void appendHex4Lower(StringBuilder out, int value) {
+        out.append(Character.forDigit((value >> 12) & 0xF, 16));
+        out.append(Character.forDigit((value >> 8) & 0xF, 16));
+        out.append(Character.forDigit((value >> 4) & 0xF, 16));
+        out.append(Character.forDigit(value & 0xF, 16));
     }
 
     private void unknownSequence(int b) {

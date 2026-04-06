@@ -15,6 +15,13 @@ defaults:
   virtio_disk: true
   nographic: true
   serial: "mon:stdio"
+  common_virtio_devices: &common_virtio_devices
+    - "-device virtio-balloon"
+    - "-device virtio-rng-pci"
+  arm64_input_devices: &arm64_input_devices
+    - "-device virtio-gpu-pci"
+    - "-device virtio-keyboard-pci"
+    - "-device virtio-mouse-pci"
 
 # ── Machine profiles ────────────────────────────────────────
 profiles:
@@ -28,10 +35,8 @@ profiles:
       efi: "app/src/main/assets/roms/RELEASEX64_OVMF.fd"
       efi_vars: "app/src/main/assets/roms/RELEASEX64_OVMF_VARS.fd"
       bios_fallback: "app/src/main/assets/roms/bios-vectras.bin"
-    accel_priority: [kvm, hvf, tcg]
-    extra_args:
-      - "-device virtio-balloon"
-      - "-device virtio-rng-pci"
+    accel_priority: [kvm, tcg]
+    extra_args: *common_virtio_devices
 
   arm64_virt:
     arch: aarch64
@@ -45,10 +50,7 @@ profiles:
       efi: "app/src/main/assets/roms/QEMU_EFI.img"
       efi_vars: "app/src/main/assets/roms/QEMU_VARS.img"
     accel_priority: [kvm, tcg]
-    extra_args:
-      - "-device virtio-gpu-pci"
-      - "-device virtio-keyboard-pci"
-      - "-device virtio-mouse-pci"
+    extra_args: *arm64_input_devices
 
   arm64_lowmem:
     arch: aarch64
@@ -77,19 +79,20 @@ build_env:
   cmake_version: "3.22.1"
   java_version: 17
   abi_filters:
-    - arm64-v8a
-    - armeabi-v7a
-    - x86
-    - x86_64
-
+    scope: official_distribution
+    official_distribution:
+      - arm64-v8a
+    internal_validation:
+      - arm64-v8a
+    
 # ── RMR engine compile flags ────────────────────────────────
 engine_flags:
   common:
-    - "-O3"
-    - "-ffast-math"
+    - "-O2"
+    - "-fno-fast-math"
     - "-fvisibility=hidden"
-    - "-DRMR_BAREMETAL=1"
     - "-DRMR_JNI_BUILD=1"
+    - "-DRMR_BUILD_HOST_TOOLING=1"
   arm64:
     - "-march=armv8-a+crc"
     - "-mabi=lp64"

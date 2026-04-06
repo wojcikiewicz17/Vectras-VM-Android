@@ -54,7 +54,9 @@ public class QemuParamsEditorActivity extends AppCompatActivity {
             binding.edittext1.requestFocus();
             binding.edittext1.setSelection(binding.edittext1.getText().length());
             InputMethodManager imm = (InputMethodManager) getSystemService(INPUT_METHOD_SERVICE);
-            imm.showSoftInput(binding.edittext1, InputMethodManager.SHOW_IMPLICIT);
+            if (imm != null) {
+                imm.showSoftInput(binding.edittext1, InputMethodManager.SHOW_IMPLICIT);
+            }
         }, 200);
     }
 
@@ -101,7 +103,7 @@ public class QemuParamsEditorActivity extends AppCompatActivity {
         }
 
         boolean hasQmp = hasFlag(tokens, "-qmp") || safe.contains("qmpsocket");
-        boolean hasAccel = hasFlag(tokens, "-accel") || containsAny(tokens, "kvm", "tcg", "hvf", "whpx");
+        boolean hasAccel = hasFlag(tokens, "-accel") || containsAccelToken(tokens);
         boolean hasCpu = hasFlag(tokens, "-cpu");
         boolean hasMem = hasFlag(tokens, "-m");
         boolean hasSmp = hasFlag(tokens, "-smp");
@@ -120,16 +122,20 @@ public class QemuParamsEditorActivity extends AppCompatActivity {
         binding.tvParamAnalysis.setText(analysis);
     }
 
-    private boolean containsAny(String[] tokens, String... values) {
-        if (tokens == null || values == null) return false;
+    private boolean containsAccelToken(String[] tokens) {
+        if (tokens == null) return false;
         for (String token : tokens) {
             if (token == null) continue;
             String lower = token.toLowerCase();
-            for (String value : values) {
-                if (value == null) continue;
-                if (lower.contains(value.toLowerCase())) {
-                    return true;
-                }
+            if ("kvm".equals(lower)
+                    || lower.startsWith("kvm,")
+                    || "tcg".equals(lower)
+                    || lower.startsWith("tcg,")
+                    || "hvf".equals(lower)
+                    || lower.startsWith("hvf,")
+                    || "whpx".equals(lower)
+                    || lower.startsWith("whpx,")) {
+                return true;
             }
         }
         return false;

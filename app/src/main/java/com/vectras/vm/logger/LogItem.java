@@ -7,6 +7,7 @@ package com.vectras.vm.logger;
 
 import android.os.Parcel;
 import android.os.Parcelable;
+import android.os.Build;
 
 import com.vectras.vm.R;
 
@@ -170,8 +171,7 @@ public class LogItem implements Parcelable {
 
         String version = "error getting version";
         try {
-            @SuppressLint("PackageManagerGetSignatures")
-            Signature raw = c.getPackageManager().getPackageInfo(c.getPackageName(), PackageManager.GET_SIGNATURES).signatures[0];
+            Signature raw = getFirstPackageSignature(c);
             CertificateFactory cf = CertificateFactory.getInstance("X.509");
             X509Certificate cert = (X509Certificate) cf.generateCertificate(new ByteArrayInputStream(raw.toByteArray()));
             MessageDigest md = MessageDigest.getInstance("SHA-1");
@@ -193,6 +193,31 @@ public class LogItem implements Parcelable {
 
         return c.getString(R.string.app_name, version, apksign);
 
+    }
+
+    @SuppressWarnings("deprecation")
+    private Signature getFirstPackageSignature(Context context) throws PackageManager.NameNotFoundException {
+        PackageManager packageManager = context.getPackageManager();
+        String packageName = context.getPackageName();
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageInfo packageInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES);
+            if (packageInfo.signingInfo != null) {
+                Signature[] signatures = packageInfo.signingInfo.hasMultipleSigners()
+                        ? packageInfo.signingInfo.getApkContentsSigners()
+                        : packageInfo.signingInfo.getSigningCertificateHistory();
+                if (signatures != null && signatures.length > 0) {
+                    return signatures[0];
+                }
+            }
+        }
+
+        PackageInfo legacyPackageInfo = packageManager.getPackageInfo(packageName, PackageManager.GET_SIGNATURES);
+        if (legacyPackageInfo.signatures != null && legacyPackageInfo.signatures.length > 0) {
+            return legacyPackageInfo.signatures[0];
+        }
+
+        throw new PackageManager.NameNotFoundException("No signatures found for package " + packageName);
     }
 
     // TextUtils.join will cause not macked exeception in tests ....

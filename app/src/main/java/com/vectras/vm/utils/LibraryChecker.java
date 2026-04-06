@@ -2,6 +2,7 @@ package com.vectras.vm.utils;
 
 import android.app.Activity;
 import android.content.Context;
+import android.os.Looper;
 
 import androidx.appcompat.app.AlertDialog;
 
@@ -65,6 +66,13 @@ public class LibraryChecker {
 
     // Method to show the missing libraries dialog
     private void showMissingLibrariesDialog(Activity activity, List<String> missingLibraries, PackageManagerType managerType) {
+        if (activity == null || activity.isFinishing()) {
+            return;
+        }
+        if (Looper.myLooper() != Looper.getMainLooper()) {
+            activity.runOnUiThread(() -> showMissingLibrariesDialog(activity, missingLibraries, managerType));
+            return;
+        }
         String missingLibrariesText = String.join("\n", missingLibraries);
         new AlertDialog.Builder(activity, R.style.MainDialogTheme)
                 .setTitle("Missing Libraries")

@@ -8,7 +8,7 @@
         android:id="@+id/textViewLocation"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="TextView"
+        android:text="@string/placeholder_textview"
         android:padding="16dp"
         android:background="?android:attr/selectableItemBackground" />
 </androidx.constraintlayout.widget.ConstraintLayout>

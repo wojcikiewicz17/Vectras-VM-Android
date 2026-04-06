@@ -71,6 +71,18 @@ typedef struct {
 #define RMR_SIG_ARCH_X86 0x0400u
 #define RMR_SIG_ARCH_RISCV64 0x0500u
 
+/* Canonical JNI feature-mask contract. MUST match NativeFastPath.FEATURE_* values. */
+#define RMR_UK_FEATURE_NEON   (1u << 0)
+#define RMR_UK_FEATURE_AES    (1u << 1)
+#define RMR_UK_FEATURE_CRC32  (1u << 2)
+#define RMR_UK_FEATURE_POPCNT (1u << 3)
+#define RMR_UK_FEATURE_SSE42  (1u << 4)
+#define RMR_UK_FEATURE_AVX2   (1u << 5)
+#define RMR_UK_FEATURE_SIMD   (1u << 6)
+#define RMR_UK_FEATURE_ALL_CANONICAL (RMR_UK_FEATURE_NEON | RMR_UK_FEATURE_AES | RMR_UK_FEATURE_CRC32 | \
+                                      RMR_UK_FEATURE_POPCNT | RMR_UK_FEATURE_SSE42 | RMR_UK_FEATURE_AVX2 | \
+                                      RMR_UK_FEATURE_SIMD)
+
 typedef struct {
   uint32_t seed;
   uint8_t *arena_ptr;

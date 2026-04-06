@@ -220,10 +220,17 @@ uint32_t RmR_CRC32C_RawUpdate(uint32_t initial, const uint8_t *buf, size_t len) 
 #elif defined(__SSE4_2__) && (defined(__x86_64__) || defined(__i386__))
   uint32_t crc = initial;
   size_t i = 0;
+#if defined(__x86_64__)
   for (; i + 8 <= len; i += 8) {
     uint64_t x;
     rmr_mem_copy(&x, buf + i, sizeof(x));
     crc = (uint32_t)_mm_crc32_u64(crc, x);
+  }
+#endif
+  for (; i + 4 <= len; i += 4) {
+    uint32_t x;
+    rmr_mem_copy(&x, buf + i, sizeof(x));
+    crc = _mm_crc32_u32(crc, x);
   }
   for (; i < len; ++i) crc = _mm_crc32_u8(crc, buf[i]);
   return crc;
