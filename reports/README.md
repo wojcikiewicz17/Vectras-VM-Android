@@ -1,17 +1,17 @@
 # reports/
 
 ## Camada 1 — Propósito do diretório
-Relatórios técnicos e métricas.
+Relatórios técnicos e métricas vigentes.
 
 ## Camada 2 — Estrutura (até 3 níveis)
 - Nível 1: `reports/`
-- Nível 2: `baremetal/`, `metrics/`
+- Nível 2: relatórios ativos de build/validação
 - Nível 3: detalhamento por arquivo em [`FILES_MAP.md`](FILES_MAP.md).
 
 ## Camada 3 — Arquivos e vínculos
 - Catálogo completo: [`FILES_MAP.md`](FILES_MAP.md)
-- Auditoria não-MD: [`NON_MD_AUDIT_REPORT.md`](NON_MD_AUDIT_REPORT.md) e [`non_md_inventory.tsv`](non_md_inventory.tsv)
-- Contexto global de camadas: [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md)
+- Índice canônico transversal: [`docs/INDEX_CANONICAL.md`](../docs/INDEX_CANONICAL.md)
+- Evidências brutas e auditoria superseded: diretórios `evidence/` e `docs/archive/`
 
 ## Cadeia de comando (lógica de inspeção)
 ```bash

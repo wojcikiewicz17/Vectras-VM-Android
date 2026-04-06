@@ -9,7 +9,7 @@ Fechar o ciclo do complemento arquitetural com validação técnica, rastreabili
 - ✅ Android SDK local foi provisionado e o build avançou além do bloqueio de `sdk.dir`.
 - ✅ Build de teste alvo executado com sucesso após saneamento de toolchain + correções de compilação prioritárias.
 - ✅ Passo 3 concluído com testes de failover completos do `ProcessSupervisor` (QMP→TERM, TERM→KILL).
-- ✅ Auditoria operacional consolidada em `docs/VM_SUPERVISION_AUDIT_EVIDENCE.md`.
+- ✅ Auditoria operacional consolidada em `docs/archive/2026-04-06_status-superseded_VM_SUPERVISION_AUDIT_EVIDENCE.md`.
 - ✅ Harmonização low-level aplicada com módulo central `ProcessRuntimeOps` para eliminar redundâncias de runtime/processo.
 
 ## Passo 1 — Validar toolchain e build determinístico
