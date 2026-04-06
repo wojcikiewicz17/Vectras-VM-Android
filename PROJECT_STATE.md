@@ -1,8 +1,9 @@
 # PROJECT_STATE
 
-**Estado atual do projeto:** FIXED_REFACTORING
+Estado atual do projeto: `FIXED_REFACTORING`.
 
-## Ciclo ψ→χ→ρ→Δ→Σ→Ω — Completude alcançada
+## Fonte única de referência
+Toda a documentação normativa, relatórios vigentes e histórico deve ser consultada exclusivamente em:
 
 ### Δ — 56 Bugs Identificados e Corrigidos
 Veja `FIXES_SUMMARY.md` para tabela completa.
