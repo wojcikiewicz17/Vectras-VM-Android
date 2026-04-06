@@ -44,7 +44,15 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  validate-orchestrator-layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate orchestrator directories
+        run: ./tools/ci/validate_pipeline_directories.sh --profile orchestrator
+
   resolve:
+    needs: validate-orchestrator-layout
     runs-on: ubuntu-latest
     outputs:
       run_host: ${{ steps.flags.outputs.run_host }}

@@ -126,7 +126,6 @@ jobs:
       expect_app_artifacts: ${{ steps.flags.outputs.expect_app_artifacts }}
       gradle_tasks: ${{ steps.flags.outputs.gradle_tasks }}
       gradle_log_flags: ${{ steps.flags.outputs.gradle_log_flags }}
-      should_sign_release: ${{ steps.flags.outputs.should_sign_release }}
       log_bundle_name: ${{ steps.flags.outputs.log_bundle_name }}
       app_abi_policy: ${{ steps.flags.outputs.app_abi_policy }}
       supported_abis: ${{ steps.flags.outputs.supported_abis }}
@@ -209,13 +208,9 @@ jobs:
             exit 1
           fi
 
-          should_sign_release=false
-          if [[ "${run_release}" == "true" ]]; then
-            if [[ "${signing_mode}" == "signed" && "${ci_internal_validation}" != "true" ]]; then
-              should_sign_release=true
-            elif [[ "${signing_mode}" == "auto" && -n "${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 || '' }}" && "${ci_internal_validation}" != "true" ]]; then
-              should_sign_release=true
-            fi
+          if [[ "${run_release}" == "true" && "${signing_mode}" == "unsigned" ]]; then
+            echo "signing_mode=unsigned não é permitido para build_variant=${build_variant}. Trilhas de release oficiais devem permanecer assinadas." >&2
+            exit 1
           fi
 
           artifact_variants=()
@@ -232,7 +227,6 @@ jobs:
           echo "expect_app_artifacts=${expect_app_artifacts}" >> "$GITHUB_OUTPUT"
           echo "gradle_tasks=${tasks}" >> "$GITHUB_OUTPUT"
           echo "gradle_log_flags=${log_flags}" >> "$GITHUB_OUTPUT"
-          echo "should_sign_release=${should_sign_release}" >> "$GITHUB_OUTPUT"
           echo "log_bundle_name=android-logs-${run_workfile}-${log_level}-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
           echo "app_abi_policy=${app_abi_policy}" >> "$GITHUB_OUTPUT"
           echo "supported_abis=${supported_abis}" >> "$GITHUB_OUTPUT"
@@ -250,6 +244,9 @@ jobs:
     needs: resolve
     steps:
       - uses: actions/checkout@v4
+
+      - name: Validate Android pipeline directories
+        run: ./tools/ci/validate_pipeline_directories.sh --profile android
 
       - name: Validate release signing secrets (distribution context)
         if: ${{ needs.resolve.outputs.run_release == 'true' }}
@@ -374,6 +371,15 @@ jobs:
           set -euo pipefail
           mkdir -p ci-artifacts
           snapshot="ci-artifacts/CANONICAL_BUILD_STATUS.md"
+          source_report="reports/CANONICAL_BUILD_STATUS.md"
+          if [[ ! -f "${source_report}" ]]; then
+            {
+              echo "# Canonical build status source missing"
+              echo
+              echo "- generated_at_utc: $(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+              echo "- reason: reports/CANONICAL_BUILD_STATUS.md não foi gerado; mantendo causa-raiz original do job."
+            } > "${source_report}"
+          fi
           {
             echo "# CI Snapshot — Canonical Build Status"
             echo
@@ -391,7 +397,7 @@ jobs:
             echo
             echo "---"
             echo
-            cat reports/CANONICAL_BUILD_STATUS.md
+            cat "${source_report}"
           } > "${snapshot}"
 
       - name: Upload canonical build status
