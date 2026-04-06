@@ -99,13 +99,13 @@ find . -maxdepth 2 -type d | sort
   - `pipeline_profile`: host-only, android-only ou full.
   - `run_workfile`: `smoke_debug`, `unit_loader`, `full_debug`, `release_gate`.
   - `log_level`: `lifecycle`, `info`, `debug`.
-  - `abi_profile`: `official_arm64` (trilha oficial no workflow canônico).
+  - `abi_profile`: `official_arm64` (trilha oficial) ou `internal_arm32_arm64` (validação interna ARM v7/v8).
 - Depuração pontual: execute o workflow **android-ci** diretamente quando quiser isolar build/test Android.
 - Inputs principais do workflow **android-ci**:
   - `run_workfile`: define o conjunto de tarefas Gradle.
   - `build_variant` (`debug`|`release`|`both`): define variante alvo.
   - `signing_mode` (`auto`|`signed`|`unsigned`): política de assinatura de release.
-  - `abi_profile` (`official_arm64`): mantém a trilha ABI oficial no workflow canônico.
+  - `abi_profile` (`official_arm64`|`internal_arm32_arm64`): seleciona trilha ABI oficial ou validação interna dual-ARM.
   - `run_lint` e `run_native_checks`: habilitam gates opcionais.
   - `log_level`: controla verbosidade e rastreabilidade dos logs.
 - Para manter valores padrão por repositório em CI, configure variáveis em **Settings > Secrets and variables > Actions > Variables** (prefira canônicas: `compile.api`, `tools.version`, `ndk.version`, `cmake.version`, `java.language.version`; aliases legados como `COMPILE_API`, `TOOLS_VERSION`, `NDK_VERSION`, `CMAKE_VERSION`, `JAVA_VERSION` ficam como fallback de compatibilidade).
@@ -130,9 +130,12 @@ find . -maxdepth 2 -type d | sort
 ### ABIs oficialmente suportadas
 - Escopos ABI em `tools/qemu_launch.yml`:
   - `official_distribution`: padrão oficial de distribuição, com `arm64-v8a`.
-  - `internal_validation`: matriz técnica expandida (`arm64-v8a,armeabi-v7a,x86,x86_64`) para validação interna.
+  - `internal_validation`: matriz técnica interna dual-ARM (`arm64-v8a,armeabi-v7a`) para validação de compatibilidade ARM32/ARM64.
 - **Política Gradle de distribuição oficial**:
   - `APP_ABI_POLICY=arm64-only` + `SUPPORTED_ABIS=arm64-v8a` (default oficial).
+- **Política Gradle de validação interna dual-ARM (workflow canônico)**:
+  - `APP_ABI_POLICY=arm32-arm64` + `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a`.
+  - Disponível no workflow `android-ci` via `abi_profile=internal_arm32_arm64`, restrita a trilha interna (release bloqueado para este perfil).
 - **Política Gradle de validação técnica interna**:
   - `APP_ABI_POLICY=internal-5abi` + `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` para validação interna unsigned em GitHub Actions (exige `CI_INTERNAL_VALIDATION=true` e `MIN_API>=35`).
   - a validação `internal-5abi` permanece para execução técnica interna explícita via Gradle local/diagnóstico, fora da trilha canônica de release no workflow principal.
