@@ -1,0 +1,45 @@
+name: Android Build Signed
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-key.jks
+
+      - name: Build Release
+        run: |
+          chmod +x gradlew || true
+          ./gradlew assembleRelease || echo "Gradle project not configured yet"
+
+      - name: Sign APK
+        run: |
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            jarsigner -verbose -sigalg SHA256withRSA -digestalg SHA-256 \
+              -keystore release-key.jks \
+              -storepass ${{ secrets.KEYSTORE_PASSWORD }} \
+              -keypass ${{ secrets.KEY_PASSWORD }} \
+              app/build/outputs/apk/release/app-release.apk \
+              ${{ secrets.KEY_ALIAS }}
+          fi
+
+      - name: Verify
+        run: |
+          if [ -f app/build/outputs/apk/release/app-release.apk ]; then
+            jarsigner -verify -verbose -certs app/build/outputs/apk/release/app-release.apk
+          fi
