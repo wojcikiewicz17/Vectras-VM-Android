@@ -84,6 +84,7 @@ build_env:
       - arm64-v8a
     internal_validation:
       - arm64-v8a
+      - armeabi-v7a
     
 # ── RMR engine compile flags ────────────────────────────────
 engine_flags:

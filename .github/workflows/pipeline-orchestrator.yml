@@ -34,6 +34,7 @@ on:
         default: official_arm64
         options:
           - official_arm64
+          - internal_arm32_arm64
 
 permissions:
   contents: read

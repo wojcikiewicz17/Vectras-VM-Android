@@ -20,6 +20,7 @@ ABI_CONTRACT_PREFIX = (
 ALLOWED_SCOPES = {"official_distribution", "internal_validation"}
 POLICY_TO_SCOPE = {
     "arm64-only": "official_distribution",
+    "arm32-arm64": "internal_validation",
 }
 
 
@@ -100,23 +101,22 @@ def main() -> int:
     if not QEMU_LAUNCH.exists():
         return fail(f"missing file: {QEMU_LAUNCH}")
 
-    policy, gradle_supported_abis = parse_gradle_properties(GRADLE_PROPERTIES)
+    gradle_policy, gradle_supported_abis = parse_gradle_properties(GRADLE_PROPERTIES)
     qemu_scope, qemu_scope_abis = parse_qemu_abi_scopes(QEMU_LAUNCH)
 
-    if policy not in POLICY_TO_SCOPE:
-        return fail(f"unsupported APP_ABI_POLICY={policy!r}")
+    if gradle_policy not in POLICY_TO_SCOPE:
+        return fail(f"unsupported APP_ABI_POLICY={gradle_policy!r}")
 
     workflow_supported_abis = [abi.strip() for abi in args.workflow_supported_abis.split(",") if abi.strip()]
-    if args.workflow_policy and args.workflow_policy != policy:
-        return fail(
-            "workflow abi_policy differs from gradle.properties "
-            f"(workflow={args.workflow_policy}, gradle.properties={policy})"
-        )
-    if workflow_supported_abis and workflow_supported_abis != gradle_supported_abis:
-        return fail(
-            "workflow SUPPORTED_ABIS differs from gradle.properties "
-            f"(workflow={workflow_supported_abis}, gradle.properties={gradle_supported_abis})"
-        )
+
+    effective_policy = args.workflow_policy or gradle_policy
+    if effective_policy not in POLICY_TO_SCOPE:
+        return fail(f"unsupported workflow policy={effective_policy!r}")
+
+    if args.workflow_policy and not workflow_supported_abis:
+        return fail("workflow abi_policy informado sem --supported-abis correspondente")
+
+    effective_supported_abis = workflow_supported_abis or gradle_supported_abis
 
     if qemu_scope not in ALLOWED_SCOPES:
         return fail(f"tools/qemu_launch.yml abi_filters.scope must be one of {sorted(ALLOWED_SCOPES)}, got {qemu_scope!r}")
@@ -128,18 +128,19 @@ def main() -> int:
     if qemu_scope != "official_distribution":
         return fail("tools/qemu_launch.yml abi_filters.scope must default to official_distribution")
 
-    mapped_scope = POLICY_TO_SCOPE[policy]
+    mapped_scope = POLICY_TO_SCOPE[effective_policy]
     expected_abis = qemu_scope_abis[mapped_scope]
 
-    if gradle_supported_abis != expected_abis:
+    if effective_supported_abis != expected_abis:
         return fail(
-            f"gradle SUPPORTED_ABIS ({','.join(gradle_supported_abis)}) does not match expected "
-            f"ABI list for policy {policy}: {','.join(expected_abis)}"
+            f"effective SUPPORTED_ABIS ({','.join(effective_supported_abis)}) does not match expected "
+            f"ABI list for policy {effective_policy}: {','.join(expected_abis)}"
         )
 
     print("[check_abi_policy_alignment] OK")
-    print(f"  policy={policy}")
-    print(f"  supported_abis={','.join(gradle_supported_abis)}")
+    print(f"  gradle_policy={gradle_policy}")
+    print(f"  effective_policy={effective_policy}")
+    print(f"  supported_abis={','.join(effective_supported_abis)}")
     print(f"  qemu_scope={qemu_scope}")
     return 0
 

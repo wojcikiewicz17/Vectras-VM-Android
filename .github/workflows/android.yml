@@ -53,7 +53,7 @@ on:
         description: "Perfil ABI (trilha oficial)"
         type: choice
         default: official_arm64
-        options: [official_arm64]
+        options: [official_arm64, internal_arm32_arm64]
       log_level:
         description: "Nível de logs Gradle"
         type: choice
@@ -190,11 +190,23 @@ jobs:
               ci_internal_validation="false"
               artifact_name_suffix="arm64-only"
               ;;
+            internal_arm32_arm64)
+              app_abi_policy="arm32-arm64"
+              supported_abis="arm64-v8a,armeabi-v7a"
+              effective_min_api="${MIN_API}"
+              ci_internal_validation="true"
+              artifact_name_suffix="internal-arm32-arm64"
+              ;;
             *)
-              echo "abi_profile inválido: ${abi_profile}. Valor suportado: official_arm64." >&2
+              echo "abi_profile inválido: ${abi_profile}. Valores suportados: official_arm64, internal_arm32_arm64." >&2
               exit 1
               ;;
           esac
+
+          if [[ "${run_release}" == "true" && "${abi_profile}" != "official_arm64" ]]; then
+            echo "release bloqueado para abi_profile=${abi_profile}. A trilha oficial de release aceita apenas official_arm64." >&2
+            exit 1
+          fi
 
           should_sign_release=false
           if [[ "${run_release}" == "true" ]]; then
