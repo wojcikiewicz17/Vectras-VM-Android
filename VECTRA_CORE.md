@@ -1,8 +1,24 @@
 # Vectra Core MVP
 
+## Atualização
+
+- **Data da revisão**: 2026-04-07
+- **Escopo auditado**: `engine/rmr`, `app/src/main/cpp`, `demo_cli/src`
+- **Tipo de revisão**: documental estática
+
+> Nota de manutenção: atualizar este bloco quando houver mudança de API/caminhos citados.
+
 ## Overview
 
 Vectra Core is a minimal "information-theoretic" runtime framework for Android that implements deterministic event processing with built-in integrity verification. It's designed to treat all data (including noise) as information and provide append-only logging for forensic analysis.
+
+### Fontes canônicas por diretório
+
+- [`engine/README.md`](engine/README.md): fonte de verdade para a arquitetura do núcleo e organização dos componentes de execução.
+- [`engine/rmr/README.md`](engine/rmr/README.md): fonte de verdade para a API nativa e contratos do subsistema RMR.
+- [`app/README.md`](app/README.md): fonte de verdade para integração Android (build, ciclo de vida e pontos de acoplamento com o app).
+- [`demo_cli/README.md`](demo_cli/README.md): fonte de verdade para selftests e fluxos de validação via CLI.
+- [`docs/README.md`](docs/README.md): fonte de verdade para governança documental (estrutura, curadoria e manutenção da documentação).
 
 ## Key Concepts
 
