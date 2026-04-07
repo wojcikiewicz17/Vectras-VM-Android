@@ -64,8 +64,8 @@ ext {
     }
 
     buildStrict = Boolean.parseBoolean(resolveProperty(['buildStrict'], 'false').toString())
-    toolsVersion = resolveProperty(['tools.version', 'TOOLS_VERSION'], '36.0.0')
-    sdkBaselineApi = resolveIntProperty(['sdk.baseline.api', 'SDK_BASELINE_API'], 36)
+    toolsVersion = resolveProperty(['tools.version', 'TOOLS_VERSION'], '35.0.0')
+    sdkBaselineApi = resolveIntProperty(['sdk.baseline.api', 'SDK_BASELINE_API'], 35)
     compileApi = resolveIntProperty(['compile.api', 'COMPILE_API'], sdkBaselineApi)
     targetApi = resolveIntProperty(['target.api', 'TARGET_API'], sdkBaselineApi)
     minApi = resolveIntProperty(['min.api', 'MIN_API'], 29)
@@ -109,7 +109,7 @@ def resolveStrictModeForJvm(graph = null) {
 def validateReleaseTargetApi(boolean strictMode = true) {
     if (targetApi < releaseMinTargetApi) {
         emitValidationMessage('validateReleaseTargetApi',
-            "TARGET_API (${targetApi}) must be >= RELEASE_MIN_TARGET_API (${releaseMinTargetApi}) and aligned with official SDK baseline (${sdkBaselineApi}) for release builds.",
+            "TARGET_API (${targetApi}) must be >= RELEASE_MIN_TARGET_API (${releaseMinTargetApi}) and aligned with official SDK baseline (${sdkBaselineApi}) for release/publication builds (Android 10+ runtime policy remains MIN_API>=29).",
             strictMode)
     }
 }
