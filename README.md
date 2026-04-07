@@ -24,6 +24,7 @@ Esta revisão consolida a documentação em três camadas por diretório (propó
 - Auditoria de cobertura dos Markdown (2026-04-07): [`docs/active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md`](docs/active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md)
 - Catálogo completo de Markdown (2026-04-07): [`docs/active/ALL_MARKDOWN_FILES_2026-04-07.md`](docs/active/ALL_MARKDOWN_FILES_2026-04-07.md)
 - Guia operacional de build: [`BUILDING.md`](BUILDING.md)
+- Matriz de alinhamento diretórios críticos: [`docs/active/DIRECTORY_ALIGNMENT_MATRIX.md`](docs/active/DIRECTORY_ALIGNMENT_MATRIX.md)
 - Troubleshooting operacional: [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
 - Sumário de correções: [`FIXES_SUMMARY.md`](FIXES_SUMMARY.md)
 - Manifesto de estabilidade: [`VERSION_STABILITY.md`](VERSION_STABILITY.md)

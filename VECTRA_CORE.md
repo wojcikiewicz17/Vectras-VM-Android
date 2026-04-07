@@ -2,6 +2,14 @@
 
 # Vectra Core MVP
 
+## Atualização
+
+- **Data da revisão**: 2026-04-07
+- **Escopo auditado**: `engine/rmr`, `app/src/main/cpp`, `demo_cli/src`
+- **Tipo de revisão**: documental estática
+
+> Nota de manutenção: atualizar este bloco quando houver mudança de API/caminhos citados.
+
 ## Overview
 
 Vectra Core is a minimal "information-theoretic" runtime framework for Android that implements deterministic event processing with built-in integrity verification. It's designed to treat all data (including noise) as information and provide append-only logging for forensic analysis.
@@ -61,6 +69,9 @@ Vectra Core is a minimal "information-theoretic" runtime framework for Android t
 - Validar presença dos símbolos canônicos em `engine/rmr/include/rmr_unified_kernel.h`.
 - Validar referência cruzada com `README.md` e `FILES_MAP.md` dos diretórios citados.
 - Quando houver rename/move de arquivo ou API, atualizar esta seção no mesmo commit da mudança.
+## Navegação documental relacionada
+
+- Matriz de alinhamento de diretórios críticos: [`docs/active/DIRECTORY_ALIGNMENT_MATRIX.md`](docs/active/DIRECTORY_ALIGNMENT_MATRIX.md)
 
 ## Key Concepts
 
@@ -270,6 +281,28 @@ val digest = VectraCore.omegaFinalize()
 - Multi-device state synchronization
 - Configurable cycle frequency
 - Export/import log format
+
+## Checklist de Validação Documental (inspeção estática)
+
+> Objetivo: oferecer comandos de referência para revisão humana/CI documental, sem execução de build e sem garantia de automação end-to-end.
+
+- [ ] **Confirmar existência de arquivos citados na documentação**
+  ```bash
+  test -f VECTRA_CORE.md && test -f app/src/main/java/com/vectras/vm/vectra/VectraCore.kt && test -f app/build.gradle && test -f README.md
+  ```
+
+- [ ] **Verificar símbolos-chave no header/implementação**
+  ```bash
+  rg -n "VECTRA_CORE_ENABLED" app/build.gradle app/src/main/java/com/vectras/vm/vectra/VectraCore.kt
+  rg -n "class VectraCore|object VectraCore|fun postEvent|fun rho|fun omegaFinalize" app/src/main/java/com/vectras/vm/vectra/VectraCore.kt
+  rg -n "VectraTriad|whoOut|VectraBitStackLog" app/src/main/java/com/vectras/vm/vectra
+  ```
+
+- [ ] **Conferir links e referências em README/FILES_MAP**
+  ```bash
+  rg -n "VECTRA_CORE\\.md|VectraCore|vectra" README.md app/README.md app/FILES_MAP.md docs/README.md docs/FILES_MAP.md
+  rg -n "https?://" README.md app/README.md docs/README.md
+  ```
 
 ## Signature/Version
 
