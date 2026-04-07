@@ -4,6 +4,10 @@
 
 Vectra Core is a minimal "information-theoretic" runtime framework for Android that implements deterministic event processing with built-in integrity verification. It's designed to treat all data (including noise) as information and provide append-only logging for forensic analysis.
 
+## Navegação documental relacionada
+
+- Matriz de alinhamento de diretórios críticos: [`docs/active/DIRECTORY_ALIGNMENT_MATRIX.md`](docs/active/DIRECTORY_ALIGNMENT_MATRIX.md)
+
 ## Key Concepts
 
 ### 1. Noise as Data (ρ - Rho)
