@@ -11,8 +11,8 @@
 2. **Install required SDK packages:**
    ```bash
    sdkmanager --install \
-     'platforms;android-35' \
-     'build-tools;35.0.0' \
+     'platforms;android-36' \
+     'build-tools;36.0.0' \
      'ndk;27.2.12479018' \
      'cmake;3.22.1'
    ```
@@ -21,6 +21,26 @@
    ```bash
    ./gradlew assembleDebug
    ```
+
+## Android Compatibility Baseline (Android 10 → 16)
+
+- **minSdk (runtime mínimo):** API 29 (**Android 10**).
+- **targetSdk (release baseline):** API 36 (**Android 16**).
+- **compileSdk (toolchain baseline):** API 36.
+- **Native/JNI linker policy:** `-Wl,-z,max-page-size=16384` habilitado para bibliotecas JNI (`vectra_core_accel` e `termux-bootstrap`) para compatibilidade com dispositivos Android modernos usando page size de 16 KiB.
+
+## JNI + Bootstrap Validation Checklist
+
+```bash
+# 1) valida toolchain Android (SDK/NDK/CMake + APIs baseline)
+./gradlew validateAndroidSdkPackages
+
+# 2) valida bootstrap nativo e cobertura de ABIs no APK
+./gradlew :app:verifyTermuxBootstrapAbiCoverage -PcheckVariant=debug
+
+# 3) gera APK debug com sincronização do loader bootstrap
+./gradlew :app:assembleDebug
+```
 
 ## NDK ABI Targets
 

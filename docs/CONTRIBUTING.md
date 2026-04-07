@@ -106,7 +106,7 @@ If you're new to open source or this project, look for issues labeled:
 |-------------|---------|-------|
 | Android Studio | Hedgehog (2023.1.1)+ | Recommended IDE |
 | JDK | 17+ | Required for Gradle |
-| Android SDK | API 23+ | Min SDK level |
+| Android SDK | API 29–36 | Runtime mínimo Android 10 (API 29) e baseline de compilação Android 16 (API 36) |
 | Git | 2.x | Version control |
 | Gradle | 8.x | Build system (wrapper included) |
 

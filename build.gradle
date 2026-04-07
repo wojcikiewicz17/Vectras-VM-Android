@@ -64,11 +64,11 @@ ext {
     }
 
     buildStrict = Boolean.parseBoolean(resolveProperty(['buildStrict'], 'false').toString())
-    toolsVersion = resolveProperty(['tools.version', 'TOOLS_VERSION'], '35.0.0')
-    sdkBaselineApi = resolveIntProperty(['sdk.baseline.api', 'SDK_BASELINE_API'], 35)
+    toolsVersion = resolveProperty(['tools.version', 'TOOLS_VERSION'], '36.0.0')
+    sdkBaselineApi = resolveIntProperty(['sdk.baseline.api', 'SDK_BASELINE_API'], 36)
     compileApi = resolveIntProperty(['compile.api', 'COMPILE_API'], sdkBaselineApi)
     targetApi = resolveIntProperty(['target.api', 'TARGET_API'], sdkBaselineApi)
-    minApi = resolveIntProperty(['min.api', 'MIN_API'], 23)
+    minApi = resolveIntProperty(['min.api', 'MIN_API'], 29)
     releaseMinTargetApi = resolveIntProperty(['release.min.target.api', 'RELEASE_MIN_TARGET_API'], sdkBaselineApi)
     javaLanguageVersion = resolveIntProperty(['java.language.version', 'JAVA_LANGUAGE_VERSION'], 17)
     ndkVersion = resolveProperty(['ndk.version', 'NDK_VERSION'], '27.2.12479018')
