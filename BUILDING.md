@@ -59,7 +59,10 @@ The ABI baseline is also declared in `tools/qemu_launch.yml` with explicit scope
 
 Accepted policies in code and docs are exactly:
 - `APP_ABI_POLICY=arm64-only` → `SUPPORTED_ABIS=arm64-v8a` (official minimum distribution)
+- `APP_ABI_POLICY=arm32-arm64` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (dual-ARM distribution lane; must remain compatible with termux-bootstrap)
 - `APP_ABI_POLICY=internal-5abi` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` (**internal validation only; not for official distribution**, requires `CI_INTERNAL_VALIDATION=true` and `min.api>=35`)
+
+`termux-bootstrap` is built/packaged only for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64` (aligned with `TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS` in `app/src/main/cpp/CMakeLists.txt`). Official lanes (`arm64-only` and `arm32-arm64`) must stay inside this matrix.
 
 Default is arm64-only.
 
