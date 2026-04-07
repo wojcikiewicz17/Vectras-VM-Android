@@ -229,16 +229,27 @@ val digest = VectraCore.omegaFinalize()
 - Configurable cycle frequency
 - Export/import log format
 
-## Atualização alinhada ao código-fonte (2026-04-07)
+## Checklist de Validação Documental (inspeção estática)
 
-Esta seção resume o alinhamento entre a documentação MVP e a implementação atual no repositório.
+> Objetivo: oferecer comandos de referência para revisão humana/CI documental, sem execução de build e sem garantia de automação end-to-end.
 
-- `VectraCore.init(context)` aplica guarda de execução via `BuildConfig.VECTRA_CORE_ENABLED` antes de inicializar `VectraCycle` e `VectraBitStackLog`.
-- `VectraCore.postEvent(event)` encaminha eventos para `VectraEventBus` preservando prioridade e ordem FIFO para mesma prioridade.
-- `VectraCore.rho(noise, eventWeight)` mantém o cálculo `rho = syndrome + event weight` com base na paridade/síndrome do bloco atual.
-- `VectraTriad.whoOut()` continua operando em consenso 2-de-3 para `CPU`, `RAM`, `DISK` e retorno `NONE` em estado neutro.
-- `VectraBitStackLog` mantém registro somente de acréscimo com envelope `[magic, length, meta, crc32c, payload]` em `filesDir/vectra_core.log`.
-- Caminhos de implementação relacionados permanecem em `app/src/main/java/com/vectras/vm/vectra/` e `app/src/main/cpp/`.
+- [ ] **Confirmar existência de arquivos citados na documentação**
+  ```bash
+  test -f VECTRA_CORE.md && test -f app/src/main/java/com/vectras/vm/vectra/VectraCore.kt && test -f app/build.gradle && test -f README.md
+  ```
+
+- [ ] **Verificar símbolos-chave no header/implementação**
+  ```bash
+  rg -n "VECTRA_CORE_ENABLED" app/build.gradle app/src/main/java/com/vectras/vm/vectra/VectraCore.kt
+  rg -n "class VectraCore|object VectraCore|fun postEvent|fun rho|fun omegaFinalize" app/src/main/java/com/vectras/vm/vectra/VectraCore.kt
+  rg -n "VectraTriad|whoOut|VectraBitStackLog" app/src/main/java/com/vectras/vm/vectra
+  ```
+
+- [ ] **Conferir links e referências em README/FILES_MAP**
+  ```bash
+  rg -n "VECTRA_CORE\\.md|VectraCore|vectra" README.md app/README.md app/FILES_MAP.md docs/README.md docs/FILES_MAP.md
+  rg -n "https?://" README.md app/README.md docs/README.md
+  ```
 
 ## Signature/Version
 
