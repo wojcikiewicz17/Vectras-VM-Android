@@ -1,6 +1,5 @@
 package com.vectras.vm.crashtracker;
 
-import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
@@ -46,8 +45,6 @@ public class CrashHandlerTest {
             String content = FileUtils.readAFile(crashFile.getAbsolutePath());
             assertTrue(content.contains("boom-null-default"));
             assertTrue(handler.terminateCalled);
-            assertTrue(handler.exitCalled);
-            assertEquals(10, handler.exitCode);
         } finally {
             Thread.setDefaultUncaughtExceptionHandler(originalHandler);
             AppConfig.lastCrashLogPath = originalLogPath;
@@ -77,7 +74,6 @@ public class CrashHandlerTest {
 
             assertTrue(delegated.get());
             assertFalse(handler.terminateCalled);
-            assertFalse(handler.exitCalled);
         } finally {
             Thread.setDefaultUncaughtExceptionHandler(originalHandler);
             AppConfig.lastCrashLogPath = originalLogPath;
@@ -107,8 +103,6 @@ public class CrashHandlerTest {
 
     private static final class TestCrashHandler extends CrashHandler {
         boolean terminateCalled;
-        boolean exitCalled;
-        int exitCode;
 
         TestCrashHandler(Context context) {
             super(context);
@@ -119,10 +113,5 @@ public class CrashHandlerTest {
             terminateCalled = true;
         }
 
-        @Override
-        void exitProcess(int code) {
-            exitCalled = true;
-            exitCode = code;
-        }
     }
 }

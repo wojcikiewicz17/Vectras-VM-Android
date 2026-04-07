@@ -3,7 +3,7 @@ package com.termux.app;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.res.Configuration;
-import android.preference.PreferenceManager;
+import androidx.preference.PreferenceManager;
 import android.util.Log;
 import android.util.TypedValue;
 import android.widget.Toast;

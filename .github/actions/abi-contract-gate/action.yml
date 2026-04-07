@@ -1,0 +1,21 @@
+name: ABI contract gate
+description: Fail-fast validation for ABI policy contract across workflow params, gradle.properties and tools/qemu_launch.yml.
+inputs:
+  abi_policy:
+    description: ABI policy expected by this workflow invocation.
+    required: true
+    default: arm64-only
+  supported_abis:
+    description: Supported ABI list (comma-separated) expected by this workflow invocation.
+    required: true
+    default: arm64-v8a
+runs:
+  using: composite
+  steps:
+    - name: Enforce ABI contract gate (fail-fast)
+      shell: bash
+      run: |
+        set -euo pipefail
+        python3 tools/check_abi_policy_alignment.py \
+          --policy "${{ inputs.abi_policy }}" \
+          --supported-abis "${{ inputs.supported_abis }}"

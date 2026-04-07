@@ -60,6 +60,10 @@ public class SetupFeatureCore {
     private static final String BOOTSTRAP_LOG_PREFIX = "PROOT_BOOTSTRAP";
     private static final long MIN_TAR_BYTES = 1024L;
 
+    interface TextFileReader {
+        String read(String path);
+    }
+
     public static boolean isInstalledSystemFiles(Context context) {
         return isInstalledProot(context) && isInstalledDistro(context);
     }
@@ -151,7 +155,7 @@ public class SetupFeatureCore {
         public final ArrayList<String> missingOptionalModeBinaries;
         public final ArrayList<String> missingPackages;
 
-        private PreflightResult(
+        PreflightResult(
                 boolean ok,
                 ArrayList<String> missingBinaries,
                 ArrayList<String> missingOptionalModeBinaries,
@@ -391,43 +395,7 @@ public class SetupFeatureCore {
             String requiredQemuBinary,
             VmStartPreflightOptions options
     ) {
-        ArrayList<String> missingBinaries = new ArrayList<>();
-        ArrayList<String> missingOptionalModeBinaries = new ArrayList<>();
-        ArrayList<String> missingPackages = new ArrayList<>();
-
-        VmStartPreflightOptions resolvedOptions = options == null
-                ? new VmStartPreflightOptions("", false, false)
-                : options;
-
-        if (!hasBinary(context, requiredQemuBinary)) {
-            missingBinaries.add(requiredQemuBinary);
-        }
-        if (resolvedOptions.shouldRequireXterm()) {
-            if (!hasBinary(context, "xterm")) {
-                missingBinaries.add("xterm");
-            }
-        } else if (!hasBinary(context, "xterm")) {
-            missingOptionalModeBinaries.add("xterm");
-        }
-
-        String pkgDbPath = context.getFilesDir().getAbsolutePath() + "/distro/lib/apk/db/installed";
-        String pkgDb = readTextFile(pkgDbPath);
-        if (pkgDb.isEmpty()) {
-            missingPackages.add("apk-db-unavailable");
-        } else {
-            Set<String> expectedPkgs = new LinkedHashSet<>();
-            expectedPkgs.addAll(parsePackageTokens(AppConfig.neededPkgs()));
-            expectedPkgs.addAll(parsePackageTokens(AppConfig.neededPkgs32bit()));
-
-            for (String pkg : expectedPkgs) {
-                if (!isPkgInstalled(pkgDb, pkg)) {
-                    missingPackages.add(pkg);
-                }
-            }
-        }
-
-        boolean ok = missingBinaries.isEmpty() && missingPackages.isEmpty();
-        return new PreflightResult(ok, missingBinaries, missingOptionalModeBinaries, missingPackages);
+        return VmStartPreflightOrchestrator.run(context, requiredQemuBinary, options, SetupFeatureCore::readTextFile);
     }
 
     public static void launchReinstallSetup(Context context) {
@@ -679,54 +647,6 @@ public class SetupFeatureCore {
         }
     }
 
-    private static ArrayList<String> parsePackageTokens(String rawPkgs) {
-        if (rawPkgs == null || rawPkgs.trim().isEmpty()) {
-            return new ArrayList<>();
-        }
-        return new ArrayList<>(Arrays.asList(rawPkgs.trim().split("\\s+")));
-    }
-
-    private static boolean isPkgInstalled(String pkgDb, String pkgName) {
-        if (pkgDb == null || pkgName == null) {
-            return false;
-        }
-
-        String normalizedPkgName = pkgName.trim();
-        if (pkgDb.trim().isEmpty() || normalizedPkgName.isEmpty()) {
-            return false;
-        }
-
-        String[] lines = pkgDb.split("\\R");
-        for (String line : lines) {
-            if (!line.startsWith("P:")) {
-                continue;
-            }
-
-            String installedPkg = line.substring(2);
-            if (installedPkg.equals(normalizedPkgName)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static boolean hasBinary(Context context, String binary) {
-        if (binary == null || binary.isEmpty()) return false;
-        String filesDir = context.getFilesDir().getAbsolutePath();
-        String[] binSearchPaths = new String[]{
-                filesDir + "/distro/usr/local/bin/" + binary,
-                filesDir + "/distro/usr/bin/" + binary,
-                filesDir + "/usr/bin/" + binary
-        };
-        for (String binPath : binSearchPaths) {
-            if (FileUtils.isFileExists(binPath)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     private static ArrayList<File> buildRequiredExecutablesForExtractFlow(Context context, String fromAsset) {
         ArrayList<File> requiredExecutables = new ArrayList<>();
         if (context == null || fromAsset == null) {
@@ -838,25 +758,28 @@ public class SetupFeatureCore {
         String filesDir = context.getFilesDir().getAbsolutePath();
         File distroDir = new File(filesDir + "/distro");
         File binDir = new File(distroDir + "/bin");
-        if (!binDir.exists()) {
-            if (!isInstalledProot(context)) {
-                if (!extractSystemFiles(context, "bootstrap", "", bootstrapExpectedSha256)) return false;
-            }
-
-            if (isInstalledDistro(context)) return true;
-
-            File tmpDir = new File(context.getFilesDir(), "usr/tmp");
-            if (!tmpDir.isDirectory()) {
-                if (tmpDir.mkdirs()) {
-                    FileUtils.chmod(tmpDir, 0771);
-                } else {
-                    Log.e(TAG, "startExtractSystemFiles: Failed to create folder: tmp.");
-                }
-            }
-
-            return extractSystemFiles(context, "alpine19", "distro");
+        if (SetupFlowOrchestrator.shouldAbortWhenBinDirExists(binDir.exists())) {
+            return false;
         }
-        return false;
+
+        if (SetupFlowOrchestrator.shouldRunBootstrapExtraction(isInstalledProot(context))) {
+            if (!extractSystemFiles(context, "bootstrap", "", bootstrapExpectedSha256)) return false;
+        }
+
+        if (!SetupFlowOrchestrator.shouldRunDistroExtraction(isInstalledDistro(context))) {
+            return true;
+        }
+
+        File tmpDir = new File(context.getFilesDir(), "usr/tmp");
+        if (!tmpDir.isDirectory()) {
+            if (tmpDir.mkdirs()) {
+                FileUtils.chmod(tmpDir, 0771);
+            } else {
+                Log.e(TAG, "startExtractSystemFiles: Failed to create folder: tmp.");
+            }
+        }
+
+        return extractSystemFiles(context, "alpine19", "distro");
     }
 
     public static boolean extractSystemFiles(Context context, String fromAsset, String extractTo) {
@@ -864,7 +787,7 @@ public class SetupFeatureCore {
     }
 
     public static boolean extractSystemFiles(Context context, String fromAsset, String extractTo, @Nullable String expectedSha256) {
-        String randomFileName = VMManager.startRandomVMID();
+        String randomFileName = VMManager.startRamdomVMID();
         final String[] selectedAssetHolder = new String[1];
         String assetPath = resolveAssetPath(context, fromAsset, selectedAssetHolder);
         if (assetPath == null) {
@@ -969,35 +892,14 @@ public class SetupFeatureCore {
                 synchronized (errorOutput) {
                     stderrSummary = errorOutput.toString().trim();
                 }
-                if (waitResult.status == ProcessLaunch.LaunchStatus.TIMEOUT) {
-                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_TIMEOUT ["
-                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                            + "] asset=" + assetPath
-                            + " cmd=" + commandSummary
-                            + " detail=" + waitResult.diagnosis
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
-                    Log.e(TAG, lastErrorLog);
-                    return false;
-                }
-
-                if (waitResult.status != ProcessLaunch.LaunchStatus.SUCCESS) {
-                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_EXECUTION_ERROR ["
-                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                            + "] asset=" + assetPath
-                            + " cmd=" + commandSummary
-                            + " detail=" + waitResult.diagnosis
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
-                    Log.e(TAG, lastErrorLog);
-                    return false;
-                }
-
-                if (waitResult.exitCode != 0 || !stderrSummary.isEmpty()) {
-                    lastErrorLog = formatErrorCode(EXTRACTION_FAIL_PREFIX, "PROCESS_NON_ZERO_OR_OUTPUT_VALIDATION_FAIL ["
-                            + ProcessRuntimeOps.ExecutionCategory.SETUP_EXTRACTION.name()
-                            + "] asset=" + assetPath
-                            + " cmd=" + commandSummary
-                            + " exit=" + waitResult.exitCode
-                            + (stderrSummary.isEmpty() ? "" : " stderr=" + stderrSummary));
+                String processValidationError = SetupProcessIntegration.validateTarLaunchResult(
+                        waitResult,
+                        stderrSummary,
+                        assetPath,
+                        commandSummary
+                );
+                if (processValidationError != null) {
+                    lastErrorLog = processValidationError;
                     Log.e(TAG, lastErrorLog);
                     return false;
                 }
@@ -1081,33 +983,7 @@ public class SetupFeatureCore {
     }
 
     private static String validateExtractedTarFile(Path extractedTarPath) {
-        File extractedTarFile = extractedTarPath.toFile();
-        if (!extractedTarPath.toString().endsWith(".tar")) {
-            return "TAR_INTEGRITY_FAIL: invalid-extension"
-                    + " path=" + extractedTarPath;
-        }
-        if (!extractedTarFile.exists()) {
-            return "TAR_INTEGRITY_FAIL: missing-file"
-                    + " path=" + extractedTarPath;
-        }
-        if (!extractedTarFile.isFile()) {
-            return "TAR_INTEGRITY_FAIL: not-regular-file"
-                    + " path=" + extractedTarPath;
-        }
-
-        long tarLength = extractedTarFile.length();
-        if (tarLength <= 0L) {
-            return "TAR_INTEGRITY_FAIL: empty-file"
-                    + " path=" + extractedTarPath
-                    + " length=" + tarLength;
-        }
-        if (tarLength < MIN_TAR_BYTES) {
-            return "TAR_INTEGRITY_FAIL: below-min-size"
-                    + " path=" + extractedTarPath
-                    + " length=" + tarLength
-                    + " min=" + MIN_TAR_BYTES;
-        }
-        return null;
+        return SetupValidationParser.validateExtractedTarFile(extractedTarPath, MIN_TAR_BYTES);
     }
 
     public static boolean copyAssetToFile(Context context, String assetPath, String outputPath) {
@@ -1158,7 +1034,7 @@ public class SetupFeatureCore {
     }
 
     public static void checkabi(Context context) {
-        if (!DeviceUtils.is64bit())
+        if (SetupUiState.shouldShowAbiWarning(DeviceUtils.is64bit()))
             DialogUtils.oneDialog((Activity) context,
                     context.getResources().getString(R.string.warning),
                     context.getResources().getString(R.string.cpu_not_support_64),

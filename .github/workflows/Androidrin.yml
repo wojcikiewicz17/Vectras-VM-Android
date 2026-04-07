@@ -1,0 +1,221 @@
+name: android-ciRun
+
+on:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'terminal-emulator/**'
+      - 'terminal-view/**'
+      - 'shell-loader/**'
+      - 'gradle/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'settings.gradle'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android.yml'
+  push:
+    branches: [main, master, dev, 'release/**']
+    paths:
+      - 'app/**'
+      - 'terminal-emulator/**'
+      - 'terminal-view/**'
+      - 'shell-loader/**'
+      - 'gradle/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'settings.gradle'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android.yml'
+  workflow_dispatch:
+    inputs:
+      run_workfile:
+        description: "Perfil de execução Gradle"
+        type: choice
+        default: unit_loader
+        options:
+          - smoke_debug
+          - unit_loader
+          - full_debug
+          - release_gate
+      build_variant:
+        description: "Variante Android"
+        type: choice
+        default: debug
+        options: [debug, release, both]
+      log_level:
+        description: "Nível de logs Gradle"
+        type: choice
+        default: info
+        options: [lifecycle, info, debug]
+      run_lint:
+        description: "Executar lint"
+        type: boolean
+        default: true
+      run_native_checks:
+        description: "Executar verificações nativas"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: '17'
+  COMPILE_API: '35'
+  TARGET_API: '35'
+  MIN_API: '23'
+  TOOLS_VERSION: '35.0.0'
+  NDK_VERSION: '27.2.12479018'
+  CMAKE_VERSION: '3.22.1'
+  SUPPORTED_ABIS: 'arm64-v8a'
+
+jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      run_debug: ${{ steps.flags.outputs.run_debug }}
+      run_release: ${{ steps.flags.outputs.run_release }}
+      artifact_variants: ${{ steps.flags.outputs.artifact_variants }}
+      expect_app_artifacts: ${{ steps.flags.outputs.expect_app_artifacts }}
+      gradle_tasks: ${{ steps.flags.outputs.gradle_tasks }}
+      gradle_log_flags: ${{ steps.flags.outputs.gradle_log_flags }}
+      log_bundle_name: ${{ steps.flags.outputs.log_bundle_name }}
+      app_abi_policy: ${{ steps.flags.outputs.app_abi_policy }}
+      supported_abis: ${{ steps.flags.outputs.supported_abis }}
+      effective_min_api: ${{ steps.flags.outputs.effective_min_api }}
+      ci_internal_validation: ${{ steps.flags.outputs.ci_internal_validation }}
+      artifact_name_suffix: ${{ steps.flags.outputs.artifact_name_suffix }}
+    steps:
+      - id: flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          run_workfile="${{ inputs.run_workfile || 'unit_loader' }}"
+          build_variant="${{ inputs.build_variant || 'debug' }}"
+          log_level="${{ inputs.log_level || 'info' }}"
+
+          case "${build_variant}" in
+            debug) run_debug=true; run_release=false ;;
+            release) run_debug=false; run_release=true ;;
+            both) run_debug=true; run_release=true ;;
+            *) echo "build_variant inválido: ${build_variant}" >&2; exit 1 ;;
+          esac
+
+          case "${run_workfile}" in
+            smoke_debug)
+              tasks=":app:assembleDebug"
+              expect_app_artifacts=true
+              ;;
+            unit_loader)
+              tasks=":shell-loader:testDebugUnitTest"
+              expect_app_artifacts=false
+              ;;
+            full_debug)
+              tasks=":app:assembleDebug :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :shell-loader:testDebugUnitTest"
+              expect_app_artifacts=true
+              ;;
+            release_gate)
+              tasks=":app:assembleRelease :app:testReleaseUnitTest :shell-loader:testReleaseUnitTest"
+              expect_app_artifacts=true
+              ;;
+            *)
+              echo "run_workfile inválido: ${run_workfile}" >&2
+              exit 1
+              ;;
+          esac
+
+          case "${log_level}" in
+            lifecycle) log_flags="--console=plain" ;;
+            info) log_flags="--console=plain --info" ;;
+            debug) log_flags="--console=plain --debug --stacktrace" ;;
+            *) echo "log_level inválido: ${log_level}" >&2; exit 1 ;;
+          esac
+
+          artifact_variants=()
+          if [[ "${run_debug}" == "true" ]]; then artifact_variants+=("debug"); fi
+          if [[ "${run_release}" == "true" ]]; then artifact_variants+=("release"); fi
+
+          echo "run_debug=${run_debug}" >> "$GITHUB_OUTPUT"
+          echo "run_release=${run_release}" >> "$GITHUB_OUTPUT"
+          echo "artifact_variants=$(IFS=,; echo "${artifact_variants[*]}")" >> "$GITHUB_OUTPUT"
+          echo "expect_app_artifacts=${expect_app_artifacts}" >> "$GITHUB_OUTPUT"
+          echo "gradle_tasks=${tasks}" >> "$GITHUB_OUTPUT"
+          echo "gradle_log_flags=${log_flags}" >> "$GITHUB_OUTPUT"
+          echo "log_bundle_name=android-logs-${run_workfile}-${log_level}-${{ github.run_id }}" >> "$GITHUB_OUTPUT"
+          echo "app_abi_policy=arm64-only" >> "$GITHUB_OUTPUT"
+          echo "supported_abis=arm64-v8a" >> "$GITHUB_OUTPUT"
+          echo "effective_min_api=${MIN_API}" >> "$GITHUB_OUTPUT"
+          echo "ci_internal_validation=false" >> "$GITHUB_OUTPUT"
+          echo "artifact_name_suffix=arm64-only" >> "$GITHUB_OUTPUT"
+          echo "ci_release_gradle_arg=-PciRelease=false" >> "$GITHUB_OUTPUT"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: resolve
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Android SDK packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
+
+      - name: Prepare Android env
+        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}" --require-sdkmanager
+
+      - name: Execute selected Android workfile
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/gradle_with_jdk21.sh --no-daemon \
+            -PbuildStrict=true \
+            -PAPP_ABI_POLICY=${{ needs.resolve.outputs.app_abi_policy }} \
+            -PSUPPORTED_ABIS=${{ needs.resolve.outputs.supported_abis }} \
+            -Pcompile.api=${COMPILE_API} \
+            -Ptarget.api=${TARGET_API} \
+            -Pmin.api=${{ needs.resolve.outputs.effective_min_api }} \
+            -Ptools.version=${TOOLS_VERSION} \
+            -Pndk.version=${NDK_VERSION} \
+            -Pcmake.version=${CMAKE_VERSION} \
+            -Pjava.language.version=${JAVA_VERSION} \
+            -PCI_INTERNAL_VALIDATION=${{ needs.resolve.outputs.ci_internal_validation }} \
+            ${{ needs.resolve.outputs.ci_release_gradle_arg }} \
+            ${{ needs.resolve.outputs.gradle_log_flags }} \
+            ${{ needs.resolve.outputs.gradle_tasks }}
+
+      - name: Upload Android artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-outputs-${{ needs.resolve.outputs.artifact_name_suffix }}-${{ github.run_id }}
+          path: |
+            app/build/outputs/apk/**
+            app/build/outputs/bundle/**
+            **/build/test-results/**
+            **/build/reports/**
+          if-no-files-found: warn
+          overwrite: true
+
+      - name: Upload Android logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ needs.resolve.outputs.log_bundle_name }}
+          path: |
+            **/build/outputs/logs/**
+            **/build/reports/**
+            **/build/test-results/**
+          if-no-files-found: warn
+          overwrite: true

@@ -1,11 +1,14 @@
 package com.vectras.vm.core;
 
+import android.util.Log;
+
 import java.lang.ThreadLocal;
 
 public final class LowLevelBridge {
     private static final boolean LOADED;
     private static final String LOAD_ERROR;
     private static final ThreadLocal<Boolean> LAST_NATIVE_PATH = new ThreadLocal<Boolean>();
+    private static final String TAG = "LowLevelBridge";
 
     static {
         boolean ok;
@@ -47,8 +50,9 @@ public final class LowLevelBridge {
                 int out = nativeFold32(a, b, c, d);
                 markLastCallNative(true);
                 return out;
-            } catch (Throwable ignored) {
-                // immediate fallback to deterministic Java path
+            } catch (Throwable t) {
+                RuntimeErrorReporter.warn("VRT-LLB-0001", "native_fold32_fallback", "fold32", t);
+                Log.d(TAG, "fold32 fallback to Java path");
             }
         }
         markLastCallNative(false);
@@ -61,8 +65,8 @@ public final class LowLevelBridge {
                 int out = nativeReduceXor(data, offset, length);
                 markLastCallNative(true);
                 return out;
-            } catch (Throwable ignored) {
-                // immediate fallback to deterministic Java path
+            } catch (Throwable t) {
+                RuntimeErrorReporter.warn("VRT-LLB-0002", "native_reduce_xor_fallback", "reduceXor", t);
             }
         }
         markLastCallNative(false);
@@ -75,8 +79,8 @@ public final class LowLevelBridge {
                 int out = nativeChecksum32(data, offset, length, seed);
                 markLastCallNative(true);
                 return out;
-            } catch (Throwable ignored) {
-                // immediate fallback to deterministic Java path
+            } catch (Throwable t) {
+                RuntimeErrorReporter.warn("VRT-LLB-0003", "native_checksum32_fallback", "checksum32", t);
             }
         }
         markLastCallNative(false);
@@ -96,8 +100,8 @@ public final class LowLevelBridge {
                 int out = nativeXorChecksumCompat(data, offset, length);
                 markLastCallNative(true);
                 return out;
-            } catch (Throwable ignored) {
-                // immediate fallback to deterministic Java path
+            } catch (Throwable t) {
+                RuntimeErrorReporter.warn("VRT-LLB-0004", "native_xor_checksum_fallback", "xorChecksumCompat", t);
             }
         }
         markLastCallNative(false);
@@ -117,12 +121,31 @@ public final class LowLevelBridge {
                 int out = nativeCrc32cCompat(initial, data, offset, length);
                 markLastCallNative(true);
                 return out;
-            } catch (Throwable ignored) {
-                // immediate fallback to deterministic Java path
+            } catch (Throwable t) {
+                RuntimeErrorReporter.warn("VRT-LLB-0005", "native_crc32c_fallback", "crc32cCompat", t);
             }
         }
         markLastCallNative(false);
         return LowLevelDeterminism.crc32cCompatFallback(initial, data, offset, length);
+    }
+
+    /**
+     * Validates reduce_xor parity across all compiled low-level backends.
+     * Returns true when every backend matches the canonical low-level contract.
+     */
+    public static boolean validateReduceXorBackendParity(byte[] data, int offset, int length) {
+        if (data == null || offset < 0 || length < 0 || offset + length > data.length) {
+            return false;
+        }
+        if (!LOADED) {
+            return true;
+        }
+        try {
+            return nativeValidateReduceXorBackendParity(data, offset, length) == 0;
+        } catch (Throwable t) {
+            RuntimeErrorReporter.warn("VRT-LLB-0006", "validate_reduce_xor_backend", "nativeValidateReduceXorBackendParity", t);
+            return false;
+        }
     }
 
     private static native int nativeFold32(int a, int b, int c, int d);
@@ -134,4 +157,6 @@ public final class LowLevelBridge {
     private static native int nativeXorChecksumCompat(byte[] data, int offset, int length);
 
     private static native int nativeCrc32cCompat(int initial, byte[] data, int offset, int length);
+
+    private static native int nativeValidateReduceXorBackendParity(byte[] data, int offset, int length);
 }

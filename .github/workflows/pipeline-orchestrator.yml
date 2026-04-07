@@ -1,0 +1,90 @@
+name: pipeline-orchestrator
+
+on:
+  push:
+    branches: [main, master, dev]
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      pipeline_profile:
+        description: "Perfil de pipeline"
+        type: choice
+        default: full
+        options:
+          - host_only
+          - android_only
+          - full
+      run_workfile:
+        description: "Perfil Android para workflow chamado"
+        type: choice
+        default: unit_loader
+        options:
+          - smoke_debug
+          - unit_loader
+          - full_debug
+          - release_gate
+      log_level:
+        description: "Nível de log Android"
+        type: choice
+        default: info
+        options: [lifecycle, info, debug]
+      abi_profile:
+        description: "Perfil ABI Android"
+        type: choice
+        default: official_arm64
+        options:
+          - official_arm64
+          - internal_arm32_arm64
+
+permissions:
+  contents: read
+
+concurrency:
+  group: orchestrator-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  validate-orchestrator-layout:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate orchestrator directories
+        run: ./tools/ci/validate_pipeline_directories.sh --profile orchestrator
+
+  resolve:
+    needs: validate-orchestrator-layout
+    runs-on: ubuntu-latest
+    outputs:
+      run_host: ${{ steps.flags.outputs.run_host }}
+      run_android: ${{ steps.flags.outputs.run_android }}
+    steps:
+      - id: flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          profile="${{ inputs.pipeline_profile || 'full' }}"
+          case "${profile}" in
+            host_only) echo "run_host=true" >> "$GITHUB_OUTPUT"; echo "run_android=false" >> "$GITHUB_OUTPUT" ;;
+            android_only) echo "run_host=false" >> "$GITHUB_OUTPUT"; echo "run_android=true" >> "$GITHUB_OUTPUT" ;;
+            full) echo "run_host=true" >> "$GITHUB_OUTPUT"; echo "run_android=true" >> "$GITHUB_OUTPUT" ;;
+            *) echo "pipeline_profile inválido: ${profile}" >&2; exit 1 ;;
+          esac
+
+  host-ci:
+    needs: resolve
+    if: ${{ needs.resolve.outputs.run_host == 'true' }}
+    uses: ./.github/workflows/ci.yml
+
+  android-ci:
+    needs: [resolve, host-ci]
+    if: ${{ always() && needs.resolve.outputs.run_android == 'true' && (needs.host-ci.result == 'success' || needs.host-ci.result == 'skipped') }}
+    uses: ./.github/workflows/android.yml
+    with:
+      run_workfile: ${{ inputs.run_workfile || 'unit_loader' }}
+      build_variant: debug
+      signing_mode: auto
+      log_level: ${{ inputs.log_level || 'info' }}
+      abi_profile: ${{ inputs.abi_profile || 'official_arm64' }}
+      run_lint: true
+      run_native_checks: true
+    secrets: inherit

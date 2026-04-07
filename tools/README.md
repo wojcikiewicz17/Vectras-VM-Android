@@ -22,6 +22,22 @@ Use sempre o wrapper de ferramentas para comandos Gradle neste repositório:
 ./tools/gradle_with_jdk21.sh <tarefas-ou-opções-gradle>
 ```
 
+## Fluxo oficial do shell-loader (bootstrap/loader.apk)
+Quando o recurso Termux está habilitado, o bootstrap exige `loader.apk`.
+
+Comandos canônicos:
+
+```bash
+# 1) Gerar loader estável no módulo shell-loader (padrão: release)
+./tools/gradle_with_jdk21.sh :shell-loader:buildStableLoader
+
+# 2) Copiar para assets intermediários do app (sem versionar binário)
+./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
+
+# 3) Validar bootstraps (inclui checagem do loader quando Termux está habilitado)
+python3 tools/verify_bootstrap_assets.py
+```
+
 ## Cadeia de comando (lógica de inspeção)
 ```bash
 find tools -maxdepth 3 -type d | sort

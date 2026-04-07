@@ -1,0 +1,145 @@
+package com.vectras.vm.qemu;
+
+import android.content.Context;
+import android.util.Log;
+
+import androidx.annotation.Nullable;
+
+import java.io.File;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Set;
+
+public final class QemuBinaryResolver {
+    public static final String DEFAULT_LOG_TAG = "QemuBinaryResolver";
+    public static final String DEFAULT_ARCH = "X86_64";
+
+    private static final List<String> SUPPORTED_BINARIES = Collections.unmodifiableList(Arrays.asList(
+            "qemu-system-x86_64",
+            "qemu-system-aarch64",
+            "qemu-system-i386",
+            "qemu-system-ppc"
+    ));
+
+    private static final String[] BIN_SEARCH_PREFIXES = new String[]{
+            "/distro/usr/local/bin/",
+            "/distro/usr/bin/",
+            "/usr/bin/"
+    };
+
+    private QemuBinaryResolver() {
+        throw new AssertionError("QemuBinaryResolver is a utility class and cannot be instantiated");
+    }
+
+    public static List<String> supportedBinaryNames() {
+        return SUPPORTED_BINARIES;
+    }
+
+    public static String primaryBinaryForArch(String arch) {
+        String normalized = normalizeArch(arch);
+        if ("I386".equals(normalized)) return "qemu-system-i386";
+        if ("ARM64".equals(normalized)) return "qemu-system-aarch64";
+        if ("PPC".equals(normalized)) return "qemu-system-ppc";
+        return "qemu-system-x86_64";
+    }
+
+    public static String normalizeArch(@Nullable String arch) {
+        String normalized = arch == null ? "" : arch.trim().toUpperCase(Locale.ROOT);
+        if ("X86_64".equals(normalized)
+                || "I386".equals(normalized)
+                || "ARM64".equals(normalized)
+                || "PPC".equals(normalized)) {
+            return normalized;
+        }
+        return DEFAULT_ARCH;
+    }
+
+    public static Resolution resolveForArch(Context context, @Nullable String arch, @Nullable String logTag) {
+        if (context == null) {
+            Resolution resolution = Resolution.notFound("context-null", Collections.emptyList());
+            logNotFound(logTag, arch, resolution);
+            return resolution;
+        }
+        String filesDir = context.getFilesDir().getAbsolutePath();
+        return resolveForArch(filesDir, arch, null, logTag);
+    }
+
+    public static Resolution resolveAny(Context context, @Nullable String logTag) {
+        return resolveForArch(context, null, logTag);
+    }
+
+    public static Resolution resolveForArch(String filesDir, @Nullable String arch, @Nullable Set<String> existingPaths, @Nullable String logTag) {
+        List<String> candidates = buildCandidateBinaries(arch);
+        if (candidates.isEmpty()) {
+            Resolution resolution = Resolution.notFound("no-binary-candidates", Collections.emptyList());
+            logNotFound(logTag, arch, resolution);
+            return resolution;
+        }
+
+        ArrayList<String> checkedPaths = new ArrayList<>();
+        for (String candidate : candidates) {
+            for (String prefix : BIN_SEARCH_PREFIXES) {
+                String fullPath = filesDir + prefix + candidate;
+                checkedPaths.add(fullPath);
+                if (pathExists(fullPath, existingPaths)) {
+                    return Resolution.found(candidate, fullPath, checkedPaths);
+                }
+            }
+        }
+
+        Resolution resolution = Resolution.notFound("binary-not-found", checkedPaths);
+        logNotFound(logTag, arch, resolution);
+        return resolution;
+    }
+
+    private static boolean pathExists(String fullPath, @Nullable Set<String> existingPaths) {
+        if (existingPaths != null) {
+            return existingPaths.contains(fullPath);
+        }
+        return new File(fullPath).exists();
+    }
+
+    private static List<String> buildCandidateBinaries(@Nullable String arch) {
+        LinkedHashSet<String> ordered = new LinkedHashSet<>();
+        ordered.add(primaryBinaryForArch(arch));
+        ordered.addAll(SUPPORTED_BINARIES);
+        return new ArrayList<>(ordered);
+    }
+
+    private static void logNotFound(@Nullable String logTag, @Nullable String arch, Resolution resolution) {
+        String tag = (logTag == null || logTag.trim().isEmpty()) ? DEFAULT_LOG_TAG : logTag;
+        Log.w(tag,
+                "event=qemu_binary_resolution_failed"
+                        + " arch=" + (arch == null ? "<any>" : arch)
+                        + " reason=" + resolution.reason
+                        + " checkedPaths=" + String.join(",", resolution.checkedPaths));
+    }
+
+    public static final class Resolution {
+        public final boolean found;
+        public final String binaryName;
+        public final String fullPath;
+        public final String reason;
+        public final List<String> checkedPaths;
+
+        private Resolution(boolean found, String binaryName, String fullPath, String reason, List<String> checkedPaths) {
+            this.found = found;
+            this.binaryName = binaryName;
+            this.fullPath = fullPath;
+            this.reason = reason;
+            this.checkedPaths = Collections.unmodifiableList(new ArrayList<>(checkedPaths));
+        }
+
+        static Resolution found(String binaryName, String fullPath, List<String> checkedPaths) {
+            return new Resolution(true, binaryName, fullPath, "found", checkedPaths);
+        }
+
+        static Resolution notFound(String reason, List<String> checkedPaths) {
+            return new Resolution(false, "", "", reason, checkedPaths);
+        }
+    }
+}

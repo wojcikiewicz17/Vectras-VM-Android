@@ -16,11 +16,15 @@ option(RMR_ASM_CORE_X86_64_VALIDATED "Enable ASM hot paths on x86_64 (validated 
 option(RMR_ASM_CORE_ARM64_VALIDATED "Enable ASM hot paths on arm64-v8a (validated ABI)" ON)
 option(RMR_ASM_CORE_RISCV64_VALIDATED "Enable RV64I-compatible CASM path on riscv64 (validated ABI)" ON)
 
-if(RMR_JNI_BUILD)
-  set(RMR_JNI_BUILD_VALUE 1)
-else()
-  set(RMR_JNI_BUILD_VALUE 0)
-endif()
+function(rmr_bool_to_int INPUT_BOOL OUTPUT_VAR)
+  if(${INPUT_BOOL})
+    set(${OUTPUT_VAR} 1 PARENT_SCOPE)
+  else()
+    set(${OUTPUT_VAR} 0 PARENT_SCOPE)
+  endif()
+endfunction()
+
+rmr_bool_to_int(RMR_JNI_BUILD RMR_JNI_BUILD_VALUE)
 
 if(RMR_BUILD_HOST_TOOLING STREQUAL "AUTO")
   set(RMR_BUILD_HOST_TOOLING_VALUE ${RMR_JNI_BUILD_VALUE})
@@ -30,11 +34,7 @@ else()
   set(RMR_BUILD_HOST_TOOLING_VALUE 0)
 endif()
 
-if(RMR_ENABLE_POLICY_MODULE)
-  set(RMR_ENABLE_POLICY_MODULE_VALUE 1)
-else()
-  set(RMR_ENABLE_POLICY_MODULE_VALUE 0)
-endif()
+rmr_bool_to_int(RMR_ENABLE_POLICY_MODULE RMR_ENABLE_POLICY_MODULE_VALUE)
 
 message(STATUS "RMR_JNI_BUILD resolved to ${RMR_JNI_BUILD_VALUE}")
 message(STATUS "RMR_BUILD_HOST_TOOLING input=${RMR_BUILD_HOST_TOOLING} resolved=${RMR_BUILD_HOST_TOOLING_VALUE}")
@@ -46,29 +46,10 @@ file(WRITE "${CMAKE_BINARY_DIR}/rmr_build_config.env"
   "RMR_ENABLE_POLICY_MODULE=${RMR_ENABLE_POLICY_MODULE_VALUE}\n"
 )
 
-if(RMR_ASM_CORE_EXPERIMENTAL)
-  set(RMR_ASM_CORE_EXPERIMENTAL_VALUE 1)
-else()
-  set(RMR_ASM_CORE_EXPERIMENTAL_VALUE 0)
-endif()
-
-if(RMR_ASM_CORE_X86_64_VALIDATED)
-  set(RMR_ASM_CORE_X86_64_VALIDATED_VALUE 1)
-else()
-  set(RMR_ASM_CORE_X86_64_VALIDATED_VALUE 0)
-endif()
-
-if(RMR_ASM_CORE_ARM64_VALIDATED)
-  set(RMR_ASM_CORE_ARM64_VALIDATED_VALUE 1)
-else()
-  set(RMR_ASM_CORE_ARM64_VALIDATED_VALUE 0)
-endif()
-
-if(RMR_ASM_CORE_RISCV64_VALIDATED)
-  set(RMR_ASM_CORE_RISCV64_VALIDATED_VALUE 1)
-else()
-  set(RMR_ASM_CORE_RISCV64_VALIDATED_VALUE 0)
-endif()
+rmr_bool_to_int(RMR_ASM_CORE_EXPERIMENTAL RMR_ASM_CORE_EXPERIMENTAL_VALUE)
+rmr_bool_to_int(RMR_ASM_CORE_X86_64_VALIDATED RMR_ASM_CORE_X86_64_VALIDATED_VALUE)
+rmr_bool_to_int(RMR_ASM_CORE_ARM64_VALIDATED RMR_ASM_CORE_ARM64_VALIDATED_VALUE)
+rmr_bool_to_int(RMR_ASM_CORE_RISCV64_VALIDATED RMR_ASM_CORE_RISCV64_VALIDATED_VALUE)
 
 function(rmr_apply_common_flags target_name)
   target_compile_options(${target_name} PRIVATE
@@ -224,6 +205,8 @@ target_link_libraries(rmr_asm_equivalence_selftest PRIVATE rmr)
 rmr_apply_common_flags(rmr_asm_equivalence_selftest)
 
 add_executable(rmr_unified_arena_selftest demo_cli/src/rmr_unified_arena_selftest.c)
+target_link_libraries(rmr_unified_arena_selftest PRIVATE bitraf_static rmr)
+rmr_apply_common_flags(rmr_unified_arena_selftest)
 
 add_executable(rmr_legacy_kernel_selftest demo_cli/src/rmr_legacy_kernel_selftest.c)
 target_link_libraries(rmr_legacy_kernel_selftest PRIVATE rmr)
@@ -242,9 +225,6 @@ if(RMR_HAS_NEON_SELFTEST)
   target_link_libraries(rmr_neon_simd_selftest PRIVATE rmr)
   rmr_apply_common_flags(rmr_neon_simd_selftest)
 endif()
-
-target_link_libraries(rmr_unified_arena_selftest PRIVATE bitraf_static rmr)
-rmr_apply_common_flags(rmr_unified_arena_selftest)
 
 
 set(RMR_RUN_SELFTEST_COMMANDS

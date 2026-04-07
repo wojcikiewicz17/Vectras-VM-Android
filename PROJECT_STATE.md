@@ -1,8 +1,9 @@
 # PROJECT_STATE
 
-**Estado atual do projeto:** FIXED_REFACTORING
+Estado atual do projeto: `FIXED_REFACTORING`.
 
-## Ciclo ψ→χ→ρ→Δ→Σ→Ω — Completude alcançada
+## Fonte única de referência
+Toda a documentação normativa, relatórios vigentes e histórico deve ser consultada exclusivamente em:
 
 ### Δ — 56 Bugs Identificados e Corrigidos
 Veja `FIXES_SUMMARY.md` para tabela completa.
@@ -23,6 +24,7 @@ Veja `FIXES_SUMMARY.md` para tabela completa.
 - ✅ Todos os 56 pontos corrigidos e documentados
 
 ## Documentos canônicos
+- `reports/CANONICAL_BUILD_STATUS.md` — **arquivo canônico obrigatório** para status de validação de build/release (fonte de verdade operacional).
 - `FIXES_SUMMARY.md` — tabela completa 56 fixes
 - `docs/SETUP_SDK_NDK.md` — setup local
 - `tools/qemu_launch.yml` — QEMU configuration

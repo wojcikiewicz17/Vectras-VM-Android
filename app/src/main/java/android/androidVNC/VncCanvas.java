@@ -2139,6 +2139,19 @@ public class VncCanvas extends AppCompatImageView {
             return handled;
         }
 
+        private void logInputFallback(String handler, String reason, MotionEvent event, int action, boolean consumed) {
+            if (Log.isLoggable(TAG, Log.DEBUG)) {
+                Log.d(TAG, "input_fallback handler=" + handler
+                        + " reason=" + reason
+                        + " source=0x" + Integer.toHexString(event.getSource())
+                        + " action=" + action
+                        + " mode=" + Config.mouseMode
+                        + " x=" + event.getX()
+                        + " y=" + event.getY()
+                        + " consumed=" + consumed);
+            }
+        }
+
 
     }
 

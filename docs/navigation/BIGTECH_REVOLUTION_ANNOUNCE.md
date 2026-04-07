@@ -79,7 +79,7 @@ Este nível consolida a operação contínua com foco em previsibilidade: pipeli
 
 ### 5 links de imersão (internos)
 1. [.github/workflows/android.yml](../../.github/workflows/android.yml)
-2. [.github/workflows/engine-ci.yml](../../.github/workflows/engine-ci.yml)
+2. [.github/workflows/ci.yml](../../.github/workflows/ci.yml)
 3. [tools/gradle_with_jdk21.sh](../../tools/gradle_with_jdk21.sh)
 4. [tools/check_sensitive_artifacts.sh](../../tools/check_sensitive_artifacts.sh)
 5. [security/sensitive-artifacts-allowlist.txt](../../security/sensitive-artifacts-allowlist.txt)

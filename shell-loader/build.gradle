@@ -22,7 +22,6 @@ dependencies.compileOnly project(':shell-loader:stub')
 android.applicationVariants.configureEach { outputs.configureEach { outputFileName = "loader.apk" } }
 
 def signatureDigestsSha256Csv = ""
-evaluationDependsOn(':app')
 
 def commitHash = System.getenv('CURRENT_COMMIT') ?: "NO_COMMIT"
 try {
@@ -46,21 +45,30 @@ android.defaultConfig.buildConfigField "String", "packageSignatureMismatchErrorT
 android.defaultConfig.buildConfigField "String", "COMMIT", "\"" + commitHash + "\""
 
 afterEvaluate {
-    def appAndroid = project(':app').extensions.findByName('android')
-    def signingConfig = appAndroid?.signingConfigs?.findByName('debug')
+    def resolvedKeystorePath = providers.gradleProperty("loader.debug.keystore.path")
+        .orElse(System.getenv("LOADER_DEBUG_KEYSTORE_PATH") ?: "${System.properties['user.home']}/.android/debug.keystore")
+        .get()
+    def resolvedKeystorePassword = providers.gradleProperty("loader.debug.keystore.password")
+        .orElse(System.getenv("LOADER_DEBUG_KEYSTORE_PASSWORD") ?: "android")
+        .get()
+    def resolvedKeyAlias = providers.gradleProperty("loader.debug.key.alias")
+        .orElse(System.getenv("LOADER_DEBUG_KEY_ALIAS") ?: "androiddebugkey")
+        .get()
 
-    if (signingConfig?.storeFile?.exists() && signingConfig?.keyAlias && signingConfig?.keyPassword) {
+    def keystoreFile = file(resolvedKeystorePath)
+    if (keystoreFile.exists()) {
         try {
             def keyStore = java.security.KeyStore.getInstance(java.security.KeyStore.getDefaultType())
-            signingConfig.storeFile.withInputStream { stream ->
-                keyStore.load(stream, signingConfig.keyPassword.toCharArray())
+            keystoreFile.withInputStream { stream ->
+                keyStore.load(stream, resolvedKeystorePassword.toCharArray())
             }
-            def cert = keyStore.getCertificate(signingConfig.keyAlias)
+            def cert = keyStore.getCertificate(resolvedKeyAlias)
             if (cert != null) {
                 def md = java.security.MessageDigest.getInstance("SHA-256")
                 signatureDigestsSha256Csv = md.digest(cert.getEncoded()).collect { String.format("%02x", it & 0xff) }.join("")
             }
-        } catch (Exception ignored) {
+        } catch (Exception e) {
+            logger.warn("Unable to calculate SIGNATURE_DIGESTS_SHA256 from ${keystoreFile}", e)
             signatureDigestsSha256Csv = ""
         }
     }
@@ -71,4 +79,13 @@ afterEvaluate {
 dependencies {
     testImplementation 'junit:junit:4.13.2'
     testImplementation 'org.robolectric:robolectric:4.14.1'
+}
+
+def stableLoaderVariant = (findProperty("loaderVariant") ?: "release").toString().trim().toLowerCase()
+def stableLoaderAssembleTask = "assemble${stableLoaderVariant.substring(0, 1).toUpperCase()}${stableLoaderVariant.substring(1)}"
+
+tasks.register("buildStableLoader") {
+    group = "build"
+    description = "Gera APK estável do shell-loader para o variant configurado (-PloaderVariant=<variant>, padrão: release)."
+    dependsOn(stableLoaderAssembleTask)
 }

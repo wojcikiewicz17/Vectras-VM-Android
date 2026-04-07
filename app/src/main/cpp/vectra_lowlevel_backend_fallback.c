@@ -3,6 +3,10 @@
 #include "rmr_lowlevel.h"
 
 static uint32_t vectra_reduce_xor_fallback(const uint8_t* data, size_t len) {
+    /*
+     * Canonical reduce_xor contract shared by all low-level backends:
+     * rmr_lowlevel_reduce_xor (lane-aware fold + 3-bit rotate per byte).
+     */
     return rmr_lowlevel_reduce_xor(data, len);
 }
 

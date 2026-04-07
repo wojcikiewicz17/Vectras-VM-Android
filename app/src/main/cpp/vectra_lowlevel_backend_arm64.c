@@ -11,24 +11,15 @@ static uint32_t vectra_checksum32_arm64(const uint8_t* data, size_t len, uint32_
     return rmr_lowlevel_checksum32(data, len, seed);
 }
 
-#if defined(__aarch64__)
 static uint32_t vectra_reduce_xor_arm64(const uint8_t* data, size_t len) {
-    uint8x16_t accv = vdupq_n_u8(0);
-    size_t i = 0;
-    for (; i + 16u <= len; i += 16u) {
-        accv = veorq_u8(accv, vld1q_u8(data + i));
-    }
-
-    uint8_t lane_acc = vgetq_lane_u8(accv, 0) ^ vgetq_lane_u8(accv, 1) ^ vgetq_lane_u8(accv, 2) ^ vgetq_lane_u8(accv, 3)
-                     ^ vgetq_lane_u8(accv, 4) ^ vgetq_lane_u8(accv, 5) ^ vgetq_lane_u8(accv, 6) ^ vgetq_lane_u8(accv, 7)
-                     ^ vgetq_lane_u8(accv, 8) ^ vgetq_lane_u8(accv, 9) ^ vgetq_lane_u8(accv, 10) ^ vgetq_lane_u8(accv, 11)
-                     ^ vgetq_lane_u8(accv, 12) ^ vgetq_lane_u8(accv, 13) ^ vgetq_lane_u8(accv, 14) ^ vgetq_lane_u8(accv, 15);
-
-    uint32_t out = (uint32_t)lane_acc;
-    for (; i < len; ++i) out ^= data[i];
-    return out;
+    /*
+     * Global contract: reduce_xor follows rmr_lowlevel_reduce_xor semantics
+     * (byte-to-lane fold + rotate-left by 3 per byte), not plain XOR parity.
+     */
+    return rmr_lowlevel_reduce_xor(data, len);
 }
 
+#if defined(__aarch64__)
 static uint32_t vectra_crc32c_arm64(uint32_t initial, const uint8_t* data, size_t len) {
     uint32_t crc = initial;
     size_t i = 0;
@@ -41,7 +32,6 @@ static uint32_t vectra_crc32c_arm64(uint32_t initial, const uint8_t* data, size_
     return crc;
 }
 #else
-static uint32_t vectra_reduce_xor_arm64(const uint8_t* data, size_t len) { return rmr_lowlevel_reduce_xor(data, len); }
 static uint32_t vectra_crc32c_arm64(uint32_t initial, const uint8_t* data, size_t len) {
     uint32_t crc = initial;
     for (size_t i = 0; i < len; ++i) {

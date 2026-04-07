@@ -125,13 +125,18 @@ public class RomInfo extends AppCompatActivity {
 
                     String finalFilePath = filePath;
                     runOnUiThread(() -> {
-                        if (selectedFileName.equals(getIntent().getStringExtra("filename")) ||
-                                (selectedFileName.endsWith(".cvbi.zip") && selectedFileName.equals(getIntent().getStringExtra("filename") + ".zip"))) {
+                        String expectedFileName = getIntent().getStringExtra("filename");
+                        boolean exactMatch = selectedFileName != null && Objects.equals(selectedFileName, expectedFileName);
+                        boolean zippedCvbiMatch = selectedFileName != null && expectedFileName != null
+                                && selectedFileName.endsWith(".cvbi.zip")
+                                && Objects.equals(selectedFileName, expectedFileName + ".zip");
+
+                        if (exactMatch || zippedCvbiMatch) {
                             openVmCreatorWithRom(finalFilePath, uri.toString(), selectedFileName);
                         } else {
                             DialogUtils.oneDialog(RomInfo.this,
                                     getString(R.string.problem_has_been_detected),
-                                    getString(R.string.please_select) + " " + getIntent().getStringExtra("filename"),
+                                    getString(R.string.please_select) + " " + expectedFileName,
                                     getString(R.string.ok),
                                     true, R.drawable.warning_48px,
                                     true,

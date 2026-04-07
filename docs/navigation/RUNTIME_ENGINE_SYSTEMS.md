@@ -13,7 +13,7 @@ Mapa técnico para estudar o runtime de virtualização, integração Android↔
 ## Trilhas primárias
 - `docs/ARCHITECTURE.md`
 - `docs/INTEGRACAO_RM_QEMU_ANDROIDX.md`
-- `docs/VM_SUPERVISION_AUDIT_EVIDENCE.md`
+- `docs/archive/2026-04-06_status-superseded_VM_SUPERVISION_AUDIT_EVIDENCE.md`
 - `docs/BLUEPRINT_FLUXOS_VM.md`
 - `docs/REPO_XRAY.md`
 

@@ -18,7 +18,7 @@ android {
         minSdkVersion rootProject.ext.minApi
         //noinspection ExpiredTargetSdkVersion
         targetSdkVersion rootProject.ext.targetApi
-        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
             abiFilters(*rootProject.ext.supportedAbis as String[])
@@ -34,13 +34,47 @@ android {
         unitTests.returnDefaultValues = true
     }
 
+    def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
+    def terminalEmulatorSupportedAbis = (rootProject.ext.allowedAbis ?: ['arm64-v8a']) as List<String>
+    def appAbiPolicy = (rootProject.ext.appAbiPolicy ?: '').toString()
+    def ciInternalValidationEnabled = Boolean.parseBoolean(project.findProperty('CI_INTERNAL_VALIDATION')?.toString() ?: 'false')
+    def internalValidationAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64', 'riscv64']
+    def allKnownAndroidAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64', 'riscv64']
+
+    def unsupportedRequestedAbis = supportedAbis.findAll { !(it in terminalEmulatorSupportedAbis) }
+    if (!unsupportedRequestedAbis.isEmpty()) {
+        throw new GradleException("terminal-emulator detectou ABIs não suportadas na matriz permitida ${terminalEmulatorSupportedAbis}: ${unsupportedRequestedAbis}.")
+    }
+
+    switch (appAbiPolicy) {
+        case "arm64-only":
+            if (supportedAbis != ['arm64-v8a']) {
+                throw new GradleException("terminal-emulator exige SUPPORTED_ABIS=arm64-v8a quando APP_ABI_POLICY=arm64-only (atual: ${supportedAbis}).")
+            }
+            break
+        case "arm32-arm64":
+            def expectedDualAbis = ['arm64-v8a', 'armeabi-v7a']
+            if (supportedAbis != expectedDualAbis) {
+                throw new GradleException("terminal-emulator exige SUPPORTED_ABIS=${expectedDualAbis} quando APP_ABI_POLICY=arm32-arm64 (atual: ${supportedAbis}).")
+            }
+            break
+        case "internal-5abi":
+            if (!ciInternalValidationEnabled) {
+                throw new GradleException("terminal-emulator exige CI_INTERNAL_VALIDATION=true quando APP_ABI_POLICY=internal-5abi.")
+            }
+            if (supportedAbis != internalValidationAbis) {
+                throw new GradleException("terminal-emulator exige SUPPORTED_ABIS=${internalValidationAbis} quando APP_ABI_POLICY=internal-5abi (atual: ${supportedAbis}).")
+            }
+            break
+        default:
+            throw new GradleException("terminal-emulator detectou APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado arm64-only, arm32-arm64 ou internal-5abi.")
+    }
+
     packagingOptions {
         jniLibs {
-            excludes += [
-                    "**/armeabi-v7a/*.so",
-                    "**/x86/*.so",
-                    "**/x86_64/*.so"
-            ]
+            excludes += allKnownAndroidAbis
+                    .findAll { !(it in supportedAbis) }
+                    .collect { "**/${it}/*.so" }
         }
     }
 

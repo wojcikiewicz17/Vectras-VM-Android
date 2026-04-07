@@ -35,11 +35,35 @@
 ## Matriz de gates (auditoria de processo)
 | Gate | Objetivo | Execução/critério | Evidência gerada |
 |---|---|---|---|
-| Build Android (debug + release) | Garantir integridade de compilação dos módulos Android antes de distribuição | Workflow canônico `Android CI` em `.github/workflows/android.yml` executa `./tools/gradle_with_jdk21.sh assembleDebug` e `./tools/gradle_with_jdk21.sh assembleRelease` com versões de SDK/NDK/CMake/Java parametrizadas por variáveis de ambiente do job. | APKs publicados como artefatos `android-debug-apk` e `android-release-apk` no Actions. |
+| Build Android (debug + release) | Garantir integridade de compilação dos módulos Android antes de distribuição | Workflow canônico `Pipeline Orchestrator` em `.github/workflows/pipeline-orchestrator.yml`, que encadeia workflows reutilizáveis (`uses: ./.github/workflows/*.yml`) para host/engine/proof/android/termux. O estágio Android mantém `assembleDebug`/`assembleRelease` via workflows filhos com parâmetros controlados pelo orquestrador. | APKs publicados como artefatos `android-debug-apk` e `android-release-apk` no Actions. |
 | Dependências de arquivos de repositório | Bloquear divergências entre documentação, mapeamentos e cadeia de arquivos essenciais | Etapa explícita `./tools/gradle_with_jdk21.sh verifyRepoFileDependencies` executada antes das etapas de build. | Log da etapa `Verify repository file dependencies` no job de CI. |
 | Documentação crítica (links locais markdown) | Detectar referências quebradas em `README.md` e `docs/**/*.md` | Etapa opcional `Validate local markdown links` em Python (com `continue-on-error`) verifica caminhos locais não-HTTP. | Relatório no log da etapa, com lista de links inválidos quando detectados. |
-| Artefatos de distribuição | Assegurar rastreabilidade de binários gerados na pipeline | Upload automatizado dos APKs de debug/release via `actions/upload-artifact@v4`. | Artefatos versionados por run no GitHub Actions + upload Telegram condicionado a segredo. |
+| Artefatos de distribuição | Assegurar rastreabilidade de binários gerados na pipeline | Upload automatizado dos APKs de debug/release via `actions/upload-artifact@v5` com execução forçada das JavaScript Actions em Node.js 24 (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`). | Artefatos versionados por run no GitHub Actions + upload Telegram condicionado a segredo. |
 
+
+
+## Contrato formal — Shell Loader Bootstrap (`loader.apk`)
+
+### Fonte de verdade do artefato
+- Variant selecionada por `-PloaderVariant` (padrão: `release`).
+- Caminho obrigatório: `shell-loader/build/outputs/apk/<loaderVariant>/loader.apk`.
+
+### Gate de validação
+- Task: `:app:verifyShellLoaderArtifact`.
+- Ordem: depende de `:shell-loader:assemble<LoaderVariant>` e deve executar antes de `:app:syncShellLoaderBootstrap`.
+
+### Critérios de aprovação
+1. Arquivo existe no caminho exato esperado.
+2. Caminho aponta para arquivo regular.
+3. Tamanho do arquivo é maior que zero bytes.
+4. **Opcional**: com `-PverifyShellLoaderManifest=true`, o APK deve conter `AndroidManifest.xml`.
+
+### Padrão de erro (único e objetivo)
+Quando qualquer critério falha, a exceção segue o formato único:
+
+`Shell loader artifact inválido em '<caminho absoluto esperado>': <motivo>.`
+
+Esse padrão elimina ambiguidade operacional e facilita troubleshooting em CI/local.
 
 ## Ciclo Toroidal Recursivo
 
@@ -68,3 +92,9 @@ estado, roteamento, política e troubleshooting operacional:
 
 Esses campos fecham o vínculo entre o diagrama toroidal e a telemetria real (`writeIops/readIops`)
 para inspeção de gargalo e reconsolidação no troubleshooting.
+
+
+## Política de acionamento de workflows
+- Apenas `.github/workflows/pipeline-orchestrator.yml` deve responder a eventos de branch e pull request.
+- Workflows filhos devem operar em modo reutilizável (`on: workflow_call`) e podem manter `workflow_dispatch` somente para debug manual controlado.
+- Chamadas entre workflows devem usar `uses: ./.github/workflows/<arquivo>.yml` para preservar rastreabilidade e governança do pipeline.

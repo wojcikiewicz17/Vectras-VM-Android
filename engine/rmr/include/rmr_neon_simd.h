@@ -10,7 +10,13 @@
 extern "C" {
 #endif
 
-/** Bulk XOR fold → 32-bit result. 16-byte NEON/SSE vectors. */
+/**
+ * Bulk XOR fold → 32-bit result (plain parity-style XOR reduction).
+ *
+ * NOTE: this contract differs from rmr_lowlevel_reduce_xor(), which performs
+ * lane placement plus rotl32(acc, 3) per byte. Low-level JNI backend reduce_xor
+ * is standardized on rmr_lowlevel_reduce_xor semantics.
+ */
 uint32_t rmr_neon_xor_fold32(const uint8_t *data, uint32_t len);
 
 /** Optimized bulk memcpy (NEON 64-byte per cycle, SSE 128-bit). */

@@ -41,11 +41,13 @@ import com.vectras.qemu.Config;
 import com.vectras.qemu.MainSettingsManager;
 import com.vectras.vm.AboutActivity;
 import com.vectras.vm.AppConfig;
+import com.vectras.vm.BuildConfig;
 import com.vectras.vm.VMCreatorActivity;
 import com.vectras.vm.Minitools;
 import com.vectras.vm.R;
 import com.vectras.vm.WebViewActivity;
 import com.vectras.vm.benchmark.BenchmarkActivity;
+import com.vectras.vm.core.ExecutionGovernance;
 import com.vectras.vm.core.LogcatRuntime;
 import com.vectras.vm.core.HardwareProfileBridge;
 import com.vectras.vm.core.VmFlowTracker;
@@ -88,7 +90,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Objects;
-import java.util.stream.Collectors;
+import java.util.concurrent.ExecutorService;
 
 public class MainActivity extends AppCompatActivity implements RomStoreFragment.RomStoreCallToHomeListener, VmsFragment.VmsCallToHomeListener, SoftwareStoreFragment.SoftwareStoreCallToHomeListener {
     private final String TAG = "HomeActivity";
@@ -106,6 +108,9 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
     private SoftwareStoreHomeAdapterSearch adapterSoftwareStoreSearch;
     private final List<DataRoms> dataRomStoreSearch = new ArrayList<>();
     private final List<DataRoms> dataSoftwareStoreSearch = new ArrayList<>();
+    private final ExecutionGovernance.GovernedExecutor startupIoExecutor =
+            ExecutionGovernance.newSerialExecutor("main-activity-startup", "MainActivity/StartupIO");
+    private final ExecutorService startupIoPool = startupIoExecutor.executor();
     private MainUiStateViewModel mainUiStateViewModel;
 
     public static CallbackInterface.HomeCallToVmsListener homeCallToVmsListener;
@@ -133,8 +138,14 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
     protected void onCreate(Bundle bundle) {
         super.onCreate(bundle);
 
-        StrictMode.ThreadPolicy policy = new StrictMode.ThreadPolicy.Builder().permitAll().build();
-        StrictMode.setThreadPolicy(policy);
+        if (BuildConfig.DEBUG) {
+            StrictMode.setThreadPolicy(new StrictMode.ThreadPolicy.Builder()
+                    .detectNetwork()
+                    .detectDiskReads()
+                    .detectDiskWrites()
+                    .penaltyLog()
+                    .build());
+        }
 
         VmsFragment.vmsCallToHomeListener = this;
 
@@ -303,8 +314,7 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
                     }
                 });
 
-        new LibraryChecker(this).
-        checkMissingLibraries(this);
+        startupIoPool.execute(() -> new LibraryChecker(getApplicationContext()).checkMissingLibraries(this));
 
         setupDrawer();
         NotificationUtils.clearAll(this);
@@ -327,6 +337,7 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
         if (isFinishing()) {
             homeCallToVmsListener = null;
         }
+        startupIoExecutor.shutdown();
         super.onDestroy();
     }
 
@@ -610,25 +621,15 @@ public class MainActivity extends AppCompatActivity implements RomStoreFragment.
     @SuppressLint("NotifyDataSetChanged")
     private void search(String keyword) {
         try {
-            // Extract data from JSON and store into ArrayList as class objects
-            List<DataRoms> filteredData = new ArrayList<>();
+            List<DataRoms> sourceData = currentSearchMode == SEARCH_ROM_STORE ? SharedData.dataRomStore : SharedData.dataSoftwareStore;
+            List<DataRoms> filteredData = new ArrayList<>(sourceData.size());
+            String keywordLower = keyword.toLowerCase();
 
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
-                filteredData = (currentSearchMode == SEARCH_ROM_STORE ? SharedData.dataRomStore.stream() : SharedData.dataSoftwareStore.stream())
-                        .filter(rom -> {
-                            String romName = (rom.romName != null) ? rom.romName : "";
-                            String romKernel = (rom.romKernel != null) ? rom.romKernel : "";
-
-                            return romName.toLowerCase().contains(keyword.toLowerCase())
-                                    || romKernel.toLowerCase().contains(keyword.toLowerCase());
-                        })
-                        .collect(Collectors.toList());
-            } else {
-                for (DataRoms rom : (currentSearchMode == SEARCH_ROM_STORE ? SharedData.dataRomStore : SharedData.dataSoftwareStore)) {
-                    if (rom.romName.toLowerCase().contains(keyword.toLowerCase()) ||
-                            rom.romKernel.toLowerCase().contains(keyword.toLowerCase())) {
-                        filteredData.add(rom);
-                    }
+            for (DataRoms rom : sourceData) {
+                String romNameLower = rom.romName != null ? rom.romName.toLowerCase() : "";
+                String romKernelLower = rom.romKernel != null ? rom.romKernel.toLowerCase() : "";
+                if (romNameLower.contains(keywordLower) || romKernelLower.contains(keywordLower)) {
+                    filteredData.add(rom);
                 }
             }
 

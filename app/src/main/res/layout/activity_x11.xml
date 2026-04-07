@@ -110,7 +110,7 @@
             android:paddingTop="0px"
             android:paddingEnd="0px"
             android:paddingBottom="0px"
-            android:text="X"
+            android:text="@string/key_x"
             android:textSize="8sp"
             tools:ignore="HardcodedText,PxUsage,SmallSp" />
 
@@ -131,7 +131,7 @@
                 android:paddingTop="0px"
                 android:paddingEnd="0px"
                 android:paddingBottom="0px"
-                android:text="L"
+                android:text="@string/key_mouse_left"
                 android:textSize="8sp"
                 tools:ignore="HardcodedText,PxUsage,SmallSp" />
 
@@ -146,7 +146,7 @@
                 android:paddingTop="0px"
                 android:paddingEnd="0px"
                 android:paddingBottom="0px"
-                android:text="M"
+                android:text="@string/key_mouse_middle"
                 android:textSize="8sp"
                 tools:ignore="HardcodedText,PxUsage,SmallSp" />
 
@@ -161,7 +161,7 @@
                 android:paddingTop="0px"
                 android:paddingEnd="0px"
                 android:paddingBottom="0px"
-                android:text="R"
+                android:text="@string/key_mouse_right"
                 android:textSize="8sp"
                 tools:ignore="HardcodedText,PxUsage,SmallSp" />
         </LinearLayout>
@@ -195,7 +195,7 @@
                 android:paddingTop="0px"
                 android:paddingEnd="0px"
                 android:paddingBottom="0px"
-                android:text="L"
+                android:text="@string/key_mouse_left"
                 android:textColor="@android:color/black"
                 android:background="@drawable/mouse_buttons"
                 android:textSize="8sp"
@@ -212,7 +212,7 @@
                 android:paddingTop="0px"
                 android:paddingEnd="0px"
                 android:paddingBottom="0px"
-                android:text="M"
+                android:text="@string/key_mouse_middle"
                 android:textColor="@android:color/black"
                 android:background="@drawable/mouse_buttons"
                 android:textSize="8sp"
@@ -229,7 +229,7 @@
                 android:paddingTop="0px"
                 android:paddingEnd="0px"
                 android:paddingBottom="0px"
-                android:text="R"
+                android:text="@string/key_mouse_right"
                 android:textColor="@android:color/black"
                 android:background="@drawable/mouse_buttons"
                 android:textSize="8sp"

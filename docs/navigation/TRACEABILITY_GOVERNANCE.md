@@ -13,7 +13,7 @@ Guia de governança para auditoria técnica e rastreabilidade entre requisitos, 
 ## Trilhas primárias
 - `docs/SOURCE_TRACEABILITY_MATRIX.md`
 - `docs/DOCUMENTATION_STANDARDS.md`
-- `docs/VM_SUPERVISION_AUDIT_EVIDENCE.md`
+- `docs/archive/2026-04-06_status-superseded_VM_SUPERVISION_AUDIT_EVIDENCE.md`
 - `docs/SECURITY.md`
 - `docs/PERFORMANCE_INTEGRITY.md`
 

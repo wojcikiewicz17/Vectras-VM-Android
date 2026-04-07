@@ -1,0 +1,80 @@
+name: android-ci-full
+
+on:
+  workflow_dispatch:
+    inputs:
+      build_variant:
+        description: "Variante Android para compilar"
+        type: choice
+        default: both
+        options: [debug, release, both]
+
+jobs:
+  full_build:
+    runs-on: ubuntu-latest
+    env:
+      JAVA_VERSION: '17'
+      COMPILE_API: '35'
+      TARGET_API: '35'
+      MIN_API: '23'
+      TOOLS_VERSION: '35.0.0'
+      NDK_VERSION: '27.2.12479018'
+      CMAKE_VERSION: '3.22.1'
+      SUPPORTED_ABIS: 'arm64-v8a'
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" \
+                     "platforms;android-${COMPILE_API}" \
+                     "build-tools;${TOOLS_VERSION}" \
+                     "cmake;${CMAKE_VERSION}" \
+                     "ndk;${NDK_VERSION}"
+
+      - name: Run full Gradle build
+        shell: bash
+        run: |
+          set -euo pipefail
+          VARIANT="${{ github.event.inputs.build_variant }}"
+          TASKS=""
+
+          if [[ "$VARIANT" == "debug" ]]; then
+            TASKS=":app:assembleDebug :app:testDebugUnitTest :shell-loader:testDebugUnitTest"
+          elif [[ "$VARIANT" == "release" ]]; then
+            TASKS=":app:assembleRelease :app:testReleaseUnitTest :shell-loader:testReleaseUnitTest"
+          elif [[ "$VARIANT" == "both" ]]; then
+            TASKS=":app:assembleDebug :app:assembleRelease :app:testDebugUnitTest :app:testReleaseUnitTest :shell-loader:testDebugUnitTest :shell-loader:testReleaseUnitTest"
+          else
+            echo "build_variant inválido: $VARIANT" >&2
+            exit 1
+          fi
+
+          echo "Executando tasks Gradle: $TASKS"
+          ./gradlew --no-daemon $TASKS --console=plain --info
+
+      - name: Upload all artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-outputs-${{ github.run_id }}
+          path: |
+            app/build/outputs/apk/**
+            app/build/outputs/bundle/**
+            **/build/test-results/**
+            **/build/reports/**
+          if-no-files-found: error
+          overwrite: true

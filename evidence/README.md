@@ -1,0 +1,8 @@
+# evidence/
+
+Evidências brutas de auditoria, bug hunting e inventários técnicos.
+
+## Regras
+- Não editar relatórios brutos após geração; registrar nova versão com nova data.
+- Arquivos aqui não são documentação normativa.
+- Referenciar somente via `docs/INDEX_CANONICAL.md`.

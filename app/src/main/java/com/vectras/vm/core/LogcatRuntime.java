@@ -1,5 +1,7 @@
 package com.vectras.vm.core;
 
+import android.util.Log;
+
 import com.vectras.vm.logger.VectrasStatus;
 
 import java.util.Set;
@@ -15,6 +17,7 @@ public final class LogcatRuntime {
     private static final int RING_ENTRIES = 256;
     private static final int ENTRY_BYTES = 512;
     private static final int MAX_EVENTS_PER_BATCH = 64;
+    private static final String TAG = "LogcatRuntime";
 
     private static final LogcatRuntime INSTANCE = new LogcatRuntime();
 
@@ -80,7 +83,8 @@ public final class LogcatRuntime {
             active.interrupt();
             try {
                 active.join(300L);
-            } catch (InterruptedException ignored) {
+            } catch (InterruptedException e) {
+                RuntimeErrorReporter.warn("VRT-LGC-0001", "stop_worker", "join", e);
                 Thread.currentThread().interrupt();
             }
         }
@@ -120,8 +124,10 @@ public final class LogcatRuntime {
     private static void sleepQuietly(long millis) {
         try {
             Thread.sleep(millis);
-        } catch (InterruptedException ignored) {
+        } catch (InterruptedException e) {
+            RuntimeErrorReporter.warn("VRT-LGC-0002", "sleep_worker", String.valueOf(millis), e);
             Thread.currentThread().interrupt();
+            Log.d(TAG, "sleepQuietly interrupted");
         }
     }
 }

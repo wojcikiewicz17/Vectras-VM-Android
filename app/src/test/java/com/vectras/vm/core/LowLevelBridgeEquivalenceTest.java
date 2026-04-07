@@ -145,4 +145,29 @@ public class LowLevelBridgeEquivalenceTest {
         }
     }
 
+    @Test
+    public void reduceXorBackendParityValidationCoversAllBackends() {
+        byte[] data = new byte[257];
+        for (int i = 0; i < data.length; i++) {
+            data[i] = (byte) ((i * 37) ^ (i >>> 1) ^ 0xA5);
+        }
+
+        assertTrue(LowLevelBridge.validateReduceXorBackendParity(data, 0, data.length));
+        assertTrue(LowLevelBridge.validateReduceXorBackendParity(data, 7, 128));
+        assertTrue(LowLevelBridge.validateReduceXorBackendParity(data, data.length - 1, 1));
+    }
+
+    @Test
+    public void reduceXorParityValidationIsDeterministicForSameInput() {
+        byte[] data = new byte[96];
+        for (int i = 0; i < data.length; i++) {
+            data[i] = (byte) (0xF0 ^ (i * 11));
+        }
+
+        boolean first = LowLevelBridge.validateReduceXorBackendParity(data, 3, 73);
+        boolean second = LowLevelBridge.validateReduceXorBackendParity(data, 3, 73);
+        assertEquals(first, second);
+        assertTrue(first);
+    }
+
 }

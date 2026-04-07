@@ -38,6 +38,13 @@ public final class AlgorithmAnalyzer {
     
     /** Page size for memory analysis */
     private static final int PAGE_SIZE = 4096;
+    
+    /**
+     * Explicit guard for diagnostic space measurements.
+     * Enable with: {@code -Dvectras.benchmark.space_complexity=true}
+     */
+    private static final String SPACE_COMPLEXITY_BENCHMARK_FLAG =
+            "vectras.benchmark.space_complexity";
 
     private static final ThreadLocal<CacheLineScratch> CACHE_LINE_SCRATCH =
             ThreadLocal.withInitial(CacheLineScratch::new);
@@ -119,24 +126,49 @@ public final class AlgorithmAnalyzer {
     }
     
     /**
-     * Estimates space complexity by tracking allocations.
-     * 
+     * Estimates space complexity in best-effort mode by tracking heap usage delta
+     * before/after execution, without forcing garbage collection.
+     *
+     * <p>This method is intended for diagnostics/benchmarking and should not be
+     * used as a strict memory accounting source.
+     * </p>
+     *
      * @param operation Operation to analyze
      * @param size Input size
-     * @return Space complexity estimate in bytes
+     * @return Estimated heap delta in bytes (best effort)
      */
-    public static long estimateSpaceComplexity(TimedOperation operation, int size) {
+    public static long estimateSpaceComplexityBestEffort(TimedOperation operation, int size) {
         Runtime runtime = Runtime.getRuntime();
-        
-        // Force GC to get clean baseline
-        System.gc();
-        try { Thread.sleep(100); } catch (InterruptedException ignored) {}
-        
         long before = runtime.totalMemory() - runtime.freeMemory();
         operation.execute(size);
         long after = runtime.totalMemory() - runtime.freeMemory();
-        
         return Math.max(0, after - before);
+    }
+
+    /**
+     * Estimates space complexity (diagnostic-only path).
+     *
+     * <p><strong>Deprecated:</strong> use
+     * {@link #estimateSpaceComplexityBestEffort(TimedOperation, int)} and call this
+     * API only when {@link #isSpaceComplexityBenchmarkEnabled()} is true.
+     * </p>
+     *
+     * @param operation Operation to analyze
+     * @param size Input size
+     * @return Space complexity estimate in bytes, or {@code 0} when benchmark mode is disabled
+     */
+    public static long estimateSpaceComplexity(TimedOperation operation, int size) {
+        if (!isSpaceComplexityBenchmarkEnabled()) {
+            return 0L;
+        }
+        return estimateSpaceComplexityBestEffort(operation, size);
+    }
+
+    /**
+     * Returns whether diagnostic space-complexity measurement is explicitly enabled.
+     */
+    public static boolean isSpaceComplexityBenchmarkEnabled() {
+        return Boolean.getBoolean(SPACE_COMPLEXITY_BENCHMARK_FLAG);
     }
 
     // ========== Cache Analysis ==========

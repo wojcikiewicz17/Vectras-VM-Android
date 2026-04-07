@@ -11,7 +11,7 @@
 #include "zero_compat.h"
 #include "rmr_unified_kernel.h"
 #include "rmr_lowlevel.h"
-#if defined(RMR_ENABLE_POLICY_MODULE)
+#if defined(RMR_ENABLE_POLICY_MODULE) && (RMR_ENABLE_POLICY_MODULE)
 #include "rmr_policy_kernel.h"
 #endif
 
@@ -289,7 +289,7 @@ JNIEXPORT jlong JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeAudit(JNIE
 }
 
 static uint32_t vectra_crc32c_deterministic(uint32_t initial, const uint8_t* src, size_t len) {
-#if defined(RMR_ENABLE_POLICY_MODULE)
+#if defined(RMR_ENABLE_POLICY_MODULE) && (RMR_ENABLE_POLICY_MODULE)
     return RmR_CRC32C_RawUpdate(initial, src, len);
 #else
     static atomic_int crc_table_ready = ATOMIC_VAR_INIT(0);

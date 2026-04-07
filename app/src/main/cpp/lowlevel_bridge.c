@@ -15,9 +15,7 @@ typedef struct vectra_runtime_backend_state {
 static vectra_runtime_backend_state_t g_backend_state;
 
 static uint32_t vectra_select_simd_mask(void) {
-    uint32_t snapshot[9] = {0};
-    vectra_hw_collect_snapshot(snapshot);
-    return snapshot[8];
+    return vectra_hw_runtime_simd_mask();
 }
 
 static void vectra_bind_backend_once(void) {
@@ -139,4 +137,44 @@ Java_com_vectras_vm_core_LowLevelBridge_nativeCrc32cCompat(JNIEnv* env, jclass c
 
     (*env)->ReleasePrimitiveArrayCritical(env, data, p, JNI_ABORT);
     return (jint)out;
+}
+
+JNIEXPORT jint JNICALL
+Java_com_vectras_vm_core_LowLevelBridge_nativeValidateReduceXorBackendParity(JNIEnv* env, jclass clazz,
+                                                                              jbyteArray data, jint offset, jint length) {
+    (void)clazz;
+    if (!data || offset < 0 || length < 0) return -1;
+    const jsize n = (*env)->GetArrayLength(env, data);
+    if (offset > n || length > (n - offset)) return -1;
+
+    jbyte* p = (*env)->GetPrimitiveArrayCritical(env, data, NULL);
+    if (!p) return -1;
+
+    const uint8_t* src = (const uint8_t*)p + (size_t)offset;
+    const size_t src_len = (size_t)length;
+    const uint32_t expected = rmr_lowlevel_reduce_xor(src, src_len);
+
+    uint32_t mismatch_mask = 0u;
+    vectra_lowlevel_backend_vtable_t table;
+
+    vectra_backend_bind_fallback(&table);
+    if (table.reduce_xor(src, src_len) != expected) mismatch_mask |= (1u << 0);
+
+    vectra_backend_bind_arm64(&table);
+    if (table.reduce_xor(src, src_len) != expected) mismatch_mask |= (1u << 1);
+
+    vectra_backend_bind_armv7(&table);
+    if (table.reduce_xor(src, src_len) != expected) mismatch_mask |= (1u << 2);
+
+    vectra_backend_bind_x86_64(&table);
+    if (table.reduce_xor(src, src_len) != expected) mismatch_mask |= (1u << 3);
+
+    vectra_backend_bind_x86(&table);
+    if (table.reduce_xor(src, src_len) != expected) mismatch_mask |= (1u << 4);
+
+    vectra_backend_bind_riscv64(&table);
+    if (table.reduce_xor(src, src_len) != expected) mismatch_mask |= (1u << 5);
+
+    (*env)->ReleasePrimitiveArrayCritical(env, data, p, JNI_ABORT);
+    return (jint)mismatch_mask;
 }

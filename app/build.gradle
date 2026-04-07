@@ -1,9 +1,13 @@
 plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
+    id 'org.jetbrains.kotlin.kapt'
 }
 
+import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.util.regex.Pattern
+import java.util.zip.ZipFile
 
 android {
     namespace = 'com.vectras.vm'
@@ -52,10 +56,11 @@ android {
 
     def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
     def officialAbis = (rootProject.ext.officialAbis ?: []) as List<String>
+    def allowedAbis = (rootProject.ext.allowedAbis ?: officialAbis) as List<String>
     def allKnownAndroidAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64', 'riscv64']
 
-    if (!supportedAbis.every { it in officialAbis }) {
-        throw new GradleException("supportedAbis (${supportedAbis}) precisa permanecer estritamente coerente com ABIs oficiais (${officialAbis}).")
+    if (!supportedAbis.every { it in allowedAbis }) {
+        throw new GradleException("supportedAbis (${supportedAbis}) precisa permanecer coerente com a matriz permitida (${allowedAbis}).")
     }
 
     packaging {
@@ -82,12 +87,16 @@ android {
         }
     }
 
+    def ciRelease = providers.gradleProperty("ciRelease").map { it.toBoolean() }.orElse(false).get()
+
     buildTypes {
         release {
             if (signingConfigs.findByName('release') != null) {
                 signingConfig = signingConfigs.release
+            } else if (ciRelease) {
+                throw new GradleException("buildTypes.release exige signingConfigs.release quando -PciRelease=true (contexto de distribuição).")
             } else {
-                logger.lifecycle("Release signing não configurado: build de release seguirá sem assinatura de produção.")
+                logger.lifecycle("Release signing não configurado fora de distribuição (ciRelease=false).")
             }
             minifyEnabled = true
             shrinkResources = true
@@ -102,6 +111,11 @@ android {
         perfRelease {
             initWith release
             matchingFallbacks = ['release']
+            if (signingConfigs.findByName('release') != null) {
+                signingConfig = signingConfigs.release
+            } else if (ciRelease) {
+                throw new GradleException("buildTypes.perfRelease exige signingConfigs.release quando -PciRelease=true (contexto de distribuição).")
+            }
         }
     }
 
@@ -141,6 +155,68 @@ android {
     kotlinOptions {
         jvmTarget = String.valueOf(rootProject.ext.javaLanguageVersion)
     }
+
+    sourceSets {
+        main.assets.srcDir(layout.buildDirectory.dir("generated/bootstrapAssets"))
+    }
+}
+
+def loaderVariant = (providers.gradleProperty("loaderVariant").orElse("release").get() ?: "release").trim()
+if (!loaderVariant) {
+    loaderVariant = "release"
+}
+def loaderVariantTaskSuffix = loaderVariant.substring(0, 1).toUpperCase() + loaderVariant.substring(1)
+def shellLoaderAssembleTask = ":shell-loader:assemble${loaderVariantTaskSuffix}"
+def generatedBootstrapDir = layout.buildDirectory.dir("generated/bootstrapAssets/bootstrap")
+def shellLoaderArtifactPath = project(":shell-loader").layout.buildDirectory.file("outputs/apk/${loaderVariant}/loader.apk")
+def verifyShellLoaderManifest = Boolean.parseBoolean(providers.gradleProperty("verifyShellLoaderManifest").orElse("false").get())
+
+tasks.register("verifyShellLoaderArtifact") {
+    group = "verification"
+    description = "Valida loader.apk da variant do shell-loader antes da sincronização para bootstrap."
+    dependsOn(shellLoaderAssembleTask)
+
+    doLast {
+        def artifactFile = shellLoaderArtifactPath.get().asFile
+        def expectedPath = artifactFile.absolutePath
+        def failMessage = { String reason ->
+            throw new GradleException("Shell loader artifact inválido em '${expectedPath}': ${reason}.")
+        }
+
+        if (!artifactFile.exists()) {
+            failMessage("arquivo não encontrado")
+        }
+
+        if (!artifactFile.isFile()) {
+            failMessage("caminho não aponta para arquivo regular")
+        }
+
+        if (artifactFile.length() <= 0L) {
+            failMessage("arquivo vazio (tamanho <= 0 bytes)")
+        }
+
+        if (verifyShellLoaderManifest) {
+            def manifestEntry = zipTree(artifactFile).matching {
+                include "AndroidManifest.xml"
+            }.files
+            if (manifestEntry.isEmpty()) {
+                failMessage("AndroidManifest.xml ausente dentro do APK")
+            }
+        }
+    }
+}
+
+tasks.register("syncShellLoaderBootstrap", Copy) {
+    group = "build setup"
+    description = "Copia shell-loader (${loaderVariant}) para assets intermediários em bootstrap/loader.apk."
+    dependsOn(tasks.named("verifyShellLoaderArtifact"))
+    from(shellLoaderArtifactPath)
+    into(generatedBootstrapDir)
+    rename { "loader.apk" }
+}
+
+tasks.named("preBuild").configure {
+    dependsOn(tasks.named("syncShellLoaderBootstrap"))
 }
 
 def checkVariant = (providers.gradleProperty("checkVariant").orElse("debug").get() ?: "debug").trim()
@@ -151,12 +227,101 @@ if (!checkVariant) {
 
 def checkVariantTaskSuffix = checkVariant.substring(0, 1).toUpperCase() + checkVariant.substring(1)
 def checkVariantAssembleTask = "assemble${checkVariantTaskSuffix}"
+def termuxBootstrapLibName = "libtermux-bootstrap.so"
+def termuxBootstrapSupportedAbis = (rootProject.ext.officialAbis ?: ['arm64-v8a']) as List<String>
+def ciInternalValidationEnabled = Boolean.parseBoolean(providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get())
+
+tasks.register("verifyTermuxBootstrapAbiCoverage") {
+    group = "verification"
+    description = "Falha se SUPPORTED_ABIS incluir ABI fora da matriz oficial/política ativa ou sem ${termuxBootstrapLibName} no APK da variant selecionada."
+
+    dependsOn(":app:${checkVariantAssembleTask}")
+    dependsOn(tasks.named("verifyTermuxBootstrapPackagingRules"))
+
+    doLast {
+        def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
+        def officialAbis = (rootProject.ext.officialAbis ?: []) as List<String>
+        def allowedAbis = (rootProject.ext.allowedAbis ?: officialAbis) as List<String>
+        def appAbiPolicy = (rootProject.ext.appAbiPolicy ?: "").toString()
+        def unknownAbis = supportedAbis.findAll { !(it in allowedAbis) }
+
+        if (!unknownAbis.isEmpty()) {
+            throw new GradleException("SUPPORTED_ABIS contém ABIs fora da matriz permitida: ${unknownAbis}. Matriz permitida: ${allowedAbis}.")
+        }
+
+        switch (appAbiPolicy) {
+            case "arm64-only":
+                if (supportedAbis != ['arm64-v8a']) {
+                    throw new GradleException("APP_ABI_POLICY=arm64-only exige SUPPORTED_ABIS=arm64-v8a (atual: ${supportedAbis}).")
+                }
+                break
+            case "arm32-arm64":
+                def expectedDualArmAbis = ['arm64-v8a', 'armeabi-v7a']
+                if (supportedAbis != expectedDualArmAbis) {
+                    throw new GradleException("APP_ABI_POLICY=arm32-arm64 exige SUPPORTED_ABIS=${expectedDualArmAbis} (atual: ${supportedAbis}).")
+                }
+                break
+            case "internal-5abi":
+                def expectedAbis = (rootProject.ext.internalValidationAbis ?: []) as List<String>
+                if (!ciInternalValidationEnabled) {
+                    throw new GradleException("APP_ABI_POLICY=internal-5abi exige CI_INTERNAL_VALIDATION=true para execução.")
+                }
+                if (supportedAbis != expectedAbis) {
+                    throw new GradleException("APP_ABI_POLICY=internal-5abi exige SUPPORTED_ABIS=${expectedAbis} (atual: ${supportedAbis}).")
+                }
+                break
+            default:
+                throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only, arm32-arm64 ou internal-5abi.")
+        }
+
+        if (appAbiPolicy in ["arm64-only", "arm32-arm64"]) {
+            def unsupportedByBootstrap = supportedAbis.findAll { !(it in termuxBootstrapSupportedAbis) }
+            if (!unsupportedByBootstrap.isEmpty()) {
+                throw new GradleException("termux-bootstrap não suporta ABIs solicitadas em SUPPORTED_ABIS: ${unsupportedByBootstrap}. ABIs válidas para termux-bootstrap: ${termuxBootstrapSupportedAbis}.")
+            }
+        }
+
+        def apkDir = file("${buildDir}/outputs/apk/${checkVariant}")
+        def apkFiles = fileTree(apkDir) {
+            include "**/*.apk"
+        }.files.sort { it.name }
+
+        if (apkFiles.isEmpty()) {
+            throw new GradleException("Nenhum APK encontrado para variant ${checkVariant} em ${apkDir}.")
+        }
+
+        def missingByApk = [:].withDefault { [] }
+        apkFiles.each { apkFile ->
+            def zipFile = new java.util.zip.ZipFile(apkFile)
+            try {
+                def requiredBootstrapAbis = appAbiPolicy in ["arm64-only", "arm32-arm64"] ? supportedAbis : []
+                requiredBootstrapAbis.each { abi ->
+                    def entryPath = "lib/${abi}/${termuxBootstrapLibName}"
+                    if (zipFile.getEntry(entryPath) == null) {
+                        missingByApk[apkFile.name] << entryPath
+                    }
+                }
+            } finally {
+                zipFile.close()
+            }
+        }
+
+        if (!missingByApk.isEmpty()) {
+            def rendered = missingByApk.collect { apkName, missingEntries ->
+                "${apkName}: ${missingEntries}"
+            }.join(" | ")
+            throw new GradleException("Cobertura ABI inválida para termux-bootstrap. Entradas ausentes: ${rendered}.")
+        }
+
+        logger.lifecycle("[verifyTermuxBootstrapAbiCoverage] variant=${checkVariant}, APP_ABI_POLICY=${appAbiPolicy}, SUPPORTED_ABIS=${supportedAbis} com ${termuxBootstrapLibName} presente para todas as ABIs.")
+    }
+}
 
 tasks.register("checkGradleCmakeConfig") {
     group = "verification"
     description = "Valida configuração Gradle/CMake e executa build do variant selecionado via -PcheckVariant=<variant>."
 
-    dependsOn(":app:${checkVariantAssembleTask}")
+    dependsOn(tasks.named("verifyTermuxBootstrapAbiCoverage"))
 
     doFirst {
         def rmrEnablePolicyModule = providers.gradleProperty("RMR_ENABLE_POLICY_MODULE").orElse("ON").get()
@@ -177,13 +342,15 @@ tasks.register("validateFirebaseReleaseConfig") {
 
     doLast {
         def allowPlaceholderFirebase = providers.gradleProperty("ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE").orElse("false").get().toBoolean()
+        def ciInternalValidation = providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get().toBoolean()
+        def effectiveAllowPlaceholderFirebase = allowPlaceholderFirebase || ciInternalValidation
 
         logger.lifecycle("[validateFirebaseReleaseConfig] matriz de variantes: debug=opcional | perfRelease=obrigatório | release=obrigatório")
-        logger.lifecycle("[validateFirebaseReleaseConfig] exceção controlada: -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true (somente validação interna)")
+        logger.lifecycle("[validateFirebaseReleaseConfig] exceção controlada: -PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true ou -PCI_INTERNAL_VALIDATION=true (somente validação interna)")
 
         if (!firebaseConfigFile.exists()) {
-            if (allowPlaceholderFirebase) {
-                logger.lifecycle("[validateFirebaseReleaseConfig] google-services.json ausente, mas ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true habilitado para validação interna.")
+            if (effectiveAllowPlaceholderFirebase) {
+                logger.lifecycle("[validateFirebaseReleaseConfig] google-services.json ausente, mas exceção de validação interna habilitada (-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true ou -PCI_INTERNAL_VALIDATION=true).")
                 return
             }
             throw new GradleException("google-services.json ausente para variant release. Injete o arquivo real via secret/base64 no CI ou use fallback apenas para debug. Veja app/FIREBASE.md.")
@@ -198,14 +365,14 @@ tasks.register("validateFirebaseReleaseConfig") {
 
         def projectId = (firebaseConfig?.project_info?.project_id ?: "").toString().trim()
         if (!projectId) {
-            if (allowPlaceholderFirebase) {
-                logger.lifecycle("[validateFirebaseReleaseConfig] project_id vazio aceito via ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true para validação interna.")
+            if (effectiveAllowPlaceholderFirebase) {
+                logger.lifecycle("[validateFirebaseReleaseConfig] project_id vazio aceito via exceção de validação interna (-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true ou -PCI_INTERNAL_VALIDATION=true).")
                 return
             }
             throw new GradleException("google-services.json sem project_info.project_id para variant release.")
         }
 
-        if (projectId.toLowerCase().contains("placeholder") && !allowPlaceholderFirebase) {
+        if (projectId.toLowerCase().contains("placeholder") && !effectiveAllowPlaceholderFirebase) {
             throw new GradleException("Build release bloqueado: project_id contém 'placeholder' (${projectId}). Injete o google-services.json de produção via segredo de pipeline.")
         }
 
@@ -247,29 +414,10 @@ tasks.matching { task ->
     dependsOn(tasks.named("validateReleaseSigningConfig"))
 }
 
-
-
-
-def resolveGradleWrapperCommandLine(String taskPath, List<String> extraArgs = []) {
-    def osName = System.getProperty('os.name', '').toLowerCase()
-    def isWindows = osName.contains('windows')
-    def wrapperFile = rootProject.file(isWindows ? 'gradlew.bat' : 'gradlew')
-
-    if (!wrapperFile.exists()) {
-        throw new GradleException("Gradle wrapper não encontrado em ${wrapperFile}. Gere/restaure gradlew antes de executar checks nativos.")
-    }
-
-    if (!isWindows && !wrapperFile.canExecute()) {
-        throw new GradleException("Arquivo gradlew sem permissão de execução (${wrapperFile}). Execute: chmod +x gradlew")
-    }
-
-    return [wrapperFile.absolutePath, taskPath] + extraArgs
-}
-
-def officialNativeCheckAbiPolicies = ['arm64-only', 'with-32bit'].sort()
+def officialNativeCheckAbiPolicies = ['arm64-only'].sort()
 def officialNativeCheckBuildVariants = ['release', 'perfRelease'].sort()
 
-def extendedNativeCheckAbiPolicies = (officialNativeCheckAbiPolicies + ['all']).unique().sort()
+def extendedNativeCheckAbiPolicies = officialNativeCheckAbiPolicies
 def extendedNativeCheckBuildVariants = (officialNativeCheckBuildVariants + ['debug']).unique().sort()
 
 def enableExtendedAbiMatrix = providers.gradleProperty("ENABLE_EXTENDED_ABI_MATRIX")
@@ -287,7 +435,7 @@ def variantTaskPart = { String variant ->
     variant ? variant.substring(0, 1).toUpperCase() + variant.substring(1) : variant
 }
 
-def registerNativeMatrixTasks = { List<String> abiPolicies, List<String> buildVariants, String taskNameSuffix, String matrixLabel ->
+def registerNativeMatrixTasks = { List<String> abiPolicies, List<String> buildVariants, String taskNameSuffix, String matrixLabel, boolean ciInternalValidation = false ->
     def matrixTasks = []
 
     abiPolicies.each { policy ->
@@ -295,21 +443,29 @@ def registerNativeMatrixTasks = { List<String> abiPolicies, List<String> buildVa
             def nativeTaskName = "checkNative${taskNameSuffix}${abiPolicyTaskPart(policy)}${variantTaskPart(variant)}"
             matrixTasks << nativeTaskName
 
-            tasks.register(nativeTaskName, Exec) {
+            tasks.register(nativeTaskName, GradleBuild) {
                 group = "verification"
                 def isInternalValidationVariant = (variant == 'debug')
                 def releaseImpactDescription = matrixLabel == 'official'
                     ? 'bloqueante para release/CI oficial'
                     : 'somente diagnóstico interno (não bloqueante para release)'
-                description = "[${matrixLabel}] (${releaseImpactDescription}) Executa :app:assemble${variantTaskPart(variant)} com APP_ABI_POLICY=${policy}."
-                workingDir rootProject.projectDir
-                def gradleArgs = ["-PAPP_ABI_POLICY=${policy}", "-PALLOW_UNSIGNED_RELEASE=true"]
-                if (isInternalValidationVariant) {
-                    gradleArgs << "-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true"
-                } else {
-                    gradleArgs << "-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=false"
+                description = "[${matrixLabel}] (${releaseImpactDescription}) Execução determinística interna de :app:assemble${variantTaskPart(variant)} com APP_ABI_POLICY=${policy}."
+                dir = rootProject.projectDir
+                tasks = [':app:assemble' + variantTaskPart(variant)]
+                startParameter.projectProperties = (gradle.startParameter.projectProperties + [
+                    "APP_ABI_POLICY": policy,
+                    "ALLOW_UNSIGNED_RELEASE": "true",
+                    "ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE": isInternalValidationVariant ? "true" : "false",
+                ]).collectEntries { key, value -> [(key): value?.toString()] }
+                startParameter.excludedTaskNames = gradle.startParameter.excludedTaskNames
+                startParameter.warningMode = gradle.startParameter.warningMode
+
+                doFirst {
+                    logger.lifecycle("[${nativeTaskName}] lane start | matrix=${matrixLabel} | policy=${policy} | variant=${variant} | ALLOW_UNSIGNED_RELEASE=true | ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=${isInternalValidationVariant}")
                 }
-                commandLine(resolveGradleWrapperCommandLine(':app:assemble' + variantTaskPart(variant), gradleArgs))
+                doLast {
+                    logger.lifecycle("[${nativeTaskName}] lane done  | matrix=${matrixLabel} | policy=${policy} | variant=${variant}")
+                }
             }
         }
     }
@@ -321,19 +477,21 @@ def checkNativeOfficialMatrixTasks = registerNativeMatrixTasks(
     officialNativeCheckAbiPolicies,
     officialNativeCheckBuildVariants,
     'Official',
-    'official'
+    'official',
+    providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get().toBoolean()
 )
 
 def checkNativeExtendedMatrixTasks = registerNativeMatrixTasks(
     extendedNativeCheckAbiPolicies,
     extendedNativeCheckBuildVariants,
     'Extended',
-    'extended'
+    'extended',
+    true
 )
 
 tasks.register('checkNativeExtendedMatrix') {
     group = "verification"
-    description = "[diagnóstico] Matriz expandida opcional (não bloqueante para release). Requer -PENABLE_EXTENDED_ABI_MATRIX=true para executar combinações não-oficiais."
+    description = "[diagnóstico] Matriz expandida opcional e determinística por lane (Gradle interno, sem shell out). Requer -PENABLE_EXTENDED_ABI_MATRIX=true para executar combinações não-oficiais."
 
     if (enableExtendedAbiMatrix) {
         dependsOn(checkNativeExtendedMatrixTasks)
@@ -348,7 +506,7 @@ tasks.register('checkNativeExtendedMatrix') {
 
 tasks.register('checkNativeAllMatrix') {
     group = "verification"
-    description = "[bloqueante release] Alvo canônico de CI oficial: executa apenas combinações aprovadas de APP_ABI_POLICY/variants e validações de compatibilidade."
+    description = "[bloqueante release] Alvo canônico de CI oficial: executa deterministicamente apenas combinações oficiais de APP_ABI_POLICY/variant via tasks internas e validações de compatibilidade."
 
     // Matriz oficial de assemble da app por política/variant.
     dependsOn(checkNativeOfficialMatrixTasks)
@@ -377,6 +535,125 @@ tasks.register("printNativeVariantConfig") {
             logger.lifecycle("[printNativeVariantConfig] abiFilters=${supportedAbis}")
             logger.lifecycle("[printNativeVariantConfig] cmakeArgs=${(defaultConfigCmakeArgs + variantCmakeArgs).unique()}")
         }
+    }
+}
+
+tasks.register("verifyDeliveredCompiledArtifacts") {
+    group = "verification"
+    description = "Valida se os artefatos compilados esperados (APK/AAB) foram gerados e emite relatório JSON para entrega."
+
+    doLast {
+        def requestedVariantsRaw = (providers.gradleProperty("artifactVariants")
+            .orElse("debug,release,perfRelease")
+            .get() ?: "debug,release,perfRelease")
+        def requestedVariants = requestedVariantsRaw
+            .split(',')
+            .collect { it.trim() }
+            .findAll { !it.isEmpty() }
+            .unique()
+
+        if (requestedVariants.isEmpty()) {
+            throw new GradleException("Nenhuma variant informada em -PartifactVariants. Informe ao menos uma variant (ex.: debug,release).")
+        }
+
+        def reportVariants = []
+        def missingVariants = []
+
+        requestedVariants.each { variant ->
+            def apkDir = file("${buildDir}/outputs/apk/${variant}")
+            def bundleDir = file("${buildDir}/outputs/bundle/${variant}")
+
+            def apkFiles = fileTree(apkDir) {
+                include "**/*.apk"
+            }.files.sort { it.name }
+
+            def bundleFiles = fileTree(bundleDir) {
+                include "**/*.aab"
+            }.files.sort { it.name }
+
+            def artifacts = (apkFiles + bundleFiles).collect { artifact ->
+                [
+                    name      : artifact.name,
+                    type      : artifact.name.endsWith(".aab") ? "AAB" : "APK",
+                    sizeBytes : artifact.length(),
+                    path      : rootProject.projectDir.toPath().relativize(artifact.toPath()).toString()
+                ]
+            }
+
+            if (artifacts.isEmpty()) {
+                missingVariants << variant
+            }
+
+            reportVariants << [
+                variant   : variant,
+                artifactCount: artifacts.size(),
+                artifacts : artifacts
+            ]
+        }
+
+        def report = [
+            generatedAtUtc: new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone("UTC")),
+            project       : project.path,
+            variants      : reportVariants
+        ]
+
+        def reportFile = file("${buildDir}/reports/artifacts/compiled-artifacts-report.json")
+        reportFile.parentFile.mkdirs()
+        reportFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(report))
+
+        if (!missingVariants.isEmpty()) {
+            throw new GradleException("Artefatos compilados ausentes para variants=${missingVariants}. Execute assemble correspondente antes de validar. Relatório: ${reportFile}")
+        }
+
+        logger.lifecycle("[verifyDeliveredCompiledArtifacts] Relatório gerado em ${reportFile}")
+        reportVariants.each { entry ->
+            logger.lifecycle("[verifyDeliveredCompiledArtifacts] variant=${entry.variant} artifacts=${entry.artifactCount}")
+        }
+    }
+}
+
+def globToRegex = { String glob ->
+    def escaped = Pattern.quote(glob)
+        .replace("\\*\\*", "__GLOBSTAR__")
+        .replace("\\*", "__GLOB__")
+        .replace("\\?", "__QMARK__")
+
+    return "^${escaped
+        .replace("__GLOBSTAR__", ".*")
+        .replace("__GLOB__", "[^/]*")
+        .replace("__QMARK__", ".")}\$"
+}
+
+tasks.register("verifyTermuxBootstrapPackagingRules") {
+    group = "verification"
+    description = "Falha se alguma regra de packaging.jniLibs.excludes remover lib/<abi>/libtermux-bootstrap.so para ABIs suportadas."
+
+    doLast {
+        def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
+        def officialAbis = (rootProject.ext.officialAbis ?: []) as List<String>
+        def allowedAbis = (rootProject.ext.allowedAbis ?: officialAbis) as List<String>
+        def excludes = (android.packaging.jniLibs.excludes ?: [] as Set<String>).collect { it.toString() }
+
+        if (!supportedAbis.every { it in allowedAbis }) {
+            throw new GradleException("SUPPORTED_ABIS (${supportedAbis}) contém ABI fora da matriz permitida (${allowedAbis}).")
+        }
+
+        def violations = []
+        supportedAbis.each { abi ->
+            def expectedEntry = "lib/${abi}/libtermux-bootstrap.so"
+            excludes.each { pattern ->
+                if (expectedEntry ==~ globToRegex(pattern)) {
+                    violations << [abi: abi, pattern: pattern]
+                }
+            }
+        }
+
+        if (!violations.isEmpty()) {
+            def details = violations.collect { "ABI=${it.abi} bloqueada por exclude='${it.pattern}'" }.join("; ")
+            throw new GradleException("packaging.jniLibs.excludes remove indevidamente libtermux-bootstrap.so: ${details}")
+        }
+
+        logger.lifecycle("[verifyTermuxBootstrapPackagingRules] Regras de packaging não removem libtermux-bootstrap.so para SUPPORTED_ABIS=${supportedAbis}.")
     }
 }
 
@@ -411,6 +688,10 @@ dependencies {
     implementation "androidx.annotation:annotation:1.9.1"
     implementation "androidx.core:core-ktx:1.13.1"
     implementation "androidx.drawerlayout:drawerlayout:1.2.0"
+    implementation "androidx.fragment:fragment-ktx:1.8.8"
+    implementation "androidx.lifecycle:lifecycle-livedata-ktx:2.8.7"
+    implementation "androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7"
+    implementation "androidx.recyclerview:recyclerview:1.3.2"
     implementation "androidx.preference:preference-ktx:1.2.1"
     implementation "androidx.swiperefreshlayout:swiperefreshlayout:1.1.0"
     implementation "androidx.viewpager:viewpager:1.1.0"
@@ -421,13 +702,14 @@ dependencies {
     implementation 'androidx.activity:activity-ktx:1.9.2'
     implementation 'androidx.constraintlayout:constraintlayout:2.2.1'
     implementation "androidx.documentfile:documentfile:1.1.0"
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1"
     implementation "androidx.work:work-runtime:2.9.1"
     
     // Retrofit
 
     // Glide
     implementation 'com.github.bumptech.glide:glide:4.16.0'
-    annotationProcessor 'com.github.bumptech.glide:compiler:4.16.0'
+    kapt 'com.github.bumptech.glide:compiler:4.16.0'
     
     // Test dependencies
     testImplementation 'junit:junit:4.13.2'

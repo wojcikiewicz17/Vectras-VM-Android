@@ -148,6 +148,11 @@ int main(int argc, char **argv) {
   printf("rafcode_phi.accepted=%u\n", stats.accepted);
   printf("rafcode_phi.rejected=%u\n", stats.rejected);
   printf("rafcode_phi.crc32c=0x%08X\n", stats.crc32c);
+  rafphi_vecbit_t vec = rafphi_vecbit_verify(out_words, stats.accepted, 16u);
+  printf("rafcode_phi.vecbit.max_neighbor_distance=%u\n", vec.max_neighbor_distance);
+  printf("rafcode_phi.vecbit.violations=%u\n", vec.violations);
+  printf("rafcode_phi.vecbit.chain_hash=0x%016llX\n", (unsigned long long)vec.chain_hash_fnv1a64);
+  printf("rafcode_phi.compile_ok=%u\n", vec.compile_ok);
 
   raf_u32 w;
   for (w = 0u; w < stats.accepted; w++) {
@@ -177,5 +182,5 @@ int main(int argc, char **argv) {
     printf("rafcode_phi.bin=%s\n", bin_path);
   }
 
-  return stats.rejected == 0u ? 0 : 1;
+  return (stats.rejected == 0u && vec.compile_ok == 1u) ? 0 : 1;
 }

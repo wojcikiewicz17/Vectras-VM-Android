@@ -24,28 +24,51 @@ from `ANDROID_SDK_ROOT` (or `ANDROID_HOME`) when the directory exists.
 ./tools/gradle_with_jdk21.sh clean
 ./tools/gradle_with_jdk21.sh :app:assembleDebug --stacktrace
 ./tools/gradle_with_jdk21.sh :app:assembleRelease --stacktrace
+./tools/gradle_with_jdk21.sh :app:assemblePerfRelease --stacktrace
+./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=debug,release,perfRelease
 ./tools/gradle_with_jdk21.sh :app:lintDebug --stacktrace
 ```
+
+## Fluxo oficial para gerar bootstrap/loader.apk (Termux)
+O artefato `loader.apk` é produzido pelo módulo `shell-loader` e copiado para assets intermediários do app
+em `app/build/generated/bootstrapAssets/bootstrap/loader.apk` (sem versionar binário em `app/src/main/assets`).
+
+```bash
+# Variant estável padrão (release). Pode sobrescrever com -PloaderVariant=debug.
+./tools/gradle_with_jdk21.sh :shell-loader:buildStableLoader
+
+# Copia o loader gerado para os assets de build do app.
+./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
+
+# Valida bootstraps versionados + loader quando Termux está habilitado.
+python3 tools/verify_bootstrap_assets.py
+```
+
+`verifyDeliveredCompiledArtifacts` validates APK/AAB delivery per variant and writes
+`app/build/reports/artifacts/compiled-artifacts-report.json`.
 
 > Use `./tools/gradle_with_jdk21.sh` como comando canônico: o wrapper aplica a política de JVM suportada (17/21) e faz autoajuste de `sdk.dir` quando possível.
 
 ## ABI policy
 Configured by `APP_ABI_POLICY` and `SUPPORTED_ABIS` in `gradle.properties`.
+The ABI baseline is also declared in `tools/qemu_launch.yml` with explicit scope:
+- `build_env.abi_filters.scope=official_distribution` (official default)
+- `build_env.abi_filters.internal_validation` (expanded internal matrix)
+
 Accepted policies in code and docs are exactly:
 - `APP_ABI_POLICY=arm64-only` → `SUPPORTED_ABIS=arm64-v8a` (official minimum distribution)
-- `APP_ABI_POLICY=with-32bit` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (official distribution with 32-bit ARM)
-- `APP_ABI_POLICY=all` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64` (**internal validation only; not for official distribution**)
+- `APP_ABI_POLICY=internal-5abi` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` (**internal validation only; not for official distribution**, requires `CI_INTERNAL_VALIDATION=true` and `min.api>=35`)
 
 Default is arm64-only.
 
-To include 32-bit ARM:
-```bash
-./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=with-32bit -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a :app:assembleDebug
-```
-
 To run full internal ABI validation coverage:
 ```bash
-./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=all -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64 :app:assembleDebug
+./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=internal-5abi -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64 -PCI_INTERNAL_VALIDATION=true -Pmin.api=35 :app:assembleDebug
+```
+
+Alignment check command (used by CI before build):
+```bash
+python3 tools/check_abi_policy_alignment.py
 ```
 
 
@@ -81,6 +104,16 @@ Strictness control by pipeline context:
 - Local/dev or debug CI (`buildStrict=false`):
   - Same checks run, but max-JVM/API-ABI non-release gates can warn.
   - Python-dependent checks are skipped with warning if Python is unavailable.
+
+## Release oficial vs validação interna (unsigned/placeholder)
+- **Release oficial (assinado)**:
+  - exige keystore + credenciais de signing de produção;
+  - exige `app/google-services.json` real (sem placeholder);
+  - **não** usar `-PCI_INTERNAL_VALIDATION=true`.
+- **Validação interna (unsigned)**:
+  - permite `-PALLOW_UNSIGNED_RELEASE=true`;
+  - permite placeholder Firebase **somente** com sinal explícito `-PCI_INTERNAL_VALIDATION=true` (opcionalmente junto de `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true`);
+  - usada para CI interno quando segredos de produção não estão disponíveis.
 
 
 ## Selftest matrix expectations

@@ -1,20 +1,37 @@
-name: vectras-ci
+name: host-ci
 
 on:
   push:
+    paths-ignore:
+      - 'app/**'
+      - 'terminal-emulator/**'
+      - 'terminal-view/**'
+      - 'shell-loader/**'
   pull_request:
+    paths-ignore:
+      - 'app/**'
+      - 'terminal-emulator/**'
+      - 'terminal-view/**'
+      - 'shell-loader/**'
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
 
+concurrency:
+  group: host-ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   host-engine:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
     steps:
-      - name: Checkout
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
+
+      - name: Validate host pipeline directories
+        run: ./tools/ci/validate_pipeline_directories.sh --profile host
 
       - name: Block duplicated overlay ZIP source
         run: bash tools/check_overlay_zip_duplicates.sh
@@ -35,28 +52,18 @@ jobs:
           set -euo pipefail
           required_tools=(cc gcc as ld ar nm make cmake ninja python3 dot rg)
           for tool in "${required_tools[@]}"; do
-            if ! command -v "$tool" >/dev/null 2>&1; then
-              echo "Missing required tool: $tool" >&2
-              exit 1
-            fi
+            command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
             echo "OK: $tool -> $(command -v "$tool")"
           done
 
       - name: Show hosted engine config
         run: make print-build-config
 
-      - name: Export Make resolved build config
-        run: make print-build-config-env
-
       - name: Build engine with Makefile
         run: make -j"$(nproc)"
 
       - name: Run engine selftests
-        run: |
-          set -euo pipefail
-          mkdir -p bench/results
-          make run-selftest 2>&1 | tee bench/results/host-selftest.log
-
+        run: make run-selftest
 
       - name: Build engine with root CMake
         run: |
@@ -66,16 +73,14 @@ jobs:
       - name: Verify link contracts (CMake)
         run: cmake --build build-cmake --target verify_contracts
 
-      - name: Run engine selftests (CMake)
-        run: cmake --build build-cmake --target run_selftest
-
       - name: Upload host logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: host-engine-logs
+          name: host-logs-${{ github.run_id }}
           path: |
             build
             build-cmake
             bench/results
             reports
+          if-no-files-found: warn
