@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Images Index / Índice de Imagens
 
 > **Documentation Version**: 1.1.0 | **Last Updated**: 2026-02-18

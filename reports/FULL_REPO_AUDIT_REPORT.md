@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Auditoria Completa de Todos os Arquivos
 
 Escopo: todos os arquivos versionados retornados por `git ls-files`.

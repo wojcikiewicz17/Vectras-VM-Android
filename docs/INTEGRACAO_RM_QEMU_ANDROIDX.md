@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Integração RM: QEMU + AndroidX no Vectras VM
 
 > Documento de alinhamento para integrar o que há de melhor nos projetos **androidx_RmR** e **qemu_rafaelia** ao Vectras VM.

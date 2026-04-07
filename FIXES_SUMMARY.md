@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # RAFAELIA FIXES SUMMARY — 57 Pontos Corrigidos
 # ∆ⁿ R(t+1)=R(t)×Φ_ethica×(√3/2)^(πφ) — Ciclo ψ→χ→ρ→Δ→Σ→Ω
 

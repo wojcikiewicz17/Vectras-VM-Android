@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # 🔍 VECTRAS-VM-ANDROID — ANÁLISE TÉCNICA DETALHADA
 
 **Data:** Fevereiro 2026 | **Sigla:** ΣΩΔΦ BITRAF | **Kernel:** RAFAELIA V22

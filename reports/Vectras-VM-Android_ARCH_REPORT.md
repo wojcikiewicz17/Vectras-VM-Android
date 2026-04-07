@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Vectras-VM-Android — Relatório de Arquitetura (Formal)
 
 **Versão:** 1.1

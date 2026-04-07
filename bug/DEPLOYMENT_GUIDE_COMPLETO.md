@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Guia de Implantação
 ## Vectras-VM-Android v3.6.5 - Correção de Bugs e Compatibilidade Android 15
 

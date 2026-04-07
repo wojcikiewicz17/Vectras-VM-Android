@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Auditoria NDK + dependências externas (foco em menor overhead/GC)
 
 ## 1) Stack nativa atual (fonte de verdade)

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Runtime Showcase
 
 Este diretório representa a camada de showcase do ecossistema RAFAELIA.

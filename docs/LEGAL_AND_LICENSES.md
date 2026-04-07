@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Vectras VM – Legal, Licensing, and Compliance Guide
 
 > **Nota / Note**: Este documento é informativo e não constitui aconselhamento jurídico. Para decisões legais, consulte assessoria especializada.

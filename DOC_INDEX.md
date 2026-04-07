@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Índice de Documentação do Repositório
 
 ## Entradas principais
@@ -51,6 +53,8 @@ Cada diretório tem:
 
 ## Documentos técnicos especializados
 - Narrativa em 5 níveis (executivo/técnico/operacional/verificabilidade/adoção): [`docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md`](docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md)
+- Auditoria de cobertura Markdown por domínio (2026-04-07): [`docs/active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md`](docs/active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md)
+- Catálogo completo de arquivos Markdown (2026-04-07): [`docs/active/ALL_MARKDOWN_FILES_2026-04-07.md`](docs/active/ALL_MARKDOWN_FILES_2026-04-07.md)
 - Arquitetura: `docs/ARCHITECTURE.md`, `docs/RAFAELIA_COHESION_ENTERPRISE_STACK.md`
 - Operação: `docs/OPERATIONS.md`, `docs/BLUEPRINT_FLUXOS_VM.md`
 - Performance: `docs/PERFORMANCE_INTEGRITY.md`, `docs/BENCHMARKS.md`

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # bug/fazer hotfix/FILES_MAP.md
 
 | Arquivo | Função |

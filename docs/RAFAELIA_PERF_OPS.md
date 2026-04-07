@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Rafaelia Performance Ops (Authorial Notes)
 
 Este documento registra as decisões autorais para evolução de desempenho no Vectras VM

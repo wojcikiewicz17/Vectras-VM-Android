@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # 🔴 BUG HUNTER REPORT — Vectras-VM-Android-master
 > **Classificação:** Deep Technical Audit · Bug Hunter Mode  
 > **Arquivo analisado:** `Vectras-VM-Android-master__5_.zip`  

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 <p align="center">
   <img src="https://github.com/rafaelmeloreisnovo/Manifesto-publico/blob/main/file_0000000020e061fdb4cc7aebf4858d55%20(5).png" alt="Selo RafaelIA Σ33X" width="400"/>
 </p>

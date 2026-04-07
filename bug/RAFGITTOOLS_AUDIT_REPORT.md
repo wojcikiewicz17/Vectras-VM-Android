@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # RafGitTools — Relatório de Auditoria Técnica Profunda
 **Nível:** ISO 9001 (Qualidade de Software) + ISO/IEC 25010 (SQuaRE) + OWASP MASVS  
 **Data:** 2026-02-24 | **Auditor:** RAFAELIA ΣΩ | **Versão analisada:** main_5  

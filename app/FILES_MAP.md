@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # app/FILES_MAP.md
 
 Mapa arquivo-a-arquivo em três linhas por item: papel, ligação e comando de inspeção.

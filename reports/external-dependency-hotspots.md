@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # External Build/Toolchain Files (SDK/NDK/JDK/Gradle)
 
 Inventário direto de arquivos externos ao repositório que participam da compilação e resolução de dependências Android.

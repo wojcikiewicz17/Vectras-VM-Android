@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # INDEX_CANONICAL
 
 Índice único canônico da documentação do repositório.

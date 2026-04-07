@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # ANÁLISE DE EXPERIÊNCIA DO USUÁRIO E IMPACTO NO TRABALHO
 ## Upstream vs. Versão Otimizada como Sistemas Operacionais Completos
 

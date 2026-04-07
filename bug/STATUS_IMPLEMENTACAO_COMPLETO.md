@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # VECTRAS-VM-ANDROID: INVENTÁRIO DE IMPLEMENTAÇÃO
 ## O Que Já Está Pronto e Funcional
 

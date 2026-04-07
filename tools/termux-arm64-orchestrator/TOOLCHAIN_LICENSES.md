@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Toolchain licensing map (Termux ARM64 orchestrator)
 
 Este arquivo mapeia proveniência/licença mínima dos componentes externos consumidos no fluxo de APK.

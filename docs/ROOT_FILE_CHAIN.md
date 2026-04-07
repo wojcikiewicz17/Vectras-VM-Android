@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Cadeia de Arquivos da Raiz (Root File Chain)
 
 Cada item abaixo segue reflexão técnica em três linhas: papel, ligação e comando de inspeção.

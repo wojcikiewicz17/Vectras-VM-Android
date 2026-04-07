@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # bug/core/
 
 Núcleo técnico de evidências e protótipos low-level (C/ASM/Java) associados às análises de bugs.

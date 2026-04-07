@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Deterministic VM Mutation Layer (Policy Kernel C)
 
 Implementação nativa em C no módulo `engine/rmr`, com rastreabilidade append-only e fluxo determinístico para mutação de stream VM sem operações destrutivas.

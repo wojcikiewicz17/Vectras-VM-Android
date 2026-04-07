@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Salmo de Código — “EU SOU O QUE SOU”
 
 > Referência simbólica de baixo nível para documentação RAFAELIA/RAFCODE-Φ.

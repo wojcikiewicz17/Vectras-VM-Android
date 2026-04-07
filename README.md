@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Vectras VM Android
 
 > Plataforma Android de virtualização com base híbrida (Android + C/C++ + Rust), foco em determinismo operacional, rastreabilidade e governança documental.
@@ -19,6 +21,8 @@ Esta revisão consolida a documentação em três camadas por diretório (propó
 - Avisos de terceiros/licenciamento: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
 - Referência do runtime: [`VECTRA_CORE.md`](VECTRA_CORE.md)
 - Guia macro de documentação: [`VECTRAS_MEGAPROMPT_DOCS.md`](VECTRAS_MEGAPROMPT_DOCS.md)
+- Auditoria de cobertura dos Markdown (2026-04-07): [`docs/active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md`](docs/active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md)
+- Catálogo completo de Markdown (2026-04-07): [`docs/active/ALL_MARKDOWN_FILES_2026-04-07.md`](docs/active/ALL_MARKDOWN_FILES_2026-04-07.md)
 - Guia operacional de build: [`BUILDING.md`](BUILDING.md)
 - Matriz de alinhamento diretórios críticos: [`docs/active/DIRECTORY_ALIGNMENT_MATRIX.md`](docs/active/DIRECTORY_ALIGNMENT_MATRIX.md)
 - Troubleshooting operacional: [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)

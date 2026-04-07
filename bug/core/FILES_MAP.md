@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # bug/core/FILES_MAP.md
 
 Inventário específico de `bug/core/` com classificação funcional e status.

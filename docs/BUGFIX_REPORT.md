@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # BUGFIX REPORT — Sprint HOTFIX
 
 ## 1) Paths/tokens: `replaceAll` indevido em decoding de paths

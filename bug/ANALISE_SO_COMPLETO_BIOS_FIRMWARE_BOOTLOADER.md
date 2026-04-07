@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # ANÁLISE COMPARATIVA: UPSTREAM vs. OTIMIZADO COMO SISTEMAS OPERACIONAIS
 ## Performance de BIOS, Firmware, Bootloader, Kernel, e Hardware Bare-Metal
 

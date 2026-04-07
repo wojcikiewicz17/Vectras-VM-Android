@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # bug/STATUS_CORRECOES_VERIFICADAS.md
 
 Verificação objetiva do que já está corrigido entre os issues ativos de `bug/issues/`.

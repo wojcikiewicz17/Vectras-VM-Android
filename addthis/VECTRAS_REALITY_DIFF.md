@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # VECTRAS-VM-Android — REALITY DIFF (análise profunda)
 > Confronto entre `addthis/*.md` e o estado real dos arquivos do repo.
 > Método: leitura direta de paths reais + busca por padrões exatos.

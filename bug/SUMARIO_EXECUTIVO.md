@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Sumário Executivo
 ## Vectras-VM-Android v3.6.5 - Análise de Código-Fonte e Segurança
 

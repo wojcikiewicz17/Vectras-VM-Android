@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 ═══════════════════════════════════════════════════════════════════════════════
       DETERMINISTIC COHERENCE MATRIX: GEOMETRIC REDUNDANCY
       Vectras-VM Fault-Tolerant State Compression via Sacred Geometry

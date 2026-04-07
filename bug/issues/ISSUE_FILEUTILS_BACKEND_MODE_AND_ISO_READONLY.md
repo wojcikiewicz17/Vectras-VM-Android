@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Issue: FileUtils deve receber modo do backend e aplicar read-only real para ISO
 
 ## Arquivo alvo

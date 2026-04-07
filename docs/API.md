@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # API — Bitraf Engine (C)
 
 API pública estável do Produto 1 (Engine), sem exposição de structs internas.

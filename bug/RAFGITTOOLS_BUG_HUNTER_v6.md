@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # 🔴 BUG HUNTER REPORT — RafGitTools-main (v6)
 > **Classificação:** Deep Technical Audit · Bug Hunter Mode  
 > **Arquivo analisado:** `RafGitTools-main__6_.zip`  
