@@ -221,6 +221,17 @@ val digest = VectraCore.omegaFinalize()
 - Configurable cycle frequency
 - Export/import log format
 
+## Atualização alinhada ao código-fonte (2026-04-07)
+
+Esta seção resume o alinhamento entre a documentação MVP e a implementação atual no repositório.
+
+- `VectraCore.init(context)` aplica guarda de execução via `BuildConfig.VECTRA_CORE_ENABLED` antes de inicializar `VectraCycle` e `VectraBitStackLog`.
+- `VectraCore.postEvent(event)` encaminha eventos para `VectraEventBus` preservando prioridade e ordem FIFO para mesma prioridade.
+- `VectraCore.rho(noise, eventWeight)` mantém o cálculo `rho = syndrome + event weight` com base na paridade/síndrome do bloco atual.
+- `VectraTriad.whoOut()` continua operando em consenso 2-de-3 para `CPU`, `RAM`, `DISK` e retorno `NONE` em estado neutro.
+- `VectraBitStackLog` mantém registro somente de acréscimo com envelope `[magic, length, meta, crc32c, payload]` em `filesDir/vectra_core.log`.
+- Caminhos de implementação relacionados permanecem em `app/src/main/java/com/vectras/vm/vectra/` e `app/src/main/cpp/`.
+
 ## Signature/Version
 
 - **Core Version**: 1.0.0-MVP
