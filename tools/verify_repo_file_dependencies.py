@@ -26,6 +26,7 @@ FILE_CALL_RE = re.compile(r"file\((['\"])(.+?)\1\)")
 ROOT_FILE_CALL_RE = re.compile(r"rootProject\.file\((['\"])(.+?)\1\)")
 PROJECT_INCLUDE_RE = re.compile(r"include\s+(.+)")
 PROJECT_TOKEN_RE = re.compile(r"['\"](:[^'\"]+)['\"]")
+GRADLE_INTERPOLATION_RE = re.compile(r"(?<!\\)\$(?:\{[^}]+\}|[A-Za-z_]\w*)")
 
 OPTIONAL_LOCAL_REFS = {
     "local.properties",
@@ -37,13 +38,18 @@ def normalize_project_path(project_token: str) -> Path:
     return ROOT / project_token.lstrip(":").replace(":", "/")
 
 
+def has_gradle_interpolation(path: str) -> bool:
+    """Retorna True se o caminho usa interpolação Gradle/Groovy ($var ou ${var})."""
+    return bool(GRADLE_INTERPOLATION_RE.search(path))
+
+
 def collect_references(text: str) -> list[tuple[str, bool]]:
     refs: list[tuple[str, bool]] = []
     root_file_ranges: list[tuple[int, int]] = []
 
     for match in ROOT_FILE_CALL_RE.finditer(text):
         path = match.group(2).strip()
-        if not path or path.startswith("$"):
+        if not path or has_gradle_interpolation(path):
             continue
         refs.append((path, True))
         root_file_ranges.append((match.start(), match.end()))
@@ -52,7 +58,7 @@ def collect_references(text: str) -> list[tuple[str, bool]]:
         if any(start <= match.start() and match.end() <= end for start, end in root_file_ranges):
             continue
         path = match.group(2).strip()
-        if not path or path.startswith("$"):
+        if not path or has_gradle_interpolation(path):
             continue
         refs.append((path, False))
 
