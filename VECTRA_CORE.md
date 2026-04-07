@@ -1,5 +1,13 @@
 # Vectra Core MVP
 
+## Atualização
+
+- **Data da revisão**: 2026-04-07
+- **Escopo auditado**: `engine/rmr`, `app/src/main/cpp`, `demo_cli/src`
+- **Tipo de revisão**: documental estática
+
+> Nota de manutenção: atualizar este bloco quando houver mudança de API/caminhos citados.
+
 ## Overview
 
 Vectra Core is a minimal "information-theoretic" runtime framework for Android that implements deterministic event processing with built-in integrity verification. It's designed to treat all data (including noise) as information and provide append-only logging for forensic analysis.
