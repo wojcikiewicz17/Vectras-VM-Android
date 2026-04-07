@@ -53,6 +53,7 @@ case "$PROFILE" in
       "tools/ci/materialize_firebase_config.sh"
       "tools/ci/prepare_release_signing.sh"
       "tools/ci/validate_expected_android_artifacts.sh"
+      "tools/ci/validate_android_sdk_alignment.sh"
     )
     ;;
   orchestrator)

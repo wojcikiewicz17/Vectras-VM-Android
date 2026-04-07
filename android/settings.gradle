@@ -1,2 +1,1 @@
-rootProject.name = 'RAFACODEphi'
-include ':app'
+throw new GradleException("Projeto legado em android/ está DEPRECATED e fora do pipeline oficial. Use o build canônico na raiz do repositório: ./gradlew :app:assembleDebug ou :app:assembleRelease.")
