@@ -248,6 +248,9 @@ jobs:
       - name: Validate Android pipeline directories
         run: ./tools/ci/validate_pipeline_directories.sh --profile android
 
+      - name: Validate Android SDK/build path alignment
+        run: ./tools/ci/validate_android_sdk_alignment.sh
+
       - name: Validate release signing secrets (distribution context)
         if: ${{ needs.resolve.outputs.run_release == 'true' }}
         env:

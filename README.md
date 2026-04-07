@@ -161,6 +161,12 @@ source <(./tools/configure_java_home.sh --print)
 
 Essa task já encadeia `verifyMinApiAbiCompatibility`, `verifyArm64ToolchainCompatibility`, `verifyGradleRuntimeJvm` e executa `assembleDebug`, `assembleRelease`, `assemblePerfRelease` nas políticas de ABI suportadas.
 
+### Caminho Android canônico (anti-drift)
+- O caminho oficial de build Android é **somente o Gradle da raiz** (`./gradlew`, módulos `:app`, `:shell-loader`, `:terminal-*`).
+- O diretório legado `android/` está **deprecated** e bloqueado para compilação acidental.
+- O CI executa `tools/ci/validate_android_sdk_alignment.sh` para falhar quando houver referência oficial ao caminho legado ou divergência de baseline SDK entre caminhos.
+
+
 Para fixar por usuário (sem depender de shell):
 ```properties
 # ~/.gradle/gradle.properties
