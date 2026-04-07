@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Vectras VM – Documentation Standards
 
 > **Objetivo / Purpose**: Padronizar a documentação técnica, acadêmica e legal, garantindo clareza, navegabilidade e conformidade autoral.

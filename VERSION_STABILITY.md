@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # VERSION_STABILITY — Vectras-VM-Android RAFAELIA
 ## Σ Manifesto de Versão Estável · ∆RAFAELIA_CORE·Ω
 

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Vectras-VM-Android — Code Geometry Reality (2026-04-03)
 
 ## Purpose

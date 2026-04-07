@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # docs/assets — Convenções e Governança de Diagramas
 
 Este diretório centraliza a governança dos ativos visuais da documentação técnica.

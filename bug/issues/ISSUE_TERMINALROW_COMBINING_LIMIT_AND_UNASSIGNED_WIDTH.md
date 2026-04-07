@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Issue: TerminalRow precisa limitar combining chars por célula e tratar UNASSIGNED width=0
 
 ## Arquivo alvo

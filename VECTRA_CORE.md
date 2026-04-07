@@ -1,8 +1,66 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Vectra Core MVP
 
 ## Overview
 
 Vectra Core is a minimal "information-theoretic" runtime framework for Android that implements deterministic event processing with built-in integrity verification. It's designed to treat all data (including noise) as information and provide append-only logging for forensic analysis.
+
+## Atualização alinhada ao código-fonte (2026-04-07)
+
+### Metadados da revisão
+- Data da revisão: `2026-04-07`
+- Escopo auditado nesta atualização: `engine/rmr`, `app/src/main/cpp`, `app/src/main/java/com/vectras/vm/vectra`, `demo_cli/src`
+- Tipo de revisão: documental estática (sem alteração de comportamento de runtime)
+
+### Contrato do kernel nativo unificado (C)
+- Header canônico de API: `engine/rmr/include/rmr_unified_kernel.h`
+- Implementação canônica: `engine/rmr/src/rmr_unified_kernel.c`
+- Ciclo de vida determinístico legado (pool estático, sem heap):
+  - `rmr_legacy_kernel_init`
+  - `rmr_legacy_kernel_ingest`
+  - `rmr_legacy_kernel_process`
+  - `rmr_legacy_kernel_route`
+  - `rmr_legacy_kernel_verify`
+  - `rmr_legacy_kernel_audit`
+  - `rmr_legacy_kernel_shutdown`
+- Ponte determinística voltada ao JNI:
+  - `rmr_jni_kernel_init`, `rmr_jni_kernel_route`, `rmr_jni_kernel_verify`, `rmr_jni_kernel_audit`
+  - APIs de arena: `RmR_UnifiedKernel_ArenaAlloc`, `RmR_UnifiedKernel_ArenaCopy`, `RmR_UnifiedKernel_ArenaWrite`, `RmR_UnifiedKernel_ArenaFree`
+
+### Endereçamento toroidal e roteamento determinístico
+- O estado de roteamento é representado por `RmR_ToroidalAddr7D` (`u`, `v`, `psi`, `chi`, `rho`, `delta`, `sigma`).
+- Funções de mapeamento determinístico implementadas em `engine/rmr/src/rmr_unified_kernel.c`:
+  - `RmR_Toroidal_Map(...)`
+  - `RmR_Toroidal_MapThetaLcm(...)`
+- A estabilidade de rota é coberta por checks de replay em `demo_cli/src/rmr_qemu_bridge_selftest.c` (rotas legado/unificado com comparação de `route id/tag` e coordenadas toroidais em múltiplas reinicializações).
+
+### Ponte Android e runtime de alto nível
+- Entrypoint nativo Android para aceleração: `app/src/main/cpp/vectra_core_accel.c`
+- Entrypoint de runtime Kotlin no domínio do app: `app/src/main/java/com/vectras/vm/vectra/VectraCore.kt`
+- Abstrações de contêiner determinístico: `app/src/main/java/com/vectras/vm/vectra/VectraDeterministicContainer.kt`
+
+### Artefatos de determinismo e política
+- Detecção de capacidades de hardware: `engine/rmr/src/rmr_hw_detect.c`
+- Módulo de policy kernel: `engine/rmr/src/rmr_policy_kernel.c`
+- Ponte de planejamento determinístico do QEMU: `engine/rmr/src/rmr_qemu_bridge.c`
+- Selftests/demos nativos usados como documentação executável:
+  - `demo_cli/src/rmr_qemu_bridge_selftest.c`
+  - `demo_cli/src/policy_kernel_selftest.c`
+  - `demo_cli/src/determinism_signature_selftest.c`
+
+### Fontes canônicas por diretório (evitar drift)
+- Visão do domínio `engine`: `engine/README.md`
+- Contrato e governança do núcleo `engine/rmr`: `engine/rmr/README.md`
+- Integração Android (app): `app/README.md`
+- Demos/selftests nativos: `demo_cli/README.md`
+- Governança central de documentação: `docs/README.md`
+
+### Checklist anti-quebra da documentação
+- Confirmar existência dos caminhos citados (`*.c`, `*.h`, `*.kt`).
+- Validar presença dos símbolos canônicos em `engine/rmr/include/rmr_unified_kernel.h`.
+- Validar referência cruzada com `README.md` e `FILES_MAP.md` dos diretórios citados.
+- Quando houver rename/move de arquivo ou API, atualizar esta seção no mesmo commit da mudança.
 
 ## Key Concepts
 

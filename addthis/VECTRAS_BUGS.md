@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # VECTRAS-VM-Android — BUGS REPORT
 > Bugs que impedem compilação no GitHub CI
 > ψ→χ→ρ→Δ→Σ→Ω · RMR Kernel / RAFAELIA ZERO · 2026-03-07

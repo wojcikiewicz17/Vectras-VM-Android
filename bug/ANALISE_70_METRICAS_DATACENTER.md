@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # ANÁLISE DE 70 MÉTRICAS CRÍTICAS
 ## Comparação Upstream vs. Otimizado e Impacto em Data Center
 

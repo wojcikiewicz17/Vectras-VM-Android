@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # IP_MAP — RAFAELIA / Vectras
 
 ## 1) Núcleo autoral (prioridade de proteção)

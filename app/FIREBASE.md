@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Backend de Telemetria e Falhas (BLP + compatibilidade release com Firebase)
 
 ## Política oficial

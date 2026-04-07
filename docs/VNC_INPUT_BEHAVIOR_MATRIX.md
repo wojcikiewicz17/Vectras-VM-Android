@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # VNC Input Behavior Matrix (androidVNC)
 
 Este documento define o comportamento canônico de consumo de eventos para `VncCanvas`.

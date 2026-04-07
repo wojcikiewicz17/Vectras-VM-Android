@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # bug/
 
 Camada de gestão de falhas do Vectras VM Android com inventário reconciliado entre análise, operação, histórico e evidências.

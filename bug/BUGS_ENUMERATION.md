@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # VECTRAS-VM: ΣΩΔΦ BUG ENUMERATION & ANALYSIS
 ## 🗜️ Compressão Técnico-Poética | Erros ⚡ Críticos → Δ-Transmutações
 

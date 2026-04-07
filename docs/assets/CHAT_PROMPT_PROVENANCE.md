@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Chat Prompt Provenance Backlog
 
 Entradas recebidas por chat só podem ser consideradas concluídas quando houver origem rastreável (issue, PR ou artefato versionado com link estável) **e** o arquivo ASCII versionado em `docs/assets/`.

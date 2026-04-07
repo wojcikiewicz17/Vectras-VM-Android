@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Metrics Catalog
 
 This directory stores the ISO 8000/9001 metrics used to guide dependency integration and quality assurance.

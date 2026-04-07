@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # CANONICAL_BUILD_STATUS
 
 > Fonte de verdade para status oficial de build/release. Em caso de divergência, este arquivo prevalece.

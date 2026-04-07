@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Auditoria Forense de Arquivos Não-Markdown
 
 Este relatório cobre todos os arquivos do repositório, exceto `.md`, com inventário determinístico e hash SHA-256.

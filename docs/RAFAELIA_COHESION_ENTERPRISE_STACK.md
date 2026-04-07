@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # RAFAELIA — Cirurgia de Coesão Coerente (Enterprise Stack)
 
 > Documento de coesão arquitetural para consolidar símbolos metodológicos (Σ Ω Δ Φ, Trinity_633, parser/index/proof) em trilhas técnicas auditáveis no Vectras VM Android.

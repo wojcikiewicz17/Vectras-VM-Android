@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # bug/SOURCE_CODE_TRACEABILITY.md
 
 Matriz de rastreabilidade entre documentação de bugs e código-fonte real do repositório.

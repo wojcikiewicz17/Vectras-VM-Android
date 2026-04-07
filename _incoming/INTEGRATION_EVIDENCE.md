@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Evidência de integração dos patchsets RAFAELIA
 
 Origem recuperada (externa ao estado atual da árvore): commit histórico `5924890`.

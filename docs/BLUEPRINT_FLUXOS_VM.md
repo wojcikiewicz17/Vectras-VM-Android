@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Blueprint Canônico de Fluxos Operacionais de VM
 
 Este blueprint consolida o fluxo operacional **fim-a-fim** para quatro jornadas críticas do app:

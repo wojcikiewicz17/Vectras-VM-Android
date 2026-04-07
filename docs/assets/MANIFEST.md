@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Assets Manifest
 
 Manifesto único de ativos visuais versionados/referenciados em `docs/assets/`.

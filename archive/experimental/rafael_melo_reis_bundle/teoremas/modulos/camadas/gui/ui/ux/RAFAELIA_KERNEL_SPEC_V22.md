@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # V22→V∞ — Núcleo Unificador (Matematização robusta e oitras estrutural geométricas)
 
 > álgebra + tensores + lógica + invariantes + paradoxos/anomalias como operadores — com Ethica[8] como gate (não “opinião”), e com Ω como fechamento do ciclo.

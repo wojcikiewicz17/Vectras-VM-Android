@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # ANÁLISE TÉCNICA COMPLETA DETALHADA
 ## Sistema Otimizado com 8 Níveis de Semânticas Relacionais
 

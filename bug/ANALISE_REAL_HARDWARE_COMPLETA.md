@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # ANÁLISE REAL: GERENCIAMENTO DE HARDWARE FÍSICO
 ## Clock, IRQ, Buffer, Cache L1/L2/L3, Memória e Corpo
 

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Vectras-VM-Android — Bug & Error Report (Audit Refresh)
 
 Base anterior revalidada contra o código atual da branch.

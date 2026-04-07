@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Esferas Metodológicas RAFAELIA (8 Esferas/Áreas)
 
 > Documento formal de organização metodológica em **8 esferas/áreas canônicas**, com linguagem técnica de nível PhD/pós-doutorado e estrutura navegável para orientar pesquisa, engenharia, validação e governança no Vectras VM.
