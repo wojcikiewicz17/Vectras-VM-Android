@@ -73,9 +73,9 @@ profiles:
 # ── SDK/NDK build requirements ──────────────────────────────
 build_env:
   ndk_version: "27.2.12479018"
-  compile_sdk: 35
-  min_sdk: 23
-  target_sdk: 35
+  compile_sdk: 35  # must stay aligned with gradle.properties compile.api/COMPILE_API
+  min_sdk: 29      # Android 10+ runtime support floor
+  target_sdk: 35   # must stay aligned with gradle.properties target.api/TARGET_API
   cmake_version: "3.22.1"
   java_version: 17
   abi_filters:
