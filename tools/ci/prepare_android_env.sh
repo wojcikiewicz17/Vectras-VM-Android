@@ -11,6 +11,12 @@ JAVA_VERSION_EXPECTED=""
 SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
 LOCAL_PROPERTIES_PATH="local.properties"
 REQUIRE_SDKMANAGER="false"
+DEFAULT_SDK_FALLBACKS=(
+  "/usr/lib/android-sdk"
+  "/opt/android-sdk"
+  "/opt/android-sdk-linux"
+  "$HOME/Android/Sdk"
+)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -56,7 +62,17 @@ if [[ -n "$JAVA_VERSION_EXPECTED" ]]; then
 fi
 
 if [[ -z "$SDK_ROOT" ]]; then
-  echo "::error::ANDROID_SDK_ROOT/ANDROID_HOME not defined and --sdk-root not provided" >&2
+  for candidate in "${DEFAULT_SDK_FALLBACKS[@]}"; do
+    if [[ -d "$candidate" ]]; then
+      SDK_ROOT="$candidate"
+      echo "ANDROID_SDK_ROOT/ANDROID_HOME not set; using fallback SDK root: ${SDK_ROOT}"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$SDK_ROOT" ]]; then
+  echo "::error::ANDROID_SDK_ROOT/ANDROID_HOME not defined, --sdk-root not provided, and no fallback SDK root found (${DEFAULT_SDK_FALLBACKS[*]})" >&2
   exit 1
 fi
 
