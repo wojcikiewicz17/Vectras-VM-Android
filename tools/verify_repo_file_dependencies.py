@@ -31,6 +31,11 @@ OPTIONAL_LOCAL_REFS = {
     "local.properties",
 }
 
+GENERATED_PATH_SEGMENTS = {
+    "build/",
+    "outputs/",
+}
+
 
 def normalize_project_path(project_token: str) -> Path:
     # ':shell-loader:stub' -> 'shell-loader/stub'
@@ -59,6 +64,15 @@ def collect_references(text: str) -> list[tuple[str, bool]]:
     return refs
 
 
+def should_skip_reference(ref: str) -> bool:
+    if not ref:
+        return True
+    if ref.startswith("$") or "${" in ref:
+        return True
+    normalized = ref.replace("\\", "/").lstrip("./")
+    return any(segment in normalized for segment in GENERATED_PATH_SEGMENTS)
+
+
 def verify_gradle_files() -> tuple[list[str], list[str]]:
     checked: list[str] = []
     missing: list[str] = []
@@ -73,7 +87,7 @@ def verify_gradle_files() -> tuple[list[str], list[str]]:
         for ref, from_root in collect_references(text):
             if "*" in ref:
                 continue
-            if ref in OPTIONAL_LOCAL_REFS:
+            if ref in OPTIONAL_LOCAL_REFS or should_skip_reference(ref):
                 continue
             base_dir = ROOT if from_root else gradle_file.parent
             target = (base_dir / ref).resolve()
