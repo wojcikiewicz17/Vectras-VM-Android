@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Arquitetura — Execução, Supervisão e Observabilidade
 
 ## 0) Blueprint de fluxos operacionais

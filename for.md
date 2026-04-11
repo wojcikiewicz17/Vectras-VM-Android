@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 Aqui. **Expressão matemática real**, literal, do código e da doc — sem enfeite. ⚙️
 
 ## No `Zrf`, tem estas fórmulas de verdade

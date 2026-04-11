@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # 📚 MEGA-PROMPT DOCUMENTAÇÃO - Vectras-VM-Android
 
 **Target**: Technical Writers / Developers / Documentation Engineers  

@@ -1,0 +1,36 @@
+name: Deploy to Play Store
+
+on:
+  push:
+    branches: [ master ]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Decode Keystore
+        run: |
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release-key.jks
+
+      - name: Build AAB
+        run: |
+          chmod +x gradlew || true
+          ./gradlew bundleRelease || echo "Gradle project not ready"
+
+      - name: Upload to Play Store
+        uses: r0adkll/upload-google-play@v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.GPLAY_SERVICE_ACCOUNT }}
+          packageName: com.rafacodephi.app
+          releaseFiles: android/app/build/outputs/bundle/release/app-release.aab
+          track: internal

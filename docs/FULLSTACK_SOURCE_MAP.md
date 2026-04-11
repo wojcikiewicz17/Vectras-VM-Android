@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Fullstack Source Map / Mapeamento Fullstack do Código-Fonte
 
 Este documento aplica a visão **fullstack** sobre o código real do projeto, conectando ponta a ponta:

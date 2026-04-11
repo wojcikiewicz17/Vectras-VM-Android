@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Runtime/Setup Catch Review Checklist
 
 Use este checklist em PRs que alterem classes em `app/src/main/java/com/vectras/vm/**` e `app/src/main/java/com/vectras/qemu/**`.

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Performance Measurement and Integrity Validation Guide
 
 This document describes how to measure performance and validate data integrity in the Vectras VM Android application.

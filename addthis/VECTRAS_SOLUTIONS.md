@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # VECTRAS-VM-Android — SOLUÇÕES COMPLETAS
 > ψ→χ→ρ→Δ→Σ→Ω · Todas as correções para os 15 bugs + 42 problemas
 > Arquivos prontos para aplicar no repositório · 2026-03-07

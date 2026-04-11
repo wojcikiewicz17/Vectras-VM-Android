@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # addthis — índice operacional RAFAELIA ψ→χ→ρ→Δ→Σ→Ω
 
 Diretório de auditoria aplicada ao estado **real** do repositório `Vectras-VM-Android`.

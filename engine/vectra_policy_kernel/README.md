@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # vectra_policy_kernel
 
 `vectra_policy_kernel` atua como **adapter/composição** para o kernel determinístico em C (`engine/rmr/src/rmr_unified_kernel.c`).

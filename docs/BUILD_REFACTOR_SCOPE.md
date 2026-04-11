@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Escopo de Refatoração Técnica — Build/Release/CI/Native
 
 ## Prioridade P0 — inconsistências estruturais (toolchain/ABI/CI)

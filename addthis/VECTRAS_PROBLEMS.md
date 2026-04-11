@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # VECTRAS-VM-Android — PROBLEMS REPORT
 > ψ→χ→ρ→Δ→Σ→Ω · Análise completa · Vectra2 / RMR Kernel / RAFAELIA ZERO
 > Gerado: 2026-03-07 · Repositório: `Vectras-VM-Android-master`

@@ -174,6 +174,14 @@ if(TARGET bitraf_static)
     target_link_libraries(vectra_core_accel PRIVATE bitraf_static)
 endif()
 
+if(ANDROID)
+    # Compatibilidade Android 15/16 (dispositivos com page size de 16 KiB).
+    target_link_options(vectra_core_accel PRIVATE -Wl,-z,max-page-size=16384)
+    if(TARGET termux-bootstrap)
+        target_link_options(termux-bootstrap PRIVATE -Wl,-z,max-page-size=16384)
+    endif()
+endif()
+
 target_compile_options(vectra_core_accel PRIVATE
     ${VECTRA_COMMON_COMPILE_OPTIONS}
     ${VECTRA_ABI_COMPILE_OPTIONS})

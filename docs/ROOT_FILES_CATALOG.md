@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Catálogo de Arquivos Raiz (Root) — Vectras-VM-Android
 
 Este catálogo documenta os **arquivos soltos atualmente presentes no diretório raiz** do repositório. O objetivo é apoiar rastreabilidade, onboarding e auditoria documental.

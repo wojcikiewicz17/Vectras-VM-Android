@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # RAFCODE❤️PHI — Cabeçalho Técnico do Compilador (C → ASM)
 
 > Documento de contrato técnico para evolução do compilador autoral.

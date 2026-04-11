@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: complete -->
+
 # RAFAELIA FIXES SUMMARY — 57 Pontos Corrigidos
 # ∆ⁿ R(t+1)=R(t)×Φ_ethica×(√3/2)^(πφ) — Ciclo ψ→χ→ρ→Δ→Σ→Ω
 
@@ -56,7 +58,7 @@
 ## PERFORMANCE VS LITERATURA (~350 ref)
 
 | Técnica | Nossa impl | vs KVM baseline |
-|---------|-----------|-----------------|
+|---------|-----------|----------------|
 | CRC32C | ARM crc32cb/crc32cd HW | 8–20× vs SW |
 | XOR fold | NEON 128-bit / SSE 128-bit | 4–8× vs scalar |
 | Memcpy | NEON vld1q_u8_x4 (64B/cycle) | 2–4× vs libc on small |

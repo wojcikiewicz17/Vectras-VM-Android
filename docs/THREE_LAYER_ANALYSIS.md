@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Análise Estrutural em Três Camadas (3-Layer)
 
 Este documento define a cadeia formal de documentação em **três camadas** para cada diretório de primeiro nível, com ligação para mapa detalhado de arquivos e cadeia de comandos de validação.

@@ -1,0 +1,77 @@
+name: android-cipo
+
+on:
+  push:
+    branches: [main, master, dev, 'release/**']
+    paths:
+      - 'app/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+  workflow_dispatch:
+    inputs:
+      build_variant:
+        description: "Variante Android"
+        type: choice
+        default: debug
+        options: [debug, release, both]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    env:
+      JAVA_VERSION: '17'
+      COMPILE_API: '35'
+      TARGET_API: '35'
+      MIN_API: '23'
+      TOOLS_VERSION: '35.0.0'
+      NDK_VERSION: '27.2.12479018'
+      CMAKE_VERSION: '3.22.1'
+      SUPPORTED_ABIS: 'arm64-v8a'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install SDK packages
+        shell: bash
+        run: |
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
+
+      - name: Run Gradle build
+        shell: bash
+        run: |
+          set -euo pipefail
+          VARIANT=${{ github.event.inputs.build_variant }}
+          TASKS=""
+          if [[ "$VARIANT" == "debug" ]]; then
+            TASKS=":app:assembleDebug"
+          elif [[ "$VARIANT" == "release" ]]; then
+            TASKS=":app:assembleRelease"
+          elif [[ "$VARIANT" == "both" ]]; then
+            TASKS=":app:assembleDebug :app:assembleRelease"
+          else
+            echo "build_variant inválido: $VARIANT" >&2
+            exit 1
+          fi
+
+          ./gradlew --no-daemon $TASKS --console=plain
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-build-${{ github.run_id }}
+          path: |
+            app/build/outputs/apk/**
+            app/build/outputs/bundle/**
+            **/build/test-results/**
+            **/build/reports/**
+          if-no-files-found: warn
+          overwrite: true

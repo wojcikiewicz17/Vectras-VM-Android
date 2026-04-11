@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # VECTRAS-VM: O QUE O CÓDIGO IMPLEMENTA VERSUS O QUE A DOCUMENTAÇÃO PROMETE
 
 **Data:** Fevereiro 2026  

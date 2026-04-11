@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Termux ARM64 Android 15 Orchestrator
 
 Pipeline real para compilar **dentro do terminal** (Termux/ambiente similar), preparando SDK/NDK/CMake localmente e executando build `arm64-v8a`.

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Resumo
 
 ## Vectras VM: Uma Implementação de Máquina Virtual Baseada em QEMU para a Plataforma Android

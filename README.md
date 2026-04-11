@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Vectras VM Android
 
 > Plataforma Android de virtualização com base híbrida (Android + C/C++ + Rust), foco em determinismo operacional, rastreabilidade e governança documental.
@@ -19,7 +21,10 @@ Esta revisão consolida a documentação em três camadas por diretório (propó
 - Avisos de terceiros/licenciamento: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
 - Referência do runtime: [`VECTRA_CORE.md`](VECTRA_CORE.md)
 - Guia macro de documentação: [`VECTRAS_MEGAPROMPT_DOCS.md`](VECTRAS_MEGAPROMPT_DOCS.md)
+- Auditoria de cobertura dos Markdown (2026-04-07): [`docs/active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md`](docs/active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md)
+- Catálogo completo de Markdown (2026-04-07): [`docs/active/ALL_MARKDOWN_FILES_2026-04-07.md`](docs/active/ALL_MARKDOWN_FILES_2026-04-07.md)
 - Guia operacional de build: [`BUILDING.md`](BUILDING.md)
+- Matriz de alinhamento diretórios críticos: [`docs/active/DIRECTORY_ALIGNMENT_MATRIX.md`](docs/active/DIRECTORY_ALIGNMENT_MATRIX.md)
 - Troubleshooting operacional: [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
 - Sumário de correções: [`FIXES_SUMMARY.md`](FIXES_SUMMARY.md)
 - Manifesto de estabilidade: [`VERSION_STABILITY.md`](VERSION_STABILITY.md)
@@ -155,6 +160,12 @@ source <(./tools/configure_java_home.sh --print)
 ```
 
 Essa task já encadeia `verifyMinApiAbiCompatibility`, `verifyArm64ToolchainCompatibility`, `verifyGradleRuntimeJvm` e executa `assembleDebug`, `assembleRelease`, `assemblePerfRelease` nas políticas de ABI suportadas.
+
+### Caminho Android canônico (anti-drift)
+- O caminho oficial de build Android é **somente o Gradle da raiz** (`./gradlew`, módulos `:app`, `:shell-loader`, `:terminal-*`).
+- O diretório legado `android/` está **deprecated** e bloqueado para compilação acidental.
+- O CI executa `tools/ci/validate_android_sdk_alignment.sh` para falhar quando houver referência oficial ao caminho legado ou divergência de baseline SDK entre caminhos.
+
 
 Para fixar por usuário (sem depender de shell):
 ```properties

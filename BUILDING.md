@@ -1,8 +1,10 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # BUILDING
 
 ## CLI prerequisites
 - JDK 17 (baseline runtime)
-- Android SDK Platform 35 + Build Tools 35.0.0
+- Android SDK Platform 35 + Build Tools 35.0.0 (target/compile obrigatórios para publicação)
 - NDK 27.2.12479018
 - CMake 3.22.1
 
@@ -62,7 +64,10 @@ The ABI baseline is also declared in `tools/qemu_launch.yml` with explicit scope
 
 Accepted policies in code and docs are exactly:
 - `APP_ABI_POLICY=arm64-only` → `SUPPORTED_ABIS=arm64-v8a` (official minimum distribution)
+- `APP_ABI_POLICY=arm32-arm64` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (dual-ARM distribution lane; must remain compatible with termux-bootstrap)
 - `APP_ABI_POLICY=internal-5abi` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` (**internal validation only; not for official distribution**, requires `CI_INTERNAL_VALIDATION=true` and `min.api>=35`)
+
+`termux-bootstrap` is built/packaged only for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64` (aligned with `TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS` in `app/src/main/cpp/CMakeLists.txt`). Official lanes (`arm64-only` and `arm32-arm64`) must stay inside this matrix.
 
 Default is arm64-only.
 
@@ -82,11 +87,12 @@ All values below are defaults from `gradle.properties` and can be overridden wit
 
 | Area | Property | Min | Default | Max/Policy |
 |---|---|---:|---:|---:|
-| Compile SDK | `compile.api` → fallback `COMPILE_API` | 35 | 35 | follows Android baseline updates |
-| Target SDK | `target.api` → fallback `TARGET_API` | 35 (`release.min.target.api`) | 35 | follows Android baseline updates |
+| Compile SDK | `compile.api` → fallback `COMPILE_API` | 35 | 35 | **35 obrigatório para publicação profissional** |
+| Target SDK | `target.api` → fallback `TARGET_API` | 35 (`release.min.target.api`) | 35 | **35 obrigatório para publicação profissional** |
 | Build Tools | `tools.version` → fallback `TOOLS_VERSION` | 35.0.0 | 35.0.0 | keep aligned with compile SDK |
 | NDK | `ndk.version` → fallback `NDK_VERSION` | 23.x | 27.2.12479018 | latest validated in CI |
 | CMake | `cmake.version` → fallback `CMAKE_VERSION` | 3.22.1 | 3.22.1 | keep host+JNI parity |
+| Runtime Android (SO suportado) | `min.api` → fallback `MIN_API` | 29 (Android 10) | 29 | Android 10+ |
 | Java language level | `java.language.version` → fallback `JAVA_LANGUAGE_VERSION` | 17 | 17 | 21 (when toolchain validated) |
 | Gradle runtime JVM | `gradle.java.runtime.version` → fallback `GRADLE_JAVA_RUNTIME_VERSION` | 17 | 17 | `gradle.max.runtime.java.version` (default 21) |
 
@@ -95,6 +101,11 @@ Property precedence rule (to avoid config drift):
 - Canonical property names use dotted lowercase keys (for example: `compile.api`, `tools.version`).
 - Legacy aliases in uppercase snake case (for example: `COMPILE_API`, `TOOLS_VERSION`) are fallback-only for backward compatibility.
 - When a legacy alias is used, the Gradle bootstrap emits a deprecation warning and continues.
+
+## Política de publicação e runtime Android
+- Faixa de SO suportada em runtime: **Android 10+** (`min.api`/`MIN_API` = 29).
+- Para distribuição profissional/publicação em loja: **compile SDK 35 e target SDK 35 são mandatórios** (`compile.api`, `target.api`, `release.min.target.api` e aliases).
+- CI/pipeline (`tools/qemu_launch.yml`) deve manter `build_env.compile_sdk=35` e `build_env.target_sdk=35` para evitar drift com Gradle.
 
 Strictness control by pipeline context:
 - A validação de bootstrap (`verifyBootstrapAssets`) e a validação final (`verifyGradleRuntimeJvm` + gates de API/ABI) compartilham a mesma política de `buildStrict` (warning em modo local, bloqueante em CI/release).

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # 🔴 BUG HUNTER REPORT — Vectras-V-master (v7)
 > **Auditoria:** Deep Source Code Audit · Bug Hunter Mode  
 > **Arquivo:** `Vectras-V-master__7_.zip`  

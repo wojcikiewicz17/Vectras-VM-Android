@@ -328,6 +328,9 @@ jobs:
       - name: Validate Android pipeline directories
         run: ./tools/ci/validate_pipeline_directories.sh --profile android
 
+      - name: Validate Android SDK/build path alignment
+        run: ./tools/ci/validate_android_sdk_alignment.sh
+
       - name: Validate release signing secrets (distribution context)
         if: ${{ needs.resolve.outputs.run_release == 'true' }}
         env:
@@ -490,7 +493,7 @@ jobs:
           overwrite: true
 
       - name: Upload Android outputs
-        if: always()
+        if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: android-outputs-${{ needs.resolve.outputs.artifact_name_suffix }}-${{ github.run_id }}
@@ -499,7 +502,8 @@ jobs:
             app/build/outputs/bundle/**
             app/build/reports/**
             **/build/test-results/**
-          if-no-files-found: warn
+          if-no-files-found: error
+          overwrite: true
 
       - name: Upload Android logs bundle
         if: always()

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # BITΩ Overlay — Patch Notes
 Data: 2026-02-25
 

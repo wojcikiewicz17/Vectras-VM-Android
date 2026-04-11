@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Build Verification Report — 2026-04-03
 
 ## Canonical command discovery

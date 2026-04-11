@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # ANÁLISE REAL: COMPILAÇÃO E HARDWARE
 ## O Que Realmente Acontece com as "Otimizações" no Código
 

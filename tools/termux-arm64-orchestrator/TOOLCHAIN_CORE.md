@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Toolchain core modules
 
 Módulos internos para interoperabilidade do fluxo APK com JDK/SDK/NDK/CMake.

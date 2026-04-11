@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 ═══════════════════════════════════════════════════════════════════════════════
         OMEGA-SME: SACRED GEOMETRY COMPRESSION CODEC
         Vectras-VM State Reduction via Deterministic Collapse

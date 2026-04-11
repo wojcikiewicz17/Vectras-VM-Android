@@ -2,17 +2,9 @@ name: host-ci
 
 on:
   push:
-    paths-ignore:
-      - 'app/**'
-      - 'terminal-emulator/**'
-      - 'terminal-view/**'
-      - 'shell-loader/**'
+    # Removemos paths-ignore para executar em qualquer push
   pull_request:
-    paths-ignore:
-      - 'app/**'
-      - 'terminal-emulator/**'
-      - 'terminal-view/**'
-      - 'shell-loader/**'
+    # Removemos paths-ignore para executar em qualquer PR
   workflow_dispatch:
   workflow_call:
 
@@ -72,6 +64,32 @@ jobs:
 
       - name: Verify link contracts (CMake)
         run: cmake --build build-cmake --target verify_contracts
+
+      # ================================================================
+      # NOVO: Compactar e enviar artefatos binários (executáveis, libs)
+      # ================================================================
+      - name: Prepare binary artifacts
+        if: always()   # Mesmo se testes falharem, tenta coletar binários
+        run: |
+          mkdir -p artifacts/bin
+          # Copia executáveis gerados pelo Make (ajuste o caminho conforme seu projeto)
+          find . -type f -executable -not -path './build-cmake/*' -not -path './.git/*' | head -20 | xargs -I {} cp {} artifacts/bin/ 2>/dev/null || true
+          # Copia bibliotecas .so (se houver)
+          find . -name "*.so" -not -path './build-cmake/*' -exec cp {} artifacts/bin/ \; 2>/dev/null || true
+          # Copia o que foi gerado pelo CMake (executáveis e libs)
+          cp -r build-cmake/bin/* artifacts/bin/ 2>/dev/null || true
+          cp -r build-cmake/lib/* artifacts/bin/ 2>/dev/null || true
+          # Compacta tudo
+          tar -czf host-engine-artifacts.tar.gz -C artifacts .
+          echo "ARTIFACT_FILE=host-engine-artifacts.tar.gz" >> $GITHUB_ENV
+
+      - name: Upload binary artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-engine-binaries-${{ github.run_id }}
+          path: ${{ env.ARTIFACT_FILE }}
+          if-no-files-found: warn
 
       - name: Upload host logs
         if: always()

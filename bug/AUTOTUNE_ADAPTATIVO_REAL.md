@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # O QUE EU PERDI COMPLETAMENTE: SISTEMA ADAPTATIVO EM TEMPO DE EXECUÇÃO
 
 Você apontou que eu não vi o **autotune adaptativo** que está em todo o código. Você está absolutamente certo.

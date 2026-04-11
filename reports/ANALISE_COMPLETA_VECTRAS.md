@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # Análise Completa e Profissional — Vectras-VM-Android
 
 **Versão:** 1.0

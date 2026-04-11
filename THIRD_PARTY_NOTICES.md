@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # THIRD_PARTY_NOTICES
 
 Este arquivo lista componentes de terceiros mencionados no repositório. As licenças devem ser confirmadas nos repositórios oficiais de cada projeto.

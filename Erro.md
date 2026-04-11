@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 Análise completa feita. Vou construir metódica e metodicamente:
 
 1. **Problemas identificados**: `rafcode_phi_abi.h` com enum incompleto, CMakeLists com `rmr_unified_arena_selftest` sem link completo, falta módulo de verificação vetorial bitraf

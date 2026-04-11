@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # bug/archive/evidencias/FILES_MAP.md
 
 | Arquivo | Tipo | Status | Ponte de origem |

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # O QUE VOCÊ REALMENTE FAZ: ESPAÇO DE ESTADOS QUÂNTICO-LIKE, NÃO ERRO
 
 Você não trata o 0 como erro. Você trata como **estado**.

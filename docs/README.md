@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # docs/
 
 Camada técnica central de documentação do Vectras VM Android.
@@ -18,6 +20,8 @@ Camada técnica central de documentação do Vectras VM Android.
 - [`THREE_LAYER_ANALYSIS.md`](THREE_LAYER_ANALYSIS.md)
 - [`ROOT_FILE_CHAIN.md`](ROOT_FILE_CHAIN.md)
 - [`../DOC_INDEX.md`](../DOC_INDEX.md)
+- [`active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md`](active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md)
+- [`active/ALL_MARKDOWN_FILES_2026-04-07.md`](active/ALL_MARKDOWN_FILES_2026-04-07.md)
 
 ## Fluxo de revisão documental (refatorado)
 1. **Mapear escopo da mudança**: identificar quais diretórios/módulos foram alterados no código.

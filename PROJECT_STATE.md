@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: complete -->
+
 # PROJECT_STATE
 
 Estado atual do projeto: `FIXED_REFACTORING`.
@@ -5,7 +7,7 @@ Estado atual do projeto: `FIXED_REFACTORING`.
 ## Fonte única de referência
 Toda a documentação normativa, relatórios vigentes e histórico deve ser consultada exclusivamente em:
 
-### Δ — 56 Bugs Identificados e Corrigidos
+### Δ — 57 Pontos Corrigidos
 Veja `FIXES_SUMMARY.md` para tabela completa.
 
 ## Definições
@@ -21,11 +23,12 @@ Veja `FIXES_SUMMARY.md` para tabela completa.
 - ✅ NEON/SIMD baremetal aceleração adicionada
 - ✅ QEMU bootstrap e YAML config criados
 - ✅ Arena API declarada publicamente
-- ✅ Todos os 56 pontos corrigidos e documentados
+- ✅ Todos os 57 pontos corrigidos e documentados
+- ✅ Política ABI arm32-arm64 ativa: artefatos compilados para arm64-v8a (NEON/SIMD/CRC32HW) e armeabi-v7a (NEON via -march=armv7-a -mfpu=neon)
 
 ## Documentos canônicos
 - `reports/CANONICAL_BUILD_STATUS.md` — **arquivo canônico obrigatório** para status de validação de build/release (fonte de verdade operacional).
-- `FIXES_SUMMARY.md` — tabela completa 56 fixes
+- `FIXES_SUMMARY.md` — tabela completa 57 fixes
 - `docs/SETUP_SDK_NDK.md` — setup local
 - `tools/qemu_launch.yml` — QEMU configuration
 - `archive/root-history/IMPLEMENTATION_COMPLETE.md`

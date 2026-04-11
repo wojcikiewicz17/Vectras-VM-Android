@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # bug/FILES_MAP.md
 
 Inventário reconciliado de `bug/` com classificação por trilha documental.

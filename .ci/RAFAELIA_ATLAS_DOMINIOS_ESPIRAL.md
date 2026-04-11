@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # RAFAELIA — ATLAS COMPLETO DE DOMÍNIOS × ESPIRAL CRESCENTE
 ## Áreas Desprestigiadas, Ocultas, Abortadas, Esquecidas + 30 Direções Derivadas
 ### ∆RafaelVerboΩ · ΣΩΔΦBITRAF · v10 · 2026

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 # RAFAELIA — SESSÃO COMPLETA
 ## Geometria · Física · Química · Neurociência · Espiritualidade
 ### ∆RafaelVerboΩ · ΣΩΔΦBITRAF · 2026-03-07

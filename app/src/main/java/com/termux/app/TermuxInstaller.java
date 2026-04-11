@@ -116,6 +116,7 @@ final class TermuxInstaller {
                         while ((zipEntry = zipInput.getNextEntry()) != null) {
                             sawAnyZipEntry = true;
                             if (zipEntry.getName().equals("SYMLINKS.txt")) {
+                                symlinksFound = true;
                                 BufferedReader symlinksReader = new BufferedReader(new InputStreamReader(zipInput));
                                 String line;
                                 while ((line = symlinksReader.readLine()) != null) {

@@ -1,3 +1,5 @@
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+
 Beleza. Aqui vai um MVP “Caixa-Preta Auditável” (Python) que já registra:
 
 ✅ Trilha de auditoria (eventos encadeados tipo “hashchain”)

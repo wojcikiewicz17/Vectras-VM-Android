@@ -279,7 +279,7 @@ tasks.register("verifyTermuxBootstrapAbiCoverage") {
                 throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only, arm32-arm64 ou internal-5abi.")
         }
 
-        if (appAbiPolicy in ["arm64-only", "arm32-arm64"]) {
+        if (appAbiPolicy in abiPoliciesThatRequireTermuxBootstrap) {
             def unsupportedByBootstrap = supportedAbis.findAll { !(it in termuxBootstrapSupportedAbis) }
             if (!unsupportedByBootstrap.isEmpty()) {
                 throw new GradleException("termux-bootstrap não suporta ABIs solicitadas em SUPPORTED_ABIS: ${unsupportedByBootstrap}. ABIs válidas para termux-bootstrap: ${termuxBootstrapSupportedAbis}.")
@@ -299,7 +299,7 @@ tasks.register("verifyTermuxBootstrapAbiCoverage") {
         apkFiles.each { apkFile ->
             def zipFile = new java.util.zip.ZipFile(apkFile)
             try {
-                def requiredBootstrapAbis = appAbiPolicy in ["arm64-only", "arm32-arm64"] ? supportedAbis : []
+                def requiredBootstrapAbis = appAbiPolicy in abiPoliciesThatRequireTermuxBootstrap ? supportedAbis : []
                 requiredBootstrapAbis.each { abi ->
                     def entryPath = "lib/${abi}/${termuxBootstrapLibName}"
                     if (zipFile.getEntry(entryPath) == null) {
@@ -637,10 +637,18 @@ tasks.register("verifyTermuxBootstrapPackagingRules") {
         def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
         def officialAbis = (rootProject.ext.officialAbis ?: []) as List<String>
         def allowedAbis = (rootProject.ext.allowedAbis ?: officialAbis) as List<String>
+        def appAbiPolicy = (rootProject.ext.appAbiPolicy ?: "").toString()
         def excludes = (android.packaging.jniLibs.excludes ?: [] as Set<String>).collect { it.toString() }
 
         if (!supportedAbis.every { it in allowedAbis }) {
             throw new GradleException("SUPPORTED_ABIS (${supportedAbis}) contém ABI fora da matriz permitida (${allowedAbis}).")
+        }
+
+        if (appAbiPolicy in abiPoliciesThatRequireTermuxBootstrap) {
+            def unsupportedByBootstrap = supportedAbis.findAll { !(it in termuxBootstrapSupportedAbis) }
+            if (!unsupportedByBootstrap.isEmpty()) {
+                throw new GradleException("APP_ABI_POLICY=${appAbiPolicy} exige ABIs compatíveis com termux-bootstrap. Inválidas: ${unsupportedByBootstrap}. Válidas: ${termuxBootstrapSupportedAbis}.")
+            }
         }
 
         def violations = []
