@@ -29,11 +29,15 @@ ensure_local_properties_sdk_dir() {
   fi
 
   if [[ -z "$sdk_root" ]]; then
-    return 0
+    echo "ERRO: Android SDK não encontrado (ANDROID_SDK_ROOT/ANDROID_HOME ausentes e nenhum fallback disponível)." >&2
+    echo "Ação recomendada: execute './tools/ci/prepare_android_env.sh --sdk-root <CAMINHO_DO_SDK>' ou configure sdk.dir em local.properties." >&2
+    exit 4
   fi
 
   if [[ ! -d "$sdk_root" ]]; then
-    return 0
+    echo "ERRO: Android SDK root inválido: ${sdk_root}" >&2
+    echo "Ação recomendada: corrija ANDROID_SDK_ROOT/ANDROID_HOME ou sdk.dir em local.properties." >&2
+    exit 4
   fi
 
   local escaped_sdk_root
