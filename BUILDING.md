@@ -19,6 +19,9 @@ If `local.properties` is missing, `./tools/gradle_with_jdk21.sh` auto-writes `sd
 from `ANDROID_SDK_ROOT`/`ANDROID_HOME`; when env vars are not defined it also tries
 the canonical fallback locations used by the build (`/usr/lib/android-sdk`,
 `/opt/android-sdk`, `/opt/android-sdk-linux`, `$HOME/Android/Sdk`).
+For metadata-only Gradle invocations (`--version`, `help`, `tasks`, `properties`,
+`projects`, `dependencies`, `dependencyInsight`), the wrapper does not enforce SDK
+materialization, which allows diagnostics in clean environments before Android SDK setup.
 
 ## Build commands
 ```bash
