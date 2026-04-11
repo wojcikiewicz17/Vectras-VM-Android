@@ -4,6 +4,10 @@ on:
   pull_request:
     paths:
       - 'app/**'
+      - 'engine/**'
+      - 'engine/**/*.cmake'
+      - 'engine/**/*.mk'
+      - 'CMakeLists.txt'
       - 'terminal-emulator/**'
       - 'terminal-view/**'
       - 'shell-loader/**'
@@ -18,6 +22,10 @@ on:
     branches: [main, master, dev, 'release/**']
     paths:
       - 'app/**'
+      - 'engine/**'
+      - 'engine/**/*.cmake'
+      - 'engine/**/*.mk'
+      - 'CMakeLists.txt'
       - 'terminal-emulator/**'
       - 'terminal-view/**'
       - 'shell-loader/**'
