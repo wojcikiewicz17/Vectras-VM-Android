@@ -70,5 +70,36 @@ if [[ "$REQUIRE_SDKMANAGER" == "true" ]] && ! command -v sdkmanager >/dev/null 2
   exit 1
 fi
 
-printf 'sdk.dir=%s\n' "$SDK_ROOT" > "$LOCAL_PROPERTIES_PATH"
-echo "Prepared ${LOCAL_PROPERTIES_PATH} with sdk.dir=${SDK_ROOT}"
+if [[ -f "$LOCAL_PROPERTIES_PATH" ]]; then
+  if grep -qE '^sdk\.dir=' "$LOCAL_PROPERTIES_PATH"; then
+    tmp_file="$(mktemp)"
+    awk -v sdk_dir="$SDK_ROOT" '
+      BEGIN {
+        replaced = 0
+      }
+      /^sdk\.dir=/ {
+        if (!replaced) {
+          print "sdk.dir=" sdk_dir
+          replaced = 1
+        }
+        next
+      }
+      {
+        print
+      }
+      END {
+        if (!replaced) {
+          print "sdk.dir=" sdk_dir
+        }
+      }
+    ' "$LOCAL_PROPERTIES_PATH" > "$tmp_file"
+    mv "$tmp_file" "$LOCAL_PROPERTIES_PATH"
+    echo "Updated sdk.dir in ${LOCAL_PROPERTIES_PATH} to ${SDK_ROOT}"
+  else
+    printf '\nsdk.dir=%s\n' "$SDK_ROOT" >> "$LOCAL_PROPERTIES_PATH"
+    echo "Added sdk.dir to ${LOCAL_PROPERTIES_PATH} with value ${SDK_ROOT}"
+  fi
+else
+  printf 'sdk.dir=%s\n' "$SDK_ROOT" > "$LOCAL_PROPERTIES_PATH"
+  echo "Created ${LOCAL_PROPERTIES_PATH} with sdk.dir=${SDK_ROOT}"
+fi
