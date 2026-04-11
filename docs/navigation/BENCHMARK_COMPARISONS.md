@@ -41,5 +41,5 @@ Documento de comparação de benchmark orientado por evidência reproduzível. D
 ## Metadados
 - Versão do documento: 1.3
 - Última atualização: 2026-03-06
-- Commit de referência: `a70a4d9`
+- Commit de referência: `HEAD`
 - Domínio de código coberto: App benchmark (`app/src/main/java/com/vectras/vm/benchmark/*`) e documentação de método comparativo (`docs/navigation`).
