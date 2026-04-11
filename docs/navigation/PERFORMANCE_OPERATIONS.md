@@ -28,5 +28,5 @@ Runbook de operação para medir e ajustar desempenho com rastreabilidade e roll
 ## Metadados
 - Versão do documento: 1.3
 - Última atualização: 2026-03-06
-- Commit de referência: `a70a4d9`
+- Commit de referência: `HEAD`
 - Domínio de código coberto: Operação de performance com benchmark no app e execução runtime.

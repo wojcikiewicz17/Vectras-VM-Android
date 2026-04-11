@@ -12,11 +12,32 @@ ensure_local_properties_sdk_dir() {
 
   local sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
   if [[ -z "$sdk_root" ]]; then
-    return 0
+    local fallback_candidates=(
+      "/usr/lib/android-sdk"
+      "/opt/android-sdk"
+      "/opt/android-sdk-linux"
+      "$HOME/Android/Sdk"
+    )
+    local candidate
+    for candidate in "${fallback_candidates[@]}"; do
+      if [[ -d "$candidate" ]]; then
+        sdk_root="$candidate"
+        echo "[gradle_with_jdk21] ANDROID_SDK_ROOT/ANDROID_HOME ausentes; usando fallback detectado em ${sdk_root}"
+        break
+      fi
+    done
+  fi
+
+  if [[ -z "$sdk_root" ]]; then
+    echo "ERRO: Android SDK não encontrado (ANDROID_SDK_ROOT/ANDROID_HOME ausentes e nenhum fallback disponível)." >&2
+    echo "Ação recomendada: execute './tools/ci/prepare_android_env.sh --sdk-root <CAMINHO_DO_SDK>' ou configure sdk.dir em local.properties." >&2
+    exit 4
   fi
 
   if [[ ! -d "$sdk_root" ]]; then
-    return 0
+    echo "ERRO: Android SDK root inválido: ${sdk_root}" >&2
+    echo "Ação recomendada: corrija ANDROID_SDK_ROOT/ANDROID_HOME ou sdk.dir em local.properties." >&2
+    exit 4
   fi
 
   local escaped_sdk_root
@@ -36,6 +57,34 @@ ensure_local_properties_sdk_dir() {
   fi
 
   echo "[gradle_with_jdk21] local.properties atualizado com sdk.dir=${sdk_root}"
+}
+
+should_require_android_sdk() {
+  if [[ "${GRADLE_WITH_JDK21_SKIP_SDK_CHECK:-false}" == "true" ]]; then
+    return 1
+  fi
+
+  local has_meaningful_arg=false
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --version|-v|--help|-h|help|tasks|properties|projects|dependencies|dependencyInsight)
+        ;;
+      --*)
+        # Keep scanning. Flags like --stacktrace should not force SDK checks by themselves.
+        ;;
+      *)
+        has_meaningful_arg=true
+        break
+        ;;
+    esac
+  done
+
+  if [[ "$has_meaningful_arg" == "true" ]]; then
+    return 0
+  fi
+
+  return 1
 }
 
 java_major_of() {
@@ -101,9 +150,11 @@ fi
 
 echo "[gradle_with_jdk21] JAVA_HOME=$JAVA_HOME (major=$JAVA_MAJOR)"
 
-ensure_local_properties_sdk_dir
+if should_require_android_sdk "$@"; then
+  ensure_local_properties_sdk_dir
+fi
 
-if [[ -x "$REPO_ROOT/tools/check_android_toolchain.sh" ]]; then
+if should_require_android_sdk "$@" && [[ -x "$REPO_ROOT/tools/check_android_toolchain.sh" ]]; then
   TOOLCHAIN_CHECK_STRICT="${TOOLCHAIN_CHECK_STRICT:-auto}"
   if [[ "$TOOLCHAIN_CHECK_STRICT" == "auto" ]]; then
     if [[ "${CI:-}" == "true" || -n "${GITHUB_ACTIONS:-}" ]]; then

@@ -36,8 +36,13 @@ for file in "${DOC_FILES[@]}"; do
       continue
     fi
 
-    if [[ "${value}" != "${TARGET_COMMIT}" ]]; then
-      echo "ERROR: ${file} has Commit de referência='${value}', expected '${TARGET_COMMIT}'" >&2
+    normalized_value="${value}"
+    if [[ "${value}" == "HEAD" ]]; then
+      normalized_value="${TARGET_COMMIT}"
+    fi
+
+    if [[ "${normalized_value}" != "${TARGET_COMMIT}" ]]; then
+      echo "ERROR: ${file} has Commit de referência='${value}', expected '${TARGET_COMMIT}' (ou 'HEAD')." >&2
       status=1
     fi
   done < <(rg "Commit de referência:" "${file}")

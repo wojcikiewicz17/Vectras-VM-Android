@@ -9,6 +9,8 @@ import groovy.json.JsonSlurper
 import java.util.regex.Pattern
 import java.util.zip.ZipFile
 
+def termuxBootstrapSupportedAbis = (rootProject.ext.termuxBootstrapSupportedAbis ?: ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64']) as List<String>
+
 android {
     namespace = 'com.vectras.vm'
     compileSdk = rootProject.ext.compileApi
@@ -43,7 +45,8 @@ android {
                 cFlags "-O2 -fno-fast-math -DRMR_JNI_BUILD=1"
                 arguments "-DRMR_ENABLE_POLICY_MODULE=${rmrEnablePolicyModule}",
                           "-DRMR_ENABLE_BITRAF_MODULE=${rmrEnableBitrafModule}",
-                          "-DVECTRA_ARM64_CPP_FLAGS=${arm64CppFlags.join(' ')}"
+                          "-DVECTRA_ARM64_CPP_FLAGS=${arm64CppFlags.join(' ')}",
+                          "-DTERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS=${termuxBootstrapSupportedAbis.join(';')}"
             }
         }
 
@@ -228,8 +231,6 @@ if (!checkVariant) {
 def checkVariantTaskSuffix = checkVariant.substring(0, 1).toUpperCase() + checkVariant.substring(1)
 def checkVariantAssembleTask = "assemble${checkVariantTaskSuffix}"
 def termuxBootstrapLibName = "libtermux-bootstrap.so"
-def termuxBootstrapSupportedAbis = ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64'] as List<String>
-def abiPoliciesThatRequireTermuxBootstrap = ['arm64-only', 'arm32-arm64'] as Set<String>
 def ciInternalValidationEnabled = Boolean.parseBoolean(providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get())
 
 tasks.register("verifyTermuxBootstrapAbiCoverage") {
@@ -258,6 +259,9 @@ tasks.register("verifyTermuxBootstrapAbiCoverage") {
                 break
             case "arm32-arm64":
                 def expectedDualArmAbis = ['arm64-v8a', 'armeabi-v7a']
+                if (!ciInternalValidationEnabled) {
+                    throw new GradleException("APP_ABI_POLICY=arm32-arm64 exige CI_INTERNAL_VALIDATION=true para impedir uso acidental fora da trilha interna.")
+                }
                 if (supportedAbis != expectedDualArmAbis) {
                     throw new GradleException("APP_ABI_POLICY=arm32-arm64 exige SUPPORTED_ABIS=${expectedDualArmAbis} (atual: ${supportedAbis}).")
                 }

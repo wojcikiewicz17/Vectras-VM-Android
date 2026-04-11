@@ -63,7 +63,8 @@ add_library(vectra_core_accel SHARED
     ${VECTRA_LOWLEVEL_SOURCES}
     ${VECTRA_CASM_SOURCES})
 
-set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS arm64-v8a armeabi-v7a x86 x86_64)
+set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "arm64-v8a;armeabi-v7a;x86;x86_64" CACHE STRING "ABIs that should build termux-bootstrap")
+
 set(TERMUX_BOOTSTRAP_BUILD_ENABLED OFF)
 
 if(ANDROID)

@@ -35,5 +35,5 @@ Navegação por audiência para documentos técnicos e operacionais alinhados ao
 ## Metadados
 - Versão do documento: 1.3
 - Última atualização: 2026-03-06
-- Commit de referência: `a70a4d9`
+- Commit de referência: `HEAD`
 - Domínio de código coberto: Índice de navegação documental e ponte para domínios app, engine, tools, web e runtime.

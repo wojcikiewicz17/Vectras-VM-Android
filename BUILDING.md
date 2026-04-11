@@ -17,8 +17,13 @@ export ANDROID_SDK_ROOT=/workspace/android-sdk
 printf 'sdk.dir=%s\n' "$ANDROID_SDK_ROOT" > local.properties
 ```
 
-If `local.properties` is missing, `./tools/gradle_with_jdk21.sh` now auto-writes `sdk.dir`
-from `ANDROID_SDK_ROOT` (or `ANDROID_HOME`) when the directory exists.
+If `local.properties` is missing, `./tools/gradle_with_jdk21.sh` auto-writes `sdk.dir`
+from `ANDROID_SDK_ROOT`/`ANDROID_HOME`; when env vars are not defined it also tries
+the canonical fallback locations used by the build (`/usr/lib/android-sdk`,
+`/opt/android-sdk`, `/opt/android-sdk-linux`, `$HOME/Android/Sdk`).
+For metadata-only Gradle invocations (`--version`, `help`, `tasks`, `properties`,
+`projects`, `dependencies`, `dependencyInsight`), the wrapper does not enforce SDK
+materialization, which allows diagnostics in clean environments before Android SDK setup.
 
 ## Build commands
 ```bash

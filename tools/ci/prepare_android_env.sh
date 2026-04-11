@@ -11,6 +11,12 @@ JAVA_VERSION_EXPECTED=""
 SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
 LOCAL_PROPERTIES_PATH="local.properties"
 REQUIRE_SDKMANAGER="false"
+DEFAULT_SDK_FALLBACKS=(
+  "/usr/lib/android-sdk"
+  "/opt/android-sdk"
+  "/opt/android-sdk-linux"
+  "$HOME/Android/Sdk"
+)
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -56,7 +62,17 @@ if [[ -n "$JAVA_VERSION_EXPECTED" ]]; then
 fi
 
 if [[ -z "$SDK_ROOT" ]]; then
-  echo "::error::ANDROID_SDK_ROOT/ANDROID_HOME not defined and --sdk-root not provided" >&2
+  for candidate in "${DEFAULT_SDK_FALLBACKS[@]}"; do
+    if [[ -d "$candidate" ]]; then
+      SDK_ROOT="$candidate"
+      echo "ANDROID_SDK_ROOT/ANDROID_HOME not set; using fallback SDK root: ${SDK_ROOT}"
+      break
+    fi
+  done
+fi
+
+if [[ -z "$SDK_ROOT" ]]; then
+  echo "::error::ANDROID_SDK_ROOT/ANDROID_HOME not defined, --sdk-root not provided, and no fallback SDK root found (${DEFAULT_SDK_FALLBACKS[*]})" >&2
   exit 1
 fi
 
@@ -70,5 +86,36 @@ if [[ "$REQUIRE_SDKMANAGER" == "true" ]] && ! command -v sdkmanager >/dev/null 2
   exit 1
 fi
 
-printf 'sdk.dir=%s\n' "$SDK_ROOT" > "$LOCAL_PROPERTIES_PATH"
-echo "Prepared ${LOCAL_PROPERTIES_PATH} with sdk.dir=${SDK_ROOT}"
+if [[ -f "$LOCAL_PROPERTIES_PATH" ]]; then
+  if grep -qE '^sdk\.dir=' "$LOCAL_PROPERTIES_PATH"; then
+    tmp_file="$(mktemp)"
+    awk -v sdk_dir="$SDK_ROOT" '
+      BEGIN {
+        replaced = 0
+      }
+      /^sdk\.dir=/ {
+        if (!replaced) {
+          print "sdk.dir=" sdk_dir
+          replaced = 1
+        }
+        next
+      }
+      {
+        print
+      }
+      END {
+        if (!replaced) {
+          print "sdk.dir=" sdk_dir
+        }
+      }
+    ' "$LOCAL_PROPERTIES_PATH" > "$tmp_file"
+    mv "$tmp_file" "$LOCAL_PROPERTIES_PATH"
+    echo "Updated sdk.dir in ${LOCAL_PROPERTIES_PATH} to ${SDK_ROOT}"
+  else
+    printf '\nsdk.dir=%s\n' "$SDK_ROOT" >> "$LOCAL_PROPERTIES_PATH"
+    echo "Added sdk.dir to ${LOCAL_PROPERTIES_PATH} with value ${SDK_ROOT}"
+  fi
+else
+  printf 'sdk.dir=%s\n' "$SDK_ROOT" > "$LOCAL_PROPERTIES_PATH"
+  echo "Created ${LOCAL_PROPERTIES_PATH} with sdk.dir=${SDK_ROOT}"
+fi

@@ -28,5 +28,5 @@ Documento executivo para diligência técnica. Resume capacidades implementadas 
 ## Metadados
 - Versão do documento: 1.3
 - Última atualização: 2026-03-06
-- Commit de referência: `a70a4d9`
+- Commit de referência: `HEAD`
 - Domínio de código coberto: Visão executiva de app/engine/runtime com rastreabilidade documental.
