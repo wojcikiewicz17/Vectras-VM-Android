@@ -81,6 +81,10 @@ ext {
         .split(',')
         .collect { it.trim() }
         .findAll { !it.isEmpty() }
+    termuxBootstrapSupportedAbis = properties.get('TERMUX_BOOTSTRAP_SUPPORTED_ABIS', 'arm64-v8a,armeabi-v7a,x86,x86_64')
+        .split(',')
+        .collect { it.trim() }
+        .findAll { !it.isEmpty() }
 }
 
 // ==================== FUNÇÕES AUXILIARES DE VALIDAÇÃO ====================
