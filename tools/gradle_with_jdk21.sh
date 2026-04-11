@@ -12,6 +12,23 @@ ensure_local_properties_sdk_dir() {
 
   local sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
   if [[ -z "$sdk_root" ]]; then
+    local fallback_candidates=(
+      "/usr/lib/android-sdk"
+      "/opt/android-sdk"
+      "/opt/android-sdk-linux"
+      "$HOME/Android/Sdk"
+    )
+    local candidate
+    for candidate in "${fallback_candidates[@]}"; do
+      if [[ -d "$candidate" ]]; then
+        sdk_root="$candidate"
+        echo "[gradle_with_jdk21] ANDROID_SDK_ROOT/ANDROID_HOME ausentes; usando fallback detectado em ${sdk_root}"
+        break
+      fi
+    done
+  fi
+
+  if [[ -z "$sdk_root" ]]; then
     return 0
   fi
 
