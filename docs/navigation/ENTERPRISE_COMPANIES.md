@@ -59,5 +59,5 @@ Guia para avaliação e operação corporativa com foco em implantação técnic
 ## Metadados
 - Versão do documento: 1.4
 - Última atualização: 2026-03-06
-- Commit de referência: `a70a4d9`
+- Commit de referência: `HEAD`
 - Domínio de código coberto: Arquitetura e operação full-stack (app, engine/runtime, governança docs).
