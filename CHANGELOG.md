@@ -1,4 +1,4 @@
-<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: complete -->
 
 # Changelog
 All notable changes to this project will be documented in this file.
@@ -9,13 +9,19 @@ The format is based on Keep a Changelog.
 
 ### Added
 - Módulo BITOMEGA adicionado ao engine RMR com API pública em `engine/rmr/include/bitomega.h` e implementação determinística em `engine/rmr/src/bitomega.c`.
+- Política ABI `arm32-arm64` ativada no branch de desenvolvimento: artefatos compilados para `arm64-v8a` (NEON/SIMD + CRC32HW, `-march=armv8-a+crc+simd`) e `armeabi-v7a` (NEON, `-march=armv7-a -mfpu=neon`).
 
 ### Changed
+- `APP_ABI_POLICY` alterado para `arm32-arm64` e `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` em `gradle.properties`, garantindo compilação dual-ARM32+ARM64 neste branch.
 - Build CMake atualizado para compilar o BITOMEGA nos alvos `rmr` (root `CMakeLists.txt`) e `vectra_core_accel` (`app/src/main/cpp/CMakeLists.txt`), incluindo novo fonte C no pipeline nativo.
 - Documentação pós-doc em `docs/bitomega_postdoc/00..06` revisada para cobrir objetivo/escopo de integração, detalhes de implementação, limitações e próximos passos.
 - Impacto esperado: overhead baixo por chamada de transição, melhoria de auditabilidade de estado em runtime e compatibilidade preservada por integração aditiva (sem substituir módulos existentes).
 - Saneados links locais em `VECTRAS_MEGAPROMPT_DOCS.md` para caminhos reais sob `./docs/` (`ESFERAS_METODOLOGICAS_RAFAELIA`, `DETERMINISTIC_VM_MUTATION_LAYER`, `PERFORMANCE_INTEGRITY`) e executada verificação estática de links markdown locais sem novos quebrados.
 - Removida a diretiva global `-dontobfuscate` do `app/proguard-rules.pro`, com redução das regras `-keep` para apenas símbolos exigidos por reflexão/XML e inclusão de registro dos símbolos estáveis no guia de build/release.
+- Alinhamento de baseline Android SDK 35 / minSdk 29 padronizado em Gradle, docs e CI; path legado `android/` bloqueado contra compilação acidental (PRs #907–#909).
+- Verificador `verify_repo_file_dependencies.py` atualizado para ignorar paths interpolados Groovy/Gradle (`${...}` e `${}`) (PRs #910–#911).
+- Metadados `DOC_ORG_SCAN` atualizados de `pending-manual-by-domain` para `complete` nos arquivos canônicos — varredura executada em 2026-04-07.
+- Placeholder vazio `// Retrofit` removido de `app/build.gradle` (dependência não utilizada).
 
 ## [3.6.6] - 2026-02-10
 ### Added
