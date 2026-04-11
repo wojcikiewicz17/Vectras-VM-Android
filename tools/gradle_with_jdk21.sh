@@ -59,6 +59,34 @@ ensure_local_properties_sdk_dir() {
   echo "[gradle_with_jdk21] local.properties atualizado com sdk.dir=${sdk_root}"
 }
 
+should_require_android_sdk() {
+  if [[ "${GRADLE_WITH_JDK21_SKIP_SDK_CHECK:-false}" == "true" ]]; then
+    return 1
+  fi
+
+  local has_meaningful_arg=false
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      --version|-v|--help|-h|help|tasks|properties|projects|dependencies|dependencyInsight)
+        ;;
+      --*)
+        # Keep scanning. Flags like --stacktrace should not force SDK checks by themselves.
+        ;;
+      *)
+        has_meaningful_arg=true
+        break
+        ;;
+    esac
+  done
+
+  if [[ "$has_meaningful_arg" == "true" ]]; then
+    return 0
+  fi
+
+  return 1
+}
+
 java_major_of() {
   local java_bin="$1"
   "$java_bin" -XshowSettings:properties -version 2>&1 | awk -F= '/java\.specification\.version/ {gsub(/ /,"",$2); print $2; exit}'
@@ -122,9 +150,11 @@ fi
 
 echo "[gradle_with_jdk21] JAVA_HOME=$JAVA_HOME (major=$JAVA_MAJOR)"
 
-ensure_local_properties_sdk_dir
+if should_require_android_sdk "$@"; then
+  ensure_local_properties_sdk_dir
+fi
 
-if [[ -x "$REPO_ROOT/tools/check_android_toolchain.sh" ]]; then
+if should_require_android_sdk "$@" && [[ -x "$REPO_ROOT/tools/check_android_toolchain.sh" ]]; then
   TOOLCHAIN_CHECK_STRICT="${TOOLCHAIN_CHECK_STRICT:-auto}"
   if [[ "$TOOLCHAIN_CHECK_STRICT" == "auto" ]]; then
     if [[ "${CI:-}" == "true" || -n "${GITHUB_ACTIONS:-}" ]]; then
