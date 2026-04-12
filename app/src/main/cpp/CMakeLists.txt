@@ -141,7 +141,15 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86")
     set(VECTRA_ABI_COMPILE_OPTIONS -mssse3 -msse4.2 -mpopcnt -DRMR_ARCH_X86=1)
 endif()
 if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
-    set(VECTRA_ABI_COMPILE_OPTIONS -march=armv7-a -mfpu=neon -DRMR_ARCH_ARM32=1)
+    # arm32-v7 baseline com NEON explícito para evitar regressões no NDK r27+
+    # em toolchains que oscilam entre soft/softfp ao integrar JNI.
+    set(VECTRA_ABI_COMPILE_OPTIONS
+        -march=armv7-a
+        -mthumb
+        -mfpu=neon
+        -mfloat-abi=softfp
+        -DRMR_ARCH_ARM32=1
+        -DRMR_FEAT_NEON=1)
 endif()
 
 if(TARGET rmr_policy_static)
