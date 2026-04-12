@@ -16,6 +16,11 @@ on:
         type: choice
         default: debug
         options: [debug, release]
+      signing_mode:
+        description: "Assinatura release"
+        type: choice
+        default: auto
+        options: [auto, signed, unsigned]
       run_lint:
         description: "Lint"
         type: boolean
@@ -48,6 +53,7 @@ jobs:
       artifact_suffix: ${{ steps.flags.outputs.artifact_suffix }}
       effective_min_api: ${{ steps.flags.outputs.effective_min_api }}
       gradle_variant_task: ${{ steps.flags.outputs.gradle_variant_task }}
+      ci_release: ${{ steps.flags.outputs.ci_release }}
     steps:
       - id: flags
         shell: bash
@@ -55,6 +61,7 @@ jobs:
           set -euo pipefail
           abi="${{ inputs.abi_profile }}"
           variant="${{ inputs.build_variant }}"
+          signing_mode="${{ inputs.signing_mode }}"
 
           case "${abi}" in
             arm64_only)
@@ -89,12 +96,43 @@ jobs:
             release) task=":app:assembleRelease" ;;
           esac
 
+          ci_release="false"
+          if [[ "${variant}" == "release" ]]; then
+            has_signing="false"
+            if [[ -n "${{ secrets.VECTRAS_RELEASE_STORE_FILE_B64 || '' }}" && -n "${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD || '' }}" && -n "${{ secrets.VECTRAS_RELEASE_KEY_ALIAS || '' }}" && -n "${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD || '' }}" ]]; then
+              has_signing="true"
+            fi
+
+            case "${signing_mode}" in
+              auto)
+                if [[ "${has_signing}" == "true" ]]; then
+                  ci_release="true"
+                fi
+                ;;
+              signed)
+                if [[ "${has_signing}" != "true" ]]; then
+                  echo "signing_mode=signed exige todos os segredos de assinatura configurados." >&2
+                  exit 1
+                fi
+                ci_release="true"
+                ;;
+              unsigned)
+                ci_release="false"
+                ;;
+              *)
+                echo "signing_mode inválido: ${signing_mode}" >&2
+                exit 1
+                ;;
+            esac
+          fi
+
           echo "app_abi_policy=${policy}"          >> "$GITHUB_OUTPUT"
           echo "supported_abis=${abis}"            >> "$GITHUB_OUTPUT"
           echo "ci_internal_validation=${ci_val}"  >> "$GITHUB_OUTPUT"
           echo "artifact_suffix=${suffix}"         >> "$GITHUB_OUTPUT"
           echo "effective_min_api=${min_api}"      >> "$GITHUB_OUTPUT"
           echo "gradle_variant_task=${task}"       >> "$GITHUB_OUTPUT"
+          echo "ci_release=${ci_release}"          >> "$GITHUB_OUTPUT"
 
   build:
     runs-on: ubuntu-latest
@@ -140,6 +178,13 @@ jobs:
       - name: Enforce bootstrap contract
         run: ./tools/ci/verify_bootstrap_contract.sh
 
+      - name: Decode release keystore (optional)
+        if: ${{ needs.resolve.outputs.ci_release == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.VECTRAS_RELEASE_STORE_FILE_B64 }}" | base64 -d > "$RUNNER_TEMP/release-keystore.jks"
+
       - name: Lint (opcional)
         if: ${{ inputs.run_lint == true }}
         run: ./tools/gradle_with_jdk21.sh --no-daemon :app:lintDebug
@@ -170,7 +215,8 @@ jobs:
             -Pcmake.version=${CMAKE_VERSION} \
             -Pjava.language.version=${JAVA_VERSION} \
             -PCI_INTERNAL_VALIDATION=${{ needs.resolve.outputs.ci_internal_validation }} \
-            -PciRelease=false \
+            -PciRelease=${{ needs.resolve.outputs.ci_release }} \
+            ${{ needs.resolve.outputs.ci_release == 'true' && format('-Pandroid.injected.signing.store.file={0}/release-keystore.jks -Pandroid.injected.signing.store.password={1} -Pandroid.injected.signing.key.alias={2} -Pandroid.injected.signing.key.password={3}', env.RUNNER_TEMP, secrets.VECTRAS_RELEASE_STORE_PASSWORD, secrets.VECTRAS_RELEASE_KEY_ALIAS, secrets.VECTRAS_RELEASE_KEY_PASSWORD) || '' }} \
             --console=plain --info \
             ${{ needs.resolve.outputs.gradle_variant_task }}
 

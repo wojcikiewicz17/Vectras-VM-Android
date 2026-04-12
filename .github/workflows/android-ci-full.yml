@@ -8,19 +8,95 @@ on:
         type: choice
         default: both
         options: [debug, release, both]
+      abi_profile:
+        description: "Perfil ABI"
+        type: choice
+        default: arm32_arm64
+        options: [arm64_only, arm32_arm64]
+      signing_mode:
+        description: "Assinatura release"
+        type: choice
+        default: auto
+        options: [auto, signed, unsigned]
+
+permissions:
+  contents: read
+
+env:
+  JAVA_VERSION: '17'
+  COMPILE_API: '35'
+  TARGET_API: '35'
+  TOOLS_VERSION: '35.0.0'
+  NDK_VERSION: '27.2.12479018'
+  CMAKE_VERSION: '3.22.1'
 
 jobs:
+  resolve:
+    runs-on: ubuntu-latest
+    outputs:
+      app_abi_policy: ${{ steps.flags.outputs.app_abi_policy }}
+      supported_abis: ${{ steps.flags.outputs.supported_abis }}
+      min_api: ${{ steps.flags.outputs.min_api }}
+      ci_internal_validation: ${{ steps.flags.outputs.ci_internal_validation }}
+      ci_release: ${{ steps.flags.outputs.ci_release }}
+    steps:
+      - id: flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          abi_profile="${{ inputs.abi_profile || 'arm32_arm64' }}"
+          build_variant="${{ inputs.build_variant || 'both' }}"
+          signing_mode="${{ inputs.signing_mode || 'auto' }}"
+
+          case "${abi_profile}" in
+            arm64_only)
+              echo "app_abi_policy=arm64-only" >> "$GITHUB_OUTPUT"
+              echo "supported_abis=arm64-v8a" >> "$GITHUB_OUTPUT"
+              echo "min_api=21" >> "$GITHUB_OUTPUT"
+              echo "ci_internal_validation=false" >> "$GITHUB_OUTPUT"
+              ;;
+            arm32_arm64)
+              echo "app_abi_policy=arm32-arm64" >> "$GITHUB_OUTPUT"
+              echo "supported_abis=arm64-v8a,armeabi-v7a" >> "$GITHUB_OUTPUT"
+              echo "min_api=16" >> "$GITHUB_OUTPUT"
+              echo "ci_internal_validation=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "abi_profile inválido: ${abi_profile}" >&2
+              exit 1
+              ;;
+          esac
+
+          ci_release="false"
+          if [[ "${build_variant}" == "release" || "${build_variant}" == "both" ]]; then
+            has_signing="false"
+            if [[ -n "${{ secrets.VECTRAS_RELEASE_STORE_FILE_B64 || '' }}" && -n "${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD || '' }}" && -n "${{ secrets.VECTRAS_RELEASE_KEY_ALIAS || '' }}" && -n "${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD || '' }}" ]]; then
+              has_signing="true"
+            fi
+
+            case "${signing_mode}" in
+              auto)
+                [[ "${has_signing}" == "true" ]] && ci_release="true"
+                ;;
+              signed)
+                [[ "${has_signing}" == "true" ]] || { echo "signing_mode=signed exige segredos de assinatura." >&2; exit 1; }
+                ci_release="true"
+                ;;
+              unsigned)
+                ci_release="false"
+                ;;
+              *)
+                echo "signing_mode inválido: ${signing_mode}" >&2
+                exit 1
+                ;;
+            esac
+          fi
+
+          echo "ci_release=${ci_release}" >> "$GITHUB_OUTPUT"
+
   full_build:
     runs-on: ubuntu-latest
-    env:
-      JAVA_VERSION: '17'
-      COMPILE_API: '35'
-      TARGET_API: '35'
-      MIN_API: '23'
-      TOOLS_VERSION: '35.0.0'
-      NDK_VERSION: '27.2.12479018'
-      CMAKE_VERSION: '3.22.1'
-      SUPPORTED_ABIS: 'arm64-v8a'
+    needs: resolve
 
     steps:
       - name: Checkout
@@ -46,6 +122,13 @@ jobs:
                      "cmake;${CMAKE_VERSION}" \
                      "ndk;${NDK_VERSION}"
 
+      - name: Decode release keystore (optional)
+        if: ${{ needs.resolve.outputs.ci_release == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "${{ secrets.VECTRAS_RELEASE_STORE_FILE_B64 }}" | base64 -d > "$RUNNER_TEMP/release-keystore.jks"
+
       - name: Run full Gradle build
         shell: bash
         run: |
@@ -65,7 +148,21 @@ jobs:
           fi
 
           echo "Executando tasks Gradle: $TASKS"
-          ./gradlew --no-daemon $TASKS --console=plain --info
+          ./tools/gradle_with_jdk21.sh --no-daemon \
+            -PbuildStrict=true \
+            -PAPP_ABI_POLICY=${{ needs.resolve.outputs.app_abi_policy }} \
+            -PSUPPORTED_ABIS=${{ needs.resolve.outputs.supported_abis }} \
+            -Pcompile.api=${COMPILE_API} \
+            -Ptarget.api=${TARGET_API} \
+            -Pmin.api=${{ needs.resolve.outputs.min_api }} \
+            -Ptools.version=${TOOLS_VERSION} \
+            -Pndk.version=${NDK_VERSION} \
+            -Pcmake.version=${CMAKE_VERSION} \
+            -Pjava.language.version=${JAVA_VERSION} \
+            -PCI_INTERNAL_VALIDATION=${{ needs.resolve.outputs.ci_internal_validation }} \
+            -PciRelease=${{ needs.resolve.outputs.ci_release }} \
+            ${{ needs.resolve.outputs.ci_release == 'true' && format('-Pandroid.injected.signing.store.file={0}/release-keystore.jks -Pandroid.injected.signing.store.password={1} -Pandroid.injected.signing.key.alias={2} -Pandroid.injected.signing.key.password={3}', env.RUNNER_TEMP, secrets.VECTRAS_RELEASE_STORE_PASSWORD, secrets.VECTRAS_RELEASE_KEY_ALIAS, secrets.VECTRAS_RELEASE_KEY_PASSWORD) || '' }} \
+            $TASKS --console=plain --info
 
       - name: Upload all artifacts
         uses: actions/upload-artifact@v4
