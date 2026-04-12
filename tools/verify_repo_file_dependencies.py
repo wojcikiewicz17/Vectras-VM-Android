@@ -22,6 +22,32 @@ GRADLE_FILES = [
     ROOT / "shell-loader" / "stub" / "build.gradle",
 ]
 
+BUILD_FILE_PATTERNS = (
+    "*.sh",
+    "*.mk",
+    "CMakeLists.txt",
+    "*.gradle",
+    "*.gradle.kts",
+)
+
+LEGACY_SCAN_ROOTS = (
+    ROOT,
+    ROOT / "tools",
+)
+
+LEGACY_SCAN_EXCLUDED_DIRS = {
+    "build",
+    "outputs",
+    ".git",
+}
+
+# Mensagens prescritivas para referências legadas detectadas em arquivos de build.
+LEGACY_REFERENCE_MAP = {
+    "termux-shared": "Use o módulo local equivalente no repositório em vez de depender de termux-shared legado.",
+    "terminal-shared": "Substitua terminal-shared por módulos atuais versionados no repo (ex.: terminal-view/terminal-emulator).",
+    "termux-app": "Não referencie termux-app legado; use os caminhos/módulos atuais deste repositório.",
+}
+
 FILE_CALL_RE = re.compile(r"file\((['\"])(.+?)\1\)")
 ROOT_FILE_CALL_RE = re.compile(r"rootProject\.file\((['\"])(.+?)\1\)")
 PROJECT_INCLUDE_RE = re.compile(r"include\s+(.+)")
@@ -79,6 +105,41 @@ def should_skip_reference(ref: str) -> bool:
     return any(segment in normalized for segment in GENERATED_PATH_SEGMENTS)
 
 
+def is_in_excluded_dir(path: Path) -> bool:
+    return any(part in LEGACY_SCAN_EXCLUDED_DIRS for part in path.parts)
+
+
+def discover_build_files() -> list[Path]:
+    discovered: set[Path] = set()
+
+    for scan_root in LEGACY_SCAN_ROOTS:
+        if not scan_root.exists():
+            continue
+        for pattern in BUILD_FILE_PATTERNS:
+            for candidate in scan_root.rglob(pattern):
+                if not candidate.is_file() or is_in_excluded_dir(candidate):
+                    continue
+                discovered.add(candidate.resolve())
+
+    return sorted(discovered)
+
+
+def verify_legacy_build_references(build_files: list[Path]) -> list[str]:
+    problems: list[str] = []
+
+    for build_file in build_files:
+        text = build_file.read_text(encoding="utf-8", errors="ignore")
+        file_relative_path = build_file.relative_to(ROOT)
+
+        for legacy_reference, guidance in LEGACY_REFERENCE_MAP.items():
+            if legacy_reference in text:
+                problems.append(
+                    f"{legacy_reference} encontrado em {file_relative_path}: {guidance}"
+                )
+
+    return problems
+
+
 def verify_gradle_files() -> tuple[list[str], list[str]]:
     checked: list[str] = []
     missing: list[str] = []
@@ -120,6 +181,8 @@ def verify_gradle_files() -> tuple[list[str], list[str]]:
 
 def main() -> int:
     checked, missing = verify_gradle_files()
+    build_files = discover_build_files()
+    legacy_references = verify_legacy_build_references(build_files)
 
     print("[verify_repo_file_dependencies] Arquivos/módulos verificados:")
     for item in checked:
@@ -129,6 +192,13 @@ def main() -> int:
         print("\n[verify_repo_file_dependencies] FALTANDO:")
         for item in missing:
             print(f"  - {item}")
+
+    if legacy_references:
+        print("\n[verify_repo_file_dependencies] REFERÊNCIAS LEGADAS DETECTADAS:")
+        for item in legacy_references:
+            print(f"  - {item}")
+
+    if missing or legacy_references:
         return 1
 
     print("\n[verify_repo_file_dependencies] OK: todas as dependências locais de arquivo/módulo existem no repositório.")
