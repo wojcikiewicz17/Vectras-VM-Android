@@ -114,6 +114,7 @@ find . -maxdepth 2 -type d | sort
   - `log_level`: `lifecycle`, `info`, `debug`.
   - `abi_profile`: `official_arm64` (trilha oficial) ou `internal_arm32_arm64` (validação interna ARM v7/v8).
 - Depuração pontual: execute o workflow **android-ci** diretamente quando quiser isolar build/test Android.
+- `run_native_checks=true` também valida matriz CMake Android (`armeabi-v7a` + `arm64-v8a`) e faz upload do artefato `android-cmake-matrix-*` para rastrear compilação low-level por ABI.
 - Inputs principais do workflow **android-ci**:
   - `run_workfile`: define o conjunto de tarefas Gradle.
   - `build_variant` (`debug`|`release`|`both`): define variante alvo.

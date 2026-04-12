@@ -27,18 +27,19 @@ Existe **um único workflow Android canônico** (`android.yml`) com seleção po
 - `signing_mode`: `auto`, `signed` ou `unsigned`.
 - `abi_profile`: `official_arm64` (trilha oficial no workflow canônico).
 - `run_lint`: controla execução de `:app:lintDebug`.
-- `run_native_checks`: controla validação de contrato Make/CMake.
+- `run_native_checks`: controla validação de contrato Make/CMake + matriz Android CMake (`armeabi-v7a` e `arm64-v8a`).
 
 ### Regras de assinatura e segurança de entrega
 
-- `build_variant=release|both`: ativa contexto de distribuição (`-PciRelease=true`) e exige assinatura oficial (`signingConfigs.release`) no Gradle para `buildTypes.release` e `buildTypes.perfRelease`.
-- Jobs de release em `.github/workflows/android.yml` definem explicitamente `-PciRelease=true` (via `ci_release_gradle_arg`) e falham cedo se qualquer segredo de assinatura estiver ausente (`VECTRAS_RELEASE_KEYSTORE_B64`, `VECTRAS_RELEASE_STORE_PASSWORD`, `VECTRAS_RELEASE_KEY_ALIAS`, `VECTRAS_RELEASE_KEY_PASSWORD`).
-- `signing_mode=unsigned` é rejeitado explicitamente quando `build_variant=release|both` para impedir desvio da trilha oficial assinada.
-- `signing_mode=signed`: permanece o modo explícito para assinatura oficial em trilhas de distribuição.
-- `signing_mode=auto|unsigned`: continuam válidos apenas para trilhas internas/debug sem contexto de distribuição (`-PciRelease=false`).
+- `build_variant=release|both` mantém o fluxo de release e respeita `signing_mode`.
+- `signing_mode=signed`: força `-PciRelease=true`, exige segredos de assinatura e executa `prepare_release_signing.sh`.
+- `signing_mode=auto`: para release, resolve para `signed` (comportamento padrão oficial).
+- `signing_mode=unsigned`: permite compilar release sem assinatura (`-PciRelease=false`) para validação técnica interna e upload de artefatos não distribuíveis.
+- Para trilha oficial de distribuição, mantenha `signing_mode=signed` (ou `auto`) com segredos `VECTRAS_RELEASE_*` configurados.
 - `abi_profile=official_arm64`: injeta `APP_ABI_POLICY=arm64-only` e `SUPPORTED_ABIS=arm64-v8a`.
 - validação `internal-5abi` é trilha técnica separada (execução manual/diagnóstico), não caminho canônico de release no workflow principal.
-- Em `build_variant=release|both`, o passo `prepare_release_signing.sh` executa em modo `signed`, sem fallback legado, para manter a trilha oficial estritamente assinada.
+- Em `build_variant=release|both`, o passo `prepare_release_signing.sh` só executa quando `signing_mode_effective=signed`.
+- O workflow publica artefato adicional `android-cmake-matrix-*` com saída nativa por ABI (`armeabi-v7a`/`arm64-v8a`) para acompanhamento de compilação low-level via CI.
 - `run_native_checks=true` agora compila o build CMake e executa `verify_contracts` antes da etapa Android para estabilizar a cadeia nativa.
 - O workflow executa `tools/ci/validate_pipeline_directories.sh --profile android` antes da configuração de toolchain para falhar cedo em divergências estruturais de diretórios/arquivos.
 
