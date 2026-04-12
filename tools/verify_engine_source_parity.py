@@ -4,10 +4,11 @@ import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
-MANIFEST = ROOT / "engine/rmr/cmake/rmr_sources.cmake"
+MANIFEST = ROOT / "engine/rmr/sources_rmr_core.cmake"
 ROOT_CMAKE = ROOT / "CMakeLists.txt"
 APP_CMAKE = ROOT / "app/src/main/cpp/CMakeLists.txt"
 MAKEFILE = ROOT / "Makefile"
+MK_MANIFEST = ROOT / "engine/rmr/sources_rmr_core.mk"
 
 
 def fail(msg: str) -> None:
@@ -26,16 +27,19 @@ def extract_manifest(var: str) -> list[str]:
         line = line.strip()
         if not line or line.startswith("#"):
             continue
+        line = line.split("#", 1)[0].strip()
+        if not line:
+            continue
         line = line.replace("${RMR_REPO_ROOT}/", "")
         items.append(line)
     return items
 
 
-def extract_make(var: str) -> list[str]:
-    text = MAKEFILE.read_text()
-    m = re.search(rf"^{var}\s*:=\s*(.*?)\n\n", text, re.M | re.S)
+def extract_make_block(path: Path, var: str) -> list[str]:
+    text = path.read_text()
+    m = re.search(rf"^{var}\s*:?=\s*(.*?)\n\n", text, re.M | re.S)
     if not m:
-        fail(f"variable {var} not found in {MAKEFILE}")
+        fail(f"variable {var} not found in {path}")
     block = m.group(1).replace("\\\n", "\n")
     items = []
     for line in block.splitlines():
@@ -44,6 +48,14 @@ def extract_make(var: str) -> list[str]:
             continue
         items.append(line)
     return items
+
+
+def extract_make_inline(var: str) -> list[str]:
+    text = MAKEFILE.read_text()
+    m = re.search(rf"^{var}\s*:?=\s*(.+)$", text, re.M)
+    if not m:
+        fail(f"variable {var} not found in {MAKEFILE}")
+    return [line.strip() for line in m.group(1).split() if line.strip()]
 
 
 def ensure_contains(path: Path, snippet: str) -> None:
@@ -60,24 +72,30 @@ def compare(label: str, left: list[str], right: list[str]) -> None:
 
 
 def main() -> None:
-    manifest_core = extract_manifest("RMR_CORE_COMMON_SOURCES")
-    manifest_ext = extract_manifest("RMR_EXTENDED_MODULE_SOURCES")
-    manifest_policy = extract_manifest("RMR_POLICY_MODULE_SOURCES")
+    manifest_core = extract_manifest("RMR_SOURCE_GROUP_CORE")
+    manifest_host = extract_manifest("RMR_SOURCE_GROUP_HOST_ONLY")
+    manifest_policy = extract_manifest("RMR_SOURCE_GROUP_OPTIONAL_POLICY")
+    manifest_android = extract_manifest("RMR_SOURCE_GROUP_ANDROID_ONLY")
 
-    make_core = extract_make("ENGINE_CORE_COMMON_SRCS")
-    make_ext = extract_make("ENGINE_EXTENDED_SRCS")
-    make_policy = [line.strip() for line in re.search(r"^ENGINE_POLICY_SRCS\s*:=\s*(.+)$", MAKEFILE.read_text(), re.M).group(1).split()]
+    mk_core = extract_make_block(MK_MANIFEST, "RMR_SOURCE_GROUP_CORE")
+    mk_host = extract_make_block(MK_MANIFEST, "RMR_SOURCE_GROUP_HOST_ONLY")
+    mk_policy = extract_make_block(MK_MANIFEST, "RMR_SOURCE_GROUP_OPTIONAL_POLICY")
+    mk_android = extract_make_block(MK_MANIFEST, "RMR_SOURCE_GROUP_ANDROID_ONLY")
 
-    compare("core sources", manifest_core, make_core)
-    compare("extended sources", manifest_ext, make_ext)
-    compare("policy sources", manifest_policy, make_policy)
+    compare("core group sources", manifest_core, mk_core)
+    compare("host-only sources", manifest_host, mk_host)
+    compare("policy sources", manifest_policy, mk_policy)
+    compare("android-only sources", manifest_android, mk_android)
 
-    ensure_contains(ROOT_CMAKE, "include(${CMAKE_SOURCE_DIR}/engine/rmr/cmake/rmr_sources.cmake)")
-    ensure_contains(ROOT_CMAKE, "${RMR_CORE_COMMON_SOURCES}")
-    ensure_contains(ROOT_CMAKE, "${RMR_EXTENDED_MODULE_SOURCES}")
-    ensure_contains(APP_CMAKE, "include(${VECTRA_REPO_ROOT}/engine/rmr/cmake/rmr_sources.cmake)")
-    ensure_contains(APP_CMAKE, "${RMR_CORE_COMMON_SOURCES}")
-    ensure_contains(APP_CMAKE, "${RMR_EXTENDED_MODULE_SOURCES}")
+    compare("make ENGINE_CORE_SRCS mapping", ["$(RMR_SOURCE_GROUP_CORE)", "$(RMR_SOURCE_GROUP_HOST_ONLY)"], extract_make_inline("ENGINE_CORE_SRCS"))
+    compare("make ENGINE_POLICY_SRCS mapping", ["$(RMR_SOURCE_GROUP_OPTIONAL_POLICY)"], extract_make_inline("ENGINE_POLICY_SRCS"))
+
+    ensure_contains(ROOT_CMAKE, "include(${CMAKE_SOURCE_DIR}/engine/rmr/sources_rmr_core.cmake)")
+    ensure_contains(ROOT_CMAKE, "${RMR_SOURCE_GROUP_CORE}")
+    ensure_contains(ROOT_CMAKE, "${RMR_SOURCE_GROUP_HOST_ONLY}")
+    ensure_contains(APP_CMAKE, "include(${VECTRA_REPO_ROOT}/engine/rmr/sources_rmr_core.cmake)")
+    ensure_contains(APP_CMAKE, "${RMR_SOURCE_GROUP_CORE}")
+    ensure_contains(APP_CMAKE, "${RMR_SOURCE_GROUP_ANDROID_ONLY}")
 
     print("[source-parity] OK: manifest, CMake, and Makefile lists are aligned")
 
