@@ -63,12 +63,13 @@ GENERATED_PATH_SEGMENTS = {
     "outputs/",
 }
 
-BUILD_FILES_FOR_LEGACY_SCAN = [
-    ROOT / "tools" / "baremetal" / "rafcode_phi" / "build_rafcode_phi.sh",
-]
+LEGACY_BUILD_REFERENCE_RE = re.compile(r"(?<![A-Za-z0-9_])android/app/build\.gradle(?![A-Za-z0-9_])")
+LINE_CONTINUATION_RE = re.compile(r"(?<!\\)(?:\\\\)*\\\s*$")
 
-LEGACY_REFERENCE_MAP = {
-    "asm/rafaelia_core.S": "tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S",
+# Política explícita: manter referências legadas apenas para mensagens estáticas
+# de documentação/erro já existentes (ex.: falha informativa em validação).
+ALLOWED_LEGACY_LITERAL_FRAGMENTS = {
+    "Arquivo legado ausente: android/app/build.gradle",
 }
 
 
@@ -113,39 +114,95 @@ def should_skip_reference(ref: str) -> bool:
     return any(segment in normalized for segment in GENERATED_PATH_SEGMENTS)
 
 
-def is_in_excluded_dir(path: Path) -> bool:
-    return any(part in LEGACY_SCAN_EXCLUDED_DIRS for part in path.parts)
+def _strip_active_content_by_type(line: str, file_type: str, in_block_comment: bool) -> tuple[str, bool]:
+    """Remove comentários de uma linha mantendo somente conteúdo ativo.
 
+    Suporta blocos multiline simples (/* ... */) para gradle/cmake.
+    """
+    active_parts: list[str] = []
+    index = 0
+    length = len(line)
 
-def discover_build_files() -> list[Path]:
-    discovered: set[Path] = set()
-
-    for scan_root in LEGACY_SCAN_ROOTS:
-        if not scan_root.exists():
+    while index < length:
+        if in_block_comment:
+            end_idx = line.find("*/", index)
+            if end_idx == -1:
+                return "".join(active_parts), True
+            index = end_idx + 2
+            in_block_comment = False
             continue
-        for pattern in BUILD_FILE_PATTERNS:
-            for candidate in scan_root.rglob(pattern):
-                if not candidate.is_file() or is_in_excluded_dir(candidate):
-                    continue
-                discovered.add(candidate.resolve())
 
-    return sorted(discovered)
+        if file_type in {"gradle", "cmake"} and line.startswith("/*", index):
+            in_block_comment = True
+            index += 2
+            continue
+        if file_type == "gradle" and line.startswith("//", index):
+            break
+        if file_type in {"shell", "cmake"} and line.startswith("#", index):
+            break
+        if file_type in {"shell", "cmake"} and line[index] == "#" and index > 0 and line[index - 1].isspace():
+            break
+
+        active_parts.append(line[index])
+        index += 1
+
+    return "".join(active_parts), in_block_comment
 
 
-def verify_legacy_build_references(build_files: list[Path]) -> list[str]:
-    problems: list[str] = []
+def _detect_file_type(path: Path) -> str:
+    suffix = path.suffix.lower()
+    if suffix in {".sh", ".bash"}:
+        return "shell"
+    if suffix in {".gradle", ".gradle.kts"}:
+        return "gradle"
+    if suffix in {".cmake"} or path.name == "CMakeLists.txt":
+        return "cmake"
+    return "plain"
 
-    for build_file in build_files:
-        text = build_file.read_text(encoding="utf-8", errors="ignore")
-        file_relative_path = build_file.relative_to(ROOT)
 
-        for legacy_reference, guidance in LEGACY_REFERENCE_MAP.items():
-            if legacy_reference in text:
-                problems.append(
-                    f"{legacy_reference} encontrado em {file_relative_path}: {guidance}"
-                )
+def verify_legacy_build_references(path: Path, text: str) -> list[str]:
+    """Retorna ocorrências ativas de referência legada `android/app/build.gradle`.
 
-    return problems
+    Regras:
+    - ignora comentários por tipo de arquivo (shell/gradle/cmake);
+    - considera continuação de linha (`\\`) e bloco multiline simples;
+    - preserva exceções explícitas para literais de documentação/erro.
+    """
+    file_type = _detect_file_type(path)
+    findings: list[str] = []
+    in_block_comment = False
+    logical_line = ""
+    logical_start = 1
+
+    for line_no, raw_line in enumerate(text.splitlines(), start=1):
+        if not logical_line:
+            logical_start = line_no
+        logical_line += raw_line if not logical_line else f"\n{raw_line}"
+        if LINE_CONTINUATION_RE.search(raw_line):
+            logical_line = LINE_CONTINUATION_RE.sub("", logical_line)
+            continue
+
+        active_chunks: list[str] = []
+        for chunk in logical_line.splitlines():
+            active_chunk, in_block_comment = _strip_active_content_by_type(chunk, file_type, in_block_comment)
+            if active_chunk.strip():
+                active_chunks.append(active_chunk)
+        active_text = " ".join(active_chunks)
+
+        if active_text:
+            is_allowed_literal = any(fragment in active_text for fragment in ALLOWED_LEGACY_LITERAL_FRAGMENTS)
+            if not is_allowed_literal and LEGACY_BUILD_REFERENCE_RE.search(active_text):
+                findings.append(f"{path}:{logical_start}")
+
+        logical_line = ""
+
+    if logical_line:
+        active_text, _ = _strip_active_content_by_type(logical_line, file_type, in_block_comment)
+        if active_text and not any(fragment in active_text for fragment in ALLOWED_LEGACY_LITERAL_FRAGMENTS):
+            if LEGACY_BUILD_REFERENCE_RE.search(active_text):
+                findings.append(f"{path}:{logical_start}")
+
+    return findings
 
 
 def verify_gradle_files() -> tuple[list[str], list[str]]:
