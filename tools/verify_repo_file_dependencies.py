@@ -37,6 +37,14 @@ GENERATED_PATH_SEGMENTS = {
     "outputs/",
 }
 
+BUILD_FILES_FOR_LEGACY_SCAN = [
+    ROOT / "tools" / "baremetal" / "rafcode_phi" / "build_rafcode_phi.sh",
+]
+
+LEGACY_REFERENCE_MAP = {
+    "asm/rafaelia_core.S": "tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S",
+}
+
 
 def normalize_project_path(project_token: str) -> Path:
     # ':shell-loader:stub' -> 'shell-loader/stub'
@@ -118,8 +126,36 @@ def verify_gradle_files() -> tuple[list[str], list[str]]:
     return sorted(set(checked)), missing
 
 
+def verify_legacy_build_references() -> list[str]:
+    legacy_issues: list[str] = []
+
+    for build_file in BUILD_FILES_FOR_LEGACY_SCAN:
+        if not build_file.exists():
+            continue
+        text = build_file.read_text(encoding="utf-8")
+        rel_build_file = build_file.relative_to(ROOT)
+        for legacy_ref, replacement_ref in LEGACY_REFERENCE_MAP.items():
+            has_effective_reference = False
+            for raw_line in text.splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if legacy_ref not in line:
+                    continue
+                if any(token in line for token in ("=", "file(", "rootProject.file(", " -c ")):
+                    has_effective_reference = True
+                    break
+            if has_effective_reference:
+                legacy_issues.append(
+                    f"{rel_build_file} contém referência legada '{legacy_ref}'; use '{replacement_ref}'"
+                )
+
+    return legacy_issues
+
+
 def main() -> int:
     checked, missing = verify_gradle_files()
+    legacy_issues = verify_legacy_build_references()
 
     print("[verify_repo_file_dependencies] Arquivos/módulos verificados:")
     for item in checked:
@@ -128,6 +164,12 @@ def main() -> int:
     if missing:
         print("\n[verify_repo_file_dependencies] FALTANDO:")
         for item in missing:
+            print(f"  - {item}")
+        return 1
+
+    if legacy_issues:
+        print("\n[verify_repo_file_dependencies] REFERÊNCIAS LEGADAS:")
+        for item in legacy_issues:
             print(f"  - {item}")
         return 1
 
