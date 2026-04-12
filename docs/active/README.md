@@ -14,3 +14,4 @@ Consulte `docs/INDEX_CANONICAL.md` para a lista única de documentos normativos,
 ## Auditorias ativas
 - [`DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md`](DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md): inventário metódico de `*.md`, cobertura por domínio e pendências estruturais.
 - [`ALL_MARKDOWN_FILES_2026-04-07.md`](ALL_MARKDOWN_FILES_2026-04-07.md): catálogo completo com todos os arquivos Markdown localizados na árvore do repositório.
+- [`UNIFIED_CODE_DOCUMENTATION_ALIGNMENT_2026-04-12.md`](UNIFIED_CODE_DOCUMENTATION_ALIGNMENT_2026-04-12.md): alinhamento unificado código↔documentação com catálogo técnico por arquivo/funções e 18 conceitos essenciais.
