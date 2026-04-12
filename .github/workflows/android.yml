@@ -133,6 +133,8 @@ jobs:
       ci_internal_validation: ${{ steps.flags.outputs.ci_internal_validation }}
       artifact_name_suffix: ${{ steps.flags.outputs.artifact_name_suffix }}
       ci_release_gradle_arg: ${{ steps.flags.outputs.ci_release_gradle_arg }}
+      signing_required: ${{ steps.flags.outputs.signing_required }}
+      signing_mode_effective: ${{ steps.flags.outputs.signing_mode_effective }}
     steps:
       - uses: actions/checkout@v4
 
@@ -238,9 +240,25 @@ jobs:
             exit 1
           fi
 
-          if [[ "${run_release}" == "true" && "${signing_mode}" == "unsigned" ]]; then
-            echo "signing_mode=unsigned não é permitido para build_variant=${build_variant}. Trilhas de release oficiais devem permanecer assinadas." >&2
-            exit 1
+          signing_required="false"
+          signing_mode_effective="${signing_mode}"
+          if [[ "${run_release}" == "true" ]]; then
+            case "${signing_mode}" in
+              signed)
+                signing_required="true"
+                ;;
+              unsigned)
+                signing_required="false"
+                ;;
+              auto)
+                signing_required="true"
+                signing_mode_effective="signed"
+                ;;
+              *)
+                echo "signing_mode inválido: ${signing_mode}" >&2
+                exit 1
+                ;;
+            esac
           fi
 
           artifact_variants=()
@@ -263,11 +281,13 @@ jobs:
           echo "effective_min_api=${effective_min_api}" >> "$GITHUB_OUTPUT"
           echo "ci_internal_validation=${ci_internal_validation}" >> "$GITHUB_OUTPUT"
           echo "artifact_name_suffix=${artifact_name_suffix}" >> "$GITHUB_OUTPUT"
-          if [[ "${run_release}" == "true" ]]; then
+          if [[ "${run_release}" == "true" && "${signing_required}" == "true" ]]; then
             echo "ci_release_gradle_arg=-PciRelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "ci_release_gradle_arg=-PciRelease=false" >> "$GITHUB_OUTPUT"
           fi
+          echo "signing_required=${signing_required}" >> "$GITHUB_OUTPUT"
+          echo "signing_mode_effective=${signing_mode_effective}" >> "$GITHUB_OUTPUT"
 
   build:
     runs-on: ubuntu-latest
@@ -332,7 +352,7 @@ jobs:
         run: ./tools/ci/validate_android_sdk_alignment.sh
 
       - name: Validate release signing secrets (distribution context)
-        if: ${{ needs.resolve.outputs.run_release == 'true' }}
+        if: ${{ needs.resolve.outputs.run_release == 'true' && needs.resolve.outputs.signing_required == 'true' }}
         env:
           VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
           VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
@@ -382,7 +402,7 @@ jobs:
         run: ./tools/ci/materialize_firebase_config.sh --policy internal
 
       - name: Prepare release signing (distribution context)
-        if: ${{ needs.resolve.outputs.run_release == 'true' }}
+        if: ${{ needs.resolve.outputs.run_release == 'true' && needs.resolve.outputs.signing_required == 'true' }}
         env:
           VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
           VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
@@ -408,6 +428,12 @@ jobs:
             -DRMR_ENABLE_POLICY_MODULE=ON
           cmake --build build-cmake --target verify_contracts -j"$(nproc)"
           ./tools/ci/assert_make_cmake_build_config.sh
+          ./tools/ci/build_android_cmake_matrix.sh \
+            --sdk "${ANDROID_SDK_ROOT}" \
+            --ndk-version "${NDK_VERSION}" \
+            --cmake-version "${CMAKE_VERSION}" \
+            --min-api "${{ needs.resolve.outputs.effective_min_api }}" \
+            --abis "armeabi-v7a arm64-v8a"
 
       - name: Execute selected Android workfile
         shell: bash
@@ -503,6 +529,15 @@ jobs:
             app/build/reports/**
             **/build/test-results/**
           if-no-files-found: error
+          overwrite: true
+
+      - name: Upload Android CMake matrix artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-cmake-matrix-${{ needs.resolve.outputs.artifact_name_suffix }}-${{ needs.resolve.outputs.signing_mode_effective }}-${{ github.run_id }}
+          path: ci-artifacts/android-cmake-matrix
+          if-no-files-found: warn
           overwrite: true
 
       - name: Upload Android logs bundle

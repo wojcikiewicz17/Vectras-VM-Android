@@ -82,6 +82,25 @@ python3 tools/check_abi_policy_alignment.py
 ```
 
 
+
+## CMake presets (host + Android ARM32/ARM64)
+Use `CMakePresets.json` para compilar de forma determinística com o mesmo baseline do CI.
+
+```bash
+# Host
+cmake --preset host-ninja
+cmake --build --preset build-host -j$(nproc)
+
+# Android ARM32 v7 (armeabi-v7a)
+export ANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+cmake --preset android-armv7
+cmake --build --preset build-android-armv7 -j$(nproc)
+
+# Android ARM64 v8 (arm64-v8a)
+cmake --preset android-arm64-v8
+cmake --build --preset build-android-arm64-v8 -j$(nproc)
+```
+
 ## Supported version matrix
 All values below are defaults from `gradle.properties` and can be overridden with `-P`.
 
