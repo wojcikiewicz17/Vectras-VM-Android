@@ -22,6 +22,32 @@ GRADLE_FILES = [
     ROOT / "shell-loader" / "stub" / "build.gradle",
 ]
 
+BUILD_FILE_PATTERNS = (
+    "*.sh",
+    "*.mk",
+    "CMakeLists.txt",
+    "*.gradle",
+    "*.gradle.kts",
+)
+
+LEGACY_SCAN_ROOTS = (
+    ROOT,
+    ROOT / "tools",
+)
+
+LEGACY_SCAN_EXCLUDED_DIRS = {
+    "build",
+    "outputs",
+    ".git",
+}
+
+# Mensagens prescritivas para referências legadas detectadas em arquivos de build.
+LEGACY_REFERENCE_MAP = {
+    "termux-shared": "Use o módulo local equivalente no repositório em vez de depender de termux-shared legado.",
+    "terminal-shared": "Substitua terminal-shared por módulos atuais versionados no repo (ex.: terminal-view/terminal-emulator).",
+    "termux-app": "Não referencie termux-app legado; use os caminhos/módulos atuais deste repositório.",
+}
+
 FILE_CALL_RE = re.compile(r"file\((['\"])(.+?)\1\)")
 ROOT_FILE_CALL_RE = re.compile(r"rootProject\.file\((['\"])(.+?)\1\)")
 PROJECT_INCLUDE_RE = re.compile(r"include\s+(.+)")
@@ -218,8 +244,37 @@ def verify_gradle_files() -> tuple[list[str], list[str]]:
     return sorted(set(checked)), missing
 
 
+def verify_legacy_build_references() -> list[str]:
+    legacy_issues: list[str] = []
+
+    for build_file in BUILD_FILES_FOR_LEGACY_SCAN:
+        if not build_file.exists():
+            continue
+        text = build_file.read_text(encoding="utf-8")
+        rel_build_file = build_file.relative_to(ROOT)
+        for legacy_ref, replacement_ref in LEGACY_REFERENCE_MAP.items():
+            has_effective_reference = False
+            for raw_line in text.splitlines():
+                line = raw_line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                if legacy_ref not in line:
+                    continue
+                if any(token in line for token in ("=", "file(", "rootProject.file(", " -c ")):
+                    has_effective_reference = True
+                    break
+            if has_effective_reference:
+                legacy_issues.append(
+                    f"{rel_build_file} contém referência legada '{legacy_ref}'; use '{replacement_ref}'"
+                )
+
+    return legacy_issues
+
+
 def main() -> int:
     checked, missing = verify_gradle_files()
+    build_files = discover_build_files()
+    legacy_references = verify_legacy_build_references(build_files)
 
     print("[verify_repo_file_dependencies] Arquivos/módulos verificados:")
     for item in checked:
@@ -228,6 +283,19 @@ def main() -> int:
     if missing:
         print("\n[verify_repo_file_dependencies] FALTANDO:")
         for item in missing:
+            print(f"  - {item}")
+
+    if legacy_references:
+        print("\n[verify_repo_file_dependencies] REFERÊNCIAS LEGADAS DETECTADAS:")
+        for item in legacy_references:
+            print(f"  - {item}")
+
+    if missing or legacy_references:
+        return 1
+
+    if legacy_issues:
+        print("\n[verify_repo_file_dependencies] REFERÊNCIAS LEGADAS:")
+        for item in legacy_issues:
             print(f"  - {item}")
         return 1
 

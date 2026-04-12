@@ -47,6 +47,13 @@ printf 'rafcode_phi.build.backend_arch=%s\n' "${BACKEND_ARCH}"
 printf 'rafcode_phi.build.backend_src=%s\n' "${BACKEND_SRC}"
 printf 'rafcode_phi.build.hwcaps=%s\n' "${HWCAPS}"
 
+if [[ ! -f "${BACKEND_SRC}" ]]; then
+  printf 'erro: backend fonte ausente: %s\n' "${BACKEND_SRC}" >&2
+  printf 'dica: o caminho legado "asm/rafaelia_core.S" não existe neste repo.\n' >&2
+  printf 'use: %s\n' "${ROOT_DIR}/asm/rafcode_phi_emit_word.S" >&2
+  exit 2
+fi
+
 "${CC_BIN}" ${CFLAGS} -I"${ROOT_DIR}/include" -c "${ROOT_DIR}/c/rafcode_phi_front_shell.c" -o "${BUILD_DIR}/rafcode_phi_front_shell.o"
 "${CC_BIN}" ${CFLAGS} -I"${ROOT_DIR}/include" -c "${ROOT_DIR}/c/rafcode_phi_vecbit.c" -o "${BUILD_DIR}/rafcode_phi_vecbit.o"
 "${CC_BIN}" ${CFLAGS} -I"${ROOT_DIR}/include" -c "${BACKEND_SRC}" -o "${BUILD_DIR}/rafcode_phi_emit_word.o"
