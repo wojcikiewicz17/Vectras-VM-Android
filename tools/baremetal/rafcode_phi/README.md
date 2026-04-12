@@ -38,3 +38,8 @@ sed -n '1,260p' tools/baremetal/rafcode_phi/c/rafcode_phi_front_shell.c
 sed -n '1,260p' tools/baremetal/rafcode_phi/c/rafcode_phi_vecbit.c
 sed -n '1,220p' tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S
 ```
+
+## Erros comuns
+- **Referência legado inexistente**: `asm/rafaelia_core.S` **não** faz parte deste repositório.
+- **Caminho válido do backend ASM**: use `tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S`.
+- Se houver script/local config antigo apontando para `asm/rafaelia_core.S`, atualize para o caminho acima antes de compilar.

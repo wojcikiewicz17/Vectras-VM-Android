@@ -95,9 +95,17 @@ find . -maxdepth 2 -type d | sort
 - [docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md](docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md)
 
 ## Execução padrão de CI/CD
-- A execução normal ocorre em **Actions > Pipeline Orchestrator** (`.github/workflows/pipeline-orchestrator.yml`), único ponto de entrada para branch/PR/manual.
-- O repositório foi consolidado para **3 workflows canônicos**: `pipeline-orchestrator.yml`, `ci.yml` (host) e `android.yml` (Android).
-- `pipeline-orchestrator.yml` escolhe o fluxo com `pipeline_profile` (`host_only`, `android_only`, `full`) e injeta `run_workfile`/`log_level` para o Android.
+- **Decisão explícita adotada: Opção A (recomendada)** — manter apenas **3 workflows canônicos** ativos.
+- Fluxos suportados (canônicos):
+  - `.github/workflows/pipeline-orchestrator.yml` (ponto único de entrada para `push`/`pull_request`/manual).
+  - `.github/workflows/ci.yml` (pipeline host, reutilizado via `workflow_call`).
+  - `.github/workflows/android.yml` (pipeline Android, reutilizado via `workflow_call`).
+- Workflows legados/extras foram **descontinuados** e movidos para `.github/workflows/archive/` para eliminar disparos paralelos e drift operacional.
+- Política de uso:
+  - Eventos de branch/PR/manual devem iniciar em **Actions > Pipeline Orchestrator**.
+  - Workflows canônicos filhos (`ci.yml` e `android.yml`) são acionados pelo orquestrador e só devem ser executados diretamente para debug controlado.
+  - Arquivos em `.github/workflows/archive/` são apenas histórico técnico, sem suporte operacional ativo.
+- `pipeline-orchestrator.yml` seleciona o perfil com `pipeline_profile` (`host_only`, `android_only`, `full`) e encaminha `run_workfile`/`log_level`/`abi_profile` para o fluxo Android.
 
 ## Como rodar manualmente
 - Fluxo recomendado: acesse **Actions > Pipeline Orchestrator > Run workflow** e selecione:
