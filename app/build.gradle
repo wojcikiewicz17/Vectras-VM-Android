@@ -91,15 +91,26 @@ android {
     }
 
     def ciRelease = providers.gradleProperty("ciRelease").map { it.toBoolean() }.orElse(false).get()
+    def releaseSigningMode = providers.gradleProperty("signing_mode")
+        .orElse(providers.gradleProperty("SIGNING_MODE").orElse("auto"))
+        .get()
+        .trim()
+        .toLowerCase()
+    def supportedSigningModes = ['auto', 'signed', 'unsigned'] as Set<String>
+    if (!(releaseSigningMode in supportedSigningModes)) {
+        throw new GradleException("signing_mode inválido: '${releaseSigningMode}'. Valores válidos: ${supportedSigningModes}.")
+    }
+    def effectiveSignedRelease = (releaseSigningMode == 'signed') || (releaseSigningMode == 'auto' && ciRelease)
+    def effectiveUnsignedRelease = (releaseSigningMode == 'unsigned')
 
     buildTypes {
         release {
             if (signingConfigs.findByName('release') != null) {
                 signingConfig = signingConfigs.release
-            } else if (ciRelease) {
+            } else if (effectiveSignedRelease) {
                 throw new GradleException("buildTypes.release exige signingConfigs.release quando -PciRelease=true (contexto de distribuição).")
             } else {
-                logger.lifecycle("Release signing não configurado fora de distribuição (ciRelease=false).")
+                logger.lifecycle("Release signing não configurado fora de distribuição (ciRelease=false ou signing_mode=unsigned).")
             }
             minifyEnabled = true
             shrinkResources = true
@@ -116,7 +127,7 @@ android {
             matchingFallbacks = ['release']
             if (signingConfigs.findByName('release') != null) {
                 signingConfig = signingConfigs.release
-            } else if (ciRelease) {
+            } else if (effectiveSignedRelease) {
                 throw new GradleException("buildTypes.perfRelease exige signingConfigs.release quando -PciRelease=true (contexto de distribuição).")
             }
         }
@@ -397,8 +408,12 @@ tasks.register("validateReleaseSigningConfig") {
     description = "Falha builds release/perfRelease quando assinatura de produção obrigatória não foi configurada."
 
     doLast {
-        def allowUnsignedRelease = providers.gradleProperty("ALLOW_UNSIGNED_RELEASE").orElse("false").get().toBoolean()
+        def allowUnsignedRelease = providers.gradleProperty("ALLOW_UNSIGNED_RELEASE").orElse("false").get().toBoolean() || effectiveUnsignedRelease
         def hasReleaseSigning = android.signingConfigs.findByName('release') != null
+
+        if (!hasReleaseSigning && releaseSigningMode == 'signed') {
+            throw new GradleException("signing_mode=signed requer signingConfig 'release' configurado com credenciais válidas.")
+        }
 
         if (!hasReleaseSigning && !allowUnsignedRelease) {
             throw new GradleException("Release/perfRelease requer signingConfig 'release'. Defina credenciais de assinatura ou use -PALLOW_UNSIGNED_RELEASE=true apenas em validação interna.")
