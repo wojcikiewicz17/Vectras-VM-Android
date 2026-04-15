@@ -67,6 +67,10 @@ Accepted policies in code and docs are exactly:
 - `APP_ABI_POLICY=arm32-arm64` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (dual-ARM distribution lane; must remain compatible with termux-bootstrap)
 - `APP_ABI_POLICY=internal-5abi` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` (**internal validation only; not for official distribution**, requires `CI_INTERNAL_VALIDATION=true` and `min.api>=35`)
 
+`SUPPORTED_ABIS` também aceita aliases comuns e normaliza automaticamente para ABI Android canônica:
+- `arm64`, `aarch64`, `armv8`, `arm64-v8a` → `arm64-v8a`
+- `arm32`, `armv7`, `armeabi`, `armeabi-v7a` → `armeabi-v7a`
+
 `termux-bootstrap` is built/packaged only for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64` (aligned with `TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS` in `app/src/main/cpp/CMakeLists.txt`). Official lanes (`arm64-only` and `arm32-arm64`) must stay inside this matrix.
 
 Default is arm64-only.
@@ -143,10 +147,11 @@ Strictness control by pipeline context:
 ## Release oficial vs validação interna (unsigned/placeholder)
 - **Release oficial (assinado)**:
   - exige keystore + credenciais de signing de produção;
+  - pode forçar assinatura com `-Psigning_mode=signed` (ou `-PciRelease=true`);
   - exige `app/google-services.json` real (sem placeholder);
   - **não** usar `-PCI_INTERNAL_VALIDATION=true`.
 - **Validação interna (unsigned)**:
-  - permite `-PALLOW_UNSIGNED_RELEASE=true`;
+  - permite `-PALLOW_UNSIGNED_RELEASE=true` ou `-Psigning_mode=unsigned`;
   - permite placeholder Firebase **somente** com sinal explícito `-PCI_INTERNAL_VALIDATION=true` (opcionalmente junto de `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true`);
   - usada para CI interno quando segredos de produção não estão disponíveis.
 
