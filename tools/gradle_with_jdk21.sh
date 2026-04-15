@@ -13,6 +13,7 @@ ensure_local_properties_sdk_dir() {
   local sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
   if [[ -z "$sdk_root" ]]; then
     local fallback_candidates=(
+      "/usr/local/lib/android/sdk"
       "/usr/lib/android-sdk"
       "/opt/android-sdk"
       "/opt/android-sdk-linux"
@@ -26,6 +27,23 @@ ensure_local_properties_sdk_dir() {
         break
       fi
     done
+  fi
+
+  if [[ -z "$sdk_root" ]]; then
+    local sdkmanager_bin="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}/cmdline-tools/latest/bin/sdkmanager"
+    if [[ ! -x "$sdkmanager_bin" ]]; then
+      sdkmanager_bin="$(command -v sdkmanager || true)"
+    fi
+    if [[ -n "$sdkmanager_bin" ]]; then
+      local resolved_sdkmanager
+      resolved_sdkmanager="$(cd "$(dirname "$sdkmanager_bin")" && pwd)/$(basename "$sdkmanager_bin")"
+      local inferred_sdk_root
+      inferred_sdk_root="$(dirname "$(dirname "$(dirname "$resolved_sdkmanager")")")"
+      if [[ -d "$inferred_sdk_root/platform-tools" || -d "$inferred_sdk_root/platforms" ]]; then
+        sdk_root="$inferred_sdk_root"
+        echo "[gradle_with_jdk21] SDK inferido via sdkmanager em ${sdk_root}"
+      fi
+    fi
   fi
 
   if [[ -z "$sdk_root" ]]; then
