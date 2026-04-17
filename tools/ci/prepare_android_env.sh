@@ -148,6 +148,8 @@ if [[ -f "$LOCAL_PROPERTIES_PATH" ]]; then
   awk -v sdk_dir="$SDK_ROOT" '
       BEGIN {
         replaced = 0
+        ndk_replaced = 0
+        has_ndk = (length(ndk_dir) > 0)
       }
       /^sdk\.dir=/ {
         if (!replaced) {
@@ -164,12 +166,18 @@ if [[ -f "$LOCAL_PROPERTIES_PATH" ]]; then
         if (!replaced) {
           print "sdk.dir=" sdk_dir
         }
+        if (has_ndk && !ndk_replaced) {
+          print "ndk.dir=" ndk_dir
+        }
       }
     ' "$LOCAL_PROPERTIES_PATH" > "$tmp_file"
   mv "$tmp_file" "$LOCAL_PROPERTIES_PATH"
   echo "Updated sdk.dir in ${LOCAL_PROPERTIES_PATH} to ${SDK_ROOT}"
 else
   printf 'sdk.dir=%s\n' "$SDK_ROOT" > "$LOCAL_PROPERTIES_PATH"
+  if [[ -n "${NDK_DIR_RESOLVED}" ]]; then
+    printf 'ndk.dir=%s\n' "$NDK_DIR_RESOLVED" >> "$LOCAL_PROPERTIES_PATH"
+  fi
   echo "Created ${LOCAL_PROPERTIES_PATH} with sdk.dir=${SDK_ROOT}"
 fi
 
