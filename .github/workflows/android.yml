@@ -67,7 +67,7 @@ on:
         description: "Cobertura nativa CMake (arquiteturas + bandas de API)"
         type: choice
         default: canonical
-        options: [canonical, pilot_android9_16_5arch]
+        options: [canonical, pilot_android9_16_5arch, android8_16plus_allarch]
       log_level:
         description: "Nível de logs Gradle"
         type: choice
@@ -267,13 +267,16 @@ jobs:
 
           case "${native_matrix_profile}" in
             canonical)
-              native_matrix_specs="29:armeabi-v7a arm64-v8a"
+              native_matrix_specs="26:arm64-v8a"
               ;;
             pilot_android9_16_5arch)
               native_matrix_specs="28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
               ;;
+            android8_16plus_allarch)
+              native_matrix_specs="26:armeabi-v7a arm64-v8a x86 x86_64;28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64;36:arm64-v8a x86_64 riscv64"
+              ;;
             *)
-              echo "native_matrix_profile inválido: ${native_matrix_profile}. Valores suportados: canonical, pilot_android9_16_5arch." >&2
+              echo "native_matrix_profile inválido: ${native_matrix_profile}. Valores suportados: canonical, pilot_android9_16_5arch, android8_16plus_allarch." >&2
               exit 1
               ;;
           esac
