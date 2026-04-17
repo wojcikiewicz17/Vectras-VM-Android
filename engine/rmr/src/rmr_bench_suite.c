@@ -1,6 +1,7 @@
 /* rmr_bench_suite.c - suite industrial (50 testes) */
 #include "rmr_bench_suite.h"
 #include "rmr_cycles.h"
+#include "rmr_torus_flow.h"
 
 typedef struct {
   u8 kind;
@@ -113,41 +114,13 @@ static u32 RmR_Bench_Matrix(u32 n){
  *   out = prev*(1-ALPHA) + in*(PHI_SIGMA*ALPHA)
  */
 static u32 RmR_Bench_RafaeliaTorus(u32 steps){
-  enum { TORUS_LEN = 128u };
-  static u32 prev[TORUS_LEN];
-  static u32 in[TORUS_LEN];
-  static u32 out[TORUS_LEN];
-  const u32 alpha_q16 = 16384u;   /* 0.25 */
-  const u32 inv_alpha_q16 = 49152u; /* 0.75 */
-  const u32 phi_sigma_q16 = 91830u; /* 1.401222 */
-  const u32 gain_q16 = (u32)(((u64)phi_sigma_q16 * (u64)alpha_q16) >> 16); /* 0.3503055 */
-  u32 seed = 0x963u;
-
-  for (u32 i = 0; i < TORUS_LEN; ++i) {
-    prev[i] = 65536u; /* 1.0 */
-    in[i] = (u32)((((u64)i) << 16) / TORUS_LEN);
-    out[i] = 0u;
-  }
-
+  RmR_TorusFlowState flow;
+  RmR_TorusFlow_Init(&flow, 0x963u);
   for (u32 step = 0; step < steps; ++step) {
-    seed = (seed * 1103515245u) + 12345u;
-    for (u32 i = 0; i < TORUS_LEN; ++i) {
-      u32 jitter = seed ^ (i * 0x9E3779B9u);
-      u32 in_dyn = in[i] ^ (jitter & 0x0FFFu);
-      u32 prev_mix = (u32)(((u64)prev[i] * (u64)inv_alpha_q16) >> 16);
-      u32 in_mix = (u32)(((u64)in_dyn * (u64)gain_q16) >> 16);
-      out[i] = prev_mix + in_mix;
-      prev[i] = out[i];
-      seed = (seed * 1664525u) + 1013904223u;
-    }
+    RmR_TorusFlow_InjectGrammar(&flow, step + 1u);
+    RmR_TorusFlow_Step(&flow);
   }
-
-  u32 chk = 0u;
-  for (u32 i = 0; i < TORUS_LEN; ++i) {
-    chk ^= (out[i] + (i * 17u));
-    chk = (chk << 3) | (chk >> 29);
-  }
-  return chk;
+  return RmR_TorusFlow_Checksum(&flow);
 }
 
 static void RmR_RunOne(const RmR_Bench_Def *d, u32 idx, u32 tune_plan, RmR_Bench_Metric *m){

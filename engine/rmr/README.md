@@ -67,6 +67,16 @@ Recursos do módulo:
 - CLI: `build/demo/policy_kernel_demo`
 - Selftest: `build/demo/policy_kernel_selftest`
 
+## Toroidal Flow Kernel (C)
+- Header: `include/rmr_torus_flow.h`
+- Fonte: `src/rmr_torus_flow.c`
+- Selftest: `build/demo/rmr_torus_flow_selftest`
+
+Recursos:
+- integração canônica dos exemplos `_incoming/rafaelia_bare.c`, `_incoming/rafaelia_flow.c` e `_incoming/rafaelia_ultra.c`.
+- dinâmica determinística em Q16.16 (`prev*(1-α) + in*(φσ*α)`), com injeção de gramática e checksum estável.
+- usado pela suíte oficial `rmr_bench_suite` (cenários `kind=5`) para cobertura contínua em CI.
+
 
 ## Ponte QEMU + AndroidX (RMR)
 - Header: `include/rmr_qemu_bridge.h`
