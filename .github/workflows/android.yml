@@ -278,6 +278,19 @@ jobs:
               ;;
           esac
 
+          case "${native_matrix_profile}" in
+            canonical)
+              native_matrix_specs="29:armeabi-v7a arm64-v8a"
+              ;;
+            pilot_android9_16_5arch)
+              native_matrix_specs="28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
+              ;;
+            *)
+              echo "native_matrix_profile inválido: ${native_matrix_profile}. Valores suportados: canonical, pilot_android9_16_5arch." >&2
+              exit 1
+              ;;
+          esac
+
           if [[ "${run_release}" == "true" && "${abi_profile}" != "official_arm64" ]]; then
             echo "release bloqueado para abi_profile=${abi_profile}. A trilha oficial de release aceita apenas official_arm64." >&2
             exit 1
