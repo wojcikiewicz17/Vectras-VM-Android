@@ -70,6 +70,7 @@ LINE_CONTINUATION_RE = re.compile(r"(?<!\\)(?:\\\\)*\\\s*$")
 # de documentação/erro já existentes (ex.: falha informativa em validação).
 ALLOWED_LEGACY_LITERAL_FRAGMENTS = {
     "Arquivo legado ausente: android/app/build.gradle",
+    "legacy_app_gradle=\"$ROOT_DIR/android/app/build.gradle\"",
 }
 
 
@@ -160,7 +161,7 @@ def _detect_file_type(path: Path) -> str:
     return "plain"
 
 
-def verify_legacy_build_references(path: Path, text: str) -> list[str]:
+def scan_legacy_android_app_build_reference(path: Path, text: str) -> list[str]:
     """Retorna ocorrências ativas de referência legada `android/app/build.gradle`.
 
     Regras:
@@ -205,6 +206,29 @@ def verify_legacy_build_references(path: Path, text: str) -> list[str]:
     return findings
 
 
+def discover_build_files() -> list[Path]:
+    build_files: list[Path] = []
+    seen: set[Path] = set()
+
+    for scan_root in LEGACY_SCAN_ROOTS:
+        if not scan_root.exists():
+            continue
+        for pattern in BUILD_FILE_PATTERNS:
+            for candidate in scan_root.rglob(pattern):
+                if not candidate.is_file():
+                    continue
+                rel = candidate.relative_to(ROOT)
+                if any(part in LEGACY_SCAN_EXCLUDED_DIRS for part in rel.parts):
+                    continue
+                resolved = candidate.resolve()
+                if resolved in seen:
+                    continue
+                seen.add(resolved)
+                build_files.append(resolved)
+
+    return sorted(build_files)
+
+
 def verify_gradle_files() -> tuple[list[str], list[str]]:
     checked: list[str] = []
     missing: list[str] = []
@@ -244,14 +268,18 @@ def verify_gradle_files() -> tuple[list[str], list[str]]:
     return sorted(set(checked)), missing
 
 
-def verify_legacy_build_references() -> list[str]:
+def verify_legacy_build_references(build_files: list[Path]) -> tuple[list[str], list[str]]:
     legacy_issues: list[str] = []
+    forbidden_android_app_refs: list[str] = []
 
-    for build_file in BUILD_FILES_FOR_LEGACY_SCAN:
+    for build_file in build_files:
         if not build_file.exists():
             continue
         text = build_file.read_text(encoding="utf-8")
         rel_build_file = build_file.relative_to(ROOT)
+
+        forbidden_android_app_refs.extend(scan_legacy_android_app_build_reference(rel_build_file, text))
+
         for legacy_ref, replacement_ref in LEGACY_REFERENCE_MAP.items():
             has_effective_reference = False
             for raw_line in text.splitlines():
@@ -268,13 +296,13 @@ def verify_legacy_build_references() -> list[str]:
                     f"{rel_build_file} contém referência legada '{legacy_ref}'; use '{replacement_ref}'"
                 )
 
-    return legacy_issues
+    return sorted(set(legacy_issues)), sorted(set(forbidden_android_app_refs))
 
 
 def main() -> int:
     checked, missing = verify_gradle_files()
     build_files = discover_build_files()
-    legacy_references = verify_legacy_build_references(build_files)
+    legacy_issues, legacy_references = verify_legacy_build_references(build_files)
 
     print("[verify_repo_file_dependencies] Arquivos/módulos verificados:")
     for item in checked:
@@ -290,13 +318,12 @@ def main() -> int:
         for item in legacy_references:
             print(f"  - {item}")
 
-    if missing or legacy_references:
-        return 1
-
     if legacy_issues:
-        print("\n[verify_repo_file_dependencies] REFERÊNCIAS LEGADAS:")
+        print("\n[verify_repo_file_dependencies] REFERÊNCIAS LEGADAS DETECTADAS:")
         for item in legacy_issues:
             print(f"  - {item}")
+
+    if missing or legacy_issues or legacy_references:
         return 1
 
     print("\n[verify_repo_file_dependencies] OK: todas as dependências locais de arquivo/módulo existem no repositório.")
