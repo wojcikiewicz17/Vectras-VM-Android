@@ -36,7 +36,7 @@ Existe **um único workflow Android canônico** (`android.yml`) com seleção po
 - `build_variant=release|both` mantém o fluxo de release e respeita `signing_mode`.
 - `signing_mode=signed`: força `-PciRelease=true`, exige segredos de assinatura e executa `prepare_release_signing.sh`.
 - `signing_mode=auto`: para release, resolve para `signed` (comportamento padrão oficial).
-- `signing_mode=unsigned`: permite compilar release sem assinatura (`-PciRelease=false`) para validação técnica interna e upload de artefatos não distribuíveis.
+- `signing_mode=unsigned`: permite compilar release sem assinatura (`-PciRelease=false`) para validação técnica interna e upload de artefatos não distribuíveis; o workflow injeta `-Psigning_mode=unsigned` e ativa flags internas (`ALLOW_UNSIGNED_RELEASE`, `ALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE`, `CI_INTERNAL_VALIDATION`) via `prepare_release_signing.sh`.
 - Para trilha oficial de distribuição, mantenha `signing_mode=signed` (ou `auto`) com segredos `VECTRAS_RELEASE_*` configurados.
 - `abi_profile=official_arm64`: injeta `APP_ABI_POLICY=arm64-only` e `SUPPORTED_ABIS=arm64-v8a`.
 - `abi_profile=internal_4abi`: injeta `APP_ABI_POLICY=internal-4abi` e `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64` (somente validação interna com `CI_INTERNAL_VALIDATION=true`).
@@ -45,7 +45,7 @@ Existe **um único workflow Android canônico** (`android.yml`) com seleção po
 - `native_matrix_profile=pilot_android9_16_5arch`: executa dois blocos nativos:
   - `min-api=28` com `armeabi-v7a arm64-v8a x86 x86_64` (cobertura Android 9+).
   - `min-api=35` com `riscv64` (restrição oficial do NDK para riscv64).
-- Em `build_variant=release|both`, o passo `prepare_release_signing.sh` só executa quando `signing_mode_effective=signed`.
+- Em `build_variant=release|both`, o passo `prepare_release_signing.sh` sempre executa para resolver o modo efetivo (`signed` ou `unsigned`) e manter a mesma fonte de verdade para flags/credenciais.
 - O workflow publica artefato adicional `android-cmake-matrix-*` com saída nativa por ABI e por banda de API para acompanhamento low-level no CI.
 - `run_native_checks=true` agora compila o build CMake e executa `verify_contracts` antes da etapa Android para estabilizar a cadeia nativa.
 - O workflow executa `tools/ci/validate_pipeline_directories.sh --profile android` antes da configuração de toolchain para falhar cedo em divergências estruturais de diretórios/arquivos.
