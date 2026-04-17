@@ -119,12 +119,9 @@ on:
 permissions:
   contents: read
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 concurrency:
   group: android-ci-${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   resolve:
@@ -408,6 +405,9 @@ jobs:
       - name: Validate Android pipeline directories
         run: ./tools/ci/validate_pipeline_directories.sh --profile android
 
+      - name: Validate Java source contracts
+        run: python3 ./tools/ci/check_java_contracts.py
+
       - name: Validate Android SDK/build path alignment
         run: ./tools/ci/validate_android_sdk_alignment.sh
 
@@ -454,7 +454,13 @@ jobs:
           sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
 
       - name: Prepare Android env
-        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}" --require-sdkmanager
+        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}" --ndk-version "${{ env.NDK_VERSION }}" --require-sdkmanager
+
+      - name: Enforce local.properties Android contract
+        run: ./tools/ci/verify_android_local_properties_contract.sh
+
+      - name: Validate Android toolchain contract
+        run: ./tools/check_android_toolchain.sh --quick
 
       - name: Materialize Firebase config (internal)
         env:
@@ -594,6 +600,10 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
+      - name: Materialize deterministic Android artifact manifests
+        if: always()
+        run: ./tools/ci/materialize_android_ci_artifacts.sh
+
       - name: Upload Android outputs
         if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
         uses: actions/upload-artifact@v4
@@ -612,8 +622,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-cmake-matrix-${{ needs.resolve.outputs.artifact_name_suffix }}-${{ needs.resolve.outputs.signing_mode_effective }}-${{ github.run_id }}
-          path: ci-artifacts/android-cmake-matrix
-          if-no-files-found: warn
+          path: |
+            ci-artifacts/android-cmake-matrix
+            ci-artifacts/android-cmake-matrix/ARTIFACT_MANIFEST.md
+          if-no-files-found: error
           overwrite: true
 
       - name: Upload Android logs bundle
@@ -625,4 +637,5 @@ jobs:
             **/build/reports/**
             **/build/outputs/logs/**
             **/build/test-results/**
-          if-no-files-found: warn
+            ci-artifacts/android-logs/ARTIFACT_MANIFEST.md
+          if-no-files-found: error
