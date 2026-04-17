@@ -11,7 +11,8 @@ Existe **um único workflow Android canônico** (`android.yml`) com seleção po
 1. `smoke_debug` → `:app:assembleDebug`
 2. `unit_loader` → `:shell-loader:testDebugUnitTest`
 3. `full_debug` → build + testes unitários de app/terminal-emulator/shell-loader
-4. `release_gate` → build/testes unitários de release
+4. `compat_matrix_debug` → valida matriz Gradle interna (`:app:checkNativeExtendedMatrix`) + build/testes debug (app/terminal-emulator/shell-loader)
+5. `release_gate` → build/testes unitários de release
 
 ## Matriz de logs (`log_level`)
 
@@ -25,7 +26,7 @@ Existe **um único workflow Android canônico** (`android.yml`) com seleção po
 
 - `build_variant`: `debug`, `release` ou `both`.
 - `signing_mode`: `auto`, `signed` ou `unsigned`.
-- `abi_profile`: `official_arm64` (trilha oficial no workflow canônico).
+- `abi_profile`: `official_arm64` (trilha oficial), `internal_arm32_arm64` (validação dual ARM) ou `internal_4abi` (validação interna ampla da app).
 - `native_matrix_profile`: `canonical` (matriz nativa mínima) ou `pilot_android9_16_5arch` (cobertura técnica Android 9→16 em 5 arquiteturas, separando banda legado e riscv64).
 - `run_lint`: controla execução de `:app:lintDebug`.
 - `run_native_checks`: controla validação de contrato Make/CMake + matriz Android CMake.
@@ -38,6 +39,7 @@ Existe **um único workflow Android canônico** (`android.yml`) com seleção po
 - `signing_mode=unsigned`: permite compilar release sem assinatura (`-PciRelease=false`) para validação técnica interna e upload de artefatos não distribuíveis.
 - Para trilha oficial de distribuição, mantenha `signing_mode=signed` (ou `auto`) com segredos `VECTRAS_RELEASE_*` configurados.
 - `abi_profile=official_arm64`: injeta `APP_ABI_POLICY=arm64-only` e `SUPPORTED_ABIS=arm64-v8a`.
+- `abi_profile=internal_4abi`: injeta `APP_ABI_POLICY=internal-4abi` e `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64` (somente validação interna com `CI_INTERNAL_VALIDATION=true`).
 - validação `internal-5abi` é trilha técnica separada (execução manual/diagnóstico), não caminho canônico de release no workflow principal.
 - `native_matrix_profile=canonical`: executa CMake para `armeabi-v7a` + `arm64-v8a` com `min-api=29`.
 - `native_matrix_profile=pilot_android9_16_5arch`: executa dois blocos nativos:
