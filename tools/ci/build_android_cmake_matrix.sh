@@ -7,6 +7,7 @@ NDK_VERSION="${NDK_VERSION:-}"
 CMAKE_VERSION="${CMAKE_VERSION:-}"
 MIN_API="${MIN_API:-24}"
 ABIS="${ANDROID_CMAKE_ABIS:-armeabi-v7a arm64-v8a}"
+APPEND_ARTIFACTS=false
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -15,6 +16,7 @@ while [[ $# -gt 0 ]]; do
     --cmake-version) CMAKE_VERSION="$2"; shift 2 ;;
     --min-api) MIN_API="$2"; shift 2 ;;
     --abis) ABIS="$2"; shift 2 ;;
+    --append-artifacts) APPEND_ARTIFACTS=true; shift 1 ;;
     *) echo "Argumento desconhecido: $1" >&2; exit 1 ;;
   esac
 done
@@ -42,7 +44,9 @@ TOOLCHAIN_FILE="${NDK_DIR}/build/cmake/android.toolchain.cmake"
 export ANDROID_NDK_ROOT="${NDK_DIR}"
 
 ARTIFACT_DIR="${ROOT_DIR}/ci-artifacts/android-cmake-matrix"
-rm -rf "${ARTIFACT_DIR}"
+if [[ "${APPEND_ARTIFACTS}" != "true" ]]; then
+  rm -rf "${ARTIFACT_DIR}"
+fi
 mkdir -p "${ARTIFACT_DIR}"
 
 for ABI in ${ABIS}; do
@@ -60,7 +64,7 @@ for ABI in ${ABIS}; do
 
   "${CMAKE_BIN_DIR}/cmake" --build "${BUILD_DIR}" --target verify_contracts -j"$(nproc)"
 
-  ABI_OUT="${ARTIFACT_DIR}/${ABI}"
+  ABI_OUT="${ARTIFACT_DIR}/api-${MIN_API}/${ABI}"
   mkdir -p "${ABI_OUT}"
   if [[ -d "${BUILD_DIR}/lib" ]]; then
     cp -a "${BUILD_DIR}/lib/." "${ABI_OUT}/" || true
