@@ -152,12 +152,13 @@ jobs:
       - uses: actions/checkout@v4
 
       - id: canonical
-        name: Read canonical min.api from gradle.properties
+        name: Read canonical API bands from gradle.properties
         shell: bash
         run: |
           set -euo pipefail
-          key="min.api"
-          value="$(awk -F= -v key="${key}" '
+          read_prop() {
+            local key="$1"
+            awk -F= -v key="${key}" '
             /^[[:space:]]*#/ { next }
             $1 ~ /^[[:space:]]*[^#[:space:]].*/ {
               k=$1
@@ -170,14 +171,24 @@ jobs:
                 exit
               }
             }
-          ' gradle.properties)"
+          ' gradle.properties
+          }
 
-          if [[ -z "${value}" ]]; then
-            echo "::error::Chave obrigatória ausente em gradle.properties: ${key}" >&2
+          min_api="$(read_prop "min.api")"
+          compile_api="$(read_prop "compile.api")"
+
+          if [[ -z "${min_api}" ]]; then
+            echo "::error::Chave obrigatória ausente em gradle.properties: min.api" >&2
             exit 1
           fi
 
-          echo "min_api=${value}" >> "$GITHUB_OUTPUT"
+          if [[ -z "${compile_api}" ]]; then
+            echo "::error::Chave obrigatória ausente em gradle.properties: compile.api" >&2
+            exit 1
+          fi
+
+          echo "min_api=${min_api}" >> "$GITHUB_OUTPUT"
+          echo "compile_api=${compile_api}" >> "$GITHUB_OUTPUT"
 
       - id: flags
         shell: bash
@@ -273,7 +284,7 @@ jobs:
               native_matrix_specs="28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
               ;;
             android8_16plus_allarch)
-              native_matrix_specs="26:armeabi-v7a arm64-v8a x86 x86_64;28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64;36:arm64-v8a x86_64 riscv64"
+              native_matrix_specs="26:armeabi-v7a arm64-v8a x86 x86_64;28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64;${{ steps.canonical.outputs.compile_api }}:arm64-v8a x86_64 riscv64"
               ;;
             *)
               echo "native_matrix_profile inválido: ${native_matrix_profile}. Valores suportados: canonical, pilot_android9_16_5arch, android8_16plus_allarch." >&2
