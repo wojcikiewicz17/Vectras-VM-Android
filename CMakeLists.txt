@@ -110,6 +110,7 @@ rmr_apply_common_flags(rmr)
 set(RMR_REQUIRED_SYMBOLS
   RmR_MathFabric_AutodetectPlan
   RmR_MathFabric_VectorMix
+  RmR_TorusFlow_RunDeterministic
 )
 
 add_custom_command(
@@ -174,6 +175,10 @@ add_executable(math_fabric_selftest demo_cli/src/math_fabric_selftest.c)
 target_link_libraries(math_fabric_selftest PRIVATE rmr)
 rmr_apply_common_flags(math_fabric_selftest)
 
+add_executable(rmr_torus_flow_selftest demo_cli/src/rmr_torus_flow_selftest.c)
+target_link_libraries(rmr_torus_flow_selftest PRIVATE rmr)
+rmr_apply_common_flags(rmr_torus_flow_selftest)
+
 add_executable(determinism_signature_selftest demo_cli/src/determinism_signature_selftest.c)
 target_link_libraries(determinism_signature_selftest PRIVATE rmr)
 rmr_apply_common_flags(determinism_signature_selftest)
@@ -230,6 +235,7 @@ endif()
 set(RMR_RUN_SELFTEST_COMMANDS
   bitraf_selftest
   math_fabric_selftest
+  rmr_torus_flow_selftest
   determinism_signature_selftest
   policy_kernel_selftest
   rmr_qemu_bridge_selftest
@@ -244,6 +250,7 @@ set(RMR_RUN_SELFTEST_COMMANDS
 set(RMR_RUN_SELFTEST_DEPENDS
   bitraf_selftest
   math_fabric_selftest
+  rmr_torus_flow_selftest
   determinism_signature_selftest
   policy_kernel_selftest
   rmr_qemu_bridge_selftest
