@@ -11,6 +11,7 @@
 #include "zero_compat.h"
 #include "rmr_unified_kernel.h"
 #include "rmr_lowlevel.h"
+#include "rmr_torus_flow.h"
 #if defined(RMR_ENABLE_POLICY_MODULE) && (RMR_ENABLE_POLICY_MODULE)
 #include "rmr_policy_kernel.h"
 #endif
@@ -330,6 +331,7 @@ Java_com_vectras_vm_core_NativeFastPath_nativeDeterministicCrc32c(JNIEnv* env, j
 JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeDeterministicParity2D8(JNIEnv* env, jclass clazz, jint data16){(void)env;(void)clazz; uint32_t parity=0u; uint32_t d=(uint32_t)data16; for(uint32_t row=0;row<4;row++){ uint32_t rowParity=0u; for(uint32_t col=0;col<4;col++){ uint32_t idx=(row<<2u)|col; rowParity^=(d>>idx)&1u; } parity|=(rowParity<<(row+4u)); } for(uint32_t col=0;col<4;col++){ uint32_t colParity=0u; for(uint32_t row=0;row<4;row++){ uint32_t idx=(row<<2u)|col; colParity^=(d>>idx)&1u; } parity|=(colParity<<col); } return (jint)(parity&0xFFu);} 
 JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeDeterministicVerify4x4Block(JNIEnv* env, jclass clazz, jint packedBlock){(void)env;(void)clazz; uint32_t data=((uint32_t)packedBlock>>8u)&0xFFFFu; uint32_t stored=(uint32_t)packedBlock&0xFFu; uint32_t parity=0u; for(uint32_t row=0;row<4;row++){ uint32_t rowParity=0u; for(uint32_t col=0;col<4;col++){ uint32_t idx=(row<<2u)|col; rowParity^=(data>>idx)&1u; } parity|=(rowParity<<(row+4u)); } for(uint32_t col=0;col<4;col++){ uint32_t colParity=0u; for(uint32_t row=0;row<4;row++){ uint32_t idx=(row<<2u)|col; colParity^=(data>>idx)&1u; } parity|=(colParity<<col); } return (stored==(parity&0xFFu))?1:0;}
 JNIEXPORT jintArray JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeDeterministicPolicyTransition(JNIEnv* env, jclass clazz, jint hitStreak, jint missStreak, jint hasEvent){(void)clazz; jint hits=hitStreak; jint misses=missStreak; if(hasEvent!=0){ hits+=1; misses=0; } else { misses+=1; hits=0; } jint policy=(misses>=2)?1:0; jint out[3]={hits,misses,policy}; jintArray arr=(*env)->NewIntArray(env,3); if(!arr)return NULL; (*env)->SetIntArrayRegion(env,arr,0,3,out); return arr;}
+JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeTorusFlowChecksum(JNIEnv* env, jclass clazz, jint seed, jint steps){(void)env;(void)clazz; uint32_t s=(uint32_t)seed; uint32_t n=(steps<0)?0u:(uint32_t)steps; return (jint)RmR_TorusFlow_RunDeterministic(s,n);}
 
 
 

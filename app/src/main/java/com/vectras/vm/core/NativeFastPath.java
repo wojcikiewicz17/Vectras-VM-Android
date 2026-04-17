@@ -1006,6 +1006,14 @@ public final class NativeFastPath {
         return new int[]{hits, misses, policy};
     }
 
+    public static int torusFlowChecksum(int seed, int steps) {
+        int normalizedSteps = Math.max(0, steps);
+        if (NATIVE_AVAILABLE) {
+            return nativeTorusFlowChecksum(seed, normalizedSteps);
+        }
+        return 0;
+    }
+
     public static final class NativeBridgeTelemetrySnapshot {
         public final boolean nativeAvailable;
         public final int hardwareSignature;
@@ -1141,6 +1149,8 @@ public final class NativeFastPath {
     private static native int nativeDeterministicVerify4x4Block(int packedBlock);
 
     private static native int[] nativeDeterministicPolicyTransition(int hitStreak, int missStreak, int hasEvent);
+
+    private static native int nativeTorusFlowChecksum(int seed, int steps);
 
     private static native int nativePointerBits();
 
