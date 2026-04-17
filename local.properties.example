@@ -9,9 +9,8 @@ sdk.dir=/path/to/Android/Sdk
 # Example macOS:   sdk.dir=/Users/user/Library/Android/sdk
 # Example Windows: sdk.dir=C\:\\Users\\user\\AppData\\Local\\Android\\sdk
 
-# Android NDK location (optional — Gradle will use ndkVersion from gradle.properties)
-# Uncomment and set if you need to pin a specific NDK path
-# ndk.dir=/path/to/Android/Sdk/ndk/27.2.12479018
+# Android NDK path via ndk.dir is deprecated by AGP.
+# Keep only sdk.dir here; pin NDK by ndk.version in gradle.properties / android.ndkVersion in modules.
 
 # CMake version (must match gradle.properties CMAKE_VERSION)
 # cmake.dir=/path/to/cmake/3.22.1
