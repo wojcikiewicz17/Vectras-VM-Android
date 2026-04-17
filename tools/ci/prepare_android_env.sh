@@ -8,10 +8,14 @@ USAGE
 }
 
 JAVA_VERSION_EXPECTED=""
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
-LOCAL_PROPERTIES_PATH="local.properties"
+LOCAL_PROPERTIES_PATH="${REPO_ROOT}/local.properties"
 REQUIRE_SDKMANAGER="false"
 DEFAULT_SDK_FALLBACKS=(
+  "${REPO_ROOT}/.android-sdk"
+  "/workspace/android-sdk"
   "/usr/lib/android-sdk"
   "/opt/android-sdk"
   "/opt/android-sdk-linux"
