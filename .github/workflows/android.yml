@@ -62,6 +62,11 @@ on:
         type: choice
         default: official_arm64
         options: [official_arm64, internal_arm32_arm64]
+      native_matrix_profile:
+        description: "Cobertura nativa CMake (arquiteturas + bandas de API)"
+        type: choice
+        default: canonical
+        options: [canonical, pilot_android9_16_5arch]
       log_level:
         description: "Nível de logs Gradle"
         type: choice
@@ -93,6 +98,10 @@ on:
         required: false
         type: string
         default: official_arm64
+      native_matrix_profile:
+        required: false
+        type: string
+        default: canonical
       log_level:
         required: false
         type: string
@@ -135,6 +144,8 @@ jobs:
       ci_release_gradle_arg: ${{ steps.flags.outputs.ci_release_gradle_arg }}
       signing_required: ${{ steps.flags.outputs.signing_required }}
       signing_mode_effective: ${{ steps.flags.outputs.signing_mode_effective }}
+      native_matrix_profile: ${{ steps.flags.outputs.native_matrix_profile }}
+      native_matrix_specs: ${{ steps.flags.outputs.native_matrix_specs }}
     steps:
       - uses: actions/checkout@v4
 
@@ -175,6 +186,7 @@ jobs:
           build_variant="${{ inputs.build_variant || 'debug' }}"
           signing_mode="${{ inputs.signing_mode || 'auto' }}"
           abi_profile="${{ inputs.abi_profile || 'official_arm64' }}"
+          native_matrix_profile="${{ inputs.native_matrix_profile || 'canonical' }}"
           log_level="${{ inputs.log_level || 'info' }}"
 
           case "${build_variant}" in
@@ -235,6 +247,19 @@ jobs:
               ;;
           esac
 
+          case "${native_matrix_profile}" in
+            canonical)
+              native_matrix_specs="29:armeabi-v7a arm64-v8a"
+              ;;
+            pilot_android9_16_5arch)
+              native_matrix_specs="28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
+              ;;
+            *)
+              echo "native_matrix_profile inválido: ${native_matrix_profile}. Valores suportados: canonical, pilot_android9_16_5arch." >&2
+              exit 1
+              ;;
+          esac
+
           if [[ "${run_release}" == "true" && "${abi_profile}" != "official_arm64" ]]; then
             echo "release bloqueado para abi_profile=${abi_profile}. A trilha oficial de release aceita apenas official_arm64." >&2
             exit 1
@@ -288,6 +313,8 @@ jobs:
           fi
           echo "signing_required=${signing_required}" >> "$GITHUB_OUTPUT"
           echo "signing_mode_effective=${signing_mode_effective}" >> "$GITHUB_OUTPUT"
+          echo "native_matrix_profile=${native_matrix_profile}" >> "$GITHUB_OUTPUT"
+          echo "native_matrix_specs=${native_matrix_specs}" >> "$GITHUB_OUTPUT"
 
   build:
     runs-on: ubuntu-latest
@@ -428,12 +455,27 @@ jobs:
             -DRMR_ENABLE_POLICY_MODULE=ON
           cmake --build build-cmake --target verify_contracts -j"$(nproc)"
           ./tools/ci/assert_make_cmake_build_config.sh
-          ./tools/ci/build_android_cmake_matrix.sh \
-            --sdk "${ANDROID_SDK_ROOT}" \
-            --ndk-version "${NDK_VERSION}" \
-            --cmake-version "${CMAKE_VERSION}" \
-            --min-api "${{ needs.resolve.outputs.effective_min_api }}" \
-            --abis "armeabi-v7a arm64-v8a"
+          matrix_specs="${{ needs.resolve.outputs.native_matrix_specs }}"
+          IFS=';' read -r -a matrix_entries <<< "${matrix_specs}"
+          append_flag=""
+          for entry in "${matrix_entries[@]}"; do
+            [[ -n "${entry}" ]] || continue
+            min_api="${entry%%:*}"
+            abis="${entry#*:}"
+            if [[ -z "${min_api}" || -z "${abis}" || "${min_api}" == "${entry}" ]]; then
+              echo "native_matrix_specs inválido: '${entry}' (esperado '<min_api>:<abi-list>')." >&2
+              exit 1
+            fi
+            echo "Executando matriz nativa: profile=${{ needs.resolve.outputs.native_matrix_profile }} min_api=${min_api} abis=${abis}"
+            ./tools/ci/build_android_cmake_matrix.sh \
+              --sdk "${ANDROID_SDK_ROOT}" \
+              --ndk-version "${NDK_VERSION}" \
+              --cmake-version "${CMAKE_VERSION}" \
+              --min-api "${min_api}" \
+              --abis "${abis}" \
+              ${append_flag}
+            append_flag="--append-artifacts"
+          done
 
       - name: Execute selected Android workfile
         shell: bash
