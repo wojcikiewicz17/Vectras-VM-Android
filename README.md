@@ -175,6 +175,7 @@ Essa task já encadeia `verifyMinApiAbiCompatibility`, `verifyArm64ToolchainComp
 - O diretório legado `android/` está **deprecated** e bloqueado para compilação acidental.
 - O CI executa `tools/ci/validate_android_sdk_alignment.sh` para falhar quando houver referência oficial ao caminho legado ou divergência de baseline SDK entre caminhos.
 - Para preparar ambiente Android local sem drift, execute `./tools/ci/prepare_android_env.sh`; o script prioriza `ANDROID_SDK_ROOT`/`ANDROID_HOME`, faz fallback em `${REPO_ROOT}/.android-sdk`, `/workspace/android-sdk`, `/usr/lib/android-sdk`, `/opt/android-sdk`, `/opt/android-sdk-linux` e `$HOME/Android/Sdk`, e sincroniza `sdk.dir` + `ndk.dir` (quando `ndk.version` existir no SDK) em `local.properties`.
+- Para publicação de artefatos Android no CI sem lacunas silenciosas, o workflow materializa manifestos determinísticos via `tools/ci/materialize_android_ci_artifacts.sh` antes do upload.
 
 
 Para fixar por usuário (sem depender de shell):
