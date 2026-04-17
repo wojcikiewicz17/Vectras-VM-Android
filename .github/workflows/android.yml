@@ -456,6 +456,12 @@ jobs:
       - name: Prepare Android env
         run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}" --ndk-version "${{ env.NDK_VERSION }}" --require-sdkmanager
 
+      - name: Enforce local.properties Android contract
+        run: ./tools/ci/verify_android_local_properties_contract.sh
+
+      - name: Validate Android toolchain contract
+        run: ./tools/check_android_toolchain.sh --quick
+
       - name: Materialize Firebase config (internal)
         env:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
