@@ -405,6 +405,9 @@ jobs:
       - name: Validate Android pipeline directories
         run: ./tools/ci/validate_pipeline_directories.sh --profile android
 
+      - name: Validate Java source contracts
+        run: python3 ./tools/ci/check_java_contracts.py
+
       - name: Validate Android SDK/build path alignment
         run: ./tools/ci/validate_android_sdk_alignment.sh
 
