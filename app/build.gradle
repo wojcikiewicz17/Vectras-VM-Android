@@ -286,8 +286,17 @@ tasks.register("verifyTermuxBootstrapAbiCoverage") {
                     throw new GradleException("APP_ABI_POLICY=internal-5abi exige SUPPORTED_ABIS=${expectedAbis} (atual: ${supportedAbis}).")
                 }
                 break
+            case "internal-4abi":
+                def expectedAppAbis = (rootProject.ext.internalValidationAppAbis ?: []) as List<String>
+                if (!ciInternalValidationEnabled) {
+                    throw new GradleException("APP_ABI_POLICY=internal-4abi exige CI_INTERNAL_VALIDATION=true para execução.")
+                }
+                if (supportedAbis != expectedAppAbis) {
+                    throw new GradleException("APP_ABI_POLICY=internal-4abi exige SUPPORTED_ABIS=${expectedAppAbis} (atual: ${supportedAbis}).")
+                }
+                break
             default:
-                throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only, arm32-arm64 ou internal-5abi.")
+                throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only, arm32-arm64, internal-4abi ou internal-5abi.")
         }
 
         if (appAbiPolicy in abiPoliciesThatRequireTermuxBootstrap) {
@@ -437,8 +446,8 @@ tasks.matching { task ->
 def officialNativeCheckAbiPolicies = ['arm64-only'].sort()
 def officialNativeCheckBuildVariants = ['release', 'perfRelease'].sort()
 
-def extendedNativeCheckAbiPolicies = officialNativeCheckAbiPolicies
-def extendedNativeCheckBuildVariants = (officialNativeCheckBuildVariants + ['debug']).unique().sort()
+def extendedNativeCheckAbiPolicies = ['arm64-only', 'arm32-arm64', 'internal-4abi'].sort()
+def extendedNativeCheckBuildVariants = ['debug'].sort()
 
 def enableExtendedAbiMatrix = providers.gradleProperty("ENABLE_EXTENDED_ABI_MATRIX")
     .orElse("false")
