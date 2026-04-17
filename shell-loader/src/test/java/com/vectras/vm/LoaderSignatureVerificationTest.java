@@ -18,7 +18,7 @@ import java.util.List;
 @RunWith(RobolectricTestRunner.class)
 @Config(sdk = LoaderSignatureVerificationTest.TEST_SDK)
 public class LoaderSignatureVerificationTest {
-    private static final int TEST_SDK = 29;
+    public static final int TEST_SDK = 29;
 
     private static Signature signature(String hex) {
         return new Signature(hex);

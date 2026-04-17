@@ -151,14 +151,14 @@ if [[ -f "$LOCAL_PROPERTIES_PATH" ]]; then
         ndk_replaced = 0
         has_ndk = (length(ndk_dir) > 0)
       }
-      /^sdk\.dir=/ {
+      /^[[:space:]]*sdk\.dir[[:space:]]*=/ {
         if (!replaced) {
           print "sdk.dir=" sdk_dir
           replaced = 1
         }
         next
       }
-      /^ndk\.dir=/ { next }
+      /^[[:space:]]*ndk\.dir[[:space:]]*=/ { next }
       {
         print
       }
