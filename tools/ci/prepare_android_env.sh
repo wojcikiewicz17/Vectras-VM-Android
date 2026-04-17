@@ -58,11 +58,35 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -n "$JAVA_VERSION_EXPECTED" ]]; then
-  if ! command -v java >/dev/null 2>&1; then
-    echo "::error::java not found in PATH" >&2
+  JAVA_BIN="${JAVA_HOME:-}/bin/java"
+  if [[ ! -x "${JAVA_BIN}" ]]; then
+    JAVA_BIN="$(command -v java || true)"
+  fi
+  if [[ -z "${JAVA_BIN}" || ! -x "${JAVA_BIN}" ]]; then
+    for candidate in \
+      "$HOME/.local/share/mise/installs/java/21/bin/java" \
+      "$HOME/.local/share/mise/installs/java/17/bin/java" \
+      "/usr/lib/jvm/java-21-openjdk-amd64/bin/java" \
+      "/usr/lib/jvm/java-21-openjdk/bin/java" \
+      "/usr/lib/jvm/temurin-21-jdk-amd64/bin/java" \
+      "/usr/lib/jvm/java-17-openjdk-amd64/bin/java" \
+      "/usr/lib/jvm/java-17-openjdk/bin/java"; do
+      if [[ -x "$candidate" ]]; then
+        JAVA_BIN="$candidate"
+        export JAVA_HOME="$(dirname "$(dirname "$candidate")")"
+        export PATH="$JAVA_HOME/bin:$PATH"
+        break
+      fi
+    done
+  fi
+  if [[ -z "${JAVA_BIN}" || ! -x "${JAVA_BIN}" ]]; then
+    echo "::error::java not found in PATH, JAVA_HOME, or known local JDK candidates" >&2
     exit 1
   fi
-  JAVA_DETECTED="$(java -version 2>&1 | awk -F '\"' '/version/ {print $2}' | cut -d. -f1)"
+  JAVA_DETECTED="$("${JAVA_BIN}" -XshowSettings:properties -version 2>&1 | awk -F= '/java\.specification\.version/ {gsub(/ /,"",$2); print $2; exit}')"
+  if [[ -z "${JAVA_DETECTED}" ]]; then
+    JAVA_DETECTED="$("${JAVA_BIN}" -version 2>&1 | sed -n 's/.*version "\([0-9][0-9]*\).*/\1/p' | head -n1)"
+  fi
   echo "Detected Java major: ${JAVA_DETECTED} (expected: ${JAVA_VERSION_EXPECTED})"
   if [[ "$JAVA_DETECTED" != "$JAVA_VERSION_EXPECTED" ]]; then
     echo "::error::Java version mismatch: expected ${JAVA_VERSION_EXPECTED}, got ${JAVA_DETECTED}" >&2
