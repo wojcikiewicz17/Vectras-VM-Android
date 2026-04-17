@@ -6,6 +6,7 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.vectras.vm.R
+import com.vectras.vm.core.NativeFastPath
 import com.vectras.vm.databinding.ActivityRafaeliaLogsBinding
 import java.io.RandomAccessFile
 import java.util.Locale
@@ -63,13 +64,23 @@ class RafaeliaLogActivity : AppCompatActivity() {
             Toast.makeText(this, message, Toast.LENGTH_LONG).show()
         }
 
+        refreshTorusHotfix()
         refreshBenchReport()
     }
 
     override fun onResume() {
         super.onResume()
+        refreshTorusHotfix()
         refreshBenchReport()
         handler.post(pollRunnable)
+    }
+
+    private fun refreshTorusHotfix() {
+        val checksum = NativeFastPath.torusFlowChecksum(0x963, 12)
+        binding.torusHotfixValue.text = getString(
+            R.string.rafaelia_torus_hotfix_value_format,
+            checksum
+        )
     }
 
     override fun onPause() {
