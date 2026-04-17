@@ -1,6 +1,7 @@
 # Baseline único de CMake alinhado ao pipeline Android JNI/Gradle.
 cmake_minimum_required(VERSION 3.22.1)
 project(rafaelia_rmr C ASM)
+include(CMakeParseArguments)
 
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_C_STANDARD_REQUIRED ON)
@@ -107,6 +108,20 @@ endif()
 add_library(rmr STATIC ${RMR_SOURCES})
 rmr_apply_common_flags(rmr)
 
+function(rmr_add_host_executable target_name source_file)
+  set(options)
+  set(oneValueArgs)
+  set(multiValueArgs LINK_LIBS COMPILE_DEFINITIONS)
+  cmake_parse_arguments(RMR_EXE "${options}" "${oneValueArgs}" "${multiValueArgs}" ${ARGN})
+
+  add_executable(${target_name} ${source_file})
+  target_link_libraries(${target_name} PRIVATE rmr ${RMR_EXE_LINK_LIBS})
+  if(RMR_EXE_COMPILE_DEFINITIONS)
+    target_compile_definitions(${target_name} PRIVATE ${RMR_EXE_COMPILE_DEFINITIONS})
+  endif()
+  rmr_apply_common_flags(${target_name})
+endfunction()
+
 set(RMR_REQUIRED_SYMBOLS
   RmR_MathFabric_AutodetectPlan
   RmR_MathFabric_VectorMix
@@ -131,23 +146,10 @@ add_custom_target(verify_contracts
   DEPENDS verify_librmr_symbols
 )
 
-add_executable(rafaelia_demo demo_cli/src/main.c)
-target_link_libraries(rafaelia_demo PRIVATE rmr)
-rmr_apply_common_flags(rafaelia_demo)
-
-add_executable(rmr_bench bench/src/rmr_benchmark_main.c)
-target_link_libraries(rmr_bench PRIVATE rmr)
-target_compile_definitions(rmr_bench PRIVATE RMR_JNI_BUILD=1)
-rmr_apply_common_flags(rmr_bench)
-
-add_executable(bitomega_smoketest demo_cli/src/bitomega_smoketest.c)
-target_link_libraries(bitomega_smoketest PRIVATE rmr)
-rmr_apply_common_flags(bitomega_smoketest)
-
-add_executable(bitraf_core engine/rmr/src/rafaelia_bitraf_core.c)
-target_compile_definitions(bitraf_core PRIVATE RAF_HOSTED_TEST=1)
-target_link_libraries(bitraf_core PRIVATE rmr)
-rmr_apply_common_flags(bitraf_core)
+rmr_add_host_executable(rafaelia_demo demo_cli/src/main.c)
+rmr_add_host_executable(rmr_bench bench/src/rmr_benchmark_main.c COMPILE_DEFINITIONS RMR_JNI_BUILD=1)
+rmr_add_host_executable(bitomega_smoketest demo_cli/src/bitomega_smoketest.c)
+rmr_add_host_executable(bitraf_core engine/rmr/src/rafaelia_bitraf_core.c COMPILE_DEFINITIONS RAF_HOSTED_TEST=1)
 
 add_library(bitraf_static STATIC engine/rmr/src/bitraf.c)
 set_target_properties(bitraf_static PROPERTIES OUTPUT_NAME bitraf)
@@ -159,76 +161,29 @@ add_library(bitraf_shared SHARED engine/rmr/src/bitraf.c)
 set_target_properties(bitraf_shared PROPERTIES OUTPUT_NAME bitraf_shared)
 rmr_apply_common_flags(bitraf_shared)
 
-add_executable(bitraf_selftest demo_cli/src/bitraf_selftest.c)
-target_link_libraries(bitraf_selftest PRIVATE bitraf_static rmr)
-rmr_apply_common_flags(bitraf_selftest)
-
-add_executable(policy_kernel_demo demo_cli/src/policy_kernel_demo.c)
-target_link_libraries(policy_kernel_demo PRIVATE rmr)
-rmr_apply_common_flags(policy_kernel_demo)
-
-add_executable(policy_kernel_selftest demo_cli/src/policy_kernel_selftest.c)
-target_link_libraries(policy_kernel_selftest PRIVATE rmr)
-rmr_apply_common_flags(policy_kernel_selftest)
-
-add_executable(math_fabric_selftest demo_cli/src/math_fabric_selftest.c)
-target_link_libraries(math_fabric_selftest PRIVATE rmr)
-rmr_apply_common_flags(math_fabric_selftest)
-
-add_executable(rmr_torus_flow_selftest demo_cli/src/rmr_torus_flow_selftest.c)
-target_link_libraries(rmr_torus_flow_selftest PRIVATE rmr)
-rmr_apply_common_flags(rmr_torus_flow_selftest)
-
-add_executable(determinism_signature_selftest demo_cli/src/determinism_signature_selftest.c)
-target_link_libraries(determinism_signature_selftest PRIVATE rmr)
-rmr_apply_common_flags(determinism_signature_selftest)
-
-add_executable(apk_module_demo demo_cli/src/apk_module_demo.c)
-target_link_libraries(apk_module_demo PRIVATE rmr)
-rmr_apply_common_flags(apk_module_demo)
-
-add_executable(rmr_qemu_bridge_demo demo_cli/src/rmr_qemu_bridge_demo.c)
-target_link_libraries(rmr_qemu_bridge_demo PRIVATE rmr)
-rmr_apply_common_flags(rmr_qemu_bridge_demo)
-
-add_executable(rmr_qemu_bridge_selftest demo_cli/src/rmr_qemu_bridge_selftest.c)
-target_link_libraries(rmr_qemu_bridge_selftest PRIVATE rmr)
-rmr_apply_common_flags(rmr_qemu_bridge_selftest)
-
-add_executable(rafa_cti_scan engine/rmr/src/rafa_cti_scan.c)
-target_link_libraries(rafa_cti_scan PRIVATE rmr m)
-rmr_apply_common_flags(rafa_cti_scan)
+rmr_add_host_executable(bitraf_selftest demo_cli/src/bitraf_selftest.c LINK_LIBS bitraf_static)
+rmr_add_host_executable(policy_kernel_demo demo_cli/src/policy_kernel_demo.c)
+rmr_add_host_executable(policy_kernel_selftest demo_cli/src/policy_kernel_selftest.c)
+rmr_add_host_executable(math_fabric_selftest demo_cli/src/math_fabric_selftest.c)
+rmr_add_host_executable(rmr_torus_flow_selftest demo_cli/src/rmr_torus_flow_selftest.c)
+rmr_add_host_executable(determinism_signature_selftest demo_cli/src/determinism_signature_selftest.c)
+rmr_add_host_executable(apk_module_demo demo_cli/src/apk_module_demo.c)
+rmr_add_host_executable(rmr_qemu_bridge_demo demo_cli/src/rmr_qemu_bridge_demo.c)
+rmr_add_host_executable(rmr_qemu_bridge_selftest demo_cli/src/rmr_qemu_bridge_selftest.c)
+rmr_add_host_executable(rafa_cti_scan engine/rmr/src/rafa_cti_scan.c LINK_LIBS m)
 
 if(RMR_HAS_CASM)
-  add_executable(rmr_casm_bridge_selftest demo_cli/src/rmr_casm_bridge_selftest.c)
-  target_link_libraries(rmr_casm_bridge_selftest PRIVATE rmr)
-  rmr_apply_common_flags(rmr_casm_bridge_selftest)
+  rmr_add_host_executable(rmr_casm_bridge_selftest demo_cli/src/rmr_casm_bridge_selftest.c)
 endif()
 
-add_executable(rmr_asm_equivalence_selftest demo_cli/src/rmr_asm_equivalence_selftest.c)
-target_link_libraries(rmr_asm_equivalence_selftest PRIVATE rmr)
-rmr_apply_common_flags(rmr_asm_equivalence_selftest)
-
-add_executable(rmr_unified_arena_selftest demo_cli/src/rmr_unified_arena_selftest.c)
-target_link_libraries(rmr_unified_arena_selftest PRIVATE bitraf_static rmr)
-rmr_apply_common_flags(rmr_unified_arena_selftest)
-
-add_executable(rmr_legacy_kernel_selftest demo_cli/src/rmr_legacy_kernel_selftest.c)
-target_link_libraries(rmr_legacy_kernel_selftest PRIVATE rmr)
-rmr_apply_common_flags(rmr_legacy_kernel_selftest)
-
-add_executable(rmr_hw_detect_selftest demo_cli/src/rmr_hw_detect_selftest.c)
-target_link_libraries(rmr_hw_detect_selftest PRIVATE rmr)
-rmr_apply_common_flags(rmr_hw_detect_selftest)
-
-add_executable(zipraf_core_selftest demo_cli/src/zipraf_core_selftest.c)
-target_link_libraries(zipraf_core_selftest PRIVATE rmr)
-rmr_apply_common_flags(zipraf_core_selftest)
+rmr_add_host_executable(rmr_asm_equivalence_selftest demo_cli/src/rmr_asm_equivalence_selftest.c)
+rmr_add_host_executable(rmr_unified_arena_selftest demo_cli/src/rmr_unified_arena_selftest.c LINK_LIBS bitraf_static)
+rmr_add_host_executable(rmr_legacy_kernel_selftest demo_cli/src/rmr_legacy_kernel_selftest.c)
+rmr_add_host_executable(rmr_hw_detect_selftest demo_cli/src/rmr_hw_detect_selftest.c)
+rmr_add_host_executable(zipraf_core_selftest demo_cli/src/zipraf_core_selftest.c)
 
 if(RMR_HAS_NEON_SELFTEST)
-  add_executable(rmr_neon_simd_selftest demo_cli/src/neon_simd_selftest.c)
-  target_link_libraries(rmr_neon_simd_selftest PRIVATE rmr)
-  rmr_apply_common_flags(rmr_neon_simd_selftest)
+  rmr_add_host_executable(rmr_neon_simd_selftest demo_cli/src/neon_simd_selftest.c)
 endif()
 
 
