@@ -454,7 +454,7 @@ jobs:
           sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
 
       - name: Prepare Android env
-        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}" --require-sdkmanager
+        run: ./tools/ci/prepare_android_env.sh --java-version "${{ env.JAVA_VERSION }}" --ndk-version "${{ env.NDK_VERSION }}" --require-sdkmanager
 
       - name: Materialize Firebase config (internal)
         env:

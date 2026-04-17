@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: prepare_android_env.sh [--java-version <major>] [--sdk-root <path>] [--local-properties <path>] [--require-sdkmanager]
+Usage: prepare_android_env.sh [--java-version <major>] [--sdk-root <path>] [--ndk-version <version>] [--local-properties <path>] [--require-sdkmanager]
 USAGE
 }
 
@@ -13,6 +13,7 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 SDK_ROOT="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
 LOCAL_PROPERTIES_PATH="${REPO_ROOT}/local.properties"
 REQUIRE_SDKMANAGER="false"
+NDK_VERSION_EXPECTED="${NDK_VERSION:-}"
 DEFAULT_SDK_FALLBACKS=(
   "${REPO_ROOT}/.android-sdk"
   "/workspace/android-sdk"
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --local-properties)
       LOCAL_PROPERTIES_PATH="$2"
+      shift 2
+      ;;
+    --ndk-version)
+      NDK_VERSION_EXPECTED="$2"
       shift 2
       ;;
     --require-sdkmanager)
@@ -85,22 +90,52 @@ if [[ ! -d "$SDK_ROOT" ]]; then
   exit 1
 fi
 
+if [[ -z "${NDK_VERSION_EXPECTED}" && -f "${REPO_ROOT}/gradle.properties" ]]; then
+  NDK_VERSION_EXPECTED="$(awk -F= '
+    /^[[:space:]]*#/ { next }
+    {
+      k=$1
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", k)
+      if (k == "ndk.version" || k == "NDK_VERSION") {
+        sub(/^[^=]*=/, "", $0)
+        v=$0
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+        print v
+        exit
+      }
+    }
+  ' "${REPO_ROOT}/gradle.properties")"
+fi
+
+NDK_DIR_RESOLVED=""
+if [[ -n "${NDK_VERSION_EXPECTED}" && -d "${SDK_ROOT}/ndk/${NDK_VERSION_EXPECTED}" ]]; then
+  NDK_DIR_RESOLVED="${SDK_ROOT}/ndk/${NDK_VERSION_EXPECTED}"
+fi
+
 if [[ "$REQUIRE_SDKMANAGER" == "true" ]] && ! command -v sdkmanager >/dev/null 2>&1; then
   echo "::error::sdkmanager not found in PATH" >&2
   exit 1
 fi
 
 if [[ -f "$LOCAL_PROPERTIES_PATH" ]]; then
-  if grep -qE '^sdk\.dir=' "$LOCAL_PROPERTIES_PATH"; then
-    tmp_file="$(mktemp)"
-    awk -v sdk_dir="$SDK_ROOT" '
+  tmp_file="$(mktemp)"
+  awk -v sdk_dir="$SDK_ROOT" -v ndk_dir="$NDK_DIR_RESOLVED" '
       BEGIN {
         replaced = 0
+        ndk_replaced = 0
+        has_ndk = (length(ndk_dir) > 0)
       }
       /^sdk\.dir=/ {
         if (!replaced) {
           print "sdk.dir=" sdk_dir
           replaced = 1
+        }
+        next
+      }
+      /^ndk\.dir=/ {
+        if (has_ndk && !ndk_replaced) {
+          print "ndk.dir=" ndk_dir
+          ndk_replaced = 1
         }
         next
       }
@@ -111,15 +146,20 @@ if [[ -f "$LOCAL_PROPERTIES_PATH" ]]; then
         if (!replaced) {
           print "sdk.dir=" sdk_dir
         }
+        if (has_ndk && !ndk_replaced) {
+          print "ndk.dir=" ndk_dir
+        }
       }
     ' "$LOCAL_PROPERTIES_PATH" > "$tmp_file"
-    mv "$tmp_file" "$LOCAL_PROPERTIES_PATH"
-    echo "Updated sdk.dir in ${LOCAL_PROPERTIES_PATH} to ${SDK_ROOT}"
-  else
-    printf '\nsdk.dir=%s\n' "$SDK_ROOT" >> "$LOCAL_PROPERTIES_PATH"
-    echo "Added sdk.dir to ${LOCAL_PROPERTIES_PATH} with value ${SDK_ROOT}"
+  mv "$tmp_file" "$LOCAL_PROPERTIES_PATH"
+  echo "Updated sdk.dir in ${LOCAL_PROPERTIES_PATH} to ${SDK_ROOT}"
+  if [[ -n "${NDK_DIR_RESOLVED}" ]]; then
+    echo "Updated ndk.dir in ${LOCAL_PROPERTIES_PATH} to ${NDK_DIR_RESOLVED}"
   fi
 else
   printf 'sdk.dir=%s\n' "$SDK_ROOT" > "$LOCAL_PROPERTIES_PATH"
+  if [[ -n "${NDK_DIR_RESOLVED}" ]]; then
+    printf 'ndk.dir=%s\n' "$NDK_DIR_RESOLVED" >> "$LOCAL_PROPERTIES_PATH"
+  fi
   echo "Created ${LOCAL_PROPERTIES_PATH} with sdk.dir=${SDK_ROOT}"
 fi
