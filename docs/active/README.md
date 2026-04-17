@@ -1,17 +1,24 @@
-<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+<!-- DOC_ORG_SCAN: 2026-04-17 | source-scan: ai-assisted-structural-review -->
 
 # docs/active/
 
 Documentação operacional vigente (fonte ativa para execução, build e release).
 
 ## Escopo
-- Guias normativos e operacionais que ainda estão em vigor.
-- Relatórios vigentes usados em triagem/decisão atual.
+- Guias normativos e operacionais ainda em vigor.
+- Relatórios vigentes para triagem técnica e decisão de engenharia.
+- Modelos de sessão de IA para revisão sistêmica de build/CI/integração nativa.
 
 ## Fonte canônica
-Consulte `docs/INDEX_CANONICAL.md` para a lista única de documentos normativos, vigentes e históricos.
+Consulte [`docs/INDEX_CANONICAL.md`](../INDEX_CANONICAL.md) para a classificação única entre normativo, ativo, auditoria e histórico.
 
-## Auditorias ativas
+## Documentos ativos prioritários
+- [`AI_SESSION_SYSTEM_MODEL_2026-04-17.md`](AI_SESSION_SYSTEM_MODEL_2026-04-17.md): protocolo de sessão de IA orientado a causa-raiz, contrato de execução e fechamento verificável.
+- [`UNIFIED_CODE_DOCUMENTATION_ALIGNMENT_2026-04-12.md`](UNIFIED_CODE_DOCUMENTATION_ALIGNMENT_2026-04-12.md): alinhamento unificado código↔documentação com catálogo técnico por arquivo/funções.
 - [`DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md`](DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md): inventário metódico de `*.md`, cobertura por domínio e pendências estruturais.
-- [`ALL_MARKDOWN_FILES_2026-04-07.md`](ALL_MARKDOWN_FILES_2026-04-07.md): catálogo completo com todos os arquivos Markdown localizados na árvore do repositório.
-- [`UNIFIED_CODE_DOCUMENTATION_ALIGNMENT_2026-04-12.md`](UNIFIED_CODE_DOCUMENTATION_ALIGNMENT_2026-04-12.md): alinhamento unificado código↔documentação com catálogo técnico por arquivo/funções e 18 conceitos essenciais.
+- [`ALL_MARKDOWN_FILES_2026-04-07.md`](ALL_MARKDOWN_FILES_2026-04-07.md): catálogo completo de Markdown localizado na árvore do repositório.
+
+## Metadados
+- Versão do documento: 1.1
+- Última atualização: 2026-04-17
+- Commit de referência: `HEAD`

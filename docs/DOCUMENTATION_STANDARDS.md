@@ -92,6 +92,23 @@ Regras adicionais:
 
 ---
 
+
+## 10) Padrão de Sessão de IA para Refatoração Estrutural
+
+Quando a revisão for conduzida por agente de IA com objetivo de estabilização de build/release/CI:
+
+- Executar abordagem de **causa-raiz** (não apenas correção cosmética).
+- Registrar no fechamento, de forma objetiva:
+  - causas-raiz encontradas;
+  - arquivos alterados;
+  - comandos executados + resultado;
+  - artefatos gerados;
+  - bloqueios remanescentes.
+- Toda alegação de consistência deve apontar para validação executável (script/comando real do repositório).
+- É proibido degradar o caminho oficial de release (assinatura, trilha de publicação, controles de segurança) para “fazer passar”.
+
+---
+
 ## Template Rápido / Quick Template
 
 ```markdown
