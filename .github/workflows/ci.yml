@@ -62,6 +62,9 @@ jobs:
           cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
           cmake --build build-cmake -j"$(nproc)"
 
+      - name: Run torus flow focused selftest (CMake artifact)
+        run: ./build-cmake/rmr_torus_flow_selftest
+
       - name: Verify link contracts (CMake)
         run: cmake --build build-cmake --target verify_contracts
 
@@ -79,6 +82,7 @@ jobs:
           # Copia o que foi gerado pelo CMake (executáveis e libs)
           cp -r build-cmake/bin/* artifacts/bin/ 2>/dev/null || true
           cp -r build-cmake/lib/* artifacts/bin/ 2>/dev/null || true
+          cp build-cmake/rmr_torus_flow_selftest artifacts/bin/ 2>/dev/null || true
           # Compacta tudo
           tar -czf host-engine-artifacts.tar.gz -C artifacts .
           echo "ARTIFACT_FILE=host-engine-artifacts.tar.gz" >> $GITHUB_ENV
