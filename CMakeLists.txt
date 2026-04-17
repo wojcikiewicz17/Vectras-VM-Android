@@ -110,6 +110,7 @@ rmr_apply_common_flags(rmr)
 set(RMR_REQUIRED_SYMBOLS
   RmR_MathFabric_AutodetectPlan
   RmR_MathFabric_VectorMix
+  RmR_TorusFlow_RunDeterministic
 )
 
 add_custom_command(

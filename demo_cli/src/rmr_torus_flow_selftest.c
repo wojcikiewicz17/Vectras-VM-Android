@@ -18,8 +18,13 @@ int main(void) {
 
   u32 c1 = RmR_TorusFlow_Checksum(&a);
   u32 c2 = RmR_TorusFlow_Checksum(&b);
+  u32 c_api = RmR_TorusFlow_RunDeterministic(0x963u, 12u);
   if (c1 == 0u || c1 != c2) {
     printf("FAIL torus_flow deterministic mismatch c1=%u c2=%u\n", c1, c2);
+    return 1;
+  }
+  if (c_api != c1) {
+    printf("FAIL torus_flow api mismatch c1=%u c_api=%u\n", c1, c_api);
     return 1;
   }
 

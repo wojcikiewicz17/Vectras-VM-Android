@@ -21,6 +21,7 @@ void RmR_TorusFlow_Init(RmR_TorusFlowState *state, u32 seed);
 void RmR_TorusFlow_InjectGrammar(RmR_TorusFlowState *state, u32 salt);
 void RmR_TorusFlow_Step(RmR_TorusFlowState *state);
 u32 RmR_TorusFlow_Checksum(const RmR_TorusFlowState *state);
+u32 RmR_TorusFlow_RunDeterministic(u32 seed, u32 steps);
 
 #ifdef __cplusplus
 }

@@ -55,6 +55,7 @@
 
 ### engine/rmr
 - `engine/rmr/include/rmr_torus_flow.h` (novo): API pública canônica do kernel toroidal.
-- `engine/rmr/src/rmr_torus_flow.c` (novo): implementação determinística em Q16.16 com injeção de gramática e checksum.
+- `engine/rmr/src/rmr_torus_flow.c` (novo): implementação determinística em Q16.16 com injeção de gramática, checksum e helper `RmR_TorusFlow_RunDeterministic`.
 - `engine/rmr/src/rmr_bench_suite.c` (alterado): uso do módulo canônico `rmr_torus_flow` no benchmark oficial (`kind=5`).
 - `demo_cli/src/rmr_torus_flow_selftest.c` (novo): selftest de determinismo/progressão do kernel.
+- `.github/workflows/ci.yml` (alterado): etapa focada em `rmr_torus_flow_selftest` + coleta explícita do binário nos artefatos.

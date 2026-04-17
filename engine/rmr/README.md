@@ -75,6 +75,7 @@ Recursos do módulo:
 Recursos:
 - integração canônica dos exemplos `_incoming/rafaelia_bare.c`, `_incoming/rafaelia_flow.c` e `_incoming/rafaelia_ultra.c`.
 - dinâmica determinística em Q16.16 (`prev*(1-α) + in*(φσ*α)`), com injeção de gramática e checksum estável.
+- helper de execução estável para CI/bench: `RmR_TorusFlow_RunDeterministic(seed, steps)`.
 - usado pela suíte oficial `rmr_bench_suite` (cenários `kind=5`) para cobertura contínua em CI.
 
 

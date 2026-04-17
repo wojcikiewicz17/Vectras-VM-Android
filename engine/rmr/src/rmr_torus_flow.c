@@ -58,3 +58,13 @@ u32 RmR_TorusFlow_Checksum(const RmR_TorusFlowState *state) {
   }
   return chk;
 }
+
+u32 RmR_TorusFlow_RunDeterministic(u32 seed, u32 steps) {
+  RmR_TorusFlowState state;
+  RmR_TorusFlow_Init(&state, seed);
+  for (u32 step = 0; step < steps; ++step) {
+    RmR_TorusFlow_InjectGrammar(&state, step + 1u);
+    RmR_TorusFlow_Step(&state);
+  }
+  return RmR_TorusFlow_Checksum(&state);
+}

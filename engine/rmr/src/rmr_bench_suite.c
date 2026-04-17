@@ -114,13 +114,7 @@ static u32 RmR_Bench_Matrix(u32 n){
  *   out = prev*(1-ALPHA) + in*(PHI_SIGMA*ALPHA)
  */
 static u32 RmR_Bench_RafaeliaTorus(u32 steps){
-  RmR_TorusFlowState flow;
-  RmR_TorusFlow_Init(&flow, 0x963u);
-  for (u32 step = 0; step < steps; ++step) {
-    RmR_TorusFlow_InjectGrammar(&flow, step + 1u);
-    RmR_TorusFlow_Step(&flow);
-  }
-  return RmR_TorusFlow_Checksum(&flow);
+  return RmR_TorusFlow_RunDeterministic(0x963u, steps);
 }
 
 static void RmR_RunOne(const RmR_Bench_Def *d, u32 idx, u32 tune_plan, RmR_Bench_Metric *m){
