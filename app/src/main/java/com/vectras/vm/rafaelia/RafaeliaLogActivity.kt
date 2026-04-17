@@ -76,37 +76,7 @@ class RafaeliaLogActivity : AppCompatActivity() {
     }
 
     private fun refreshTorusHotfix() {
-        val p = IntArray(128)
-        val i = IntArray(128)
-        val o = IntArray(128)
-        var s = 0x963
-        val g = ((91830L * 16384L) shr 16).toInt()
-        for (x in 0 until 128) {
-            p[x] = 65536
-            i[x] = ((x.toLong() shl 16) / 128L).toInt()
-            o[x] = 0
-        }
-        for (k in 0 until 12) {
-            var r = s xor ((k + 1) * 0x9E3779B9.toInt())
-            for (x in 0 until 128) {
-                r = r * 1103515245 + 12345
-                i[x] = r and 0xFFFF
-            }
-            s = r
-            for (x in 0 until 128) {
-                val d = i[x] xor ((s xor (x * 0x9E3779B9.toInt())) and 0x0FFF)
-                val a = ((p[x].toLong() * 49152L) shr 16).toInt()
-                val b = ((d.toLong() * g.toLong()) shr 16).toInt()
-                o[x] = a + b
-                p[x] = o[x]
-                s = s * 1664525 + 1013904223
-            }
-        }
-        var checksum = 12 * 0xA5A5A5A5.toInt()
-        for (x in 0 until 128) {
-            checksum = checksum xor (o[x] + (x * 17))
-            checksum = (checksum shl 3) or (checksum ushr 29)
-        }
+        val checksum = NativeFastPath.torusFlowChecksum(0x963, 12)
         binding.torusHotfixValue.text = getString(
             R.string.rafaelia_torus_hotfix_value_format,
             checksum
