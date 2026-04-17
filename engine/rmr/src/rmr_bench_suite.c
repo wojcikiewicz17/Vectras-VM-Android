@@ -106,6 +106,50 @@ static u32 RmR_Bench_Matrix(u32 n){
   return chk;
 }
 
+/*
+ * Kernel inspirado nos exemplos de _incoming/rafaelia_{bare,flow,ultra}.c
+ * Integrado aqui como benchmark determinístico e portável (sem intrínsecos NEON),
+ * preservando a semântica:
+ *   out = prev*(1-ALPHA) + in*(PHI_SIGMA*ALPHA)
+ */
+static u32 RmR_Bench_RafaeliaTorus(u32 steps){
+  enum { TORUS_LEN = 128u };
+  static u32 prev[TORUS_LEN];
+  static u32 in[TORUS_LEN];
+  static u32 out[TORUS_LEN];
+  const u32 alpha_q16 = 16384u;   /* 0.25 */
+  const u32 inv_alpha_q16 = 49152u; /* 0.75 */
+  const u32 phi_sigma_q16 = 91830u; /* 1.401222 */
+  const u32 gain_q16 = (u32)(((u64)phi_sigma_q16 * (u64)alpha_q16) >> 16); /* 0.3503055 */
+  u32 seed = 0x963u;
+
+  for (u32 i = 0; i < TORUS_LEN; ++i) {
+    prev[i] = 65536u; /* 1.0 */
+    in[i] = (u32)((((u64)i) << 16) / TORUS_LEN);
+    out[i] = 0u;
+  }
+
+  for (u32 step = 0; step < steps; ++step) {
+    seed = (seed * 1103515245u) + 12345u;
+    for (u32 i = 0; i < TORUS_LEN; ++i) {
+      u32 jitter = seed ^ (i * 0x9E3779B9u);
+      u32 in_dyn = in[i] ^ (jitter & 0x0FFFu);
+      u32 prev_mix = (u32)(((u64)prev[i] * (u64)inv_alpha_q16) >> 16);
+      u32 in_mix = (u32)(((u64)in_dyn * (u64)gain_q16) >> 16);
+      out[i] = prev_mix + in_mix;
+      prev[i] = out[i];
+      seed = (seed * 1664525u) + 1013904223u;
+    }
+  }
+
+  u32 chk = 0u;
+  for (u32 i = 0; i < TORUS_LEN; ++i) {
+    chk ^= (out[i] + (i * 17u));
+    chk = (chk << 3) | (chk >> 29);
+  }
+  return chk;
+}
+
 static void RmR_RunOne(const RmR_Bench_Def *d, u32 idx, u32 tune_plan, RmR_Bench_Metric *m){
   u64 start = RmR_ReadCycles();
   u32 checksum = 0u;
@@ -115,6 +159,7 @@ static void RmR_RunOne(const RmR_Bench_Def *d, u32 idx, u32 tune_plan, RmR_Bench
   else if(d->kind == 2u) checksum = RmR_Bench_Bitops(d->p0);
   else if(d->kind == 3u) checksum = RmR_Bench_Mem(d->p0, d->p1);
   else if(d->kind == 4u) checksum = RmR_Bench_Matrix(d->p0);
+  else if(d->kind == 5u) checksum = RmR_Bench_RafaeliaTorus(d->p0);
   u64 end = RmR_ReadCycles();
   u64 cycles = (end > start) ? (end - start) : 0u;
   u32 score = RmR_Score(cycles, ops, checksum);
@@ -141,9 +186,9 @@ void RmR_BenchSuite_Run(const RmR_Bench_Config *cfg, RmR_Bench_SuiteResult *out)
     {3,128,2},{3,256,2},{3,512,2},{3,1024,2},{3,2048,2},
     {3,128,4},{3,256,4},{3,512,4},{3,1024,4},{3,2048,4},
     {4,2,0},{4,3,0},{4,4,0},{4,5,0},{4,6,0},
-    {0,512,0},{1,512,0},{2,512,0},{3,512,2},{4,4,0},
-    {0,1024,0},{1,1024,0},{2,1024,0},{3,1024,4},{4,5,0},
-    {0,2048,0},{1,2048,0},{2,2048,0},{3,2048,8},{4,6,0}
+    {0,512,0},{1,512,0},{2,512,0},{3,512,2},{5,16,0},
+    {0,1024,0},{1,1024,0},{2,1024,0},{3,1024,4},{5,24,0},
+    {0,2048,0},{1,2048,0},{2,2048,0},{3,2048,8},{5,32,0}
   };
   out->total_score = 0u;
   out->total_error = 0u;
@@ -154,6 +199,10 @@ void RmR_BenchSuite_Run(const RmR_Bench_Config *cfg, RmR_Bench_SuiteResult *out)
     if(d.kind == 0u || d.kind == 1u || d.kind == 2u) d.p0 = (d.p0 * iters) >> 10;
     if(d.kind == 3u) d.p1 = (stride ? stride : 1u);
     if(d.kind == 4u) d.p0 = msize;
+    if(d.kind == 5u){
+      u32 scaled_steps = (iters >> 8);
+      d.p0 = (scaled_steps < 8u) ? 8u : scaled_steps;
+    }
     RmR_RunOne(&d, i, tune_plan, &out->metric[i]);
     out->total_score += out->metric[i].score;
     out->total_error += out->metric[i].error_margin;

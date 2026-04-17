@@ -48,3 +48,13 @@
 
 ### Observação
 - O workflow de zipdrop já existia no repositório em `.github/workflows/zipdrop.yml`; portanto, não foi necessária alteração adicional desse arquivo nesta aplicação.
+
+---
+
+## Patchset 4 — integração de exemplos `_incoming` em benchmark canônico
+
+### engine/rmr
+- `engine/rmr/src/rmr_bench_suite.c` (alterado): promoção cirúrgica dos kernels de referência de `_incoming/rafaelia_bare.c`, `_incoming/rafaelia_flow.c` e `_incoming/rafaelia_ultra.c` para o benchmark oficial.
+  - Novo benchmark determinístico `RmR_Bench_RafaeliaTorus` (Q16.16, sem dependência direta de NEON para manter portabilidade em CI).
+  - Novos casos `kind=5` incorporados à suíte de 50 cenários.
+  - Escalonamento de passos alinhado ao `max_iters` da suíte para manter comparabilidade de custo.
