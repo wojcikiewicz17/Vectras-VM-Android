@@ -82,6 +82,108 @@ esac
 
 CLASSPATH=$APP_HOME/gradle/wrapper/gradle-wrapper.jar
 
+has_meaningful_gradle_args() {
+    for arg in "$@"; do
+        case "$arg" in
+            --version|-v|--help|-h|help|tasks|properties|projects|dependencies|dependencyInsight)
+                ;;
+            --*)
+                ;;
+            *)
+                return 0
+                ;;
+        esac
+    done
+    return 1
+}
+
+resolve_property_from_gradle_properties() {
+    key="$1"
+    file="$APP_HOME/gradle.properties"
+    if [ ! -f "$file" ]; then
+        return 1
+    fi
+    awk -F= -v key="$key" '
+        /^[[:space:]]*#/ { next }
+        {
+            k=$1
+            gsub(/^[[:space:]]+|[[:space:]]+$/, "", k)
+            if (k == key) {
+                sub(/^[^=]*=/, "", $0)
+                v=$0
+                gsub(/^[[:space:]]+|[[:space:]]+$/, "", v)
+                print v
+                exit
+            }
+        }
+    ' "$file"
+}
+
+ensure_local_properties_android_paths() {
+    if ! has_meaningful_gradle_args "$@"; then
+        return 0
+    fi
+
+    local_properties="$APP_HOME/local.properties"
+    sdk_dir_current=""
+    if [ -f "$local_properties" ]; then
+        sdk_dir_current=$(awk -F= '/^[[:space:]]*sdk\.dir[[:space:]]*=/ {sub(/^[^=]*=/, "", $0); gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0); print $0; exit }' "$local_properties")
+    fi
+
+    sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+    if [ -n "$sdk_dir_current" ] && [ -d "$sdk_dir_current" ]; then
+        sdk_root="$sdk_dir_current"
+    fi
+    if [ -z "$sdk_root" ]; then
+        for candidate in \
+            "$APP_HOME/.android-sdk" \
+            "/workspace/android-sdk" \
+            "/usr/lib/android-sdk" \
+            "/opt/android-sdk" \
+            "/opt/android-sdk-linux" \
+            "$HOME/Android/Sdk"; do
+            if [ -d "$candidate" ]; then
+                sdk_root="$candidate"
+                break
+            fi
+        done
+    fi
+
+    if [ -z "$sdk_root" ] || [ ! -d "$sdk_root" ]; then
+        return 0
+    fi
+
+    escaped_sdk_root=$(printf '%s' "$sdk_root" | sed 's/\\/\\\\/g')
+    ndk_version="$(resolve_property_from_gradle_properties ndk.version)"
+    [ -n "$ndk_version" ] || ndk_version="$(resolve_property_from_gradle_properties NDK_VERSION)"
+    if [ -n "$ndk_version" ] && [ ! -d "$sdk_root/ndk/$ndk_version" ]; then
+        warn "[gradlew] NDK version from gradle.properties not found under SDK root: $sdk_root/ndk/$ndk_version"
+    fi
+
+    if [ -f "$local_properties" ]; then
+        tmp_file="$(mktemp)"
+        awk -v sdk_dir="$escaped_sdk_root" '
+            BEGIN { sdk_written=0 }
+            /^[[:space:]]*sdk\.dir[[:space:]]*=/ {
+                if (!sdk_written) {
+                    print "sdk.dir=" sdk_dir
+                    sdk_written=1
+                }
+                next
+            }
+            /^[[:space:]]*ndk\.dir[[:space:]]*=/ { next }
+            { print }
+            END {
+                if (!sdk_written) print "sdk.dir=" sdk_dir
+            }
+        ' "$local_properties" > "$tmp_file" && mv "$tmp_file" "$local_properties"
+    else
+        echo "sdk.dir=$escaped_sdk_root" > "$local_properties"
+    fi
+}
+
+ensure_local_properties_android_paths "$@"
+
 
 # Determine the Java command to use to start the JVM.
 if [ -n "$JAVA_HOME" ] ; then
