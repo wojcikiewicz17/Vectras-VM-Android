@@ -6,6 +6,7 @@ import android.os.Looper
 import android.widget.Toast
 import androidx.appcompat.app.AppCompatActivity
 import com.vectras.vm.R
+import com.vectras.vm.core.NativeFastPath
 import com.vectras.vm.databinding.ActivityRafaeliaLogsBinding
 import java.io.RandomAccessFile
 import java.util.Locale

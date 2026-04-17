@@ -57,6 +57,12 @@ jobs:
       - name: Run engine selftests
         run: make run-selftest
 
+      - name: Run torus flow focused selftest (CMake artifact)
+        run: |
+          cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
+          cmake --build build-cmake -j"$(nproc)" --target rmr_torus_flow_selftest
+          ./build-cmake/rmr_torus_flow_selftest
+
       - name: Build engine with root CMake
         run: |
           cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
