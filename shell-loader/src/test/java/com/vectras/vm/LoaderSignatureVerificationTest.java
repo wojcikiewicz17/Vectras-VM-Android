@@ -16,7 +16,10 @@ import java.util.Collections;
 import java.util.List;
 
 @RunWith(RobolectricTestRunner.class)
+@Config(sdk = LoaderSignatureVerificationTest.TEST_SDK)
 public class LoaderSignatureVerificationTest {
+    public static final int TEST_SDK = 29;
+
     private static Signature signature(String hex) {
         return new Signature(hex);
     }
@@ -66,7 +69,6 @@ public class LoaderSignatureVerificationTest {
     }
 
     @Test
-    @Config(sdk = 27)
     public void isTrustedSignature_acceptsExpectedSignatures_withOrderNormalization() throws Exception {
         byte[] signerABytes = new byte[]{1, 2, 3, 4};
         byte[] signerBBytes = new byte[]{5, 6, 7, 8};
@@ -86,7 +88,6 @@ public class LoaderSignatureVerificationTest {
     }
 
     @Test
-    @Config(sdk = 27)
     public void isTrustedSignature_rejectsDivergentSignature() throws Exception {
         Signature signer = signature("0a0b0c0d");
 
@@ -99,7 +100,6 @@ public class LoaderSignatureVerificationTest {
     }
 
     @Test
-    @Config(sdk = 27)
     public void getSecurityValidationError_returnsNotInstalledMessage_whenTargetPackageMissing() {
         Assert.assertEquals(
                 BuildConfig.packageNotInstalledErrorText.replace("ARCH", expectedPrimaryAbi()),
@@ -108,7 +108,6 @@ public class LoaderSignatureVerificationTest {
     }
 
     @Test
-    @Config(sdk = 27)
     public void getSecurityValidationError_returnsSignatureMismatchMessage_whenSignatureIsUntrusted() throws Exception {
         Signature signer = signature("2a2b2c2d");
 
@@ -124,7 +123,6 @@ public class LoaderSignatureVerificationTest {
     }
 
     @Test
-    @Config(sdk = 27)
     public void getSecurityValidationError_returnsNull_whenSignatureIsTrusted() throws Exception {
         byte[] signerBytes = new byte[]{7, 7, 7, 7};
         Signature signer = signature(hex(signerBytes));

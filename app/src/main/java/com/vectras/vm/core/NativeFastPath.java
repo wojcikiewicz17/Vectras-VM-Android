@@ -184,6 +184,54 @@ public final class NativeFastPath {
         return new NativeBridgeTelemetrySnapshot(NATIVE_AVAILABLE, BOOT_PROFILE, kernel, rawCounters);
     }
 
+    /**
+     * Deterministic torus-flow checksum hotfix path (Java mirror of engine/rmr kernel).
+     * Keeps Android/Kotlin diagnostics coherent even when JNI symbol exposure is delayed.
+     */
+    public static int torusFlowChecksum(int seed, int steps) {
+        final int len = 128;
+        final int[] prev = new int[len];
+        final int[] input = new int[len];
+        final int[] output = new int[len];
+
+        final int alphaQ16 = 16384;     // 0.25
+        final int invAlphaQ16 = 49152;  // 0.75
+        final int phiSigmaQ16 = 91830;  // 1.401222
+        final int gainQ16 = (int) ((((long) phiSigmaQ16) * ((long) alphaQ16)) >> 16);
+
+        int localSeed = seed == 0 ? 0x963 : seed;
+        for (int i = 0; i < len; i++) {
+            prev[i] = 65536;
+            input[i] = (int) ((((long) i) << 16) / len);
+            output[i] = 0;
+        }
+
+        for (int step = 0; step < steps; step++) {
+            int grammarSeed = localSeed ^ ((step + 1) * 0x9E3779B9);
+            for (int i = 0; i < len; i++) {
+                grammarSeed = grammarSeed * 1103515245 + 12345;
+                input[i] = grammarSeed & 0xFFFF;
+            }
+            localSeed = grammarSeed;
+            for (int i = 0; i < len; i++) {
+                int jitter = localSeed ^ (i * 0x9E3779B9);
+                int inDyn = input[i] ^ (jitter & 0x0FFF);
+                int prevMix = (int) ((((long) prev[i]) * ((long) invAlphaQ16)) >> 16);
+                int inMix = (int) ((((long) inDyn) * ((long) gainQ16)) >> 16);
+                output[i] = prevMix + inMix;
+                prev[i] = output[i];
+                localSeed = localSeed * 1664525 + 1013904223;
+            }
+        }
+
+        int chk = steps * 0xA5A5A5A5;
+        for (int i = 0; i < len; i++) {
+            chk ^= (output[i] + (i * 17));
+            chk = (chk << 3) | (chk >>> 29);
+        }
+        return chk;
+    }
+
     public static int getNativeBridgeTelemetryLongCount() {
         return RAW_TELEMETRY_LONG_COUNT;
     }
@@ -1141,6 +1189,8 @@ public final class NativeFastPath {
     private static native int nativeDeterministicVerify4x4Block(int packedBlock);
 
     private static native int[] nativeDeterministicPolicyTransition(int hitStreak, int missStreak, int hasEvent);
+
+    private static native int nativeTorusFlowChecksum(int seed, int steps);
 
     private static native int nativePointerBits();
 

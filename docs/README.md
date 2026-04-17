@@ -1,72 +1,55 @@
-<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+<!-- DOC_ORG_SCAN: 2026-04-17 | source-scan: ai-assisted-structural-review -->
 
-# docs/
+# Vectras VM Android — Technical Documentation Hub
 
-Camada técnica central de documentação do Vectras VM Android.
+Camada canônica de documentação técnica do repositório, organizada para engenharia de build/release, integração nativa (JNI/NDK/CMake) e operação de CI.
 
-## Objetivo desta revisão (2026-04-03)
-- Refatorar a navegação para reduzir ambiguidade entre índices globais e guias técnicos locais.
-- Padronizar um fluxo de revisão contínua por domínio (app, engine, tools, web, runtime).
-- Atualizar metadados de governança documental para facilitar auditoria e rastreabilidade.
+## Missão desta camada
+- Consolidar **fonte de verdade** para arquitetura, build, CI, segurança e operação.
+- Reduzir divergência entre código, workflow e documentos executáveis.
+- Fornecer trilha auditável para revisão técnica, release e investigação de falhas.
 
-## Estrutura de navegação em 5 níveis
-1. **Nível 1 (institucional):** [`../README.md`](../README.md)
-2. **Nível 2 (índice global):** [`../DOC_INDEX.md`](../DOC_INDEX.md)
-3. **Nível 3 (domínio técnico docs):** [`README.md`](README.md)
-4. **Nível 4 (audiência/domínio):** [`navigation/INDEX.md`](navigation/INDEX.md)
-5. **Nível 5 (documento final rastreável):** arquivos específicos em `docs/` e `docs/navigation/`.
+## Cadeia de navegação oficial (5 níveis)
+1. Institucional do repositório: [`../README.md`](../README.md)
+2. Índice global: [`../DOC_INDEX.md`](../DOC_INDEX.md)
+3. Hub técnico de documentação: [`README.md`](README.md)
+4. Índice por audiência/domínio: [`navigation/INDEX.md`](navigation/INDEX.md)
+5. Documento especializado por tema: arquivos em `docs/`, `docs/active/`, `docs/ci/` e `docs/navigation/`
 
-## Guias estruturais desta revisão
-- [`THREE_LAYER_ANALYSIS.md`](THREE_LAYER_ANALYSIS.md)
-- [`ROOT_FILE_CHAIN.md`](ROOT_FILE_CHAIN.md)
-- [`../DOC_INDEX.md`](../DOC_INDEX.md)
-- [`active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md`](active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md)
-- [`active/ALL_MARKDOWN_FILES_2026-04-07.md`](active/ALL_MARKDOWN_FILES_2026-04-07.md)
+## Fonte de verdade por domínio
+| Domínio | Documento principal | Documentos de suporte |
+|---|---|---|
+| Arquitetura e runtime | [`ARCHITECTURE.md`](ARCHITECTURE.md) | [`API.md`](API.md), [`THREE_LAYER_ANALYSIS.md`](THREE_LAYER_ANALYSIS.md) |
+| Build Android/NDK/JDK | [`BUILD_ENV_ALIGNMENT.md`](BUILD_ENV_ALIGNMENT.md) | [`SETUP_SDK_NDK.md`](SETUP_SDK_NDK.md), [`BUILD_REFACTOR_SCOPE.md`](BUILD_REFACTOR_SCOPE.md) |
+| CI/CD e artefatos | [`OPERATIONS.md`](OPERATIONS.md) | [`ci/android-mode-matrix.md`](ci/android-mode-matrix.md), [`INDEX_CANONICAL.md`](INDEX_CANONICAL.md) |
+| Segurança/compliance | [`SECURITY.md`](SECURITY.md) | [`LEGAL_AND_LICENSES.md`](LEGAL_AND_LICENSES.md), [`SOURCE_TRACEABILITY_MATRIX.md`](SOURCE_TRACEABILITY_MATRIX.md) |
+| Estado e governança | [`../PROJECT_STATE.md`](../PROJECT_STATE.md) | [`DOCUMENTATION_STANDARDS.md`](DOCUMENTATION_STANDARDS.md), [`active/README.md`](active/README.md) |
 
-## Fluxo de revisão documental (refatorado)
-1. **Mapear escopo da mudança**: identificar quais diretórios/módulos foram alterados no código.
-2. **Atualizar o documento fonte**: aplicar ajuste no arquivo técnico principal (arquitetura, operação, build, benchmark, etc.).
-3. **Sincronizar índices e navegação**: refletir mudanças em `../README.md`, `../DOC_INDEX.md` e `navigation/INDEX.md` quando necessário.
-4. **Verificar rastreabilidade**: garantir que links internos e referências cruzadas apontem para caminhos canônicos.
-5. **Registrar metadados**: atualizar versão, data e commit de referência ao final deste arquivo.
+## Fluxo operacional de manutenção documental
+1. Identificar alteração real de código/build/workflow.
+2. Atualizar documento primário do domínio impactado.
+3. Sincronizar índices (`../README.md`, `../DOC_INDEX.md`, `navigation/INDEX.md`, `INDEX_CANONICAL.md`) quando houver impacto de navegação.
+4. Executar validações automatizadas de referência e consistência.
+5. Registrar metadados de versão/data/commit.
 
-## Eixos técnicos especializados
-- Arquitetura: `ARCHITECTURE.md`, `API.md`, `RAFAELIA_COHESION_ENTERPRISE_STACK.md`
-- Operação e benchmark: `OPERATIONS.md`, `BENCHMARKS.md`, `BENCHMARK_MANAGER.md`
-- Build e ambiente: `BUILD_ENV_ALIGNMENT.md`, `BUILD_REFACTOR_SCOPE.md`
-- Compilador autoral (cabeçalho C → ASM): `RAFCODE_PHI_COMPILER_HEADER.md`
-- Lowbasic ABI/Bootstrap hotfix: `LOWBASIC_ABI_BOOTSTRAP_HOTFIX.md`
-- Qualidade e conformidade: `SECURITY.md`, `LEGAL_AND_LICENSES.md`, `SOURCE_TRACEABILITY_MATRIX.md`, `IP_MAP.md`
-- Fullstack (código-fonte ponta a ponta): `FULLSTACK_SOURCE_MAP.md`
-- Navegação por público: `navigation/INDEX.md` e derivados
-- Inovação e autoria técnica (navegação): `navigation/TECHNOLOGY_INNOVATION_AUTHORSHIP.md`
-- Estado atual do ciclo do projeto: `../PROJECT_STATE.md`
+## Sessão de IA para compreensão sistêmica (padrão)
+Use o protocolo abaixo em revisões profundas:
+- **Mapeamento de causa-raiz**: localizar divergência estrutural (não só sintoma).
+- **Contrato de execução**: validar ordem `toolchain -> configure -> build -> artifact -> upload`.
+- **Conferência de artefatos**: garantir que CI e build local descrevam as mesmas saídas.
+- **Rastreabilidade**: cada mudança documental deve apontar para scripts/workflows reais.
 
+Documento de apoio para esse protocolo: [`active/AI_SESSION_SYSTEM_MODEL_2026-04-17.md`](active/AI_SESSION_SYSTEM_MODEL_2026-04-17.md).
 
-## Fluxo de revisão contínua por domínio
-Use este checklist ao final de cada ciclo de mudanças técnicas:
-- [ ] **app**: validar se APIs/fluxos em `app/` e `docs/API.md` continuam alinhados.
-- [ ] **engine**: revisar mudanças em `engine/` e refletir impactos em `docs/ARCHITECTURE.md`.
-- [ ] **tools**: confirmar atualização de utilitários/scripts e referências operacionais em `docs/OPERATIONS.md`.
-- [ ] **web**: checar documentação de interfaces web (quando aplicável) e índices correlatos.
-- [ ] **runtime**: sincronizar alterações de supervisão/execução VM com `docs/ARCHITECTURE.md` e `docs/BENCHMARK_MANAGER.md`.
-
-### Procedimento sugerido (rápido)
-1. Levantar mudanças com `git log --name-only --since='14 days ago'`.
-2. Mapear impacto documental por domínio técnico.
-3. Atualizar documentos afetados e registrar versão/data nesta página.
-4. Executar a cadeia de validação documental abaixo.
-5. Revisar links cruzados (`README.md`, `DOC_INDEX.md`, `navigation/INDEX.md`).
-
-## Cadeia de comando de validação documental
+## Validação mínima recomendada
 ```bash
-find docs -maxdepth 2 -type f | sort
-sed -n '1,120p' docs/THREE_LAYER_ANALYSIS.md
-sed -n '1,120p' docs/ROOT_FILE_CHAIN.md
+./tools/check_docs_reference_commit.sh
+python3 tools/verify_repo_file_dependencies.py
+./tools/ci/validate_pipeline_directories.sh
 ```
 
 ## Metadados
-- Versão do documento: 1.3
-- Última atualização: 2026-04-03
+- Versão do documento: 2.0
+- Última atualização: 2026-04-17
 - Commit de referência: `HEAD`
-- Domínio de código coberto: Portal documental transversal para app, engine, tools, web e runtime.
+- Domínio de código coberto: documentação transversal para app, engine, tools, web, runtime e CI.
