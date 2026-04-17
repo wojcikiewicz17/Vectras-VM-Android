@@ -119,12 +119,9 @@ on:
 permissions:
   contents: read
 
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
-
 concurrency:
   group: android-ci-${{ github.ref }}-${{ github.workflow }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   resolve:
@@ -594,6 +591,23 @@ jobs:
           if-no-files-found: error
           overwrite: true
 
+      - name: Materialize fallback artifact bundles
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p ci-artifacts/android-logs ci-artifacts/android-cmake-matrix
+          {
+            echo "generated_at_utc=$(date -u +"%Y-%m-%dT%H:%M:%SZ")"
+            echo "workflow=${GITHUB_WORKFLOW}"
+            echo "run_id=${GITHUB_RUN_ID}"
+            echo "run_attempt=${GITHUB_RUN_ATTEMPT}"
+            echo "job_status=${{ job.status }}"
+            echo "native_matrix_profile=${{ needs.resolve.outputs.native_matrix_profile }}"
+            echo "note=placeholder emitted when upstream paths are absent"
+          } > ci-artifacts/android-logs/UPLOAD_FALLBACK_METADATA.txt
+          cp ci-artifacts/android-logs/UPLOAD_FALLBACK_METADATA.txt ci-artifacts/android-cmake-matrix/UPLOAD_FALLBACK_METADATA.txt
+
       - name: Upload Android outputs
         if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
         uses: actions/upload-artifact@v4
@@ -612,8 +626,10 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-cmake-matrix-${{ needs.resolve.outputs.artifact_name_suffix }}-${{ needs.resolve.outputs.signing_mode_effective }}-${{ github.run_id }}
-          path: ci-artifacts/android-cmake-matrix
-          if-no-files-found: warn
+          path: |
+            ci-artifacts/android-cmake-matrix
+            ci-artifacts/android-cmake-matrix/UPLOAD_FALLBACK_METADATA.txt
+          if-no-files-found: error
           overwrite: true
 
       - name: Upload Android logs bundle
@@ -625,4 +641,5 @@ jobs:
             **/build/reports/**
             **/build/outputs/logs/**
             **/build/test-results/**
-          if-no-files-found: warn
+            ci-artifacts/android-logs/UPLOAD_FALLBACK_METADATA.txt
+          if-no-files-found: error
