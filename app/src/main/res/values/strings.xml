@@ -268,6 +268,8 @@
     <string name="rafaelia_bench_report_title">Bench report</string>
     <string name="rafaelia_bench_report_empty">No bench report generated yet.</string>
     <string name="rafaelia_bench_report_missing">Bench report could not be generated.</string>
+    <string name="rafaelia_torus_hotfix_value">Torus hotfix checksum: pending</string>
+    <string name="rafaelia_torus_hotfix_value_format">Torus hotfix checksum: %1$d</string>
     <string name="rafaelia_snapshot_bin">Save event snapshot (.bin)</string>
     <string name="rafaelia_snapshot_json">Save event snapshot (.json)</string>
     <string name="rafaelia_snapshot_missing">No BitStack snapshot available.</string>
