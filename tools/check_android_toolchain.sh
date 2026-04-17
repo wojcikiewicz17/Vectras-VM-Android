@@ -26,7 +26,32 @@ first_existing_dir() {
 
 extract_prop() {
   local file="$1" key="$2"
-  awk -F= -v k="$key" '$1 == k {print $2; exit}' "$file" 2>/dev/null | tr -d '\r'
+  awk -F= -v k="$key" '
+    /^[[:space:]]*#/ { next }
+    {
+      kk=$1
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", kk)
+      if (kk == k) {
+        sub(/^[^=]*=/, "", $0)
+        gsub(/^[[:space:]]+|[[:space:]]+$/, "", $0)
+        print $0
+        exit
+      }
+    }
+  ' "$file" 2>/dev/null | tr -d '\r'
+}
+
+resolve_prop_with_alias() {
+  local file="$1"
+  local canonical="$2"
+  local legacy="$3"
+  local value=""
+
+  value="$(extract_prop "$file" "$canonical")"
+  if [[ -z "$value" ]]; then
+    value="$(extract_prop "$file" "$legacy")"
+  fi
+  printf '%s\n' "$value"
 }
 
 SDK_DIR=""
@@ -45,6 +70,21 @@ fi
 JAVA_BIN="${JAVA_HOME:-}/bin/java"
 if [[ ! -x "$JAVA_BIN" ]]; then
   JAVA_BIN="$(command -v java || true)"
+fi
+if [[ -z "$JAVA_BIN" || ! -x "$JAVA_BIN" ]]; then
+  for candidate in \
+    "$HOME/.local/share/mise/installs/java/21/bin/java" \
+    "$HOME/.local/share/mise/installs/java/17/bin/java" \
+    "/usr/lib/jvm/java-21-openjdk-amd64/bin/java" \
+    "/usr/lib/jvm/java-21-openjdk/bin/java" \
+    "/usr/lib/jvm/temurin-21-jdk-amd64/bin/java" \
+    "/usr/lib/jvm/java-17-openjdk-amd64/bin/java" \
+    "/usr/lib/jvm/java-17-openjdk/bin/java"; do
+    if [[ -x "$candidate" ]]; then
+      JAVA_BIN="$candidate"
+      break
+    fi
+  done
 fi
 
 if [[ -z "$JAVA_BIN" || ! -x "$JAVA_BIN" ]]; then
@@ -73,8 +113,8 @@ else
   log_warn "Android SDK não detectado (local.properties/ANDROID_SDK_ROOT/ANDROID_HOME)"
 fi
 
-GRADLE_NDK_VERSION="$(extract_prop "$REPO_ROOT/gradle.properties" "NDK_VERSION")"
-GRADLE_CMAKE_VERSION="$(extract_prop "$REPO_ROOT/gradle.properties" "CMAKE_VERSION")"
+GRADLE_NDK_VERSION="$(resolve_prop_with_alias "$REPO_ROOT/gradle.properties" "ndk.version" "NDK_VERSION")"
+GRADLE_CMAKE_VERSION="$(resolve_prop_with_alias "$REPO_ROOT/gradle.properties" "cmake.version" "CMAKE_VERSION")"
 
 if [[ -n "$SDK_DIR" ]]; then
   NDK_DIR="$SDK_DIR/ndk/$GRADLE_NDK_VERSION"
