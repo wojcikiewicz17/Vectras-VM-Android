@@ -156,17 +156,14 @@ ensure_local_properties_android_paths() {
     escaped_sdk_root=$(printf '%s' "$sdk_root" | sed 's/\\/\\\\/g')
     ndk_version="$(resolve_property_from_gradle_properties ndk.version)"
     [ -n "$ndk_version" ] || ndk_version="$(resolve_property_from_gradle_properties NDK_VERSION)"
-
-    ndk_line=""
-    if [ -n "$ndk_version" ] && [ -d "$sdk_root/ndk/$ndk_version" ]; then
-        escaped_ndk_root=$(printf '%s' "$sdk_root/ndk/$ndk_version" | sed 's/\\/\\\\/g')
-        ndk_line="ndk.dir=$escaped_ndk_root"
+    if [ -n "$ndk_version" ] && [ ! -d "$sdk_root/ndk/$ndk_version" ]; then
+        warn "[gradlew] NDK version from gradle.properties not found under SDK root: $sdk_root/ndk/$ndk_version"
     fi
 
     if [ -f "$local_properties" ]; then
         tmp_file="$(mktemp)"
-        awk -v sdk_dir="$escaped_sdk_root" -v ndk_line="$ndk_line" '
-            BEGIN { sdk_written=0; ndk_written=0; has_ndk=(length(ndk_line)>0) }
+        awk -v sdk_dir="$escaped_sdk_root" '
+            BEGIN { sdk_written=0 }
             /^[[:space:]]*sdk\.dir[[:space:]]*=/ {
                 if (!sdk_written) {
                     print "sdk.dir=" sdk_dir
@@ -174,26 +171,14 @@ ensure_local_properties_android_paths() {
                 }
                 next
             }
-            /^[[:space:]]*ndk\.dir[[:space:]]*=/ {
-                if (has_ndk && !ndk_written) {
-                    print ndk_line
-                    ndk_written=1
-                }
-                next
-            }
+            /^[[:space:]]*ndk\.dir[[:space:]]*=/ { next }
             { print }
             END {
                 if (!sdk_written) print "sdk.dir=" sdk_dir
-                if (has_ndk && !ndk_written) print ndk_line
             }
         ' "$local_properties" > "$tmp_file" && mv "$tmp_file" "$local_properties"
     else
-        {
-            echo "sdk.dir=$escaped_sdk_root"
-            if [ -n "$ndk_line" ]; then
-                echo "$ndk_line"
-            fi
-        } > "$local_properties"
+        echo "sdk.dir=$escaped_sdk_root" > "$local_properties"
     fi
 }
 

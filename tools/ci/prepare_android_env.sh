@@ -134,6 +134,8 @@ fi
 NDK_DIR_RESOLVED=""
 if [[ -n "${NDK_VERSION_EXPECTED}" && -d "${SDK_ROOT}/ndk/${NDK_VERSION_EXPECTED}" ]]; then
   NDK_DIR_RESOLVED="${SDK_ROOT}/ndk/${NDK_VERSION_EXPECTED}"
+elif [[ -n "${NDK_VERSION_EXPECTED}" ]]; then
+  echo "::warning::Expected NDK version not found under SDK root: ${SDK_ROOT}/ndk/${NDK_VERSION_EXPECTED}" >&2
 fi
 
 if [[ "$REQUIRE_SDKMANAGER" == "true" ]] && ! command -v sdkmanager >/dev/null 2>&1; then
@@ -143,7 +145,7 @@ fi
 
 if [[ -f "$LOCAL_PROPERTIES_PATH" ]]; then
   tmp_file="$(mktemp)"
-  awk -v sdk_dir="$SDK_ROOT" -v ndk_dir="$NDK_DIR_RESOLVED" '
+  awk -v sdk_dir="$SDK_ROOT" '
       BEGIN {
         replaced = 0
         ndk_replaced = 0
@@ -156,13 +158,7 @@ if [[ -f "$LOCAL_PROPERTIES_PATH" ]]; then
         }
         next
       }
-      /^ndk\.dir=/ {
-        if (has_ndk && !ndk_replaced) {
-          print "ndk.dir=" ndk_dir
-          ndk_replaced = 1
-        }
-        next
-      }
+      /^ndk\.dir=/ { next }
       {
         print
       }
@@ -177,13 +173,14 @@ if [[ -f "$LOCAL_PROPERTIES_PATH" ]]; then
     ' "$LOCAL_PROPERTIES_PATH" > "$tmp_file"
   mv "$tmp_file" "$LOCAL_PROPERTIES_PATH"
   echo "Updated sdk.dir in ${LOCAL_PROPERTIES_PATH} to ${SDK_ROOT}"
-  if [[ -n "${NDK_DIR_RESOLVED}" ]]; then
-    echo "Updated ndk.dir in ${LOCAL_PROPERTIES_PATH} to ${NDK_DIR_RESOLVED}"
-  fi
 else
   printf 'sdk.dir=%s\n' "$SDK_ROOT" > "$LOCAL_PROPERTIES_PATH"
   if [[ -n "${NDK_DIR_RESOLVED}" ]]; then
     printf 'ndk.dir=%s\n' "$NDK_DIR_RESOLVED" >> "$LOCAL_PROPERTIES_PATH"
   fi
   echo "Created ${LOCAL_PROPERTIES_PATH} with sdk.dir=${SDK_ROOT}"
+fi
+
+if [[ -n "${NDK_DIR_RESOLVED}" ]]; then
+  echo "NDK version validated via android.ndkVersion/ndkVersion contract: ${NDK_DIR_RESOLVED}"
 fi
