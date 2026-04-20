@@ -137,6 +137,8 @@ set(VECTRA_FREESTANDING_COMPILE_OPTIONS
     -ffunction-sections
     -DRMR_BUILD_HOST_TOOLING=1)
 set(VECTRA_ABI_COMPILE_OPTIONS)
+set(VECTRA_LTO_MODE "${VECTRA_LTO_MODE}" CACHE STRING "LTO mode from CI perf decisions")
+set(VECTRA_INLINE_POLICY "${VECTRA_INLINE_POLICY}" CACHE STRING "Inline policy from CI perf decisions")
 
 # Flag arm64 vinda do Gradle: baseline (-march=armv8-a) e tuning opcional (-mcpu=<valor>).
 set(VECTRA_ARM64_CPP_FLAGS "${VECTRA_ARM64_CPP_FLAGS}" CACHE STRING "Extra arm64 C/C++ flags from Gradle")
@@ -178,6 +180,16 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
         -mfloat-abi=softfp
         -DRMR_ARCH_ARM32=1
         -DRMR_FEAT_NEON=1)
+endif()
+
+if(VECTRA_INLINE_POLICY STREQUAL "aggressive")
+    list(APPEND VECTRA_ABI_COMPILE_OPTIONS -finline-functions)
+elseif(VECTRA_INLINE_POLICY STREQUAL "controlled")
+    list(APPEND VECTRA_ABI_COMPILE_OPTIONS -fno-inline-functions)
+endif()
+
+if(VECTRA_LTO_MODE STREQUAL "thin" OR VECTRA_LTO_MODE STREQUAL "full")
+    list(APPEND VECTRA_ABI_COMPILE_OPTIONS -flto)
 endif()
 
 if(TARGET rmr_policy_static)

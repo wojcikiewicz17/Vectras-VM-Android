@@ -60,6 +60,13 @@ jobs:
       - name: Run engine selftests
         run: make run-selftest
 
+      - name: Run reproducible perf suite (ABI/policy)
+        run: |
+          set -euo pipefail
+          python3 tools/perf/run_suite.py --runs 7
+          python3 tools/perf/compare_baseline.py --margin 0.03
+          python3 tools/perf/derive_flag_decisions.py
+
       - name: Build engine with root CMake
         run: |
           cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
@@ -98,6 +105,8 @@ jobs:
           name: host-ci-results
           path: |
             bench-results/**
+            bench/results/perf/**
+            bench/baseline/*.json
             build-host/rmr_build_config.env
             build-cmake/rmr_build_config.env
           if-no-files-found: warn
