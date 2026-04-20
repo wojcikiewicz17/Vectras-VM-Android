@@ -57,6 +57,7 @@ typedef struct {
 #define RAFPHI_BIN_VERSION 0x00010000u
 
 /* Hook ASM: serializa uma palavra hex para buffer de saída. */
+extern raf_u32 rafphi_emit_word_abi(raf_u32, raf_u32 *, raf_u32, raf_u32);
 extern raf_u32 rafphi_emit_word_asm(raf_u32 opcode_hex, raf_u32 *out_words, raf_u32 cap_words, raf_u32 write_index);
 
 /* Casca C: parser mínimo de mnemônicos autorais para hex. */

@@ -107,7 +107,7 @@ rafphi_emit_stats_t rafphi_emit_block_hex_arch(const char **tokens, const raf_u3
       continue;
     }
 
-    raf_u32 written = rafphi_emit_word_asm(hex, out_words, cap_words, write_index);
+    raf_u32 written = rafphi_emit_word_abi(hex, out_words, cap_words, write_index);
     if (written == 0u) {
       stats.rejected++;
       continue;
