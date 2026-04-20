@@ -70,7 +70,7 @@ on:
         description: "Perfil ABI (trilha oficial)"
         type: choice
         default: official_arm64
-        options: [official_arm64, official_arm32_arm64, internal_arm64, internal_arm32_arm64, internal_4abi, internal_5abi, internal_riscv64, generic]
+        options: [official_arm64, internal_arm32_arm64, internal_4abi]
       native_matrix_profile:
         description: "Cobertura nativa CMake (arquiteturas + bandas de API)"
         type: choice
@@ -79,7 +79,7 @@ on:
       log_level:
         description: "Nível de logs Gradle"
         type: choice
-        default: info
+        default: lifecycle
         options: [lifecycle, info, debug]
       run_lint:
         description: "Executar lint"
@@ -98,16 +98,59 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
+  resolve-inputs:
+    name: Resolve wrapper inputs
+    runs-on: ubuntu-latest
+    outputs:
+      run_workfile: ${{ steps.resolve.outputs.run_workfile }}
+      build_variant: ${{ steps.resolve.outputs.build_variant }}
+      signing_mode: ${{ steps.resolve.outputs.signing_mode }}
+      abi_profile: ${{ steps.resolve.outputs.abi_profile }}
+      native_matrix_profile: ${{ steps.resolve.outputs.native_matrix_profile }}
+      log_level: ${{ steps.resolve.outputs.log_level }}
+      run_lint: ${{ steps.resolve.outputs.run_lint }}
+      run_native_checks: ${{ steps.resolve.outputs.run_native_checks }}
+    steps:
+      - id: resolve
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          run_workfile="${{ github.event.inputs.run_workfile || 'smoke_debug' }}"
+          build_variant="${{ github.event.inputs.build_variant || 'debug' }}"
+          signing_mode="${{ github.event.inputs.signing_mode || 'auto' }}"
+          abi_profile="${{ github.event.inputs.abi_profile || 'official_arm64' }}"
+          native_matrix_profile="${{ github.event.inputs.native_matrix_profile || 'canonical' }}"
+          log_level="${{ github.event.inputs.log_level || 'lifecycle' }}"
+
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            run_lint="${{ github.event.inputs.run_lint == 'true' }}"
+            run_native_checks="${{ github.event.inputs.run_native_checks == 'true' }}"
+          else
+            run_lint="true"
+            run_native_checks="false"
+          fi
+
+          echo "run_workfile=${run_workfile}" >> "$GITHUB_OUTPUT"
+          echo "build_variant=${build_variant}" >> "$GITHUB_OUTPUT"
+          echo "signing_mode=${signing_mode}" >> "$GITHUB_OUTPUT"
+          echo "abi_profile=${abi_profile}" >> "$GITHUB_OUTPUT"
+          echo "native_matrix_profile=${native_matrix_profile}" >> "$GITHUB_OUTPUT"
+          echo "log_level=${log_level}" >> "$GITHUB_OUTPUT"
+          echo "run_lint=${run_lint}" >> "$GITHUB_OUTPUT"
+          echo "run_native_checks=${run_native_checks}" >> "$GITHUB_OUTPUT"
+
   android-ci:
     name: Android CI (canonical)
+    needs: resolve-inputs
     uses: ./.github/workflows/android-ci.yml
     with:
-      run_workfile: ${{ github.event.inputs.run_workfile || 'smoke_debug' }}
-      build_variant: ${{ github.event.inputs.build_variant || 'debug' }}
-      signing_mode: ${{ github.event.inputs.signing_mode || 'auto' }}
-      abi_profile: ${{ github.event.inputs.abi_profile || 'official_arm64' }}
-      native_matrix_profile: ${{ github.event.inputs.native_matrix_profile || 'canonical' }}
-      log_level: ${{ github.event.inputs.log_level || 'info' }}
-      run_lint: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_lint == 'true' }}
-      run_native_checks: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_native_checks == 'true' }}
+      run_workfile: ${{ needs.resolve-inputs.outputs.run_workfile }}
+      build_variant: ${{ needs.resolve-inputs.outputs.build_variant }}
+      signing_mode: ${{ needs.resolve-inputs.outputs.signing_mode }}
+      abi_profile: ${{ needs.resolve-inputs.outputs.abi_profile }}
+      native_matrix_profile: ${{ needs.resolve-inputs.outputs.native_matrix_profile }}
+      log_level: ${{ needs.resolve-inputs.outputs.log_level }}
+      run_lint: ${{ needs.resolve-inputs.outputs.run_lint == 'true' }}
+      run_native_checks: ${{ needs.resolve-inputs.outputs.run_native_checks == 'true' }}
     secrets: inherit

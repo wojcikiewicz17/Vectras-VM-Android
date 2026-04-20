@@ -17,3 +17,9 @@ A pipeline Android canônica do repositório é **`.github/workflows/android-ci.
 - `android.yml` permanece como **wrapper de entrada** (push/pull_request/workflow_dispatch), delegando exclusivamente para `android-ci.yml` via `uses`.
 - Qualquer evolução de comportamento Android (ex.: perfis de matriz nativa) deve ocorrer apenas em `android-ci.yml`.
 - `quality-gates.yml` + `tools/ci/validate_build_matrix.py` bloqueiam regressões que reintroduzam workflows Android concorrentes com responsabilidades sobrepostas.
+
+
+## Alinhamento de callers Android
+
+- `pipeline-orchestrator.yml`, `android.yml` e `compile-matrix.yml` devem chamar apenas `android-ci.yml` para qualquer responsabilidade de build Android.
+- `android.yml` e `compile-matrix.yml` ficam restritos a wrappers (entrada/compatibilidade), sem bootstrap Gradle/SDK/NDK próprio.

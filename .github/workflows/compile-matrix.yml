@@ -5,41 +5,40 @@ on:
     inputs:
       run_workfile:
         type: string
-        default: smoke_debug
+        default: compat_matrix_debug
+      build_variant:
+        type: string
+        default: debug
+      signing_mode:
+        type: string
+        default: auto
       abi_profile:
         type: string
-        default: official_arm64
+        default: internal_4abi
+      native_matrix_profile:
+        type: string
+        default: android8_16plus_allarch
+      log_level:
+        type: string
+        default: lifecycle
+      run_lint:
+        type: boolean
+        default: false
+      run_native_checks:
+        type: boolean
+        default: true
 
 jobs:
   android-matrix:
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        abi: [arm64-v8a, armeabi-v7a, x86, x86_64]
-        variant: [Debug, Release]
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-      - uses: android-actions/setup-android@v3
-      - name: Build ABI lane
-        shell: bash
-        run: |
-          set -euo pipefail
-          case "${{ matrix.abi }}" in
-            arm64-v8a) profile="official_arm64" ;;
-            armeabi-v7a) profile="internal_arm32_arm64" ;;
-            x86|x86_64) profile="internal_4abi" ;;
-            *) profile="${{ inputs.abi_profile }}" ;;
-          esac
-
-          eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${profile}" --allow-generic-fallback)"
-
-          ./tools/gradle_with_jdk21.sh \
-            -PAPP_ABI_POLICY="${app_abi_policy}" \
-            -PSUPPORTED_ABIS="${supported_abis}" \
-            -PCI_INTERNAL_VALIDATION="${ci_internal_validation}" \
-            :app:assemble${{ matrix.variant }}
+    name: Android Matrix (canonical delegation)
+    uses: ./.github/workflows/android-ci.yml
+    with:
+      run_workfile: ${{ inputs.run_workfile }}
+      build_variant: ${{ inputs.build_variant }}
+      signing_mode: ${{ inputs.signing_mode }}
+      abi_profile: ${{ inputs.abi_profile }}
+      native_matrix_profile: ${{ inputs.native_matrix_profile }}
+      log_level: ${{ inputs.log_level }}
+      run_lint: ${{ inputs.run_lint }}
+      run_native_checks: ${{ inputs.run_native_checks }}
+    secrets: inherit
