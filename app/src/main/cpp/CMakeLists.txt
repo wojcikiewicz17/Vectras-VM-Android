@@ -59,6 +59,7 @@ endif()
 add_library(vectra_core_accel SHARED
     vectra_core_accel.c
     lowlevel_bridge.c
+    lowlevel_abi.c
     hardware_profile_bridge.c
     vectra_lowlevel_backend_fallback.c
     vectra_lowlevel_backend_arm64.c

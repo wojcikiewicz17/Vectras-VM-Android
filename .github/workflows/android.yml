@@ -22,6 +22,7 @@ on:
       - 'gradle.properties'
       - '.github/workflows/android.yml'
       - '.github/workflows/android-ci.yml'
+      - '.github/workflows/compile-matrix.yml'
   push:
     branches: [main, master, dev, 'release/**']
     paths:
@@ -44,6 +45,7 @@ on:
       - 'gradle.properties'
       - '.github/workflows/android.yml'
       - '.github/workflows/android-ci.yml'
+      - '.github/workflows/compile-matrix.yml'
   workflow_dispatch:
     inputs:
       run_workfile:
@@ -111,3 +113,31 @@ jobs:
       run_lint: ${{ github.event_name != 'workflow_dispatch' || github.event.inputs.run_lint == 'true' }}
       run_native_checks: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_native_checks == 'true' }}
     secrets: inherit
+
+  compile-matrix-gate:
+    name: Compile Matrix (adaptive gate)
+    if: ${{ github.event_name == 'workflow_dispatch' && (github.event.inputs.run_workfile == 'compat_matrix_debug' || startsWith(github.event.inputs.abi_profile, 'internal_')) }}
+    uses: ./.github/workflows/compile-matrix.yml
+    with:
+      run_workfile: ${{ github.event.inputs.run_workfile || 'smoke_debug' }}
+      abi_profile: ${{ github.event.inputs.abi_profile || 'official_arm64' }}
+    secrets: inherit
+
+  adaptive-gates:
+    name: Adaptive Gates
+    runs-on: ubuntu-latest
+    needs: [android-ci, compile-matrix-gate]
+    if: always()
+    steps:
+      - name: Enforce canonical android-ci gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ needs.android-ci.result }}" == "success" ]]
+
+      - name: Enforce compile-matrix adaptive gate
+        if: ${{ needs.compile-matrix-gate.result != 'skipped' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "${{ needs.compile-matrix-gate.result }}" == "success" ]]

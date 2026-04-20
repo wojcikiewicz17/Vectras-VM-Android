@@ -1,0 +1,148 @@
+{
+  "schema_version": "1.0.0",
+  "no_implicit_libc_stdlib": true,
+  "architectures": [
+    {
+      "name": "arm64-v8a",
+      "abi_version": "1.0",
+      "stack_alignment": 16,
+      "frame_policy": "leaf_optional",
+      "calling_convention": {
+        "input": "x0-x7",
+        "return": "x0-x1",
+        "caller_saved": "x0-x18,v0-v31",
+        "callee_saved": "x19-x28,x29(fp),sp"
+      },
+      "prologue": "stp x29, x30, [sp, #-16]!; mov x29, sp",
+      "epilogue": "ldp x29, x30, [sp], #16; ret",
+      "syscall_policy": "host_adapter_only"
+    },
+    {
+      "name": "armeabi-v7a",
+      "abi_version": "1.0",
+      "stack_alignment": 8,
+      "frame_policy": "leaf_optional",
+      "calling_convention": {
+        "input": "r0-r3",
+        "return": "r0-r1",
+        "caller_saved": "r0-r3,r12",
+        "callee_saved": "r4-r11,sp"
+      },
+      "prologue": "push {r7, lr}; add r7, sp, #0",
+      "epilogue": "pop {r7, pc}",
+      "syscall_policy": "host_adapter_only"
+    },
+    {
+      "name": "x86_64",
+      "abi_version": "1.0",
+      "stack_alignment": 16,
+      "frame_policy": "leaf_optional",
+      "calling_convention": {
+        "input": "rdi,rsi,rdx,rcx,r8,r9",
+        "return": "rax,rdx",
+        "caller_saved": "rax,rcx,rdx,rsi,rdi,r8-r11,xmm0-xmm15",
+        "callee_saved": "rbx,rbp,r12-r15,rsp"
+      },
+      "prologue": "push rbp; mov rbp, rsp",
+      "epilogue": "leave; ret",
+      "syscall_policy": "allowlisted_gate"
+    },
+    {
+      "name": "x86",
+      "abi_version": "1.0",
+      "stack_alignment": 16,
+      "frame_policy": "required",
+      "calling_convention": {
+        "input": "stack(cdecl)",
+        "return": "eax,edx",
+        "caller_saved": "eax,ecx,edx",
+        "callee_saved": "ebx,esi,edi,ebp,esp"
+      },
+      "prologue": "push ebp; mov ebp, esp",
+      "epilogue": "leave; ret",
+      "syscall_policy": "allowlisted_gate"
+    },
+    {
+      "name": "riscv64",
+      "abi_version": "1.0",
+      "stack_alignment": 16,
+      "frame_policy": "leaf_optional",
+      "calling_convention": {
+        "input": "a0-a7",
+        "return": "a0-a1",
+        "caller_saved": "a0-a7,t0-t6",
+        "callee_saved": "s0-s11,sp"
+      },
+      "prologue": "addi sp, sp, -16; sd ra, 8(sp); sd s0, 0(sp); mv s0, sp",
+      "epilogue": "ld s0, 0(sp); ld ra, 8(sp); addi sp, sp, 16; ret",
+      "syscall_policy": "host_adapter_only"
+    },
+    {
+      "name": "riscv32",
+      "abi_version": "1.0",
+      "stack_alignment": 16,
+      "frame_policy": "leaf_optional",
+      "calling_convention": {
+        "input": "a0-a7",
+        "return": "a0-a1",
+        "caller_saved": "a0-a7,t0-t6",
+        "callee_saved": "s0-s11,sp"
+      },
+      "prologue": "addi sp, sp, -16; sw ra, 12(sp); sw s0, 8(sp); mv s0, sp",
+      "epilogue": "lw s0, 8(sp); lw ra, 12(sp); addi sp, sp, 16; ret",
+      "syscall_policy": "host_adapter_only"
+    },
+    {
+      "name": "mips64",
+      "abi_version": "1.0",
+      "stack_alignment": 16,
+      "frame_policy": "required",
+      "calling_convention": {
+        "input": "$a0-$a7",
+        "return": "$v0-$v1",
+        "caller_saved": "$at,$v0-$v1,$a0-$a7,$t0-$t9",
+        "callee_saved": "$s0-$s7,$sp,$fp,$ra"
+      },
+      "prologue": "daddiu $sp, $sp, -32; sd $ra, 24($sp); sd $fp, 16($sp); move $fp, $sp",
+      "epilogue": "move $sp, $fp; ld $fp, 16($sp); ld $ra, 24($sp); daddiu $sp, $sp, 32; jr $ra",
+      "syscall_policy": "allowlisted_gate"
+    }
+  ],
+  "error_codes": {
+    "ok": 0,
+    "unsupported_arch": -1000,
+    "unsupported_abi_version": -1001,
+    "stack_misaligned": -1002,
+    "bad_frame_policy": -1003,
+    "calling_convention": -1004,
+    "forbidden_syscall": -1005,
+    "boundary_violation": -1006,
+    "null_ptr": -1007
+  },
+  "interoperability": [
+    {
+      "producer": "1.0-1.0",
+      "consumer": "1.0-1.0",
+      "adaptive_bridge": false,
+      "mode": "strict"
+    },
+    {
+      "producer": "1.1-1.3",
+      "consumer": "1.0-1.4",
+      "adaptive_bridge": true,
+      "mode": "autoadaptive"
+    },
+    {
+      "producer": "2.0-2.1",
+      "consumer": "1.2-1.9",
+      "adaptive_bridge": true,
+      "mode": "autoadaptive_backport"
+    },
+    {
+      "producer": "2.0-2.1",
+      "consumer": "2.0-2.1",
+      "adaptive_bridge": false,
+      "mode": "strict"
+    }
+  ]
+}
