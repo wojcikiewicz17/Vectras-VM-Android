@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Validate CI workflow matrix/profile consistency and canonical workflow ownership."""
 from pathlib import Path
-import re
-import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
@@ -109,21 +107,30 @@ for workflow_path in host_semantic_workflows:
             )
             sys.exit(1)
 
-# Guardrail: non-canonical android workflows must not own android build responsibilities.
-android_semantic_workflows = [
-    p
-    for p in WORKFLOWS.glob('*.yml')
-    if p.name not in {'android-ci.yml', 'android.yml'} and 'android' in p.stem.lower()
-]
+# Guardrail: only canonical Android workflows can own Android build responsibilities.
+android_canonical_workflows = {'android-ci.yml'}
+android_wrapper_workflows = {'android.yml', 'compile-matrix.yml'}
 android_responsibility_markers = [
     'android-actions/setup-android@v3',
     './tools/gradle_with_jdk21.sh',
     'build_android_cmake_matrix.sh',
     ':app:assembleDebug',
     ':app:assembleRelease',
+    ':app:verifyDeliveredCompiledArtifacts',
 ]
-for workflow_path in android_semantic_workflows:
+android_delegate_marker = './.github/workflows/android-ci.yml'
+
+for workflow_path in WORKFLOWS.glob('*.yml'):
     content = workflow_path.read_text(encoding='utf-8')
+
+    if workflow_path.name in android_wrapper_workflows:
+        if android_delegate_marker not in content:
+            print(f'workflow {workflow_path.name} must delegate to android-ci.yml')
+            sys.exit(1)
+
+    if workflow_path.name in android_canonical_workflows:
+        continue
+
     for marker in android_responsibility_markers:
         if marker in content:
             print(

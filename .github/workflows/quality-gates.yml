@@ -25,7 +25,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate canonical workflow ownership (host/android)
+      - name: Validate canonical workflow ownership and overlapping Android lanes
         run: python3 tools/ci/validate_build_matrix.py
 
       - name: Validate CMake layout
