@@ -14,6 +14,8 @@ Existe **um único workflow Android canônico** (`android.yml`) com seleção po
 4. `compat_matrix_debug` → valida matriz Gradle interna (`:app:checkNativeExtendedMatrix`) + build/testes debug (app/terminal-emulator/shell-loader)
 5. `release_gate` → build/testes unitários de release
 
+Gatilhos por `paths` (PR/push) incluem também `tools/**`, `.github/actions/android-build-base/**` e `docs/ci/**` para manter coerência entre scripts auxiliares, ação composta Android e documentação operacional do pipeline.
+
 ## Matriz de logs (`log_level`)
 
 | log_level | flags Gradle | uso recomendado |
