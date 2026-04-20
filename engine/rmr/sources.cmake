@@ -24,6 +24,7 @@ set(RMR_ENGINE_CORE_SOURCES
   engine/rmr/src/rmr_neon_simd.c
   engine/rmr/src/rmr_qemu_bridge.c
   engine/rmr/src/rmr_tcg_cache.c
+  engine/rmr/src/rmr_torus_flow.c
   engine/rmr/src/rmr_unified_jni_bridge.c
   engine/rmr/src/rmr_unified_kernel.c
   engine/rmr/src/rmr_vhw_model.c
