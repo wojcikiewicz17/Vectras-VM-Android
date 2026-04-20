@@ -27,6 +27,7 @@ on:
 
 env:
   GRADLE_OPTS: "-Xmx4g -Dfile.encoding=UTF-8"
+  CI: true
 
 jobs:
   build:
@@ -34,14 +35,52 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Resolve Android toolchain versions from gradle.properties
+        id: gradle-props
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          declare -A key_map=(
+            ["compile.api"]="COMPILE_API"
+            ["tools.version"]="TOOLS_VERSION"
+            ["ndk.version"]="NDK_VERSION"
+            ["cmake.version"]="CMAKE_VERSION"
+            ["java.language.version"]="JAVA_VERSION"
+          )
+
+          for key in "${!key_map[@]}"; do
+            env_key="${key_map[$key]}"
+            value="$(awk -F= -v key="$key" '$1==key {print $2; exit}' gradle.properties | tr -d '[:space:]')"
+            if [[ -z "${value}" ]]; then
+              echo "Missing '${key}' in gradle.properties" >&2
+              exit 1
+            fi
+            echo "${env_key}=${value}" >> "$GITHUB_ENV"
+          done
+
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
-          java-version: '17'
+          java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
+
+      - name: Install SDK, Build-Tools, CMake and NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
+
+      - name: Bootstrap Android environment contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/prepare_android_env.sh --java-version "${JAVA_VERSION}" --ndk-version "${NDK_VERSION}" --require-sdkmanager
+          ./tools/ci/verify_android_local_properties_contract.sh
 
       - name: Resolve ABI policy
         id: abi
