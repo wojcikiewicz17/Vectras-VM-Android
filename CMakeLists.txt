@@ -52,6 +52,12 @@ rmr_bool_to_int(RMR_ASM_CORE_X86_64_VALIDATED RMR_ASM_CORE_X86_64_VALIDATED_VALU
 rmr_bool_to_int(RMR_ASM_CORE_ARM64_VALIDATED RMR_ASM_CORE_ARM64_VALIDATED_VALUE)
 rmr_bool_to_int(RMR_ASM_CORE_RISCV64_VALIDATED RMR_ASM_CORE_RISCV64_VALIDATED_VALUE)
 
+if(ANDROID AND EXISTS "${CMAKE_SOURCE_DIR}/engine/platform/android/CMakeLists.txt")
+  include(${CMAKE_SOURCE_DIR}/engine/platform/android/CMakeLists.txt)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND EXISTS "${CMAKE_SOURCE_DIR}/engine/platform/linux/CMakeLists.txt")
+  include(${CMAKE_SOURCE_DIR}/engine/platform/linux/CMakeLists.txt)
+endif()
+
 function(rmr_apply_common_flags target_name)
   target_compile_options(${target_name} PRIVATE
     $<$<C_COMPILER_ID:MSVC>:/O2 /W4>
@@ -103,11 +109,14 @@ if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarc
   set(RMR_HAS_NEON_SOURCES TRUE)
 endif()
 
-if(RMR_HAS_CASM)
-  add_compile_definitions(VECTRA_HAS_CASM_MARKER=1)
+if(RMR_HAS_CASM OR (NOT ANDROID AND RMR_ASM_CORE_EXPERIMENTAL))
+  set(VECTRA_HAS_CASM_MARKER 1)
+  message(STATUS "VECTRA_HAS_CASM_MARKER=1 (ASM core available)")
 else()
-  add_compile_definitions(VECTRA_HAS_CASM_MARKER=0)
+  set(VECTRA_HAS_CASM_MARKER 0)
+  message(STATUS "VECTRA_HAS_CASM_MARKER=0 (ASM core disabled)")
 endif()
+add_compile_definitions(VECTRA_HAS_CASM_MARKER=${VECTRA_HAS_CASM_MARKER})
 
 add_library(rmr STATIC ${RMR_SOURCES})
 rmr_apply_common_flags(rmr)
@@ -150,6 +159,7 @@ add_custom_target(verify_contracts
   DEPENDS verify_librmr_symbols
 )
 
+if(NOT ANDROID)
 rmr_add_host_executable(rafaelia_demo demo_cli/src/main.c)
 rmr_add_host_executable(rmr_bench bench/src/rmr_benchmark_main.c COMPILE_DEFINITIONS RMR_JNI_BUILD=1)
 rmr_add_host_executable(bitomega_smoketest demo_cli/src/bitomega_smoketest.c)
@@ -250,6 +260,9 @@ add_custom_target(run_bitomega_smoketest
   DEPENDS bitomega_smoketest
 )
 
+endif()
+
+if(NOT ANDROID)
 find_package(Python3 COMPONENTS Interpreter QUIET)
 find_program(GRAPHVIZ_DOT_EXECUTABLE dot)
 if(Python3_Interpreter_FOUND AND GRAPHVIZ_DOT_EXECUTABLE)
@@ -275,4 +288,5 @@ else()
   endif()
   string(JOIN ", " RMR_REPORT_MISSING_TOOLS_TEXT ${RMR_REPORT_MISSING_TOOLS})
   message(STATUS "Skipping bitomega_transition_graph target: missing ${RMR_REPORT_MISSING_TOOLS_TEXT}")
+endif()
 endif()

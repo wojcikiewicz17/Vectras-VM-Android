@@ -13,6 +13,7 @@ option(RMR_ASM_CORE_RISCV64_VALIDATED "Enable RV64I-compatible CASM path on risc
 set(VECTRA_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../../)
 set(VECTRA_RMR_INCLUDE_DIR ${VECTRA_REPO_ROOT}/engine/rmr/include)
 set(RMR_SOURCE_BASE "${VECTRA_REPO_ROOT}/")
+set(VECTRA_PLATFORM_ANDROID_COMPAT_SOURCE ${VECTRA_REPO_ROOT}/engine/platform/android/rmr_android_compat.c)
 
 include(${VECTRA_REPO_ROOT}/engine/rmr/sources_rmr_core.cmake)
 
@@ -65,6 +66,7 @@ add_library(vectra_core_accel SHARED
     vectra_lowlevel_backend_x86_64.c
     vectra_lowlevel_backend_x86.c
     vectra_lowlevel_backend_riscv64.c
+    ${VECTRA_PLATFORM_ANDROID_COMPAT_SOURCE}
     ${VECTRA_ENGINE_CORE_SOURCES}
     ${VECTRA_LOWLEVEL_SOURCES}
     ${VECTRA_CASM_SOURCES}
