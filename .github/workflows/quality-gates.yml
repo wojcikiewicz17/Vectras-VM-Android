@@ -18,6 +18,15 @@ on:
       profile:
         type: string
         required: true
+      base_sha:
+        type: string
+        required: true
+      head_sha:
+        type: string
+        required: true
+      perf_margin:
+        type: number
+        default: 0.03
 
 jobs:
   validate:
@@ -36,6 +45,35 @@ jobs:
 
       - name: Validate compilation ordering hints
         run: python3 tools/ci/check_compilation_order.py
+
+      - name: Install perf gate dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential make python3
+
+      - name: Run perf suite and compare to versioned baseline
+        run: |
+          set -euo pipefail
+          python3 tools/perf/run_suite.py --runs 5
+          python3 tools/perf/compare_baseline.py --margin "${{ inputs.perf_margin }}"
+          python3 tools/perf/derive_flag_decisions.py
+
+      - name: Enforce low-level perf neutrality/gain gate
+        run: |
+          set -euo pipefail
+          python3 tools/perf/enforce_lowlevel_gate.py \
+            --base-sha "${{ inputs.base_sha }}" \
+            --head-sha "${{ inputs.head_sha }}"
+
+      - name: Upload perf gate artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-gates-perf-${{ github.run_id }}
+          path: |
+            bench/results/perf/**
+            bench/baseline/*.json
+          if-no-files-found: warn
 
       - name: Final status gate
         shell: bash

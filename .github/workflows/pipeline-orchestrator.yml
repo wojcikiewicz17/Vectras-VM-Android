@@ -101,3 +101,6 @@ jobs:
       host_result: ${{ needs.host-ci.result }}
       android_result: ${{ needs.android-ci.result }}
       profile: ${{ needs.matrix-build.outputs.profile }}
+      base_sha: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
+      head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      perf_margin: 0.03
