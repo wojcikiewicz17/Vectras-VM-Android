@@ -2,6 +2,8 @@
 
 # Android CI canonical mode matrix
 
+> Matriz completa de workflows CI (host + android + orquestração): `docs/ci/workflow-matrix.md`.
+
 Este é o ponto único de documentação dos perfis Android usados por `.github/workflows/android.yml` e acionados por `.github/workflows/pipeline-orchestrator.yml`.
 
 ## Modelo de pipeline Android (fonte de verdade)
