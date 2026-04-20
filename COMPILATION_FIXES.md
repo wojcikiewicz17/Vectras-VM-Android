@@ -15,3 +15,8 @@ Date: 2026-04-20
 - Added CI helper validation script:
   - `tools/ci/verify_cmake_config.sh`
 - BUILDING documentation aligned with active branch ABI defaults (`arm32-arm64`) and JNI-first model.
+
+## CI/Workflow modularization (follow-up)
+- Added reusable workflows for host/android/quality and deterministic compile matrix.
+- Updated orchestrator to dispatch reusable jobs by profile.
+- Added docs and static validation scripts for workflow/build-matrix consistency.

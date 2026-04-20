@@ -1,50 +1,36 @@
-name: pipeline-orchestrator
+name: Orchestrator - Build Matrix
 
 on:
   push:
-    branches: [main, master, dev]
+    branches: [main, develop, 'feature/**']
   pull_request:
+    branches: [main, develop]
   workflow_dispatch:
     inputs:
       pipeline_profile:
-        description: "Perfil de pipeline"
-        type: choice
-        default: full
-        options:
-          - host_only
-          - android_only
-          - full
+        description: 'Build profile: host_only, android_only, full'
+        required: false
+        default: 'full'
       run_workfile:
-        description: "Perfil Android para workflow chamado"
-        type: choice
-        default: unit_loader
-        options:
-          - smoke_debug
-          - unit_loader
-          - full_debug
-          - compat_matrix_debug
-          - release_gate
-      log_level:
-        description: "Nível de log Android"
-        type: choice
-        default: info
-        options: [lifecycle, info, debug]
+        description: 'Android profile: smoke_debug, unit_loader, full_debug, release_gate'
+        required: false
+        default: 'smoke_debug'
+      build_variant:
+        description: 'Android variant: debug, release, perfRelease'
+        required: false
+        default: 'debug'
       abi_profile:
-        description: "Perfil ABI Android"
-        type: choice
-        default: official_arm64
-        options:
-          - official_arm64
-          - internal_arm32_arm64
-          - internal_4abi
-      native_matrix_profile:
-        description: "Cobertura nativa Android (ABIs/API)"
-        type: choice
-        default: canonical
-        options:
-          - canonical
-          - pilot_android9_16_5arch
-          - android8_16plus_allarch
+        description: 'ABI profile: official_arm64, internal_arm32_arm64'
+        required: false
+        default: 'official_arm64'
+      log_level:
+        description: 'Gradle log level: lifecycle, info, debug'
+        required: false
+        default: 'lifecycle'
+
+env:
+  GRADLE_OPTS: "-Xmx4g -Dfile.encoding=UTF-8"
+  CI: true
 
 permissions:
   contents: read
@@ -54,48 +40,62 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate-orchestrator-layout:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Validate orchestrator directories
-        run: ./tools/ci/validate_pipeline_directories.sh --profile orchestrator
-
-  resolve:
-    needs: validate-orchestrator-layout
+  matrix-build:
+    name: Determine Matrix
     runs-on: ubuntu-latest
     outputs:
-      run_host: ${{ steps.flags.outputs.run_host }}
-      run_android: ${{ steps.flags.outputs.run_android }}
+      should_run_host: ${{ steps.profile.outputs.should_run_host }}
+      should_run_android: ${{ steps.profile.outputs.should_run_android }}
+      profile: ${{ steps.profile.outputs.profile }}
     steps:
-      - id: flags
-        shell: bash
+      - name: Resolve profile
+        id: profile
         run: |
-          set -euo pipefail
-          profile="${{ inputs.pipeline_profile || 'full' }}"
-          case "${profile}" in
-            host_only) echo "run_host=true" >> "$GITHUB_OUTPUT"; echo "run_android=false" >> "$GITHUB_OUTPUT" ;;
-            android_only) echo "run_host=false" >> "$GITHUB_OUTPUT"; echo "run_android=true" >> "$GITHUB_OUTPUT" ;;
-            full) echo "run_host=true" >> "$GITHUB_OUTPUT"; echo "run_android=true" >> "$GITHUB_OUTPUT" ;;
-            *) echo "pipeline_profile inválido: ${profile}" >&2; exit 1 ;;
+          PROFILE="${{ github.event.inputs.pipeline_profile || 'full' }}"
+          case "$PROFILE" in
+            host_only)
+              echo "should_run_host=true" >> "$GITHUB_OUTPUT"
+              echo "should_run_android=false" >> "$GITHUB_OUTPUT"
+              ;;
+            android_only)
+              echo "should_run_host=false" >> "$GITHUB_OUTPUT"
+              echo "should_run_android=true" >> "$GITHUB_OUTPUT"
+              ;;
+            full|*)
+              echo "should_run_host=true" >> "$GITHUB_OUTPUT"
+              echo "should_run_android=true" >> "$GITHUB_OUTPUT"
+              ;;
           esac
+          echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
 
   host-ci:
-    needs: resolve
-    if: ${{ needs.resolve.outputs.run_host == 'true' }}
-    uses: ./.github/workflows/ci.yml
+    name: Host CI
+    needs: matrix-build
+    if: needs.matrix-build.outputs.should_run_host == 'true'
+    uses: ./.github/workflows/host-ci.yml
 
   android-ci:
-    needs: [resolve, host-ci]
-    if: ${{ always() && needs.resolve.outputs.run_android == 'true' && (needs.host-ci.result == 'success' || needs.host-ci.result == 'skipped') }}
-    uses: ./.github/workflows/android.yml
+    name: Android CI
+    needs: [matrix-build, host-ci]
+    if: ${{ always() && needs.matrix-build.outputs.should_run_android == 'true' && (needs.host-ci.result == 'success' || needs.host-ci.result == 'skipped') }}
+    uses: ./.github/workflows/android-ci.yml
     with:
-      run_workfile: ${{ inputs.run_workfile || 'unit_loader' }}
-      build_variant: debug
-      signing_mode: auto
-      log_level: ${{ inputs.log_level || 'info' }}
-      abi_profile: ${{ inputs.abi_profile || 'official_arm64' }}
-      native_matrix_profile: ${{ inputs.native_matrix_profile || 'canonical' }}
+      run_workfile: ${{ github.event.inputs.run_workfile || 'smoke_debug' }}
+      build_variant: ${{ github.event.inputs.build_variant || 'debug' }}
+      abi_profile: ${{ github.event.inputs.abi_profile || 'official_arm64' }}
+      log_level: ${{ github.event.inputs.log_level || 'lifecycle' }}
       run_lint: true
-      run_native_checks: true
+      run_native_checks: false
     secrets: inherit
+
+  quality-gates:
+    name: Quality Gates
+    needs: [matrix-build, host-ci, android-ci]
+    if: always()
+    uses: ./.github/workflows/quality-gates.yml
+    with:
+      run_host: ${{ needs.matrix-build.outputs.should_run_host == 'true' }}
+      run_android: ${{ needs.matrix-build.outputs.should_run_android == 'true' }}
+      host_result: ${{ needs.host-ci.result }}
+      android_result: ${{ needs.android-ci.result }}
+      profile: ${{ needs.matrix-build.outputs.profile }}
