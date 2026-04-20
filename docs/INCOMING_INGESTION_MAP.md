@@ -69,3 +69,12 @@ Status válidos: `pendente`, `em_avaliacao`, `integrado`, `descartado`.
 | `_incoming/rmr_spiral.S` | `pendente` | `-` | `docs/INCOMING_PROMOTION_PLAN.md` |
 | `_incoming/rmr_test.c` | `pendente` | `-` | `docs/INCOMING_PROMOTION_PLAN.md` |
 | `_incoming/termux.c` | `pendente` | `-` | `docs/INCOMING_PROMOTION_PLAN.md` |
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

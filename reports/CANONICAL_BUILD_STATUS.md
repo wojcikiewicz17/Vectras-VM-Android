@@ -31,4 +31,4 @@
 ## Observações operacionais
 
 - O histórico de validações ad-hoc deve apontar para este arquivo como status canônico.
-- O workflow Android (`.github/workflows/android.yml`) publica snapshot deste status como artifact de CI em toda execução.
+- O fluxo Android canônico (`.github/workflows/android-ci.yml`), acionado por wrapper/orquestrador, publica snapshot deste status como artifact de CI.

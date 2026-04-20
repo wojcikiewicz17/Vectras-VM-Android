@@ -62,7 +62,8 @@ Cada diretório tem:
 
 
 ## Governança operacional (CI e segurança)
-- CI Android: [`.github/workflows/android.yml`](.github/workflows/android.yml).
+- CI Android (wrapper de entrada): [`.github/workflows/android.yml`](.github/workflows/android.yml).
+- CI Android canônico: [`.github/workflows/android-ci.yml`](.github/workflows/android-ci.yml).
 - CI Engine: [`.github/workflows/engine-ci.yml`](.github/workflows/engine-ci.yml).
 - Automação de dependências: [`.github/dependabot.yml`](.github/dependabot.yml).
 - Security allowlist de artefatos sensíveis: [`security/sensitive-artifacts-allowlist.txt`](security/sensitive-artifacts-allowlist.txt).
@@ -86,3 +87,12 @@ Cada diretório tem:
 - Constantes de caminhos: [`app/src/main/java/com/vectras/vm/rafaelia/RafaeliaMethodPaths.java`](app/src/main/java/com/vectras/vm/rafaelia/RafaeliaMethodPaths.java).
 - Validador runtime: [`app/src/main/java/com/vectras/vm/rafaelia/RafaeliaPathValidator.java`](app/src/main/java/com/vectras/vm/rafaelia/RafaeliaPathValidator.java).
 - Testes unitários: [`app/src/test/java/com/vectras/vm/rafaelia/RafaeliaPathValidatorTest.java`](app/src/test/java/com/vectras/vm/rafaelia/RafaeliaPathValidatorTest.java).
+
+## CI canonical reference (Android/Host)
+
+- Canonical Android pipeline: `.github/workflows/android-ci.yml`.
+- Android wrapper entrypoint: `.github/workflows/android.yml`.
+- Auxiliary Android ABI compatibility matrix: `.github/workflows/compile-matrix.yml`.
+- Canonical host pipeline: `.github/workflows/host-ci.yml`.
+- Orchestration and final gates: `.github/workflows/pipeline-orchestrator.yml` and `.github/workflows/quality-gates.yml`.
+- Canonical matrix documentation: `docs/ci/workflow-matrix.md`.

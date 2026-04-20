@@ -109,7 +109,8 @@ for workflow_path in host_semantic_workflows:
 
 # Guardrail: only canonical Android workflows can own Android build responsibilities.
 android_canonical_workflows = {'android-ci.yml'}
-android_wrapper_workflows = {'android.yml', 'compile-matrix.yml'}
+android_wrapper_workflows = {'android.yml'}
+android_aux_android_workflows = {'compile-matrix.yml'}
 android_responsibility_markers = [
     'android-actions/setup-android@v3',
     './tools/gradle_with_jdk21.sh',
@@ -128,7 +129,7 @@ for workflow_path in WORKFLOWS.glob('*.yml'):
             print(f'workflow {workflow_path.name} must delegate to android-ci.yml')
             sys.exit(1)
 
-    if workflow_path.name in android_canonical_workflows:
+    if workflow_path.name in android_canonical_workflows or workflow_path.name in android_aux_android_workflows:
         continue
 
     for marker in android_responsibility_markers:

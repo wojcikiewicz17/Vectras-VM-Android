@@ -31,7 +31,7 @@ Mapa arquivo-a-arquivo em três linhas por item: papel, ligação e comando de i
 
 ## `docs/BUILD_REFACTOR_SCOPE.md`
 - **Papel**: plano técnico de refatoração estrutural para build/release/CI com foco em causa-raiz e critérios de aceite.
-- **Liga com**: ver [`docs/README.md`](README.md), [`../README.md`](../README.md) e [`../.github/workflows/android.yml`](../.github/workflows/android.yml).
+- **Liga com**: ver [`docs/README.md`](README.md), [`../README.md`](../README.md), [`../.github/workflows/android.yml`](../.github/workflows/android.yml) e [`../.github/workflows/android-ci.yml`](../.github/workflows/android-ci.yml).
 - **Inspeção**: `file "docs/BUILD_REFACTOR_SCOPE.md"` e `sed -n "1,200p" "docs/BUILD_REFACTOR_SCOPE.md"`.
 
 ## `docs/BIBLIOGRAPHY.md`
@@ -209,3 +209,11 @@ Mapa arquivo-a-arquivo em três linhas por item: papel, ligação e comando de i
 - **Liga com**: ver [`docs/README.md`](README.md) e [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md) para contexto de camadas.
 - **Inspeção**: `file "docs/navigation/UNIVERSITIES_ACADEMIC.md"` e, quando texto, `sed -n "1,80p" "docs/navigation/UNIVERSITIES_ACADEMIC.md"`.
 
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

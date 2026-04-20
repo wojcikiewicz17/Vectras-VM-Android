@@ -67,3 +67,12 @@ Fonte canônica de validação CI/build: `tools/ci/lowlevel_abi_contract.json` +
 - **CI obrigatório:**
   - `.github/workflows/android-ci.yml` (job gate dedicado de contrato ABI).
   - `.github/workflows/compile-matrix.yml` (job gate dedicado de contrato ABI).
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

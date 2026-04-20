@@ -43,7 +43,7 @@
 ## Contrato de distribuição Android (`ciRelease`)
 - **Contexto de distribuição explícito:** jobs de release passam `-PciRelease=true` para o Gradle.
 - **Fail-fast obrigatório:** `buildTypes.release` e `buildTypes.perfRelease` abortam com `GradleException` se `signingConfigs.release` não estiver disponível quando `ciRelease=true` (contexto explícito de distribuição).
-- **Gate de CI antes do build:** `.github/workflows/android.yml` valida segredos de assinatura no início do job de release, interrompe execução antes de bootstrap Android quando houver ausência de credenciais e injeta explicitamente `-PciRelease=true` nos comandos Gradle de distribuição.
+- **Gate de CI antes do build:** `.github/workflows/android-ci.yml` valida segredos/política de assinatura no caminho de release; `android.yml` apenas encaminha inputs e delega execução canônica.
 - **Debug sem acoplamento de produção:** `buildTypes.debug` permanece desacoplado de assinatura de release e não depende de segredos de produção.
 
 ## Segurança de egress/rede
@@ -78,3 +78,12 @@ Os fluxos de saída HTTP/HTTPS usam controles explícitos para reduzir superfíc
    - Atualizar políticas por feature em `app/src/main/java/com/vectras/vm/network/EndpointPolicy.java` (API e/ou ACTION_VIEW).
    - Se houver restrição de host/path por capacidade, ajustar `app/src/main/java/com/vectras/vm/network/EndpointFeature.java`.
 4. **Validação antes de merge**: confirmar que novos endpoints passam por validação (`EndpointValidator`) e que não existe uso direto de URL hardcoded fora das classes de política/composição.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.
