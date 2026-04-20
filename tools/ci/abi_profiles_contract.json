@@ -1,0 +1,59 @@
+{
+  "profiles": {
+    "official_arm64": {
+      "app_abi_policy": "arm64-only",
+      "supported_abis": ["arm64-v8a"],
+      "ci_internal_validation": false,
+      "channel": "official"
+    },
+    "official_arm32_arm64": {
+      "app_abi_policy": "arm32-arm64",
+      "supported_abis": ["arm64-v8a", "armeabi-v7a"],
+      "ci_internal_validation": true,
+      "channel": "internal"
+    },
+    "internal_arm64": {
+      "app_abi_policy": "arm64-only",
+      "supported_abis": ["arm64-v8a"],
+      "ci_internal_validation": true,
+      "channel": "internal"
+    },
+    "internal_arm32_arm64": {
+      "app_abi_policy": "arm32-arm64",
+      "supported_abis": ["arm64-v8a", "armeabi-v7a"],
+      "ci_internal_validation": true,
+      "channel": "internal"
+    },
+    "internal_4abi": {
+      "app_abi_policy": "internal-4abi",
+      "supported_abis": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64"],
+      "ci_internal_validation": true,
+      "channel": "internal"
+    },
+    "internal_5abi": {
+      "app_abi_policy": "internal-5abi",
+      "supported_abis": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64", "riscv64"],
+      "ci_internal_validation": true,
+      "channel": "internal"
+    },
+    "internal_riscv64": {
+      "app_abi_policy": "internal-5abi",
+      "supported_abis": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64", "riscv64"],
+      "ci_internal_validation": true,
+      "channel": "internal"
+    },
+    "generic": {
+      "app_abi_policy": "arm32-arm64",
+      "supported_abis": ["arm64-v8a", "armeabi-v7a"],
+      "ci_internal_validation": true,
+      "channel": "internal"
+    }
+  },
+  "aliases": {
+    "internal-4abi": "internal_4abi",
+    "internal-5abi": "internal_5abi",
+    "official-arm64": "official_arm64",
+    "arm64-only": "official_arm64",
+    "arm32-arm64": "internal_arm32_arm64"
+  }
+}
