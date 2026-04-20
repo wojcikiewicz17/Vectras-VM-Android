@@ -30,25 +30,16 @@ jobs:
         run: |
           set -euo pipefail
           case "${{ matrix.abi }}" in
-            arm64-v8a)
-              ABI_POLICY="arm64-only"
-              SUPPORTED_ABIS="arm64-v8a"
-              CI_INTERNAL_VALIDATION=false
-              ;;
-            armeabi-v7a)
-              ABI_POLICY="arm32-arm64"
-              SUPPORTED_ABIS="arm64-v8a,armeabi-v7a"
-              CI_INTERNAL_VALIDATION=true
-              ;;
-            x86|x86_64)
-              ABI_POLICY="internal-4abi"
-              SUPPORTED_ABIS="arm64-v8a,armeabi-v7a,x86,x86_64"
-              CI_INTERNAL_VALIDATION=true
-              ;;
+            arm64-v8a) profile="official_arm64" ;;
+            armeabi-v7a) profile="internal_arm32_arm64" ;;
+            x86|x86_64) profile="internal_4abi" ;;
+            *) profile="${{ inputs.abi_profile }}" ;;
           esac
 
+          eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${profile}" --allow-generic-fallback)"
+
           ./tools/gradle_with_jdk21.sh \
-            -PAPP_ABI_POLICY="$ABI_POLICY" \
-            -PSUPPORTED_ABIS="$SUPPORTED_ABIS" \
-            -PCI_INTERNAL_VALIDATION="$CI_INTERNAL_VALIDATION" \
+            -PAPP_ABI_POLICY="${app_abi_policy}" \
+            -PSUPPORTED_ABIS="${supported_abis}" \
+            -PCI_INTERNAL_VALIDATION="${ci_internal_validation}" \
             :app:assemble${{ matrix.variant }}

@@ -68,7 +68,7 @@ on:
         description: "Perfil ABI (trilha oficial)"
         type: choice
         default: official_arm64
-        options: [official_arm64, internal_arm32_arm64, internal_4abi]
+        options: [official_arm64, official_arm32_arm64, internal_arm64, internal_arm32_arm64, internal_4abi, internal_5abi, internal_riscv64, generic]
       native_matrix_profile:
         description: "Cobertura nativa CMake (arquiteturas + bandas de API)"
         type: choice
@@ -251,33 +251,12 @@ jobs:
             *) echo "log_level inválido: ${log_level}" >&2; exit 1 ;;
           esac
 
-          case "${abi_profile}" in
-            official_arm64)
-              app_abi_policy="arm64-only"
-              supported_abis="arm64-v8a"
-              effective_min_api="${{ steps.canonical.outputs.min_api }}"
-              ci_internal_validation="false"
-              artifact_name_suffix="arm64-only"
-              ;;
-            internal_arm32_arm64)
-              app_abi_policy="arm32-arm64"
-              supported_abis="arm64-v8a,armeabi-v7a"
-              effective_min_api="${{ steps.canonical.outputs.min_api }}"
-              ci_internal_validation="true"
-              artifact_name_suffix="internal-arm32-arm64"
-              ;;
-            internal_4abi)
-              app_abi_policy="internal-4abi"
-              supported_abis="arm64-v8a,armeabi-v7a,x86,x86_64"
-              effective_min_api="${{ steps.canonical.outputs.min_api }}"
-              ci_internal_validation="true"
-              artifact_name_suffix="internal-4abi"
-              ;;
-            *)
-              echo "abi_profile inválido: ${abi_profile}. Valores suportados: official_arm64, internal_arm32_arm64, internal_4abi." >&2
-              exit 1
-              ;;
-          esac
+          eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${abi_profile}" --allow-generic-fallback)"
+          app_abi_policy="${app_abi_policy}"
+          supported_abis="${supported_abis}"
+          ci_internal_validation="${ci_internal_validation}"
+          effective_min_api="${{ steps.canonical.outputs.min_api }}"
+          artifact_name_suffix="${abi_profile//_/-}"
 
           case "${native_matrix_profile}" in
             canonical)

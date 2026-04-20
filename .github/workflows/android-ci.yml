@@ -87,22 +87,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          case "${{ inputs.abi_profile }}" in
-            official_arm64)
-              echo "abi_policy=arm64-only" >> "$GITHUB_OUTPUT"
-              echo "supported_abis=arm64-v8a" >> "$GITHUB_OUTPUT"
-              echo "ci_internal=false" >> "$GITHUB_OUTPUT"
-              ;;
-            internal_arm32_arm64)
-              echo "abi_policy=arm32-arm64" >> "$GITHUB_OUTPUT"
-              echo "supported_abis=arm64-v8a,armeabi-v7a" >> "$GITHUB_OUTPUT"
-              echo "ci_internal=true" >> "$GITHUB_OUTPUT"
-              ;;
-            *)
-              echo "unsupported abi_profile=${{ inputs.abi_profile }}" >&2
-              exit 1
-              ;;
-          esac
+          eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile '${{ inputs.abi_profile }}')"
+          echo "abi_policy=${app_abi_policy}" >> "$GITHUB_OUTPUT"
+          echo "supported_abis=${supported_abis}" >> "$GITHUB_OUTPUT"
+          echo "ci_internal=${ci_internal_validation}" >> "$GITHUB_OUTPUT"
 
       - name: Build APK
         shell: bash
