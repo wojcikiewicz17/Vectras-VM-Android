@@ -11,6 +11,7 @@ Fonte canônica para validação automatizada:
 O contrato é bloqueante em:
 - `.github/workflows/android-ci.yml`
 - `.github/workflows/compile-matrix.yml`
+- `.github/workflows/quality-gates.yml`
 
 e também na trilha local de build:
 - Gradle `:app:preBuild` via task `validateCriticalNativeAbiLayer`
