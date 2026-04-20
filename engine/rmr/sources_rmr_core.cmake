@@ -29,7 +29,6 @@ set(RMR_SOURCE_GROUP_CORE
   engine/rmr/src/rmr_lowlevel_portable.c
   engine/rmr/src/rmr_lowlevel_mix.c
   engine/rmr/src/rmr_lowlevel_reduce.c
-  engine/rmr/src/rmr_neon_simd.c
 )
 
 set(RMR_SOURCE_GROUP_OPTIONAL_POLICY
@@ -58,6 +57,12 @@ set(RMR_SOURCE_GROUP_ASM_X86_64
 
 set(RMR_SOURCE_GROUP_ASM_ARM64
   engine/rmr/interop/rmr_casm_arm64.S
+)
+
+# NEON/SIMD source must be ABI-scoped to ARM to avoid accidental cross-ABI
+# compile when manifests are consumed by Android multi-ABI builds.
+set(RMR_SOURCE_GROUP_ASM_ARM64_NEON
+  engine/rmr/src/rmr_neon_simd.c
 )
 
 set(RMR_SOURCE_GROUP_ASM_RISCV64
