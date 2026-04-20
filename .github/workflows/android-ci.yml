@@ -178,9 +178,18 @@ jobs:
           echo "native_matrix_specs=${native_matrix_specs}" >> "$GITHUB_OUTPUT"
           echo "native_matrix_profile=${native_matrix_profile}" >> "$GITHUB_OUTPUT"
 
-  build:
+
+  abi-contract-gate:
     runs-on: ubuntu-latest
     needs: resolve
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate lowlevel ABI contract (mandatory gate)
+        run: python3 ./tools/ci/validate_lowlevel_abi_contract.py
+
+  build:
+    runs-on: ubuntu-latest
+    needs: [resolve, abi-contract-gate]
     steps:
       - uses: actions/checkout@v4
 
@@ -213,8 +222,6 @@ jobs:
       - name: Validate Java source contracts
         run: python3 ./tools/ci/check_java_contracts.py
 
-      - name: Validate lowlevel ABI contract
-        run: python3 ./tools/ci/validate_lowlevel_abi_contract.py
 
       - name: Validate Android SDK/build path alignment
         run: ./tools/ci/validate_android_sdk_alignment.sh

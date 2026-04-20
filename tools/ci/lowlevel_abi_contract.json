@@ -1,10 +1,13 @@
 {
-  "schema_version": "1.0.0",
-  "no_implicit_libc_stdlib": true,
+  "schema_version": "2.0.0",
+  "abi_contract_version": "1.0.0",
+  "critical_layer_no_implicit_libc_stdlib": true,
   "architectures": [
     {
       "name": "arm64-v8a",
       "abi_version": "1.0",
+      "required": true,
+      "internal_only": false,
       "stack_alignment": 16,
       "frame_policy": "leaf_optional",
       "calling_convention": {
@@ -15,11 +18,13 @@
       },
       "prologue": "stp x29, x30, [sp, #-16]!; mov x29, sp",
       "epilogue": "ldp x29, x30, [sp], #16; ret",
-      "syscall_policy": "host_adapter_only"
+      "syscall_policy": "host_adapter_only_allowlisted"
     },
     {
       "name": "armeabi-v7a",
       "abi_version": "1.0",
+      "required": false,
+      "internal_only": true,
       "stack_alignment": 8,
       "frame_policy": "leaf_optional",
       "calling_convention": {
@@ -30,82 +35,7 @@
       },
       "prologue": "push {r7, lr}; add r7, sp, #0",
       "epilogue": "pop {r7, pc}",
-      "syscall_policy": "host_adapter_only"
-    },
-    {
-      "name": "x86_64",
-      "abi_version": "1.0",
-      "stack_alignment": 16,
-      "frame_policy": "leaf_optional",
-      "calling_convention": {
-        "input": "rdi,rsi,rdx,rcx,r8,r9",
-        "return": "rax,rdx",
-        "caller_saved": "rax,rcx,rdx,rsi,rdi,r8-r11,xmm0-xmm15",
-        "callee_saved": "rbx,rbp,r12-r15,rsp"
-      },
-      "prologue": "push rbp; mov rbp, rsp",
-      "epilogue": "leave; ret",
-      "syscall_policy": "allowlisted_gate"
-    },
-    {
-      "name": "x86",
-      "abi_version": "1.0",
-      "stack_alignment": 16,
-      "frame_policy": "required",
-      "calling_convention": {
-        "input": "stack(cdecl)",
-        "return": "eax,edx",
-        "caller_saved": "eax,ecx,edx",
-        "callee_saved": "ebx,esi,edi,ebp,esp"
-      },
-      "prologue": "push ebp; mov ebp, esp",
-      "epilogue": "leave; ret",
-      "syscall_policy": "allowlisted_gate"
-    },
-    {
-      "name": "riscv64",
-      "abi_version": "1.0",
-      "stack_alignment": 16,
-      "frame_policy": "leaf_optional",
-      "calling_convention": {
-        "input": "a0-a7",
-        "return": "a0-a1",
-        "caller_saved": "a0-a7,t0-t6",
-        "callee_saved": "s0-s11,sp"
-      },
-      "prologue": "addi sp, sp, -16; sd ra, 8(sp); sd s0, 0(sp); mv s0, sp",
-      "epilogue": "ld s0, 0(sp); ld ra, 8(sp); addi sp, sp, 16; ret",
-      "syscall_policy": "host_adapter_only"
-    },
-    {
-      "name": "riscv32",
-      "abi_version": "1.0",
-      "stack_alignment": 16,
-      "frame_policy": "leaf_optional",
-      "calling_convention": {
-        "input": "a0-a7",
-        "return": "a0-a1",
-        "caller_saved": "a0-a7,t0-t6",
-        "callee_saved": "s0-s11,sp"
-      },
-      "prologue": "addi sp, sp, -16; sw ra, 12(sp); sw s0, 8(sp); mv s0, sp",
-      "epilogue": "lw s0, 8(sp); lw ra, 12(sp); addi sp, sp, 16; ret",
-      "syscall_policy": "host_adapter_only"
-    },
-    {
-      "name": "mips64",
-      "abi_version": "1.0",
-      "stack_alignment": 16,
-      "frame_policy": "required",
-      "calling_convention": {
-        "input": "$a0-$a7",
-        "return": "$v0-$v1",
-        "caller_saved": "$at,$v0-$v1,$a0-$a7,$t0-$t9",
-        "callee_saved": "$s0-$s7,$sp,$fp,$ra"
-      },
-      "prologue": "daddiu $sp, $sp, -32; sd $ra, 24($sp); sd $fp, 16($sp); move $fp, $sp",
-      "epilogue": "move $sp, $fp; ld $fp, 16($sp); ld $ra, 24($sp); daddiu $sp, $sp, 32; jr $ra",
-      "syscall_policy": "allowlisted_gate"
+      "syscall_policy": "host_adapter_only_allowlisted"
     }
   ],
   "error_codes": {
@@ -119,30 +49,31 @@
     "boundary_violation": -1006,
     "null_ptr": -1007
   },
-  "interoperability": [
+  "export_symbols": [
     {
-      "producer": "1.0-1.0",
-      "consumer": "1.0-1.0",
-      "adaptive_bridge": false,
-      "mode": "strict"
+      "symbol": "abi_entry_get_contract_version",
+      "since_abi": "1.0.0",
+      "stability": "stable"
     },
     {
-      "producer": "1.1-1.3",
-      "consumer": "1.0-1.4",
-      "adaptive_bridge": true,
-      "mode": "autoadaptive"
+      "symbol": "abi_entry_get_arch_descriptors",
+      "since_abi": "1.0.0",
+      "stability": "stable"
     },
     {
-      "producer": "2.0-2.1",
-      "consumer": "1.2-1.9",
-      "adaptive_bridge": true,
-      "mode": "autoadaptive_backport"
+      "symbol": "abi_entry_get_interop_rules",
+      "since_abi": "1.0.0",
+      "stability": "stable"
     },
     {
-      "producer": "2.0-2.1",
-      "consumer": "2.0-2.1",
-      "adaptive_bridge": false,
-      "mode": "strict"
+      "symbol": "abi_entry_validate_interop",
+      "since_abi": "1.0.0",
+      "stability": "stable"
     }
-  ]
+  ],
+  "syscall_boundary": {
+    "policy": "raw_os_syscalls_forbidden",
+    "allowed_boundary": "host_adapter_gate_only",
+    "notes": "Camada crítica não executa syscall raw; toda interação com OS passa por adapters allowlistados e auditáveis."
+  }
 }

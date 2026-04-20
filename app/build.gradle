@@ -231,7 +231,17 @@ tasks.register("syncShellLoaderBootstrap", Copy) {
 
 tasks.named("preBuild").configure {
     dependsOn(tasks.named("syncShellLoaderBootstrap"))
+    dependsOn(tasks.named("validateCriticalNativeAbiLayer"))
 }
+
+
+tasks.register("validateCriticalNativeAbiLayer", Exec) {
+    group = "verification"
+    description = "Valida contrato lowlevel ABI e bloqueia dependências implícitas de libc/stdlib na camada crítica."
+    workingDir = rootDir
+    commandLine "python3", "tools/ci/validate_lowlevel_abi_contract.py"
+}
+
 
 def checkVariant = (providers.gradleProperty("checkVariant").orElse("debug").get() ?: "debug").trim()
 if (!checkVariant) {

@@ -57,7 +57,15 @@ endif()
 # endif()
 
 
-set(VECTRA_ABI_CORE_FREESTANDING_SOURCES
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_custom_target(lowlevel_abi_contract_check
+    COMMAND ${Python3_EXECUTABLE} ${VECTRA_REPO_ROOT}/tools/ci/validate_lowlevel_abi_contract.py
+    WORKING_DIRECTORY ${VECTRA_REPO_ROOT}
+    COMMENT "Validating lowlevel ABI contract + no implicit libc/stdlib policy")
+
+add_library(vectra_core_accel SHARED
+    vectra_core_accel.c
+    lowlevel_bridge.c
     lowlevel_abi.c
     vectra_lowlevel_backend_fallback.c
     vectra_lowlevel_backend_arm64.c
@@ -70,17 +78,7 @@ set(VECTRA_ABI_CORE_FREESTANDING_SOURCES
     ${VECTRA_CASM_SOURCES}
     ${VECTRA_NEON_SOURCES})
 
-set(VECTRA_JNI_BRIDGE_SOURCES
-    vectra_core_accel.c
-    lowlevel_bridge.c
-    hardware_profile_bridge.c
-    ${VECTRA_PLATFORM_ANDROID_COMPAT_SOURCE})
-
-add_library(abi_core_freestanding STATIC
-    ${VECTRA_ABI_CORE_FREESTANDING_SOURCES})
-
-add_library(vectra_core_accel SHARED
-    ${VECTRA_JNI_BRIDGE_SOURCES})
+add_dependencies(vectra_core_accel lowlevel_abi_contract_check)
 
 set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "arm64-v8a;armeabi-v7a;x86;x86_64" CACHE STRING "ABIs that should build termux-bootstrap")
 

@@ -9,6 +9,14 @@ extern "C" {
 
 #define VECTRA_LOWLEVEL_ABI_SCHEMA_VERSION 0x00010000u
 
+#if defined(__GNUC__)
+#define VECTRA_LL_ABI_EXPORT __attribute__((visibility("default")))
+#else
+#define VECTRA_LL_ABI_EXPORT
+#endif
+
+#define VECTRA_LOWLEVEL_ABI_CONTRACT_VERSION "1.0.0"
+
 typedef enum vectra_lowlevel_arch {
     VECTRA_LL_ARCH_ARM64_V8A = 0,
     VECTRA_LL_ARCH_ARMEABI_V7A = 1,
@@ -82,6 +90,15 @@ int vectra_lowlevel_validate_interop(uint16_t producer_major,
                                      uint16_t consumer_major,
                                      uint16_t consumer_minor,
                                      uint8_t* adaptive_bridge_enabled);
+
+VECTRA_LL_ABI_EXPORT const char* abi_entry_get_contract_version(void);
+VECTRA_LL_ABI_EXPORT const vectra_lowlevel_abi_descriptor_t* abi_entry_get_arch_descriptors(uint32_t* count);
+VECTRA_LL_ABI_EXPORT const vectra_lowlevel_interop_rule_t* abi_entry_get_interop_rules(uint32_t* count);
+VECTRA_LL_ABI_EXPORT int abi_entry_validate_interop(uint16_t producer_major,
+                                                    uint16_t producer_minor,
+                                                    uint16_t consumer_major,
+                                                    uint16_t consumer_minor,
+                                                    uint8_t* adaptive_bridge_enabled);
 
 #ifdef __cplusplus
 }
