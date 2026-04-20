@@ -35,7 +35,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate lowlevel ABI contract (mandatory gate)
-        run: python3 ./tools/ci/validate_lowlevel_abi_contract.py
+        run: ./tools/ci/validate_lowlevel_abi.sh
 
   android-matrix:
     runs-on: ubuntu-latest
