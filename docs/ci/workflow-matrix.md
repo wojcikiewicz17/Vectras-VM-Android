@@ -11,7 +11,7 @@ Matriz final de workflows CI após consolidação da trilha host.
 | `.github/workflows/android-ci.yml` | `workflow_call` | Executa trilha Android parametrizada (`run_workfile`, `build_variant`, `abi_profile`, etc.), valida contratos Android e gera artefatos de build/test. | APK/AAB, relatórios de teste/lint, artefatos da matriz CMake Android. |
 | `.github/workflows/android.yml` | `push`, `pull_request`, `workflow_dispatch` | **Wrapper/compatibilidade**: encaminha execução para a pipeline canônica `android-ci.yml` com parâmetros explícitos; não contém lógica de build própria. | Herda artefatos da pipeline canônica chamada. |
 | `.github/workflows/quality-gates.yml` | `workflow_call` | Consolida status de host/android e aplica gate final por perfil. | Relatório de gate (logs do próprio job). |
-| `.github/workflows/compile-matrix.yml` | `workflow_call` | Expande matriz de compilação reutilizável para pipeline Android/auxiliares. | Metadados/outputs de matriz (via outputs do workflow). |
+| `.github/workflows/compile-matrix.yml` | `workflow_call` | **Wrapper de matriz Android**: delega para `android-ci.yml` com parâmetros explícitos (`compat_matrix_debug` e perfil nativo parametrizável), sem lógica própria de SDK/Gradle. | Herda artefatos da pipeline canônica chamada. |
 | `.github/workflows/ci.yml` | `push`, `pull_request`, `workflow_dispatch`, `workflow_call` | **Alias legado**: encaminha para `host-ci.yml` e não mantém checks host próprios. | Herda artefatos do `host-ci.yml` chamado. |
 
 ## Regras de canonicalização
@@ -20,3 +20,5 @@ Matriz final de workflows CI após consolidação da trilha host.
 2. `ci.yml` é apenas compatibilidade temporária e não deve acumular lógica de host.
 3. Callers (`pipeline-orchestrator.yml` e futuros workflows reutilizáveis) devem chamar diretamente `host-ci.yml`.
 4. `tools/ci/validate_build_matrix.py` bloqueia regressões que reintroduzam trilhas host duplicadas/conflitantes.
+
+5. Toda responsabilidade Android (SDK/NDK/JDK, Gradle tasks, validações nativas e artefatos) fica em `android-ci.yml`; wrappers Android devem apenas delegar.

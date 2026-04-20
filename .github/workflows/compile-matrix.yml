@@ -5,10 +5,28 @@ on:
     inputs:
       run_workfile:
         type: string
-        default: smoke_debug
+        default: compat_matrix_debug
+      build_variant:
+        type: string
+        default: debug
+      signing_mode:
+        type: string
+        default: auto
       abi_profile:
         type: string
-        default: official_arm64
+        default: internal_4abi
+      native_matrix_profile:
+        type: string
+        default: android8_16plus_allarch
+      log_level:
+        type: string
+        default: lifecycle
+      run_lint:
+        type: boolean
+        default: false
+      run_native_checks:
+        type: boolean
+        default: true
 
 jobs:
   android-matrix:
