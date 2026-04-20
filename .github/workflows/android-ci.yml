@@ -15,6 +15,9 @@ on:
       abi_profile:
         type: string
         default: official_arm64
+      native_matrix_profile:
+        type: string
+        default: canonical
       log_level:
         type: string
         default: lifecycle
@@ -29,26 +32,151 @@ env:
   GRADLE_OPTS: "-Xmx4g -Dfile.encoding=UTF-8"
   CI: true
 
+permissions:
+  contents: read
+
+concurrency:
+  group: android-ci-canonical-${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
-  build:
+  resolve:
     runs-on: ubuntu-latest
+    outputs:
+      gradle_tasks: ${{ steps.flags.outputs.gradle_tasks }}
+      artifact_variants: ${{ steps.flags.outputs.artifact_variants }}
+      expect_app_artifacts: ${{ steps.flags.outputs.expect_app_artifacts }}
+      signing_mode_effective: ${{ steps.flags.outputs.signing_mode_effective }}
+      app_abi_policy: ${{ steps.flags.outputs.app_abi_policy }}
+      supported_abis: ${{ steps.flags.outputs.supported_abis }}
+      ci_internal_validation: ${{ steps.flags.outputs.ci_internal_validation }}
+      native_matrix_specs: ${{ steps.flags.outputs.native_matrix_specs }}
+      native_matrix_profile: ${{ steps.flags.outputs.native_matrix_profile }}
     steps:
       - uses: actions/checkout@v4
 
-      - name: Resolve Android toolchain versions from gradle.properties
-        id: gradle-props
+      - id: flags
         shell: bash
         run: |
           set -euo pipefail
 
+          run_workfile="${{ inputs.run_workfile || 'smoke_debug' }}"
+          build_variant="${{ inputs.build_variant || 'debug' }}"
+          signing_mode="${{ inputs.signing_mode || 'auto' }}"
+          abi_profile="${{ inputs.abi_profile || 'official_arm64' }}"
+          native_matrix_profile="${{ inputs.native_matrix_profile || 'canonical' }}"
+
+          case "${run_workfile}" in
+            smoke_debug)
+              gradle_tasks=":app:assembleDebug"
+              expect_app_artifacts=true
+              ;;
+            unit_loader)
+              gradle_tasks=":shell-loader:testDebugUnitTest"
+              expect_app_artifacts=false
+              ;;
+            full_debug)
+              gradle_tasks=":app:assembleDebug :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :shell-loader:testDebugUnitTest"
+              expect_app_artifacts=true
+              ;;
+            compat_matrix_debug)
+              gradle_tasks=":app:checkNativeExtendedMatrix :app:assembleDebug :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :shell-loader:testDebugUnitTest"
+              expect_app_artifacts=true
+              ;;
+            release_gate)
+              gradle_tasks=":app:assembleRelease :app:testReleaseUnitTest :shell-loader:testReleaseUnitTest"
+              expect_app_artifacts=true
+              ;;
+            *)
+              echo "run_workfile inválido: ${run_workfile}" >&2
+              exit 1
+              ;;
+          esac
+
+          case "${build_variant}" in
+            debug) artifact_variants="debug" ;;
+            release) artifact_variants="release" ;;
+            both) artifact_variants="debug,release" ;;
+            *) echo "build_variant inválido: ${build_variant}" >&2; exit 1 ;;
+          esac
+
+          case "${abi_profile}" in
+            official_arm64)
+              app_abi_policy="arm64-only"
+              supported_abis="arm64-v8a"
+              ci_internal_validation="false"
+              ;;
+            internal_arm32_arm64)
+              app_abi_policy="arm32-arm64"
+              supported_abis="arm64-v8a,armeabi-v7a"
+              ci_internal_validation="true"
+              ;;
+            internal_4abi)
+              app_abi_policy="internal-4abi"
+              supported_abis="arm64-v8a,armeabi-v7a,x86,x86_64"
+              ci_internal_validation="true"
+              ;;
+            *)
+              echo "abi_profile inválido: ${abi_profile}." >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ "${artifact_variants}" == *"release"* && "${abi_profile}" != "official_arm64" ]]; then
+            echo "release bloqueado para abi_profile=${abi_profile}; apenas official_arm64 é permitido." >&2
+            exit 1
+          fi
+
+          signing_mode_effective="${signing_mode}"
+          if [[ "${artifact_variants}" == *"release"* && "${signing_mode}" == "auto" ]]; then
+            signing_mode_effective="signed"
+          fi
+
+          case "${native_matrix_profile}" in
+            canonical)
+              native_matrix_specs="26:arm64-v8a"
+              ;;
+            pilot_android9_16_5arch)
+              native_matrix_specs="28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
+              ;;
+            android8_16plus_allarch)
+              native_matrix_specs="26:armeabi-v7a arm64-v8a x86 x86_64;28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
+              ;;
+            *)
+              echo "native_matrix_profile inválido: ${native_matrix_profile}." >&2
+              exit 1
+              ;;
+          esac
+
+          echo "gradle_tasks=${gradle_tasks}" >> "$GITHUB_OUTPUT"
+          echo "artifact_variants=${artifact_variants}" >> "$GITHUB_OUTPUT"
+          echo "expect_app_artifacts=${expect_app_artifacts}" >> "$GITHUB_OUTPUT"
+          echo "signing_mode_effective=${signing_mode_effective}" >> "$GITHUB_OUTPUT"
+          echo "app_abi_policy=${app_abi_policy}" >> "$GITHUB_OUTPUT"
+          echo "supported_abis=${supported_abis}" >> "$GITHUB_OUTPUT"
+          echo "ci_internal_validation=${ci_internal_validation}" >> "$GITHUB_OUTPUT"
+          echo "native_matrix_specs=${native_matrix_specs}" >> "$GITHUB_OUTPUT"
+          echo "native_matrix_profile=${native_matrix_profile}" >> "$GITHUB_OUTPUT"
+
+  build:
+    runs-on: ubuntu-latest
+    needs: resolve
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve canonical build versions
+        shell: bash
+        run: |
+          set -euo pipefail
           declare -A key_map=(
             ["compile.api"]="COMPILE_API"
+            ["target.api"]="TARGET_API"
+            ["min.api"]="MIN_API"
             ["tools.version"]="TOOLS_VERSION"
             ["ndk.version"]="NDK_VERSION"
             ["cmake.version"]="CMAKE_VERSION"
             ["java.language.version"]="JAVA_VERSION"
           )
-
           for key in "${!key_map[@]}"; do
             env_key="${key_map[$key]}"
             value="$(awk -F= -v key="$key" '$1==key {print $2; exit}' gradle.properties | tr -d '[:space:]')"
@@ -59,11 +187,20 @@ jobs:
             echo "${env_key}=${value}" >> "$GITHUB_ENV"
           done
 
+      - name: Validate Android pipeline directories
+        run: ./tools/ci/validate_pipeline_directories.sh --profile android
+
+      - name: Validate Java source contracts
+        run: python3 ./tools/ci/check_java_contracts.py
+
+      - name: Validate Android SDK/build path alignment
+        run: ./tools/ci/validate_android_sdk_alignment.sh
+
       - name: Setup JDK
         uses: actions/setup-java@v4
         with:
           java-version: ${{ env.JAVA_VERSION }}
-          distribution: 'temurin'
+          distribution: temurin
 
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
@@ -82,52 +219,57 @@ jobs:
           ./tools/ci/prepare_android_env.sh --java-version "${JAVA_VERSION}" --ndk-version "${NDK_VERSION}" --require-sdkmanager
           ./tools/ci/verify_android_local_properties_contract.sh
 
-      - name: Resolve ABI policy
-        id: abi
+      - name: Build selected Android workfile
         shell: bash
         run: |
           set -euo pipefail
-          eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile '${{ inputs.abi_profile }}')"
-          echo "abi_policy=${app_abi_policy}" >> "$GITHUB_OUTPUT"
-          echo "supported_abis=${supported_abis}" >> "$GITHUB_OUTPUT"
-          echo "ci_internal=${ci_internal_validation}" >> "$GITHUB_OUTPUT"
-
-      - name: Build APK
-        shell: bash
-        run: |
-          set -euo pipefail
-          variant="${{ inputs.build_variant }}"
-          case "$variant" in
-            debug) gradle_task=":app:assembleDebug" ;;
-            release) gradle_task=":app:assembleRelease" ;;
-            perfRelease) gradle_task=":app:assemblePerfRelease" ;;
-            *) echo "unsupported build_variant=$variant" >&2; exit 1 ;;
-          esac
-
           ./tools/gradle_with_jdk21.sh \
-            -PAPP_ABI_POLICY="${{ steps.abi.outputs.abi_policy }}" \
-            -PSUPPORTED_ABIS="${{ steps.abi.outputs.supported_abis }}" \
-            -PCI_INTERNAL_VALIDATION="${{ steps.abi.outputs.ci_internal }}" \
-            -Psigning_mode="${{ inputs.signing_mode }}" \
+            -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
+            -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
+            -PCI_INTERNAL_VALIDATION="${{ needs.resolve.outputs.ci_internal_validation }}" \
+            -Psigning_mode="${{ needs.resolve.outputs.signing_mode_effective }}" \
             -Dorg.gradle.logging.level="${{ inputs.log_level }}" \
-            "$gradle_task"
+            ${{ needs.resolve.outputs.gradle_tasks }}
 
       - name: Verify delivered artifacts
-        run: |
-          ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=${{ inputs.build_variant }}
+        if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        run: ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=${{ needs.resolve.outputs.artifact_variants }}
 
       - name: Run lint
         if: inputs.run_lint
         run: ./tools/gradle_with_jdk21.sh :app:lintDebug --continue
 
-      - name: Run native ABI matrix checks
+      - name: Run native CMake matrix checks
         if: inputs.run_native_checks
-        run: ./tools/gradle_with_jdk21.sh checkNativeAllMatrix
+        shell: bash
+        run: |
+          set -euo pipefail
+          matrix_specs="${{ needs.resolve.outputs.native_matrix_specs }}"
+          IFS=';' read -r -a matrix_entries <<< "${matrix_specs}"
+          append_flag=""
+          for entry in "${matrix_entries[@]}"; do
+            [[ -n "${entry}" ]] || continue
+            min_api="${entry%%:*}"
+            abis="${entry#*:}"
+            ./tools/ci/build_android_cmake_matrix.sh \
+              --sdk "${ANDROID_SDK_ROOT}" \
+              --ndk-version "${NDK_VERSION}" \
+              --cmake-version "${CMAKE_VERSION}" \
+              --min-api "${min_api}" \
+              --abis "${abis}" \
+              ${append_flag}
+            append_flag="--append-artifacts"
+          done
 
-      - name: Upload APK artifacts
+      - name: Upload Android outputs
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-${{ inputs.build_variant }}-${{ steps.abi.outputs.abi_policy }}
-          path: app/build/outputs/apk/${{ inputs.build_variant }}/**/*.apk
+          name: android-${{ needs.resolve.outputs.artifact_variants }}-${{ needs.resolve.outputs.app_abi_policy }}
+          path: |
+            app/build/outputs/apk/**
+            app/build/outputs/bundle/**
+            app/build/reports/**
+            **/build/test-results/**
+            ci-artifacts/android-cmake-matrix/**
           if-no-files-found: warn

@@ -16,7 +16,7 @@ on:
         required: false
         default: 'smoke_debug'
       build_variant:
-        description: 'Android variant: debug, release, perfRelease'
+        description: 'Android variant: debug, release, both'
         required: false
         default: 'debug'
       abi_profile:
@@ -82,7 +82,9 @@ jobs:
     with:
       run_workfile: ${{ github.event.inputs.run_workfile || 'smoke_debug' }}
       build_variant: ${{ github.event.inputs.build_variant || 'debug' }}
+      signing_mode: auto
       abi_profile: ${{ github.event.inputs.abi_profile || 'official_arm64' }}
+      native_matrix_profile: canonical
       log_level: ${{ github.event.inputs.log_level || 'lifecycle' }}
       run_lint: true
       run_native_checks: false
