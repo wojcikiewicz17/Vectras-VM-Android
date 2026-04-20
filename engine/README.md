@@ -13,6 +13,7 @@ Núcleo nativo C/Rust para políticas e performance.
 ## Camada 3 — Arquivos e vínculos
 - Catálogo completo: [`FILES_MAP.md`](FILES_MAP.md)
 - Contexto global de camadas: [`docs/THREE_LAYER_ANALYSIS.md`](../docs/THREE_LAYER_ANALYSIS.md)
+- Contrato de ingestão transitória: não adicionar código em [`_incoming/`](../_incoming/) sem mapear status em [`docs/INCOMING_INGESTION_MAP.md`](../docs/INCOMING_INGESTION_MAP.md) e sem plano de promoção em [`docs/INCOMING_PROMOTION_PLAN.md`](../docs/INCOMING_PROMOTION_PLAN.md).
 
 ## Cadeia de comando (lógica de inspeção)
 ```bash
