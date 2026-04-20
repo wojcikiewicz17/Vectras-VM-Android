@@ -554,7 +554,7 @@ jobs:
           fi
 
       - name: Validate expected artifacts
-        if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        if: ${{ success() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
         run: ./tools/ci/validate_expected_android_artifacts.sh "${{ needs.resolve.outputs.artifact_variants }}"
 
       - name: Generate canonical build status snapshot
@@ -607,7 +607,7 @@ jobs:
         run: ./tools/ci/materialize_android_ci_artifacts.sh
 
       - name: Upload Android outputs
-        if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        if: ${{ success() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: android-outputs-${{ needs.resolve.outputs.artifact_name_suffix }}-${{ github.run_id }}
