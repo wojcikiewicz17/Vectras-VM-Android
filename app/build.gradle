@@ -237,9 +237,9 @@ tasks.named("preBuild").configure {
 
 tasks.register("validateCriticalNativeAbiLayer", Exec) {
     group = "verification"
-    description = "Valida contrato lowlevel ABI e bloqueia dependências implícitas de libc/stdlib na camada crítica."
+    description = "Valida contrato lowlevel ABI consolidado (schema, símbolos e política freestanding)."
     workingDir = rootDir
-    commandLine "python3", "tools/ci/validate_lowlevel_abi_contract.py"
+    commandLine "bash", "tools/ci/validate_lowlevel_abi.sh"
 }
 
 

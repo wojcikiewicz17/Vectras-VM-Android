@@ -185,7 +185,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Validate lowlevel ABI contract (mandatory gate)
-        run: python3 ./tools/ci/validate_lowlevel_abi_contract.py
+        run: ./tools/ci/validate_lowlevel_abi.sh
 
   build:
     runs-on: ubuntu-latest
@@ -260,6 +260,10 @@ jobs:
             -Psigning_mode="${{ needs.resolve.outputs.signing_mode_effective }}" \
             -Dorg.gradle.logging.level="${{ inputs.log_level }}" \
             ${{ needs.resolve.outputs.gradle_tasks }}
+
+      - name: Validate critical native binary freestanding policy
+        if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        run: ./tools/ci/validate_lowlevel_abi.sh --require-critical-binary
 
       - name: Verify delivered artifacts
         if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}

@@ -68,15 +68,23 @@ jobs:
           esac
           echo "profile=$PROFILE" >> "$GITHUB_OUTPUT"
 
+  abi-preflight:
+    name: ABI Preflight
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate consolidated lowlevel ABI guard
+        run: ./tools/ci/validate_lowlevel_abi.sh
+
   host-ci:
     name: Host CI
-    needs: matrix-build
+    needs: [matrix-build, abi-preflight]
     if: needs.matrix-build.outputs.should_run_host == 'true'
     uses: ./.github/workflows/host-ci.yml
 
   android-ci:
     name: Android CI
-    needs: [matrix-build, host-ci]
+    needs: [matrix-build, abi-preflight, host-ci]
     if: ${{ always() && needs.matrix-build.outputs.should_run_android == 'true' && (needs.host-ci.result == 'success' || needs.host-ci.result == 'skipped') }}
     uses: ./.github/workflows/android-ci.yml
     with:
@@ -92,7 +100,7 @@ jobs:
 
   quality-gates:
     name: Quality Gates
-    needs: [matrix-build, host-ci, android-ci]
+    needs: [matrix-build, abi-preflight, host-ci, android-ci]
     if: always()
     uses: ./.github/workflows/quality-gates.yml
     with:
