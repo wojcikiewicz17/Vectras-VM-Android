@@ -19,6 +19,32 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$SCRIPT_DIR"
 
+if [ ! -f "$PROJECT_ROOT/settings.gradle" ] || [ ! -f "$PROJECT_ROOT/CMakeLists.txt" ]; then
+    if [ -f "$SCRIPT_DIR/../settings.gradle" ] && [ -f "$SCRIPT_DIR/../CMakeLists.txt" ]; then
+        PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
+    fi
+fi
+
+resolve_fix_file() {
+    local base="$1"
+    local candidates=(
+        "$SCRIPT_DIR/${base}"
+        "$SCRIPT_DIR/${base%.json}-1.json"
+        "$SCRIPT_DIR/${base%.txt}-1.txt"
+        "$SCRIPT_DIR/${base%.properties}-1.properties"
+        "$SCRIPT_DIR/${base%.cmake}-1.cmake"
+        "$SCRIPT_DIR/${base%.h}-1.h"
+    )
+    local f
+    for f in "${candidates[@]}"; do
+        if [ -f "$f" ]; then
+            printf '%s\n' "$f"
+            return 0
+        fi
+    done
+    return 1
+}
+
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -47,7 +73,8 @@ log_ok "Raiz do projeto detectada: $PROJECT_ROOT"
 # ── FIX 01: local.properties ──────────────────────────────────────
 log_info "FIX 01: local.properties..."
 if [ ! -f "$PROJECT_ROOT/local.properties" ]; then
-    cp "$SCRIPT_DIR/FIX_01_local.properties" "$PROJECT_ROOT/local.properties"
+    FIX_01_FILE="$(resolve_fix_file FIX_01_local.properties)" || { log_err "Fix não encontrado: FIX_01_local.properties"; exit 1; }
+    cp "$FIX_01_FILE" "$PROJECT_ROOT/local.properties"
     log_ok "local.properties criado."
     log_warn "AÇÃO NECESSÁRIA: Edite $PROJECT_ROOT/local.properties"
     log_warn "  Substitua sdk.dir= pelo caminho real do seu Android SDK."
@@ -59,7 +86,8 @@ fi
 # ── FIX 02: google-services.json (placeholder) ───────────────────
 log_info "FIX 02: app/google-services.json (placeholder para validação interna)..."
 if [ ! -f "$PROJECT_ROOT/app/google-services.json" ]; then
-    cp "$SCRIPT_DIR/FIX_02_google-services.json" "$PROJECT_ROOT/app/google-services.json"
+    FIX_02_FILE="$(resolve_fix_file FIX_02_google-services.json)" || { log_err "Fix não encontrado: FIX_02_google-services.json"; exit 1; }
+    cp "$FIX_02_FILE" "$PROJECT_ROOT/app/google-services.json"
     log_ok "app/google-services.json placeholder criado."
     log_warn "ATENÇÃO: Este é um placeholder para builds de validação interna."
     log_warn "  Para release oficial, substitua pelo google-services.json real."
@@ -72,8 +100,9 @@ fi
 log_info "FIX 03: engine/rmr/sources_rmr_core.cmake — removendo rmr_neon_simd.c do grupo CORE..."
 SOURCES_CMAKE="$PROJECT_ROOT/engine/rmr/sources_rmr_core.cmake"
 if [ -f "$SOURCES_CMAKE" ]; then
+    FIX_03_FILE="$(resolve_fix_file FIX_03_sources_rmr_core.cmake)" || { log_err "Fix não encontrado: FIX_03_sources_rmr_core.cmake"; exit 1; }
     cp "$SOURCES_CMAKE" "${SOURCES_CMAKE}.bak"
-    cp "$SCRIPT_DIR/FIX_03_sources_rmr_core.cmake" "$SOURCES_CMAKE"
+    cp "$FIX_03_FILE" "$SOURCES_CMAKE"
     log_ok "sources_rmr_core.cmake atualizado. Backup: ${SOURCES_CMAKE}.bak"
 else
     log_err "Arquivo não encontrado: $SOURCES_CMAKE"
@@ -84,8 +113,9 @@ fi
 log_info "FIX 04: CMakeLists.txt (raiz) — consumindo novo grupo ASM_ARM64_NEON condicionalmente..."
 ROOT_CMAKE="$PROJECT_ROOT/CMakeLists.txt"
 if [ -f "$ROOT_CMAKE" ]; then
+    FIX_04_FILE="$(resolve_fix_file FIX_04_CMakeLists.txt)" || { log_err "Fix não encontrado: FIX_04_CMakeLists.txt"; exit 1; }
     cp "$ROOT_CMAKE" "${ROOT_CMAKE}.bak"
-    cp "$SCRIPT_DIR/FIX_04_CMakeLists.txt" "$ROOT_CMAKE"
+    cp "$FIX_04_FILE" "$ROOT_CMAKE"
     log_ok "CMakeLists.txt (raiz) atualizado. Backup: ${ROOT_CMAKE}.bak"
 else
     log_err "Arquivo não encontrado: $ROOT_CMAKE"
@@ -96,8 +126,9 @@ fi
 log_info "FIX 05: app/src/main/cpp/CMakeLists.txt — NEON sources por ABI..."
 JNI_CMAKE="$PROJECT_ROOT/app/src/main/cpp/CMakeLists.txt"
 if [ -f "$JNI_CMAKE" ]; then
+    FIX_05_FILE="$(resolve_fix_file FIX_05_app_src_main_cpp_CMakeLists.txt)" || { log_err "Fix não encontrado: FIX_05_app_src_main_cpp_CMakeLists.txt"; exit 1; }
     cp "$JNI_CMAKE" "${JNI_CMAKE}.bak"
-    cp "$SCRIPT_DIR/FIX_05_app_src_main_cpp_CMakeLists.txt" "$JNI_CMAKE"
+    cp "$FIX_05_FILE" "$JNI_CMAKE"
     log_ok "app/src/main/cpp/CMakeLists.txt atualizado. Backup: ${JNI_CMAKE}.bak"
 else
     log_err "Arquivo não encontrado: $JNI_CMAKE"
@@ -108,8 +139,9 @@ fi
 log_info "FIX 06: CMakePresets.json — presets com fallback para ANDROID_SDK_ROOT..."
 PRESETS="$PROJECT_ROOT/CMakePresets.json"
 if [ -f "$PRESETS" ]; then
+    FIX_06_FILE="$(resolve_fix_file FIX_06_CMakePresets.json)" || { log_err "Fix não encontrado: FIX_06_CMakePresets.json"; exit 1; }
     cp "$PRESETS" "${PRESETS}.bak"
-    cp "$SCRIPT_DIR/FIX_06_CMakePresets.json" "$PRESETS"
+    cp "$FIX_06_FILE" "$PRESETS"
     log_ok "CMakePresets.json atualizado. Backup: ${PRESETS}.bak"
 else
     log_err "Arquivo não encontrado: $PRESETS"
@@ -120,8 +152,9 @@ fi
 log_info "FIX 07: engine/rmr/include/rmr_unified_jni_base.h — assert.h + RMR_STATIC_ASSERT portável..."
 JNI_BASE_H="$PROJECT_ROOT/engine/rmr/include/rmr_unified_jni_base.h"
 if [ -f "$JNI_BASE_H" ]; then
+    FIX_07_FILE="$(resolve_fix_file FIX_07_rmr_unified_jni_base.h)" || { log_err "Fix não encontrado: FIX_07_rmr_unified_jni_base.h"; exit 1; }
     cp "$JNI_BASE_H" "${JNI_BASE_H}.bak"
-    cp "$SCRIPT_DIR/FIX_07_rmr_unified_jni_base.h" "$JNI_BASE_H"
+    cp "$FIX_07_FILE" "$JNI_BASE_H"
     log_ok "rmr_unified_jni_base.h atualizado. Backup: ${JNI_BASE_H}.bak"
 else
     log_err "Arquivo não encontrado: $JNI_BASE_H"
