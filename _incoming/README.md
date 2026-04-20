@@ -1,9 +1,11 @@
-<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
+<!-- DOC_ORG_SCAN: 2026-04-20 | source-scan: incoming-pending-separated -->
 
 # _incoming
 
-Este diretório permanece somente como placeholder para ingestão manual.
+Diretório de triagem manual de patchsets legados.
 
 Status atual:
-- patches `.zip` removidos da árvore versionada;
-- integração deve acontecer via alterações fonte-a-fonte em `engine/` e `bug/core/`, sem blobs binários pendentes.
+- itens **integrados** permanecem rastreados em `docs/INCOMING_INGESTION_MAP.md`;
+- itens **pendentes** foram movidos para `_incoming/pending/`;
+- promoção para build só pode ocorrer após migração para diretórios canônicos (`engine/rmr/src`, `engine/rmr/interop`, `bug/core`, `app/src/main`);
+- `_incoming/` não deve ser usado como origem direta de compilação.
