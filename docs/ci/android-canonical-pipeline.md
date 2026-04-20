@@ -6,20 +6,25 @@
 
 A pipeline Android canônica do repositório é **`.github/workflows/android-ci.yml`**.
 
-## Racional
+## Topologia atual (fonte de verdade)
 
-1. Centraliza contratos de build Android (Gradle, SDK/NDK/CMake/JDK, ABI policy e validações).
-2. Elimina duplicação de lógica entre workflows acionáveis e reutilizáveis.
-3. Mantém `pipeline-orchestrator.yml` dependente de um único workflow Android para reduzir drift.
+1. **`android-ci.yml` (workflow_call)**
+   - Contém o contrato completo de build Android: resolução de `run_workfile`, seleção de ABIs, política de assinatura release, validações de diretório/SDK/JDK/NDK/CMake, build Gradle, lint opcional e upload de artefatos.
+2. **`android.yml` (push/pull_request/workflow_dispatch)**
+   - É o ponto de entrada acionável e **wrapper** para `android-ci.yml`.
+   - Resolve inputs e dispara um gate adaptativo para `compile-matrix.yml` somente em execuções internas específicas.
+3. **`compile-matrix.yml` (workflow_call)**
+   - Workflow especializado de compatibilidade por ABI/variant em matriz explícita.
+   - Mantém lógica própria de lanes Android (não substitui `android-ci.yml`, nem é o fluxo oficial de release).
 
 ## Regras operacionais
 
-- `android.yml` permanece como **wrapper de entrada** (push/pull_request/workflow_dispatch), delegando para `android-ci.yml` e acionando `compile-matrix.yml` como gate adaptativo em trilhas internas/`compat_matrix_debug`.
-- Evoluções de contrato ABI lowlevel devem atualizar `tools/ci/lowlevel_abi_contract.json` e o gate `tools/ci/validate_lowlevel_abi_contract.py`.
-- `quality-gates.yml` + `tools/ci/validate_build_matrix.py` bloqueiam regressões que reintroduzam workflows Android concorrentes com responsabilidades sobrepostas.
+- Toda mudança de contrato Android oficial (SDK/NDK/JDK/CMake, política de ABI, assinatura release, tasks Gradle oficiais) deve acontecer em `android-ci.yml`.
+- `android.yml` deve permanecer fino: entrada, resolução de parâmetros e delegação para `android-ci.yml`.
+- `compile-matrix.yml` é trilha auxiliar de compatibilidade e regressão; não deve ser tratada como fonte primária de release.
+- Evoluções de ABI low-level continuam obrigatórias via `tools/ci/lowlevel_abi_contract.json` + `tools/ci/validate_lowlevel_abi.sh`.
 
+## Divergências corrigidas nesta revisão
 
-## Alinhamento de callers Android
-
-- `pipeline-orchestrator.yml`, `android.yml` e `compile-matrix.yml` devem chamar apenas `android-ci.yml` para qualquer responsabilidade de build Android.
-- `android.yml` e `compile-matrix.yml` ficam restritos a wrappers (entrada/compatibilidade), sem bootstrap Gradle/SDK/NDK próprio.
+- Removida afirmação anterior de que `compile-matrix.yml` delega totalmente para `android-ci.yml`.
+- Alinhada a definição de pipeline oficial com a implementação real: `android-ci.yml` como canônica e `android.yml` como wrapper.
