@@ -11,6 +11,9 @@ on:
       - 'terminal-emulator/**'
       - 'terminal-view/**'
       - 'shell-loader/**'
+      - 'tools/**'
+      - '.github/actions/android-build-base/**'
+      - 'docs/ci/**'
       - 'gradle/**'
       - '**/*.gradle'
       - '**/*.gradle.kts'
@@ -29,6 +32,9 @@ on:
       - 'terminal-emulator/**'
       - 'terminal-view/**'
       - 'shell-loader/**'
+      - 'tools/**'
+      - '.github/actions/android-build-base/**'
+      - 'docs/ci/**'
       - 'gradle/**'
       - '**/*.gradle'
       - '**/*.gradle.kts'
@@ -467,14 +473,14 @@ jobs:
           VECTRAS_GOOGLE_SERVICES_JSON_B64: ${{ secrets.VECTRAS_GOOGLE_SERVICES_JSON_B64 }}
         run: ./tools/ci/materialize_firebase_config.sh --policy internal
 
-      - name: Prepare release signing (distribution context)
-        if: ${{ needs.resolve.outputs.run_release == 'true' && needs.resolve.outputs.signing_required == 'true' }}
+      - name: Prepare release signing / internal unsigned gate
+        if: ${{ needs.resolve.outputs.run_release == 'true' }}
         env:
           VECTRAS_RELEASE_KEYSTORE_B64: ${{ secrets.VECTRAS_RELEASE_KEYSTORE_B64 }}
           VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
           VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
           VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
-        run: ./tools/ci/prepare_release_signing.sh --mode signed
+        run: ./tools/ci/prepare_release_signing.sh --mode ${{ needs.resolve.outputs.signing_mode_effective }}
 
       - name: Enforce bootstrap contract
         run: ./tools/ci/verify_bootstrap_contract.sh
@@ -524,6 +530,7 @@ jobs:
             -PbuildStrict=true \
             -PAPP_ABI_POLICY=${{ needs.resolve.outputs.app_abi_policy }} \
             -PSUPPORTED_ABIS=${{ needs.resolve.outputs.supported_abis }} \
+            -Psigning_mode=${{ needs.resolve.outputs.signing_mode_effective }} \
             -Pcompile.api=${COMPILE_API} \
             -Ptarget.api=${TARGET_API} \
             -Pmin.api=${{ needs.resolve.outputs.effective_min_api }} \
@@ -544,6 +551,7 @@ jobs:
               -PbuildStrict=true \
               -PAPP_ABI_POLICY=${{ needs.resolve.outputs.app_abi_policy }} \
               -PSUPPORTED_ABIS=${{ needs.resolve.outputs.supported_abis }} \
+              -Psigning_mode=${{ needs.resolve.outputs.signing_mode_effective }} \
               -PCI_INTERNAL_VALIDATION=${{ needs.resolve.outputs.ci_internal_validation }} \
               ${{ needs.resolve.outputs.ci_release_gradle_arg }} \
               -PartifactVariants="${{ needs.resolve.outputs.artifact_variants }}" \
@@ -552,7 +560,7 @@ jobs:
           fi
 
       - name: Validate expected artifacts
-        if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        if: ${{ success() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
         run: ./tools/ci/validate_expected_android_artifacts.sh "${{ needs.resolve.outputs.artifact_variants }}"
 
       - name: Generate canonical build status snapshot
@@ -605,7 +613,7 @@ jobs:
         run: ./tools/ci/materialize_android_ci_artifacts.sh
 
       - name: Upload Android outputs
-        if: ${{ always() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        if: ${{ success() && needs.resolve.outputs.expect_app_artifacts == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: android-outputs-${{ needs.resolve.outputs.artifact_name_suffix }}-${{ github.run_id }}
