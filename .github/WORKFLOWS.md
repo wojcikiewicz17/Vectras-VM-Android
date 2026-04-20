@@ -7,10 +7,10 @@
   - runs reusable `quality-gates`
 
 ## Reusable workflows
-- `.github/workflows/host-ci.yml`
+- `.github/workflows/host-ci.yml` (**canonical host lane**)
 - `.github/workflows/android-ci.yml`
 - `.github/workflows/quality-gates.yml`
 - `.github/workflows/compile-matrix.yml`
 
-## Legacy workflows
-- `android.yml` and `ci.yml` remain for compatibility while orchestrator migration stabilizes.
+## Compatibility workflow
+- `.github/workflows/ci.yml` remains alias-only and delegates to `host-ci.yml`.
