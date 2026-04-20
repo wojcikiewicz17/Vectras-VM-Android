@@ -28,6 +28,16 @@ public class BootstrapAbiMapperTest {
     }
 
     @Test
+    public void resolvesRiscvAliases() {
+        List<String> candidates = BootstrapAbiMapper.resolveCandidates(new String[]{"riscv64"});
+
+        Assert.assertTrue(candidates.contains("riscv64"));
+        Assert.assertTrue(candidates.contains("rv64"));
+        Assert.assertTrue(candidates.contains("riscv64gc"));
+        Assert.assertEquals("riscv64", BootstrapAbiMapper.architectureMetadataKey("rv64"));
+    }
+
+    @Test
     public void mapsMetadataArchitectureKey() {
         Assert.assertEquals("aarch64", BootstrapAbiMapper.architectureMetadataKey("arm64-v8a"));
         Assert.assertEquals("armhf", BootstrapAbiMapper.architectureMetadataKey("armeabi-v7a"));
