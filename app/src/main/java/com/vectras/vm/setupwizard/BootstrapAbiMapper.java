@@ -67,6 +67,9 @@ final class BootstrapAbiMapper {
         if ("x86".equals(normalized) || "i686".equals(normalized)) {
             return "x86";
         }
+        if ("riscv64".equals(normalized) || "rv64".equals(normalized) || "riscv64gc".equals(normalized)) {
+            return "riscv64";
+        }
         return normalized;
     }
 
@@ -91,6 +94,9 @@ final class BootstrapAbiMapper {
         map.put("amd64", new String[]{"x86_64"});
         map.put("x86", new String[]{"i686"});
         map.put("i686", new String[]{"x86"});
+        map.put("riscv64", new String[]{"rv64", "riscv64gc"});
+        map.put("rv64", new String[]{"riscv64", "riscv64gc"});
+        map.put("riscv64gc", new String[]{"riscv64", "rv64"});
         return map;
     }
 }

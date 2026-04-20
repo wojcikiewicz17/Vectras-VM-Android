@@ -20,4 +20,10 @@ public class BootstrapUrlNormalizerTest {
         Assert.assertEquals("/", BootstrapUrlNormalizer.normalizePath(""));
         Assert.assertEquals("/", BootstrapUrlNormalizer.normalizePath(null));
     }
+
+    @Test
+    public void rejectsAbsoluteAndSchemeRelativeUrls() {
+        Assert.assertEquals("/", BootstrapUrlNormalizer.normalizePath("https://example.org/bootstrap.tar"));
+        Assert.assertEquals("/", BootstrapUrlNormalizer.normalizePath("//example.org/bootstrap.tar"));
+    }
 }
