@@ -9,6 +9,7 @@ option(RMR_ASM_CORE_EXPERIMENTAL "Enable experimental ASM core hot paths" ON)
 option(RMR_ASM_CORE_X86_64_VALIDATED "Enable ASM hot paths on x86_64 (validated ABI)" ON)
 option(RMR_ASM_CORE_ARM64_VALIDATED "Enable ASM hot paths on arm64-v8a (validated ABI)" ON)
 option(RMR_ASM_CORE_RISCV64_VALIDATED "Enable RV64I-compatible CASM path on riscv64 (validated ABI)" ON)
+option(VECTRA_REQUIRE_FREESTANDING_CORE "Fail configuration when freestanding ABI core is not active" ON)
 
 set(VECTRA_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../../)
 set(VECTRA_RMR_INCLUDE_DIR ${VECTRA_REPO_ROOT}/engine/rmr/include)
@@ -56,22 +57,30 @@ endif()
 # endif()
 
 
-add_library(vectra_core_accel SHARED
-    vectra_core_accel.c
-    lowlevel_bridge.c
+set(VECTRA_ABI_CORE_FREESTANDING_SOURCES
     lowlevel_abi.c
-    hardware_profile_bridge.c
     vectra_lowlevel_backend_fallback.c
     vectra_lowlevel_backend_arm64.c
     vectra_lowlevel_backend_armv7.c
     vectra_lowlevel_backend_x86_64.c
     vectra_lowlevel_backend_x86.c
     vectra_lowlevel_backend_riscv64.c
-    ${VECTRA_PLATFORM_ANDROID_COMPAT_SOURCE}
     ${VECTRA_ENGINE_CORE_SOURCES}
     ${VECTRA_LOWLEVEL_SOURCES}
     ${VECTRA_CASM_SOURCES}
     ${VECTRA_NEON_SOURCES})
+
+set(VECTRA_JNI_BRIDGE_SOURCES
+    vectra_core_accel.c
+    lowlevel_bridge.c
+    hardware_profile_bridge.c
+    ${VECTRA_PLATFORM_ANDROID_COMPAT_SOURCE})
+
+add_library(abi_core_freestanding STATIC
+    ${VECTRA_ABI_CORE_FREESTANDING_SOURCES})
+
+add_library(vectra_core_accel SHARED
+    ${VECTRA_JNI_BRIDGE_SOURCES})
 
 set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "arm64-v8a;armeabi-v7a;x86;x86_64" CACHE STRING "ABIs that should build termux-bootstrap")
 
@@ -116,8 +125,19 @@ else()
     set(log-lib "")
 endif()
 
-# BUG#3 FIX: -ffreestanding/-fno-builtin removed — Android JNI requires bionic libc
 set(VECTRA_COMMON_COMPILE_OPTIONS -O2 -fno-fast-math -fvisibility=hidden -DRMR_JNI_BUILD=1 -DRMR_BUILD_HOST_TOOLING=1)
+set(VECTRA_FREESTANDING_COMPILE_OPTIONS
+    -O2
+    -fno-fast-math
+    -fvisibility=hidden
+    -ffreestanding
+    -fno-exceptions
+    -fno-rtti
+    -fno-unwind-tables
+    -fno-asynchronous-unwind-tables
+    -fdata-sections
+    -ffunction-sections
+    -DRMR_BUILD_HOST_TOOLING=1)
 set(VECTRA_ABI_COMPILE_OPTIONS)
 
 # Flag arm64 vinda do Gradle: baseline (-march=armv8-a) e tuning opcional (-mcpu=<valor>).
@@ -192,6 +212,24 @@ if(TARGET bitraf_static)
     target_link_libraries(vectra_core_accel PRIVATE bitraf_static)
 endif()
 
+if(VECTRA_REQUIRE_FREESTANDING_CORE AND NOT TARGET abi_core_freestanding)
+    message(FATAL_ERROR "Freestanding ABI core target missing. Silent downgrade is forbidden.")
+endif()
+
+if(NOT VECTRA_REQUIRE_FREESTANDING_CORE)
+    message(FATAL_ERROR "VECTRA_REQUIRE_FREESTANDING_CORE must remain ON for release-safe builds.")
+endif()
+
+target_compile_options(abi_core_freestanding PRIVATE
+    ${VECTRA_FREESTANDING_COMPILE_OPTIONS}
+    ${VECTRA_ABI_COMPILE_OPTIONS})
+target_include_directories(abi_core_freestanding PRIVATE
+    ${VECTRA_RMR_INCLUDE_DIR})
+target_link_options(abi_core_freestanding PRIVATE
+    -nostdlib
+    -Wl,--gc-sections
+    -Wl,--build-id=none)
+
 if(ANDROID)
     # Compatibilidade Android 15/16 (dispositivos com page size de 16 KiB).
     target_link_options(vectra_core_accel PRIVATE -Wl,-z,max-page-size=16384)
@@ -216,6 +254,7 @@ target_compile_definitions(vectra_core_accel PRIVATE
     RMR_ASM_CORE_RISCV64_VALIDATED=$<BOOL:${RMR_ASM_CORE_RISCV64_VALIDATED}>)
 
 target_link_libraries(vectra_core_accel PRIVATE ${log-lib})
+target_link_libraries(vectra_core_accel PRIVATE abi_core_freestanding)
 if(TARGET termux-bootstrap)
     target_link_libraries(termux-bootstrap PRIVATE ${log-lib})
 endif()
