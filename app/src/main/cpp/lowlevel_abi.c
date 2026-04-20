@@ -140,3 +140,29 @@ int vectra_lowlevel_validate_interop(uint16_t producer_major,
 
     return VECTRA_LL_ERR_UNSUPPORTED_ABI_VERSION;
 }
+
+
+const char* abi_entry_get_contract_version(void) {
+    return VECTRA_LOWLEVEL_ABI_CONTRACT_VERSION;
+}
+
+const vectra_lowlevel_abi_descriptor_t* abi_entry_get_arch_descriptors(uint32_t* count) {
+    return vectra_lowlevel_abi_descriptors(count);
+}
+
+const vectra_lowlevel_interop_rule_t* abi_entry_get_interop_rules(uint32_t* count) {
+    return vectra_lowlevel_abi_interop_rules(count);
+}
+
+int abi_entry_validate_interop(uint16_t producer_major,
+                               uint16_t producer_minor,
+                               uint16_t consumer_major,
+                               uint16_t consumer_minor,
+                               uint8_t* adaptive_bridge_enabled) {
+    return vectra_lowlevel_validate_interop(
+        producer_major,
+        producer_minor,
+        consumer_major,
+        consumer_minor,
+        adaptive_bridge_enabled);
+}

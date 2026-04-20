@@ -28,9 +28,18 @@ on:
         type: boolean
         default: true
 
+
 jobs:
+  abi-contract-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate lowlevel ABI contract (mandatory gate)
+        run: python3 ./tools/ci/validate_lowlevel_abi_contract.py
+
   android-matrix:
     runs-on: ubuntu-latest
+    needs: abi-contract-gate
     strategy:
       fail-fast: false
       matrix:
@@ -39,8 +48,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Validate lowlevel ABI contract
-        run: python3 ./tools/ci/validate_lowlevel_abi_contract.py
 
       - name: Resolve canonical build versions
         shell: bash
