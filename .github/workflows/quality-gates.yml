@@ -1,0 +1,53 @@
+name: Quality Gates
+
+on:
+  workflow_call:
+    inputs:
+      run_host:
+        type: boolean
+        required: true
+      run_android:
+        type: boolean
+        required: true
+      host_result:
+        type: string
+        required: true
+      android_result:
+        type: string
+        required: true
+      profile:
+        type: string
+        required: true
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate build matrix contract
+        run: python3 tools/ci/validate_build_matrix.py
+
+      - name: Validate CMake layout
+        run: ./tools/ci/verify_cmake_config.sh
+
+      - name: Validate compilation ordering hints
+        run: python3 tools/ci/check_compilation_order.py
+
+      - name: Final status gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "profile=${{ inputs.profile }}"
+          echo "host(enabled=${{ inputs.run_host }}) result=${{ inputs.host_result }}"
+          echo "android(enabled=${{ inputs.run_android }}) result=${{ inputs.android_result }}"
+
+          if [[ "${{ inputs.run_host }}" == "true" && "${{ inputs.host_result }}" != "success" ]]; then
+            echo "Host job failed or was cancelled" >&2
+            exit 1
+          fi
+
+          if [[ "${{ inputs.run_android }}" == "true" && "${{ inputs.android_result }}" != "success" ]]; then
+            echo "Android job failed or was cancelled" >&2
+            exit 1
+          fi

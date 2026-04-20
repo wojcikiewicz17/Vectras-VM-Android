@@ -1,0 +1,106 @@
+name: Android CI
+
+on:
+  workflow_call:
+    inputs:
+      run_workfile:
+        type: string
+        default: smoke_debug
+      build_variant:
+        type: string
+        default: debug
+      signing_mode:
+        type: string
+        default: auto
+      abi_profile:
+        type: string
+        default: official_arm64
+      log_level:
+        type: string
+        default: lifecycle
+      run_lint:
+        type: boolean
+        default: true
+      run_native_checks:
+        type: boolean
+        default: false
+
+env:
+  GRADLE_OPTS: "-Xmx4g -Dfile.encoding=UTF-8"
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Resolve ABI policy
+        id: abi
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ inputs.abi_profile }}" in
+            official_arm64)
+              echo "abi_policy=arm64-only" >> "$GITHUB_OUTPUT"
+              echo "supported_abis=arm64-v8a" >> "$GITHUB_OUTPUT"
+              echo "ci_internal=false" >> "$GITHUB_OUTPUT"
+              ;;
+            internal_arm32_arm64)
+              echo "abi_policy=arm32-arm64" >> "$GITHUB_OUTPUT"
+              echo "supported_abis=arm64-v8a,armeabi-v7a" >> "$GITHUB_OUTPUT"
+              echo "ci_internal=true" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "unsupported abi_profile=${{ inputs.abi_profile }}" >&2
+              exit 1
+              ;;
+          esac
+
+      - name: Build APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          variant="${{ inputs.build_variant }}"
+          case "$variant" in
+            debug) gradle_task=":app:assembleDebug" ;;
+            release) gradle_task=":app:assembleRelease" ;;
+            perfRelease) gradle_task=":app:assemblePerfRelease" ;;
+            *) echo "unsupported build_variant=$variant" >&2; exit 1 ;;
+          esac
+
+          ./tools/gradle_with_jdk21.sh \
+            -PAPP_ABI_POLICY="${{ steps.abi.outputs.abi_policy }}" \
+            -PSUPPORTED_ABIS="${{ steps.abi.outputs.supported_abis }}" \
+            -PCI_INTERNAL_VALIDATION="${{ steps.abi.outputs.ci_internal }}" \
+            -Psigning_mode="${{ inputs.signing_mode }}" \
+            -Dorg.gradle.logging.level="${{ inputs.log_level }}" \
+            "$gradle_task"
+
+      - name: Verify delivered artifacts
+        run: |
+          ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=${{ inputs.build_variant }}
+
+      - name: Run lint
+        if: inputs.run_lint
+        run: ./tools/gradle_with_jdk21.sh :app:lintDebug --continue
+
+      - name: Run native ABI matrix checks
+        if: inputs.run_native_checks
+        run: ./tools/gradle_with_jdk21.sh checkNativeAllMatrix
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-${{ inputs.build_variant }}-${{ steps.abi.outputs.abi_policy }}
+          path: app/build/outputs/apk/${{ inputs.build_variant }}/**/*.apk
+          if-no-files-found: warn

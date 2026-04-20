@@ -9,7 +9,6 @@
 
 set(RMR_SOURCE_GROUP_CORE
   engine/rmr/src/bitomega.c
-  engine/rmr/src/rmr_baremetal_compat.c
   engine/rmr/src/rmr_cycles.c
   engine/rmr/src/rmr_hw_detect.c
   engine/rmr/src/rmr_isorf.c
@@ -46,6 +45,7 @@ set(RMR_SOURCE_GROUP_ANDROID_ONLY
 
 # Hosted/root-only units. Intentionally excluded from Android shared library.
 set(RMR_SOURCE_GROUP_HOST_ONLY
+  engine/rmr/src/rmr_baremetal_compat.c
   engine/rmr/src/rmr_bench.c
   engine/rmr/src/rmr_bench_suite.c
 )

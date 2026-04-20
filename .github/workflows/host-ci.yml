@@ -1,0 +1,50 @@
+name: Host CI
+
+on:
+  workflow_call:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'engine/**'
+      - 'demo_cli/**'
+      - 'CMakeLists.txt'
+      - 'Makefile'
+      - '.github/workflows/host-ci.yml'
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  host-build-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install native tooling
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake ninja-build build-essential
+
+      - name: Configure
+        run: cmake -S . -B build-host -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build-host -j$(nproc)
+
+      - name: Run selftests
+        run: cmake --build build-host --target run_selftest
+
+      - name: Package host reports
+        if: always()
+        run: |
+          mkdir -p bench-results
+          find bench/results -type f -name '*.csv' -o -name '*.log' | xargs -r -I{} cp {} bench-results/
+
+      - name: Upload host reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-ci-results
+          path: |
+            bench-results/**
+            build-host/rmr_build_config.env
+          if-no-files-found: warn
