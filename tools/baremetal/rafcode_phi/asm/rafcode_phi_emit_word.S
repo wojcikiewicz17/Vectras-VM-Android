@@ -8,10 +8,9 @@
 #if defined(__aarch64__)
     .text
     .align 2
-    .global rafphi_emit_word_asm
-    .type rafphi_emit_word_asm, %function
-rafphi_emit_word_asm:
-    /* w0=opcode_hex, x1=out_words, w2=cap_words, w3=write_index */
+    .global rafphi_emit_word_abi
+    .type rafphi_emit_word_abi, %function
+rafphi_emit_word_abi:
     cmp     w3, w2
     b.hs    1f
     add     x4, x1, w3, uxtw #2
@@ -21,20 +20,33 @@ rafphi_emit_word_asm:
 1:
     mov     w0, #0
     ret
+
+    .global rafphi_emit_word_asm
+    .type rafphi_emit_word_asm, %function
+rafphi_emit_word_asm:
+    b       rafphi_emit_word_abi
 #endif
 
 #if defined(__x86_64__)
     .text
-    .global rafphi_emit_word_asm
-    .type rafphi_emit_word_asm, @function
-rafphi_emit_word_asm:
-    /* edi=opcode_hex, rsi=out_words, edx=cap_words, ecx=write_index */
+    .global rafphi_emit_word_abi
+    .type rafphi_emit_word_abi, @function
+rafphi_emit_word_abi:
     cmpl    %edx, %ecx
-    jae     .Lfail_x64
+    jae     .Lfail_x64_abi
     movl    %edi, (%rsi,%rcx,4)
     movl    $1, %eax
     ret
-.Lfail_x64:
+.Lfail_x64_abi:
     xorl    %eax, %eax
     ret
+
+    .global rafphi_emit_word_asm
+    .type rafphi_emit_word_asm, @function
+rafphi_emit_word_asm:
+    jmp     rafphi_emit_word_abi
+#endif
+
+#if defined(__ELF__)
+    .section .note.GNU-stack,"",@progbits
 #endif
