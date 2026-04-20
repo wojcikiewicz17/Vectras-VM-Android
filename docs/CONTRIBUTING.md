@@ -202,6 +202,7 @@ CI (`.github/workflows/android.yml`) executa validação/build de `perfRelease`/
    - Follow the coding standards
    - Write tests for new functionality
    - Update documentation as needed
+   - **Contrato `_incoming/` (obrigatório):** não adicionar código em `_incoming/` sem registrar o arquivo em `docs/INCOMING_INGESTION_MAP.md` e sem vincular um plano de promoção em `docs/INCOMING_PROMOTION_PLAN.md`. Entradas marcadas como `integrado` devem apontar para um `target_path` existente no repositório.
 
 5. **Commit Changes**
    ```bash

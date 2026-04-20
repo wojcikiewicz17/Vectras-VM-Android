@@ -39,6 +39,9 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build make pkg-config python3 ripgrep
 
+      - name: Validate incoming ingestion map contract
+        run: ./tools/ci/check_incoming_ingestion.py
+
       - name: Validate native toolchain dependencies
         run: |
           set -euo pipefail

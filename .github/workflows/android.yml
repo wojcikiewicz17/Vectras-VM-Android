@@ -489,6 +489,9 @@ jobs:
         if: ${{ inputs.run_lint != false }}
         run: ./tools/gradle_with_jdk21.sh --no-daemon :app:lintDebug
 
+      - name: Validate incoming ingestion map contract
+        run: ./tools/ci/check_incoming_ingestion.py
+
       - name: Native checks (optional)
         if: ${{ inputs.run_native_checks != false }}
         shell: bash
