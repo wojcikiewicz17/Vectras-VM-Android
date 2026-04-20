@@ -24,5 +24,13 @@ Validação executada em:
 
 - `.github/workflows/android-ci.yml`
 - `.github/workflows/compile-matrix.yml`
+- `.github/workflows/quality-gates.yml`
 
 via `python3 tools/ci/validate_lowlevel_abi_contract.py`, incluindo bloqueio de dependências implícitas (`stdlib/libc`) em `app/src/main/cpp/lowlevel_abi.[ch]`.
+
+Além disso, o gate `./tools/ci/verify_android_freestanding_contract.sh` garante modo fail-closed para release Android:
+
+- target crítico dedicado `abi_core_freestanding`;
+- flags críticas (`-ffreestanding`, `-fno-exceptions`, `-fno-rtti`, `-fno-unwind-tables`, `-fno-asynchronous-unwind-tables`, `-fvisibility=hidden`);
+- linking do bridge JNI (`vectra_core_accel`) contra o core freestanding;
+- bloqueio explícito de downgrade silencioso (`VECTRA_REQUIRE_FREESTANDING_CORE` sempre `ON`).

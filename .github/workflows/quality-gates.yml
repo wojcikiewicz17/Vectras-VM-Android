@@ -31,6 +31,9 @@ jobs:
       - name: Validate CMake layout
         run: ./tools/ci/verify_cmake_config.sh
 
+      - name: Validate Android freestanding ABI core contract
+        run: ./tools/ci/verify_android_freestanding_contract.sh
+
       - name: Validate compilation ordering hints
         run: python3 tools/ci/check_compilation_order.py
 
