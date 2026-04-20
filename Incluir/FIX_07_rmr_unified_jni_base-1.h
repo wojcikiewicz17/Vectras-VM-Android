@@ -1,0 +1,269 @@
+#ifndef RMR_UNIFIED_JNI_BASE_H
+#define RMR_UNIFIED_JNI_BASE_H
+
+#include <stddef.h>
+#include <stdint.h>
+
+/* FIX 07: assert.h necessário para _Static_assert em C11 estrito com NDK r27+
+ * e para static_assert em C++. Sem este include, compiladores com -pedantic
+ * podem rejeitar _Static_assert como extensão não declarada. */
+#include <assert.h>
+
+#include "bitomega.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+#define RMR_UK_OK 0
+#define RMR_KERNEL_OK 0
+#define RMR_KERNEL_ERR_ARG -1
+#define RMR_KERNEL_ERR_STATE -2
+#define RMR_UK_NATIVE_OK_MAGIC 0x56414343u  /* "VACC" — MUST match NativeFastPath.NATIVE_OK_MAGIC */
+
+/* FIX 07: macro portable para static_assert em C11/C++11/C++17
+ * Evita divergência entre _Static_assert (C11) e static_assert (C++/C23).
+ * Funciona em NDK r27+ com -std=c11 -pedantic e em C++11/14/17/20. */
+#if defined(__cplusplus)
+  /* C++11 e posterior: static_assert nativo */
+  #define RMR_STATIC_ASSERT(expr, msg) static_assert(expr, msg)
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+  /* C11 e posterior: _Static_assert nativo */
+  #define RMR_STATIC_ASSERT(expr, msg) _Static_assert(expr, msg)
+#else
+  /* Fallback C89/C90: array de tamanho negativo como verificação em tempo de compilação */
+  #define RMR_STATIC_ASSERT(expr, msg) \
+    typedef char rmr_static_assert_##__LINE__[(expr) ? 1 : -1]
+#endif
+
+RMR_STATIC_ASSERT(RMR_UK_OK == RMR_KERNEL_OK,
+                  "status contract mismatch: RMR_UK_OK != RMR_KERNEL_OK");
+
+#if defined(RMR_UK_ERR_ARG) && defined(RMR_KERNEL_ERR_ARG)
+RMR_STATIC_ASSERT(RMR_UK_ERR_ARG == RMR_KERNEL_ERR_ARG,
+                  "status contract mismatch: RMR_UK_ERR_ARG != RMR_KERNEL_ERR_ARG");
+#endif
+
+#if defined(RMR_UK_ERR_STATE) && defined(RMR_KERNEL_ERR_STATE)
+RMR_STATIC_ASSERT(RMR_UK_ERR_STATE == RMR_KERNEL_ERR_STATE,
+                  "status contract mismatch: RMR_UK_ERR_STATE != RMR_KERNEL_ERR_STATE");
+#endif
+
+#define RMR_UK_MAX_SLOTS 1024u
+
+#define RMR_UK_BITOMEGA_OP_ISOLATED 0u
+#define RMR_UK_BITOMEGA_OP_ACTIVE 1u
+#define RMR_UK_BITOMEGA_OP_SAFE_FALLBACK 2u
+
+typedef struct {
+  /* signature = stable architecture code compatible with NativeFastPath.ARCH_*. */
+  uint32_t signature;
+  uint32_t pointer_bits;
+  uint32_t cache_line_bytes;
+  uint32_t page_bytes;
+  /* feature_mask = feature bits only; excludes architecture-identification bits. */
+  uint32_t feature_mask;
+  uint32_t reg_signature_0;
+  uint32_t reg_signature_1;
+  uint32_t reg_signature_2;
+  uint32_t gpio_word_bits;
+  uint32_t gpio_pin_stride;
+  uint32_t cache_hint_l4;
+} RmR_UnifiedCapabilities;
+
+#define RMR_SIG_ARCH_UNKNOWN  0x0000u
+#define RMR_SIG_ARCH_ARM64    0x0100u
+#define RMR_SIG_ARCH_ARM32    0x0200u
+#define RMR_SIG_ARCH_X64      0x0300u
+#define RMR_SIG_ARCH_X86      0x0400u
+#define RMR_SIG_ARCH_RISCV64  0x0500u
+
+/* Canonical JNI feature-mask contract. MUST match NativeFastPath.FEATURE_* values. */
+#define RMR_UK_FEATURE_NEON   (1u << 0)
+#define RMR_UK_FEATURE_AES    (1u << 1)
+#define RMR_UK_FEATURE_CRC32  (1u << 2)
+#define RMR_UK_FEATURE_POPCNT (1u << 3)
+#define RMR_UK_FEATURE_SSE42  (1u << 4)
+#define RMR_UK_FEATURE_AVX2   (1u << 5)
+#define RMR_UK_FEATURE_SIMD   (1u << 6)
+#define RMR_UK_FEATURE_ALL_CANONICAL \
+  (RMR_UK_FEATURE_NEON | RMR_UK_FEATURE_AES | RMR_UK_FEATURE_CRC32 | \
+   RMR_UK_FEATURE_POPCNT | RMR_UK_FEATURE_SSE42 | RMR_UK_FEATURE_AVX2 | \
+   RMR_UK_FEATURE_SIMD)
+
+typedef struct {
+  uint32_t seed;
+  uint8_t *arena_ptr;
+  uint32_t arena_bytes;
+} RmR_UnifiedConfig;
+
+typedef struct {
+  uint32_t cpu_pressure;
+  uint32_t storage_pressure;
+  uint32_t io_pressure;
+  int64_t matrix_determinant;
+} RmR_UnifiedProcessState;
+
+typedef struct {
+  uint32_t u;
+  uint32_t v;
+  uint32_t psi;
+  uint32_t chi;
+  uint32_t rho;
+  uint32_t delta;
+  uint32_t sigma;
+} RmR_ToroidalAddr7D;
+
+typedef struct {
+  uint32_t route_id;
+  uint64_t route_tag;
+  RmR_ToroidalAddr7D toroidal;
+  uint32_t theta_period;
+  uint32_t theta_index;
+  uint32_t delta_theta_q16;
+} RmR_UnifiedRouteState;
+
+#define RMR_TOROIDAL_ADDR_MODE_LEGACY    0u
+/*
+ * RMR_TOROIDAL_ADDR_MODE_THETA_LCM contract:
+ *   Θ-period = lcm(n_ring_a, n_ring_b)
+ *   Θ-index  = input_scalar mod Θ-period
+ *   ΔΘ       = 2π / lcm(n_ring_a, n_ring_b)
+ *   delta_theta_q16 exports ΔΘ in Q16 fixed-point form.
+ */
+#define RMR_TOROIDAL_ADDR_MODE_THETA_LCM 1u
+
+typedef struct {
+  uint32_t mode;
+  uint32_t n_ring_a;
+  uint32_t n_ring_b;
+  uint64_t input_scalar;
+} RmR_UnifiedToroidalMode;
+
+typedef struct {
+  uint32_t computed_crc32c;
+  uint32_t verify_ok;
+} RmR_UnifiedVerifyState;
+
+typedef struct {
+  uint32_t crc32c;
+  uint32_t entropy;
+  uint32_t stage_counter;
+} RmR_UnifiedIngestState;
+
+typedef struct {
+  uint64_t audit_signature;
+  RmR_ToroidalAddr7D toroidal;
+} RmR_UnifiedAuditState;
+
+typedef struct {
+  uint32_t offset;
+  uint32_t size;
+  uint32_t generation;
+  uint8_t in_use;
+} RmR_UnifiedArenaSlot;
+
+typedef struct {
+  uint32_t initialized;
+  uint32_t seed;
+  uint32_t crc32c;
+  uint32_t entropy;
+  uint32_t stage_counter;
+  uint64_t last_route_tag;
+  bitomega_node_t bitomega_node;
+  bitomega_ctx_t bitomega_ctx;
+  uint32_t bitomega_operational_state;
+  uint32_t bitomega_invariant_ok;
+  uint32_t bitomega_fallback_safe;
+  RmR_UnifiedCapabilities caps;
+  uint8_t *arena_base;
+  uint32_t arena_capacity;
+  uint32_t arena_is_external;
+  RmR_UnifiedArenaSlot slots[RMR_UK_MAX_SLOTS];
+} RmR_UnifiedKernel;
+
+int RmR_UnifiedKernel_Init(RmR_UnifiedKernel *kernel, const RmR_UnifiedConfig *config);
+int RmR_UnifiedKernel_Shutdown(RmR_UnifiedKernel *kernel);
+int RmR_UnifiedKernel_QueryCapabilities(const RmR_UnifiedKernel *kernel, RmR_UnifiedCapabilities *out);
+int RmR_UnifiedKernel_Detect(RmR_UnifiedCapabilities *out);
+int RmR_UnifiedKernel_Ingest(RmR_UnifiedKernel *kernel, const uint8_t *data, size_t len, RmR_UnifiedIngestState *out);
+int RmR_UnifiedKernel_Process(RmR_UnifiedKernel *kernel,
+                              uint64_t cpu_cycles,
+                              uint64_t storage_read_bytes,
+                              uint64_t storage_write_bytes,
+                              uint64_t input_bytes,
+                              uint64_t output_bytes,
+                              int64_t m00,
+                              int64_t m01,
+                              int64_t m10,
+                              int64_t m11,
+                              RmR_UnifiedProcessState *out);
+int RmR_UnifiedKernel_Route(RmR_UnifiedKernel *kernel,
+                            const RmR_UnifiedProcessState *process,
+                            RmR_UnifiedRouteState *out);
+int RmR_UnifiedKernel_RouteEx(RmR_UnifiedKernel *kernel,
+                              const RmR_UnifiedProcessState *process,
+                              const RmR_UnifiedToroidalMode *toroidal_mode,
+                              RmR_UnifiedRouteState *out);
+RmR_ToroidalAddr7D RmR_Toroidal_Map(uint32_t seed,
+                                    uint64_t payload_hash,
+                                    uint32_t entropy,
+                                    uint32_t stage_counter,
+                                    uint32_t cpu_pressure,
+                                    uint32_t storage_pressure,
+                                    uint32_t io_pressure,
+                                    int64_t matrix_determinant);
+int RmR_Toroidal_MapThetaLcm(uint32_t n_ring_a,
+                             uint32_t n_ring_b,
+                             uint64_t input_scalar,
+                             RmR_ToroidalAddr7D *out,
+                             uint32_t *out_period,
+                             uint32_t *out_theta_index,
+                             uint32_t *out_delta_theta_q16);
+int RmR_UnifiedKernel_Verify(RmR_UnifiedKernel *kernel,
+                             const uint8_t *data,
+                             size_t len,
+                             uint32_t expected_crc32c,
+                             RmR_UnifiedVerifyState *out);
+int RmR_UnifiedKernel_Audit(RmR_UnifiedKernel *kernel,
+                            const RmR_UnifiedIngestState *ingest,
+                            const RmR_UnifiedProcessState *process,
+                            const RmR_UnifiedRouteState *route,
+                            const RmR_UnifiedVerifyState *verify,
+                            RmR_UnifiedAuditState *out);
+
+int RmR_UnifiedKernel_Copy(RmR_UnifiedKernel *kernel, uint8_t *dst, const uint8_t *src, size_t len);
+uint32_t RmR_UnifiedKernel_XorChecksum(RmR_UnifiedKernel *kernel, const uint8_t *data, size_t len);
+uint32_t RmR_UnifiedKernel_Popcount32(uint32_t x);
+uint32_t RmR_UnifiedKernel_ByteSwap32(uint32_t x);
+uint32_t RmR_UnifiedKernel_Rotl32(uint32_t x, uint32_t n);
+uint32_t RmR_UnifiedKernel_Rotr32(uint32_t x, uint32_t n);
+int RmR_UnifiedKernel_ArenaAlloc(RmR_UnifiedKernel *kernel, uint32_t bytes, uint32_t *out_handle);
+int RmR_UnifiedKernel_ArenaFree(RmR_UnifiedKernel *kernel, uint32_t handle);
+int RmR_UnifiedKernel_ArenaCopy(RmR_UnifiedKernel *kernel,
+                                uint32_t src_handle,
+                                uint32_t src_offset,
+                                uint32_t dst_handle,
+                                uint32_t dst_offset,
+                                uint32_t len);
+int RmR_UnifiedKernel_ArenaXorChecksum(RmR_UnifiedKernel *kernel,
+                                       uint32_t handle,
+                                       uint32_t offset,
+                                       uint32_t len,
+                                       uint32_t *out_checksum);
+int RmR_UnifiedKernel_ArenaFill(RmR_UnifiedKernel *kernel,
+                                uint32_t handle,
+                                uint32_t offset,
+                                uint32_t len,
+                                uint8_t value);
+int RmR_UnifiedKernel_ArenaWrite(RmR_UnifiedKernel *kernel,
+                                 uint32_t handle,
+                                 uint32_t offset,
+                                 const uint8_t *src,
+                                 uint32_t len);
+
+#ifdef __cplusplus
+}
+#endif
+
+#endif /* RMR_UNIFIED_JNI_BASE_H */
