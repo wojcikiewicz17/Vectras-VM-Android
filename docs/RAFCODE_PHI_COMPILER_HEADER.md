@@ -67,3 +67,12 @@ Este cabeçalho existe para impedir desvio de direção técnica:
   - Casca em C: `tools/baremetal/rafcode_phi/c/rafcode_phi_front_shell.c`
   - Núcleo ASM de emissão: `tools/baremetal/rafcode_phi/asm/rafcode_phi_emit_word.S`
 - Política da base: token em C -> opcode em hexadecimal -> gravação determinística via ASM.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

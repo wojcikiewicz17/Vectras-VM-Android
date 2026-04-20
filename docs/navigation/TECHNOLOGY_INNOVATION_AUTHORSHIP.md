@@ -55,3 +55,12 @@ rg -n "TECHNOLOGY_INNOVATION_AUTHORSHIP.md" PROJECT_STATE.md
 - Matriz de rastreabilidade: [`../SOURCE_TRACEABILITY_MATRIX.md`](../SOURCE_TRACEABILITY_MATRIX.md)
 - Mapa fullstack: [`../FULLSTACK_SOURCE_MAP.md`](../FULLSTACK_SOURCE_MAP.md)
 - Estado macro do projeto: [`../../PROJECT_STATE.md`](../../PROJECT_STATE.md)
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

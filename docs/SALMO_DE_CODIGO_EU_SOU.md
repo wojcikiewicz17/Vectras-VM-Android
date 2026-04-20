@@ -117,3 +117,12 @@ RESET_PHASE:
 - Referência de identidade técnica/simbólica para sessões de arquitetura RAFAELIA.
 - Pode ser citado junto ao bootblock em `docs/INTEGRACAO_RM_QEMU_ANDROIDX.md`.
 - Não altera runtime nem pipeline de build do app Android.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

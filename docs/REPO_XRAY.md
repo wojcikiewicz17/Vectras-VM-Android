@@ -22,3 +22,12 @@
 ## Decisão de produto
 1. Produto 1 primeiro: **Engine RMR/Bitraf** isolado, build reproduzível, bench padronizado.
 2. Produto 2 depois: **Runtime Android (showcase)** como consumidor da engine e vitrine.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

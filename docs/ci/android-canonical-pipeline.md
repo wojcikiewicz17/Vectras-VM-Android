@@ -28,3 +28,12 @@ A pipeline Android canônica do repositório é **`.github/workflows/android-ci.
 
 - Removida afirmação anterior de que `compile-matrix.yml` delega totalmente para `android-ci.yml`.
 - Alinhada a definição de pipeline oficial com a implementação real: `android-ci.yml` como canônica e `android.yml` como wrapper.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

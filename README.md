@@ -98,12 +98,12 @@ find . -maxdepth 2 -type d | sort
 - **Decisão explícita adotada: Opção A (recomendada)** — manter apenas **3 workflows canônicos** ativos.
 - Fluxos suportados (canônicos):
   - `.github/workflows/pipeline-orchestrator.yml` (ponto único de entrada para `push`/`pull_request`/manual).
-  - `.github/workflows/ci.yml` (pipeline host, reutilizado via `workflow_call`).
-  - `.github/workflows/android.yml` (pipeline Android, reutilizado via `workflow_call`).
+  - `.github/workflows/host-ci.yml` (pipeline host canônico, reutilizado via `workflow_call`).
+  - `.github/workflows/android-ci.yml` (pipeline Android canônico, reutilizado via `workflow_call`).
 - Workflows legados/extras foram **descontinuados** e movidos para `.github/workflows/archive/` para eliminar disparos paralelos e drift operacional.
 - Política de uso:
   - Eventos de branch/PR/manual devem iniciar em **Actions > Pipeline Orchestrator**.
-  - Workflows canônicos filhos (`ci.yml` e `android.yml`) são acionados pelo orquestrador e só devem ser executados diretamente para debug controlado.
+  - Workflows canônicos filhos (`host-ci.yml` e `android-ci.yml`) são acionados pelo orquestrador; `android.yml` permanece apenas como wrapper de entrada/manual para delegação controlada.
   - Arquivos em `.github/workflows/archive/` são apenas histórico técnico, sem suporte operacional ativo.
 - `pipeline-orchestrator.yml` seleciona o perfil com `pipeline_profile` (`host_only`, `android_only`, `full`) e encaminha `run_workfile`/`log_level`/`abi_profile` para o fluxo Android.
 
@@ -194,3 +194,12 @@ org.gradle.java.home=/usr/lib/jvm/java-21-openjdk
 ## Canal oficial de comunidade e suporte
 - Canal oficial neutro: https://vectras.vercel.app/community.html
 - Para notícias, suporte e feedback, use sempre o canal oficial acima.
+
+## CI canonical reference (Android/Host)
+
+- Canonical Android pipeline: `.github/workflows/android-ci.yml`.
+- Android wrapper entrypoint: `.github/workflows/android.yml`.
+- Auxiliary Android ABI compatibility matrix: `.github/workflows/compile-matrix.yml`.
+- Canonical host pipeline: `.github/workflows/host-ci.yml`.
+- Orchestration and final gates: `.github/workflows/pipeline-orchestrator.yml` and `.github/workflows/quality-gates.yml`.
+- Canonical matrix documentation: `docs/ci/workflow-matrix.md`.

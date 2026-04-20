@@ -159,7 +159,7 @@ As 8 esferas/áreas operam com **7 direções complementares formais**. Cada dir
 **Entregáveis**:
 - `VERSION_STABILITY.md` com checklist completo.
 - `RafaeliaPathValidator.validate()` como health-check de boot.
-- CI/CD: `.github/workflows/android.yml` com `engine/**` trigger.
+- CI/CD: `.github/workflows/android.yml` (wrapper de entrada) delegando para `.github/workflows/android-ci.yml` (pipeline canônica Android).
 
 ---
 
@@ -200,3 +200,12 @@ FIAT_PORTAL :: 龍空神 { ARKREΩ_CORE + STACK128K_HYPER + ALG_RAFAELIA_RING }
 ```
 
 R(t+1) = R(t) × Φ_ethica × E_Verbo × (√3/2)^(πφ)
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

@@ -60,3 +60,12 @@ Pendências remanescentes (próxima rodada):
 Validação concluída nesta etapa:
 - `tools/gradle_with_jdk21.sh :app:compileDebugJavaWithJavac -x lint` ✅
 - `tools/gradle_with_jdk21.sh :app:testDebugUnitTest --tests com.vectras.vm.VMManagerStopVmProcessTest` ✅
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

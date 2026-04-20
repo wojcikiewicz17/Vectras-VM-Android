@@ -21,3 +21,12 @@ Matriz final de workflows CI após consolidação da trilha host/android.
 3. Callers (`pipeline-orchestrator.yml` e futuros workflows reutilizáveis) devem chamar diretamente `host-ci.yml` e `android-ci.yml` para trilhas oficiais.
 4. `tools/ci/validate_build_matrix.py` bloqueia regressões que reintroduzam trilhas host duplicadas/conflitantes.
 5. Toda responsabilidade Android oficial (SDK/NDK/JDK, Gradle tasks, validações nativas e artefatos de release) fica em `android-ci.yml`; wrappers Android devem apenas delegar ou acionar gates auxiliares sem duplicar política oficial.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

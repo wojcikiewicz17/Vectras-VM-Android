@@ -72,3 +72,12 @@ Existe **um único workflow Android canônico de build/release**: `.github/workf
 - `native_matrix_profile`: `canonical`, `pilot_android9_16_5arch`, `android8_16plus_allarch`.
 
 Ao precisar de perfis avançados (`official_arm32_arm64`, `internal_arm64`, `internal_5abi`, `generic`), o consumo deve acontecer por `workflow_call` direto do `android-ci.yml` em callers internos.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

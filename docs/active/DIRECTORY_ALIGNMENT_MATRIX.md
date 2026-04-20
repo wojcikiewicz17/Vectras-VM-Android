@@ -17,3 +17,12 @@ Matriz de governança documental ativa para acompanhar, por diretório crítico,
 - `ok`: documentação do diretório cobre estrutura e fluxo atual do código sem lacunas relevantes.
 - `parcial`: há README, mas são esperadas revisões pontuais de sincronização com a base atual.
 - `pendente`: ausência de README e/ou ausência de cobertura mínima de documentação de domínio.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

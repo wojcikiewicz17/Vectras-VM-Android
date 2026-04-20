@@ -35,3 +35,12 @@ Veja `FIXES_SUMMARY.md` para tabela completa.
 - Política de overlays: ZIPs na raiz não são fonte de verdade; somente a árvore Git é oficial, com bloqueio em CI para conteúdo duplicado.
 
 > Atualize este arquivo sempre que o estado do projeto mudar.
+
+## CI canonical reference (Android/Host)
+
+- Canonical Android pipeline: `.github/workflows/android-ci.yml`.
+- Android wrapper entrypoint: `.github/workflows/android.yml`.
+- Auxiliary Android ABI compatibility matrix: `.github/workflows/compile-matrix.yml`.
+- Canonical host pipeline: `.github/workflows/host-ci.yml`.
+- Orchestration and final gates: `.github/workflows/pipeline-orchestrator.yml` and `.github/workflows/quality-gates.yml`.
+- Canonical matrix documentation: `docs/ci/workflow-matrix.md`.
