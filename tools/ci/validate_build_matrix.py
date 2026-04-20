@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Validate CI workflow matrix/profile consistency and canonical workflow ownership."""
 from pathlib import Path
+import re
+import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]

@@ -5,6 +5,7 @@
 > Matriz completa de workflows CI (host + android + orquestração): `docs/ci/workflow-matrix.md`.
 
 Este é o ponto único de documentação dos perfis Android usados por `.github/workflows/android.yml` e acionados por `.github/workflows/pipeline-orchestrator.yml`.
+O contrato canônico versionado fica em `tools/ci/abi_profiles_contract.json` e é resolvido por `tools/ci/resolve_abi_profile.py`.
 
 ## Modelo de pipeline Android (fonte de verdade)
 
@@ -30,7 +31,7 @@ Gatilhos por `paths` (PR/push) incluem também `tools/**`, `.github/actions/andr
 
 - `build_variant`: `debug`, `release` ou `both`.
 - `signing_mode`: `auto`, `signed` ou `unsigned`.
-- `abi_profile`: `official_arm64` (trilha oficial), `internal_arm32_arm64` (validação dual ARM) ou `internal_4abi` (validação interna ampla da app).
+- `abi_profile`: `official_arm64`, `official_arm32_arm64`, `internal_arm64`, `internal_arm32_arm64`, `internal_4abi`, `internal_5abi`, `internal_riscv64` ou `generic`.
 - `native_matrix_profile`: `canonical` (matriz nativa mínima) ou `pilot_android9_16_5arch` (cobertura técnica Android 9→16 em 5 arquiteturas, separando banda legado e riscv64).
 - `run_lint`: controla execução de `:app:lintDebug`.
 - `run_native_checks`: controla validação de contrato Make/CMake + matriz Android CMake.
@@ -44,7 +45,8 @@ Gatilhos por `paths` (PR/push) incluem também `tools/**`, `.github/actions/andr
 - Para trilha oficial de distribuição, mantenha `signing_mode=signed` (ou `auto`) com segredos `VECTRAS_RELEASE_*` configurados.
 - `abi_profile=official_arm64`: injeta `APP_ABI_POLICY=arm64-only` e `SUPPORTED_ABIS=arm64-v8a`.
 - `abi_profile=internal_4abi`: injeta `APP_ABI_POLICY=internal-4abi` e `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64` (somente validação interna com `CI_INTERNAL_VALIDATION=true`).
-- validação `internal-5abi` é trilha técnica separada (execução manual/diagnóstico), não caminho canônico de release no workflow principal.
+- `abi_profile=internal_5abi`: injeta `APP_ABI_POLICY=internal-5abi` e `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` (somente validação interna).
+- nomes com hífen (`internal-4abi`/`internal-5abi`) são normalizados para `internal_4abi`/`internal_5abi` no resolvedor único.
 - `native_matrix_profile=canonical`: executa CMake para `armeabi-v7a` + `arm64-v8a` com `min-api=29`.
 - `native_matrix_profile=pilot_android9_16_5arch`: executa dois blocos nativos:
   - `min-api=28` com `armeabi-v7a arm64-v8a x86 x86_64` (cobertura Android 9+).
