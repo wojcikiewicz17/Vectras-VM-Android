@@ -7,12 +7,14 @@ import subprocess
 import sys
 
 ROOT = Path(__file__).resolve().parents[2]
+WORKFLOWS = ROOT / '.github' / 'workflows'
+
 required = [
-    ROOT / '.github/workflows/pipeline-orchestrator.yml',
-    ROOT / '.github/workflows/android-ci.yml',
-    ROOT / '.github/workflows/host-ci.yml',
-    ROOT / '.github/workflows/quality-gates.yml',
-    ROOT / '.github/workflows/compile-matrix.yml',
+    WORKFLOWS / 'pipeline-orchestrator.yml',
+    WORKFLOWS / 'android-ci.yml',
+    WORKFLOWS / 'host-ci.yml',
+    WORKFLOWS / 'quality-gates.yml',
+    WORKFLOWS / 'compile-matrix.yml',
 ]
 
 missing = [str(p) for p in required if not p.exists()]
@@ -22,11 +24,14 @@ if missing:
         print(f' - {item}')
     sys.exit(1)
 
-orch = (ROOT / '.github/workflows/pipeline-orchestrator.yml').read_text(encoding='utf-8')
-for token in ['host_only', 'android_only', 'full', 'quality-gates']:
+orch = (WORKFLOWS / 'pipeline-orchestrator.yml').read_text(encoding='utf-8')
+for token in ['host_only', 'android_only', 'full', 'quality-gates', './.github/workflows/host-ci.yml']:
     if token not in orch:
         print(f'orchestrator missing token: {token}')
         sys.exit(1)
+if './.github/workflows/ci.yml' in orch:
+    print('orchestrator cannot call ci.yml; use host-ci.yml as canonical host lane')
+    sys.exit(1)
 
 android_ci = (ROOT / '.github/workflows/android-ci.yml').read_text(encoding='utf-8')
 for token in ['resolve_abi_profile.py', ':app:verifyDeliveredCompiledArtifacts']:
