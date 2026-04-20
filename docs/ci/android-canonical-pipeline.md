@@ -14,8 +14,8 @@ A pipeline Android canônica do repositório é **`.github/workflows/android-ci.
 
 ## Regras operacionais
 
-- `android.yml` permanece como **wrapper de entrada** (push/pull_request/workflow_dispatch), delegando exclusivamente para `android-ci.yml` via `uses`.
-- Qualquer evolução de comportamento Android (ex.: perfis de matriz nativa) deve ocorrer apenas em `android-ci.yml`.
+- `android.yml` permanece como **wrapper de entrada** (push/pull_request/workflow_dispatch), delegando para `android-ci.yml` e acionando `compile-matrix.yml` como gate adaptativo em trilhas internas/`compat_matrix_debug`.
+- Evoluções de contrato ABI lowlevel devem atualizar `tools/ci/lowlevel_abi_contract.json` e o gate `tools/ci/validate_lowlevel_abi_contract.py`.
 - `quality-gates.yml` + `tools/ci/validate_build_matrix.py` bloqueiam regressões que reintroduzam workflows Android concorrentes com responsabilidades sobrepostas.
 
 
