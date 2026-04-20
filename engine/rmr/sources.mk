@@ -24,6 +24,7 @@ RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_math_fabric.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_neon_simd.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_qemu_bridge.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_tcg_cache.c
+RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_torus_flow.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_unified_jni_bridge.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_unified_kernel.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_vhw_model.c
