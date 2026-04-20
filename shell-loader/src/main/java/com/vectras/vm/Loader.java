@@ -163,10 +163,7 @@ public class Loader {
         }
 
         java.util.List<String> actual;
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
-            if (targetInfo.signingInfo == null) {
-                return false;
-            }
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P && targetInfo.signingInfo != null) {
             android.content.pm.Signature[] signatures = targetInfo.signingInfo.hasMultipleSigners()
                     ? targetInfo.signingInfo.getApkContentsSigners()
                     : targetInfo.signingInfo.getSigningCertificateHistory();
