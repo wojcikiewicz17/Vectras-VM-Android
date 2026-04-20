@@ -53,4 +53,10 @@ public class KvmProbeTest {
         assertTrue(KvmProbe.supportsCpuVirtualization("riscv64", "features\t:\thypervisor"));
         assertFalse(KvmProbe.supportsCpuVirtualization("riscv64", "isa\t:\trv64imafdc"));
     }
+    @Test
+    public void supportsCpuVirtualization_riscvDoesNotAcceptNonVirtualizationTokens() {
+        assertFalse(KvmProbe.supportsCpuVirtualization("riscv64", "isa	:	rv64imafdc zba zbb"));
+        assertFalse(KvmProbe.supportsCpuVirtualization("riscv64", "features	:	sha2"));
+    }
+
 }
