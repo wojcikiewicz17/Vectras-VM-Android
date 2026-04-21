@@ -52,6 +52,8 @@ jobs:
       ci_internal_validation: ${{ steps.flags.outputs.ci_internal_validation }}
       native_matrix_specs: ${{ steps.flags.outputs.native_matrix_specs }}
       native_matrix_profile: ${{ steps.flags.outputs.native_matrix_profile }}
+      abi_profile: ${{ steps.flags.outputs.abi_profile }}
+      lane: ${{ steps.flags.outputs.lane }}
     steps:
       - uses: actions/checkout@v4
 
@@ -177,6 +179,9 @@ jobs:
           echo "ci_internal_validation=${ci_internal_validation}" >> "$GITHUB_OUTPUT"
           echo "native_matrix_specs=${native_matrix_specs}" >> "$GITHUB_OUTPUT"
           echo "native_matrix_profile=${native_matrix_profile}" >> "$GITHUB_OUTPUT"
+          lane="${abi_profile}"
+          echo "abi_profile=${abi_profile}" >> "$GITHUB_OUTPUT"
+          echo "lane=${lane}" >> "$GITHUB_OUTPUT"
 
 
   abi-contract-gate:
@@ -304,15 +309,75 @@ jobs:
             append_flag="--append-artifacts"
           done
 
-      - name: Upload Android outputs
+      - name: Collect Android CI artifacts by lane
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          lane="${{ needs.resolve.outputs.lane }}"
+          rm -rf ci-artifacts/android-logs ci-artifacts/android-artifacts ci-artifacts/perf-results
+          mkdir -p ci-artifacts/android-logs ci-artifacts/android-artifacts ci-artifacts/perf-results
+
+          if [[ -d app/build/reports ]]; then
+            cp -a app/build/reports/. ci-artifacts/android-logs/
+          fi
+          while IFS= read -r p; do
+            rel="${p#./}"
+            dst="ci-artifacts/android-logs/${rel}"
+            mkdir -p "$(dirname "$dst")"
+            cp -a "$p" "$dst"
+          done < <(find . -path '*/build/test-results/*' -type f 2>/dev/null | sort)
+
+          if [[ -d app/build/outputs/apk ]]; then
+            cp -a app/build/outputs/apk/. ci-artifacts/android-artifacts/
+          fi
+          if [[ -d app/build/outputs/bundle ]]; then
+            cp -a app/build/outputs/bundle/. ci-artifacts/android-artifacts/
+          fi
+
+          while IFS= read -r perf_file; do
+            rel="${perf_file#./}"
+            dst="ci-artifacts/perf-results/${rel}"
+            mkdir -p "$(dirname "$dst")"
+            cp -a "$perf_file" "$dst"
+          done < <(find app/build -type f \( -name '*benchmark*' -o -name '*perf*' -o -name '*profileinstaller*' \) 2>/dev/null | sort)
+
+          APP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
+          SUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
+          ./tools/ci/materialize_android_ci_artifacts.sh \
+            --lane "${lane}" \
+            --expect-app-artifacts "${{ needs.resolve.outputs.expect_app_artifacts }}" \
+            --expect-native-matrix "${{ inputs.run_native_checks }}" \
+            --expect-perf-results false
+
+      - name: Upload Android logs
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-${{ needs.resolve.outputs.artifact_variants }}-${{ needs.resolve.outputs.app_abi_policy }}
-          path: |
-            app/build/outputs/apk/**
-            app/build/outputs/bundle/**
-            app/build/reports/**
-            **/build/test-results/**
-            ci-artifacts/android-cmake-matrix/**
+          name: android-logs-${{ needs.resolve.outputs.lane }}
+          path: ci-artifacts/upload-staging/android-logs-${{ needs.resolve.outputs.lane }}/**
+          if-no-files-found: warn
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-artifacts-${{ needs.resolve.outputs.lane }}
+          path: ci-artifacts/upload-staging/android-artifacts-${{ needs.resolve.outputs.lane }}/**
+          if-no-files-found: warn
+
+      - name: Upload native matrix
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-matrix-${{ needs.resolve.outputs.lane }}
+          path: ci-artifacts/upload-staging/native-matrix-${{ needs.resolve.outputs.lane }}/**
+          if-no-files-found: warn
+
+      - name: Upload perf results
+        uses: actions/upload-artifact@v4
+        if: always() && hashFiles(format('ci-artifacts/upload-staging/perf-results-{0}/files/**', needs.resolve.outputs.lane)) != ''
+        with:
+          name: perf-results-${{ needs.resolve.outputs.lane }}
+          path: ci-artifacts/upload-staging/perf-results-${{ needs.resolve.outputs.lane }}/**
           if-no-files-found: warn
