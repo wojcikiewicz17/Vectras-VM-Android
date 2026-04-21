@@ -64,7 +64,7 @@ Cada diretório tem:
 ## Governança operacional (CI e segurança)
 - CI Android (wrapper de entrada): [`.github/workflows/android.yml`](.github/workflows/android.yml).
 - CI Android canônico: [`.github/workflows/android-ci.yml`](.github/workflows/android-ci.yml).
-- CI Engine: [`.github/workflows/engine-ci.yml`](.github/workflows/engine-ci.yml).
+- CI Engine/host canônico: [`.github/workflows/host-ci.yml`](.github/workflows/host-ci.yml).
 - Automação de dependências: [`.github/dependabot.yml`](.github/dependabot.yml).
 - Security allowlist de artefatos sensíveis: [`security/sensitive-artifacts-allowlist.txt`](security/sensitive-artifacts-allowlist.txt).
 - Verificador de artefatos sensíveis: [`tools/check_sensitive_artifacts.sh`](tools/check_sensitive_artifacts.sh).

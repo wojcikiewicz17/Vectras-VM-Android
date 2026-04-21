@@ -57,6 +57,25 @@ endif()
 # endif()
 
 
+if(DEFINED Python3_EXECUTABLE AND NOT Python3_EXECUTABLE STREQUAL "")
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} --version
+        RESULT_VARIABLE VECTRA_PYTHON3_OK
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
+    if(NOT VECTRA_PYTHON3_OK EQUAL 0)
+        message(WARNING "Ignoring unusable Python3_EXECUTABLE from environment/cache: ${Python3_EXECUTABLE}")
+        unset(Python3_EXECUTABLE CACHE)
+        unset(Python3_EXECUTABLE)
+    endif()
+endif()
+
+if(NOT DEFINED Python3_EXECUTABLE OR Python3_EXECUTABLE STREQUAL "")
+    find_program(VECTRA_PYTHON3_FALLBACK NAMES python3 python REQUIRED)
+    set(Python3_EXECUTABLE "${VECTRA_PYTHON3_FALLBACK}" CACHE FILEPATH "Python interpreter used by lowlevel ABI checks" FORCE)
+endif()
+
 find_package(Python3 COMPONENTS Interpreter REQUIRED)
 add_custom_target(lowlevel_abi_contract_check
     COMMAND ${Python3_EXECUTABLE} ${VECTRA_REPO_ROOT}/tools/ci/validate_lowlevel_abi_contract.py
@@ -78,6 +97,7 @@ add_library(abi_core_freestanding STATIC
 add_library(vectra_core_accel SHARED
     vectra_core_accel.c
     lowlevel_bridge.c
+    hardware_profile_bridge.c
     ${VECTRA_PLATFORM_ANDROID_COMPAT_SOURCE}
     ${VECTRA_ENGINE_CORE_SOURCES})
 

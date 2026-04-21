@@ -21,8 +21,8 @@ MD_LINK_RE = re.compile(r"\[[^\]]+\]\(([^)]+)\)")
 
 
 def git_files() -> list[Path]:
-    out = subprocess.check_output(["git", "ls-files"], cwd=ROOT, text=True)
-    return [ROOT / p for p in out.splitlines() if p.strip()]
+    out = subprocess.check_output(["git", "ls-files", "-z"], cwd=ROOT)
+    return [ROOT / Path(p.decode("utf-8")) for p in out.split(b"\0") if p]
 
 
 def is_text(data: bytes) -> bool:
