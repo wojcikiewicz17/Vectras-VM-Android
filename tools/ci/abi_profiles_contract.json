@@ -36,6 +36,12 @@
       "ci_internal_validation": true,
       "channel": "internal"
     },
+    "universal_guarded": {
+      "app_abi_policy": "internal-5abi",
+      "supported_abis": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64", "riscv64"],
+      "ci_internal_validation": true,
+      "channel": "internal"
+    },
     "internal_riscv64": {
       "app_abi_policy": "internal-5abi",
       "supported_abis": ["arm64-v8a", "armeabi-v7a", "x86", "x86_64", "riscv64"],
@@ -52,6 +58,8 @@
   "aliases": {
     "internal-4abi": "internal_4abi",
     "internal-5abi": "internal_5abi",
+    "universal": "universal_guarded",
+    "universal-guarded": "universal_guarded",
     "official-arm64": "official_arm64",
     "arm64-only": "official_arm64",
     "arm32-arm64": "internal_arm32_arm64"

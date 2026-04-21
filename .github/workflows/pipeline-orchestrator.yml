@@ -24,7 +24,7 @@ on:
         required: false
         default: 'debug'
       abi_profile:
-        description: 'ABI profile: official_arm64, internal_arm32_arm64'
+        description: 'ABI profile: official_arm64, official_arm32_arm64, internal_arm32_arm64, internal_4abi, internal_5abi, universal_guarded'
         required: false
         default: 'official_arm64'
       log_level:
