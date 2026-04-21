@@ -34,6 +34,7 @@ Este módulo é para **build local no terminal**, sem depender de GitHub Actions
 - `toolchain-manifests/toolchain-bom.json`: BOM de componentes JDK/SDK/NDK/CMake usados no fluxo.
 - `forks-sync.sh`: sincroniza fontes de forks externos (GitHub codeload) declarados em manifesto.
 - `fork-manifests/forks-sources.json`: manifesto de forks necessários/opcionais para composição local.
+- Fork pré-configurado no manifesto: `wojcikiewicz17/termux-app-rafacodephi` (integração incremental, opcional, destino `.third_party_forks/termux-app-rafacodephi`).
 
 ## Execução local (recomendada)
 
@@ -66,6 +67,7 @@ bash tools/termux-arm64-orchestrator/orchestrate-build.sh
 - `TOOLCHAIN_PACK_DIR` (default `.toolchain-packs`)
 - `ALLOW_NETWORK_TOOLCHAIN=0|1` (quando `0`, exige pack local de cmdline-tools)
 - `ENABLE_FORK_SYNC=0|1` (default `0`; sincroniza forks externos declarados antes do bootstrap)
+- Com `ENABLE_FORK_SYNC=1`, o orquestrador baixa o fork `termux-app-rafacodephi` via `forks-sync.sh` respeitando `ALLOW_NETWORK_FORKS`.
 - `ALLOW_NETWORK_FORKS=0|1` (quando `0`, não baixa forks; forks obrigatórios ausentes geram erro)
 - `RELEASE_SIGNING_REQUIRED=0|1` (default `1`; quando `0`, pula somente validação de credenciais de signing no compliance gate)
 - `BOOTSTRAP_ANDROID=0|1`
