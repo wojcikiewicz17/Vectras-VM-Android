@@ -1,0 +1,127 @@
+name: ARM32 Integrity Alert Lane
+
+on:
+  workflow_dispatch:
+    inputs:
+      acknowledge_arm32_warning:
+        description: "Combobox obrigatório: aceite explícito da marca d'água ARM32."
+        type: choice
+        required: true
+        default: IMUTAVEL
+        options:
+          - IMUTAVEL
+      run_workfile:
+        description: "Combobox: perfil Android para lane ARM32."
+        type: choice
+        required: true
+        default: compat_matrix_debug
+        options:
+          - smoke_debug
+          - unit_loader
+          - full_debug
+          - compat_matrix_debug
+          - upstream-debug-compat
+          - release_gate
+      log_level:
+        description: "Combobox: nível de log Gradle."
+        type: choice
+        required: true
+        default: lifecycle
+        options:
+          - lifecycle
+          - info
+          - debug
+      run_lint:
+        description: "Checkbox: executa lint no lane ARM32."
+        type: boolean
+        required: true
+        default: true
+      run_native_checks:
+        description: "Checkbox: executa matriz nativa CMake/NDK."
+        type: boolean
+        required: true
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  ARM32_ALERT_WATERMARK: "IMMUTABLE-ARM32-ALERT-DO-NOT-REMOVE-v1"
+
+jobs:
+  watermark-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate immutable ARM32 acknowledgement
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="IMUTAVEL"
+          provided="${{ github.event.inputs.acknowledge_arm32_warning }}"
+          if [[ "${provided}" != "${expected}" ]]; then
+            echo "Confirmação inválida: use exatamente '${expected}'." >&2
+            exit 1
+          fi
+          if [[ "${ARM32_ALERT_WATERMARK}" != "IMMUTABLE-ARM32-ALERT-DO-NOT-REMOVE-v1" ]]; then
+            echo "Watermark ARM32 foi alterada. Bloqueando execução." >&2
+            exit 1
+          fi
+          mkdir -p reports/arm32-watermark
+          {
+            echo "ARM32_ALERT_WATERMARK=${ARM32_ALERT_WATERMARK}"
+            echo "acknowledged_by=${{ github.actor }}"
+            echo "run_id=${{ github.run_id }}"
+            echo "intent=arm32_experimental_lane_with_immutable_warning"
+          } > reports/arm32-watermark/WATERMARK.txt
+          cat reports/arm32-watermark/WATERMARK.txt
+
+      - name: Upload ARM32 watermark evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm32-watermark-${{ github.run_id }}
+          path: reports/arm32-watermark/**
+          if-no-files-found: error
+
+  arm32-ci:
+    needs: watermark-guard
+    uses: ./.github/workflows/android-ci.yml
+    with:
+      ci_lane: debug-internal-arm32-arm64
+      run_workfile: ${{ github.event.inputs.run_workfile || 'compat_matrix_debug' }}
+      build_variant: debug
+      signing_mode: unsigned
+      abi_profile: internal_arm32_arm64
+      native_matrix_profile: universal_hardening
+      log_level: ${{ github.event.inputs.log_level || 'lifecycle' }}
+      run_lint: ${{ fromJSON(github.event.inputs.run_lint || 'true') }}
+      run_native_checks: ${{ fromJSON(github.event.inputs.run_native_checks || 'true') }}
+    secrets: inherit
+
+  arm32-e2e-attestation:
+    name: ARM32 E2E artifact attestation
+    needs: [watermark-guard, arm32-ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download ARM32 lane artifacts from this run
+        uses: actions/download-artifact@v4
+        with:
+          path: arm32-e2e-artifacts
+          pattern: "*debug-internal-arm32-arm64*"
+          merge-multiple: false
+
+      - name: Verify ARM32 lane artifacts contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/verify_arm32_lane_artifacts.sh \
+            --root arm32-e2e-artifacts \
+            --lane-label debug-internal-arm32-arm64
+
+      - name: Upload ARM32 E2E attestation bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm32-e2e-attestation-${{ github.run_id }}
+          path: arm32-e2e-artifacts/**
+          if-no-files-found: error
