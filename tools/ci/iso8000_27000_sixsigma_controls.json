@@ -1,0 +1,77 @@
+{
+  "schema": "vectras-iso-sixsigma-controls-v1",
+  "controls": [
+    {
+      "id": "C1-DATA-CONTRACT",
+      "title": "Integridade de contrato de dados/configuração (ISO 8000)",
+      "evidence_any": [
+        "tools/ci/abi_profiles_contract.json",
+        "tools/perf/resolve_contract.py",
+        "tools/ci/validate_build_matrix.py"
+      ]
+    },
+    {
+      "id": "C2-SECURE-BY-DEFAULT",
+      "title": "Secure-by-default e trilha oficial de release (ISO 27000)",
+      "evidence_any": [
+        ".github/workflows/android-ci.yml",
+        ".github/workflows/android.yml",
+        "tools/check_sensitive_artifacts.sh"
+      ]
+    },
+    {
+      "id": "C3-BOOTSTRAP-CONTROL",
+      "title": "Controle de bootstrap e rastreabilidade",
+      "evidence_any": [
+        "tools/ci/verify_bootstrap_contract.sh",
+        "tools/verify_bootstrap_assets.py",
+        ".github/workflows/android-ci.yml"
+      ]
+    },
+    {
+      "id": "C4-ABI-TRACEABILITY",
+      "title": "Rastreabilidade de ABI e matriz nativa",
+      "evidence_any": [
+        "tools/ci/validate_lowlevel_abi.sh",
+        "tools/ci/resolve_abi_profile.py",
+        ".github/workflows/compile-matrix.yml"
+      ]
+    },
+    {
+      "id": "C5-BUILD-REPRODUCIBILITY",
+      "title": "Reprodutibilidade de build e toolchain",
+      "evidence_any": [
+        "tools/ci/prepare_android_env.sh",
+        "tools/check_android_toolchain.sh",
+        ".github/workflows/host-ci.yml"
+      ]
+    },
+    {
+      "id": "C6-INTEGRITY-BENCHMARK",
+      "title": "Benchmark de integridade/performance com gate",
+      "evidence_any": [
+        "tools/perf/run_suite.py",
+        "tools/perf/compare_baseline.py",
+        ".github/workflows/quality-gates.yml"
+      ]
+    },
+    {
+      "id": "C7-ARTIFACT-GOVERNANCE",
+      "title": "Governança de artefatos, upload e retenção técnica",
+      "evidence_any": [
+        "tools/ci/materialize_android_ci_artifacts.sh",
+        "tools/ci/verify_artifact_contract.sh",
+        ".github/workflows/android-ci.yml"
+      ]
+    },
+    {
+      "id": "C8-LOWLEVEL-ASM-FAILSAFE",
+      "title": "Gate low-level ASM com fail-safe/rollback operacional",
+      "evidence_any": [
+        "tools/ci/run_asm_compiler_refactor_gate.sh",
+        "tools/ci/ASM_COMPILER_GATE.md",
+        ".github/workflows/host-ci.yml"
+      ]
+    }
+  ]
+}
