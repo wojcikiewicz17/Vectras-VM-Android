@@ -70,3 +70,32 @@ jobs:
       run_lint: true
       run_native_checks: true
     secrets: inherit
+
+  arm32-e2e-attestation:
+    name: ARM32 E2E artifact attestation
+    needs: [watermark-guard, arm32-ci]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download ARM32 lane artifacts from this run
+        uses: actions/download-artifact@v4
+        with:
+          path: arm32-e2e-artifacts
+          pattern: "*debug-internal-arm32-arm64*"
+          merge-multiple: false
+
+      - name: Verify ARM32 lane artifacts contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/verify_arm32_lane_artifacts.sh \
+            --root arm32-e2e-artifacts \
+            --lane-label debug-internal-arm32-arm64
+
+      - name: Upload ARM32 E2E attestation bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: arm32-e2e-attestation-${{ github.run_id }}
+          path: arm32-e2e-artifacts/**
+          if-no-files-found: error
