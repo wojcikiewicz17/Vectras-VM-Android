@@ -86,6 +86,11 @@ jobs:
             --base-sha "${{ inputs.base_sha }}" \
             --head-sha "${{ inputs.head_sha }}"
 
+      - name: Run ISO 8000/27000 + Six Sigma audit (8-point)
+        run: |
+          set -euo pipefail
+          python3 tools/ci/run_iso_sixsigma_audit.py --strict
+
       - name: Upload perf gate artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -94,6 +99,7 @@ jobs:
           path: |
             bench/results/perf/**
             bench/baseline/*.json
+            reports/iso-sixsigma/**
           if-no-files-found: warn
 
       - name: Final status gate
