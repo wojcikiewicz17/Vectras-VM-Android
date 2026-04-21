@@ -63,6 +63,9 @@ jobs:
       - name: Run engine selftests
         run: make run-selftest
 
+      - name: Run ASM compiler refactor gate (integrity + failsafe)
+        run: ./tools/ci/run_asm_compiler_refactor_gate.sh
+
       - name: Resolve perf runs contract
         run: |
           set -euo pipefail
@@ -116,6 +119,7 @@ jobs:
             bench/results/perf/**
             bench/results/perf/manifest.json
             bench/baseline/*.json
+            reports/asm-compiler/**
             build-host/rmr_build_config.env
             build-cmake/rmr_build_config.env
           if-no-files-found: warn
