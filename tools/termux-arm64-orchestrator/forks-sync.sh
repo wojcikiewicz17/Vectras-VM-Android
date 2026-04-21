@@ -15,7 +15,7 @@ if [[ ! -f "$MANIFEST_FILE" ]]; then
   exit 1
 fi
 
-python - "$ROOT_DIR" "$MANIFEST_FILE" "$ALLOW_NETWORK_FORKS" <<'PY'
+python3 - "$ROOT_DIR" "$MANIFEST_FILE" "$ALLOW_NETWORK_FORKS" <<'PY'
 import io
 import json
 import os

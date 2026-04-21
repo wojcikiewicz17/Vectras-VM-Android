@@ -1,5 +1,14 @@
 {
   "schema": "vectras-termux-forks/v1",
   "destination": ".third_party_forks",
-  "forks": []
+  "forks": [
+    {
+      "name": "termux-app-rafacodephi",
+      "repo": "wojcikiewicz17/termux-app-rafacodephi",
+      "ref": "master",
+      "path": "termux-app-rafacodephi",
+      "required": false,
+      "purpose": "fonte externa para integração incremental do app Termux customizado"
+    }
+  ]
 }
