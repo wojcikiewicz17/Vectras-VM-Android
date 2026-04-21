@@ -54,6 +54,8 @@ jobs:
       native_matrix_profile: ${{ steps.flags.outputs.native_matrix_profile }}
       abi_profile: ${{ steps.flags.outputs.abi_profile }}
       lane: ${{ steps.flags.outputs.lane }}
+      lane_label: ${{ steps.flags.outputs.lane_label }}
+      expect_perf_results: ${{ steps.flags.outputs.expect_perf_results }}
     steps:
       - uses: actions/checkout@v4
 
@@ -94,6 +96,7 @@ jobs:
               exit 1
               ;;
           esac
+          expect_perf_results=false
 
           case "${build_variant}" in
             debug) artifact_variants="debug" ;;
@@ -180,8 +183,19 @@ jobs:
           echo "native_matrix_specs=${native_matrix_specs}" >> "$GITHUB_OUTPUT"
           echo "native_matrix_profile=${native_matrix_profile}" >> "$GITHUB_OUTPUT"
           lane="${abi_profile}"
+          lane_label="${lane}"
+          case "${abi_profile}" in
+            official_arm64)
+              lane_label="official_arm64"
+              ;;
+            internal_arm32_arm64)
+              lane_label="internal_arm32_arm64"
+              ;;
+          esac
           echo "abi_profile=${abi_profile}" >> "$GITHUB_OUTPUT"
           echo "lane=${lane}" >> "$GITHUB_OUTPUT"
+          echo "lane_label=${lane_label}" >> "$GITHUB_OUTPUT"
+          echo "expect_perf_results=${expect_perf_results}" >> "$GITHUB_OUTPUT"
 
 
   abi-contract-gate:
@@ -314,7 +328,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          lane="${{ needs.resolve.outputs.lane }}"
+          lane="${{ needs.resolve.outputs.lane_label }}"
           rm -rf ci-artifacts/android-logs ci-artifacts/android-artifacts ci-artifacts/perf-results
           mkdir -p ci-artifacts/android-logs ci-artifacts/android-artifacts ci-artifacts/perf-results
 
@@ -342,42 +356,48 @@ jobs:
             cp -a "$perf_file" "$dst"
           done < <(find app/build -type f \( -name '*benchmark*' -o -name '*perf*' -o -name '*profileinstaller*' \) 2>/dev/null | sort)
 
+          perf_file_count="$(find ci-artifacts/perf-results -type f 2>/dev/null | wc -l | tr -d ' ')"
+          expect_perf_results=false
+          if [[ "${perf_file_count}" != "0" ]]; then
+            expect_perf_results=true
+          fi
+
           APP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
           SUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
           ./tools/ci/materialize_android_ci_artifacts.sh \
             --lane "${lane}" \
             --expect-app-artifacts "${{ needs.resolve.outputs.expect_app_artifacts }}" \
             --expect-native-matrix "${{ inputs.run_native_checks }}" \
-            --expect-perf-results false
+            --expect-perf-results "${expect_perf_results}"
 
       - name: Upload Android logs
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-logs-${{ needs.resolve.outputs.lane }}
-          path: ci-artifacts/upload-staging/android-logs-${{ needs.resolve.outputs.lane }}/**
+          name: android-logs-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/upload-staging/android-logs-${{ needs.resolve.outputs.lane_label }}/**
           if-no-files-found: warn
 
       - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-artifacts-${{ needs.resolve.outputs.lane }}
-          path: ci-artifacts/upload-staging/android-artifacts-${{ needs.resolve.outputs.lane }}/**
+          name: android-artifacts-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/upload-staging/android-artifacts-${{ needs.resolve.outputs.lane_label }}/**
           if-no-files-found: warn
 
       - name: Upload native matrix
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: native-matrix-${{ needs.resolve.outputs.lane }}
-          path: ci-artifacts/upload-staging/native-matrix-${{ needs.resolve.outputs.lane }}/**
+          name: native-matrix-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/upload-staging/native-matrix-${{ needs.resolve.outputs.lane_label }}/**
           if-no-files-found: warn
 
       - name: Upload perf results
         uses: actions/upload-artifact@v4
-        if: always() && hashFiles(format('ci-artifacts/upload-staging/perf-results-{0}/files/**', needs.resolve.outputs.lane)) != ''
+        if: always() && hashFiles(format('ci-artifacts/upload-staging/perf-results-{0}/files/**', needs.resolve.outputs.lane_label)) != ''
         with:
-          name: perf-results-${{ needs.resolve.outputs.lane }}
-          path: ci-artifacts/upload-staging/perf-results-${{ needs.resolve.outputs.lane }}/**
+          name: perf-results-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/upload-staging/perf-results-${{ needs.resolve.outputs.lane_label }}/**
           if-no-files-found: warn
