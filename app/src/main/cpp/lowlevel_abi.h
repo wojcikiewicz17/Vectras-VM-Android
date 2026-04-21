@@ -1,7 +1,7 @@
 #ifndef VECTRA_LOWLEVEL_ABI_H
 #define VECTRA_LOWLEVEL_ABI_H
 
-#include <stdint.h>
+#include "vectra_ll_base.h"
 
 #ifdef __cplusplus
 extern "C" {
