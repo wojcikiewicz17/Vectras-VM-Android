@@ -6,6 +6,7 @@ plugins {
 
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.security.MessageDigest
 import java.util.regex.Pattern
 import java.util.zip.ZipFile
 
@@ -700,6 +701,43 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
     description = "Valida se os artefatos compilados esperados (APK/AAB) foram gerados e emite relatório JSON para entrega."
 
     doLast {
+        def readGradleOrEnv = { String gradleKey, String envKey, String fallback ->
+            def fromGradle = providers.gradleProperty(gradleKey).orNull
+            if (fromGradle != null && !fromGradle.toString().trim().isEmpty()) {
+                return fromGradle.toString().trim()
+            }
+            def fromEnv = System.getenv(envKey)
+            if (fromEnv != null && !fromEnv.toString().trim().isEmpty()) {
+                return fromEnv.toString().trim()
+            }
+            return fallback
+        }
+        def sha256Hex = { byte[] bytes ->
+            MessageDigest digest = MessageDigest.getInstance("SHA-256")
+            byte[] hash = digest.digest(bytes)
+            return hash.collect { String.format("%02x", it) }.join("")
+        }
+        def toolAvailable = { String toolName ->
+            def output = new ByteArrayOutputStream()
+            def result = exec {
+                commandLine("bash", "-lc", "command -v ${toolName}")
+                standardOutput = output
+                errorOutput = new ByteArrayOutputStream()
+                ignoreExitValue = true
+            }
+            return result.exitValue == 0 && !output.toString().trim().isEmpty()
+        }
+        def runToolEvidence = { List<String> commandLineArgs ->
+            def output = new ByteArrayOutputStream()
+            def result = exec {
+                commandLine(commandLineArgs)
+                standardOutput = output
+                errorOutput = output
+                ignoreExitValue = true
+            }
+            return [exitCode: result.exitValue, output: output.toString("UTF-8").trim()]
+        }
+
         def requestedVariantsRaw = (providers.gradleProperty("artifactVariants")
             .orElse("debug,release,perfRelease")
             .get() ?: "debug,release,perfRelease")
@@ -715,10 +753,24 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
 
         def reportVariants = []
         def missingVariants = []
+        def manifestFiles = []
+        def internalLaneAbiMissingByVariant = []
+        def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
+        def appAbiPolicy = (rootProject.ext.appAbiPolicy ?: providers.gradleProperty("APP_ABI_POLICY").orElse("").get()).toString()
+        def abiProfile = readGradleOrEnv("abi_profile", "ABI_PROFILE", "unknown")
+        def workflowName = readGradleOrEnv("workflow", "GITHUB_WORKFLOW", "local")
+        def laneName = readGradleOrEnv("lane", "CI_LANE", "android")
+        def signingMode = readGradleOrEnv("signing_mode", "SIGNING_MODE", "auto")
+        def repositoryId = readGradleOrEnv("repo", "GITHUB_REPOSITORY", rootProject.name)
+        def commitSha = readGradleOrEnv("commit", "GITHUB_SHA", "unknown")
+        def hasFileTool = toolAvailable("file")
+        def hasReadelfTool = toolAvailable("readelf")
+        def internalLane = abiProfile.startsWith("internal_") || appAbiPolicy.startsWith("internal-") || laneName.toLowerCase(Locale.ROOT).contains("internal")
 
         requestedVariants.each { variant ->
             def apkDir = file("${buildDir}/outputs/apk/${variant}")
             def bundleDir = file("${buildDir}/outputs/bundle/${variant}")
+            def variantManifestFiles = []
 
             def apkFiles = fileTree(apkDir) {
                 include "**/*.apk"
@@ -729,16 +781,75 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
             }.files.sort { it.name }
 
             def artifacts = (apkFiles + bundleFiles).collect { artifact ->
+                def zipFile = new ZipFile(artifact)
+                def artifactEntries = []
+                try {
+                    zipFile.entries().findAll { entry ->
+                        !entry.isDirectory() && entry.name ==~ /^lib\/[^\/]+\/.+\.so$/
+                    }.each { entry ->
+                        def matcher = (entry.name =~ /^lib\/([^\/]+)\/.+\.so$/)
+                        def abi = matcher.matches() ? matcher.group(1) : "unknown"
+                        def bytes = zipFile.getInputStream(entry).bytes
+                        def sha256 = sha256Hex(bytes)
+                        def evidenceParts = []
+                        def tempSo = File.createTempFile("abi-evidence-", ".so")
+                        tempSo.deleteOnExit()
+                        tempSo.bytes = bytes
+                        try {
+                            if (hasFileTool) {
+                                def fileResult = runToolEvidence(["file", tempSo.absolutePath])
+                                if (fileResult.exitCode == 0 && fileResult.output) {
+                                    evidenceParts << "file=${fileResult.output}"
+                                }
+                            }
+                            if (hasReadelfTool) {
+                                def readelfResult = runToolEvidence(["readelf", "-h", tempSo.absolutePath])
+                                if (readelfResult.exitCode == 0 && readelfResult.output) {
+                                    def archLine = readelfResult.output.readLines().findAll {
+                                        it.contains("Class:") || it.contains("Machine:")
+                                    }.join(" | ")
+                                    if (!archLine.isEmpty()) {
+                                        evidenceParts << "readelf=${archLine}"
+                                    }
+                                }
+                            }
+                        } finally {
+                            tempSo.delete()
+                        }
+
+                        def evidenceText = evidenceParts.isEmpty() ? "unavailable:file/readelf not found or failed" : evidenceParts.join(" || ")
+                        artifactEntries << [
+                            path    : entry.name,
+                            size    : entry.size,
+                            sha256  : sha256,
+                            abi     : abi,
+                            evidence: evidenceText
+                        ]
+                    }
+                } finally {
+                    zipFile.close()
+                }
+                variantManifestFiles.addAll(artifactEntries)
+                manifestFiles.addAll(artifactEntries)
                 [
                     name      : artifact.name,
                     type      : artifact.name.endsWith(".aab") ? "AAB" : "APK",
                     sizeBytes : artifact.length(),
-                    path      : rootProject.projectDir.toPath().relativize(artifact.toPath()).toString()
+                    path      : rootProject.projectDir.toPath().relativize(artifact.toPath()).toString(),
+                    abiEntries: artifactEntries.size()
                 ]
             }
 
             if (artifacts.isEmpty()) {
                 missingVariants << variant
+            }
+
+            if (internalLane && !supportedAbis.isEmpty()) {
+                def variantAbiSet = (variantManifestFiles*.abi).toSet()
+                def missingExpectedAbis = supportedAbis.findAll { !(it in variantAbiSet) }
+                if (!missingExpectedAbis.isEmpty()) {
+                    internalLaneAbiMissingByVariant << [variant: variant, missingAbis: missingExpectedAbis]
+                }
             }
 
             reportVariants << [
@@ -758,11 +869,33 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
         reportFile.parentFile.mkdirs()
         reportFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(report))
 
+        def manifest = [
+            repo            : repositoryId,
+            commit          : commitSha,
+            workflow        : workflowName,
+            lane            : laneName,
+            abi_profile     : abiProfile,
+            app_abi_policy  : appAbiPolicy,
+            supported_abis  : supportedAbis,
+            build_variant   : requestedVariants.join(","),
+            signing_mode    : signingMode,
+            files           : manifestFiles.sort { a, b -> a.path <=> b.path ?: a.sha256 <=> b.sha256 }
+        ]
+
+        def manifestFile = file("${buildDir}/reports/artifacts/artifact-manifest.json")
+        manifestFile.parentFile.mkdirs()
+        manifestFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(manifest))
+
         if (!missingVariants.isEmpty()) {
             throw new GradleException("Artefatos compilados ausentes para variants=${missingVariants}. Execute assemble correspondente antes de validar. Relatório: ${reportFile}")
         }
+        if (!internalLaneAbiMissingByVariant.isEmpty()) {
+            def details = internalLaneAbiMissingByVariant.collect { "variant=${it.variant} missing=${it.missingAbis}" }.join("; ")
+            throw new GradleException("[ABI_CONTRACT] ABI esperada ausente na trilha interna: ${details}. Manifesto: ${manifestFile}")
+        }
 
         logger.lifecycle("[verifyDeliveredCompiledArtifacts] Relatório gerado em ${reportFile}")
+        logger.lifecycle("[verifyDeliveredCompiledArtifacts] Manifesto gerado em ${manifestFile} com ${manifestFiles.size()} entradas lib/<abi>/*.so")
         reportVariants.each { entry ->
             logger.lifecycle("[verifyDeliveredCompiledArtifacts] variant=${entry.variant} artifacts=${entry.artifactCount}")
         }
