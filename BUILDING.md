@@ -36,6 +36,31 @@ materialization, which allows diagnostics in clean environments before Android S
 ./tools/gradle_with_jdk21.sh :app:lintDebug --stacktrace
 ```
 
+## Build modes (canonical)
+`app/build.gradle` suporta quatro modos explícitos de execução para alinhar local, CI interno e release oficial:
+
+1. `debug-local`
+   - alvo: iteração local rápida (`:app:assembleDebug`, Android Studio sync/build);
+   - `-PdevFastPath=true` (**default é `false`**) permite degradar **apenas** gates pesados de pré-build local:
+     - `validateCriticalNativeAbiLayer`;
+     - cadeia `verifyShellLoaderArtifact`/`syncShellLoaderBootstrap`;
+   - logs sempre marcam degradação controlada com prefixo `[DEGRADE]`.
+
+2. `debug-internal-arm32-arm64`
+   - alvo: validação interna em matriz dual-ARM;
+   - usar `-PCI_INTERNAL_VALIDATION=true -PAPP_ABI_POLICY=arm32-arm64`;
+   - mantém validações de contrato/matriz para assegurar compatibilidade interna.
+
+3. `release-unsigned-internal`
+   - alvo: validação interna de release sem segredos de produção;
+   - usar `-Psigning_mode=unsigned` (ou `-PALLOW_UNSIGNED_RELEASE=true` onde aplicável);
+   - mantém gates estritos de release, exceto exceções internas explicitamente sinalizadas.
+
+4. `release-signed-official`
+   - alvo: trilha oficial de distribuição;
+   - usar assinatura de produção (`-Psigning_mode=signed` e/ou `-PciRelease=true` em CI oficial);
+   - **`devFastPath` é ignorado**: gates pesados e validações estritas permanecem obrigatórios.
+
 ## Fluxo oficial para gerar bootstrap/loader.apk (Termux)
 O artefato `loader.apk` é produzido pelo módulo `shell-loader` e copiado para assets intermediários do app
 em `app/build/generated/bootstrapAssets/bootstrap/loader.apk` (sem versionar binário em `app/src/main/assets`).
