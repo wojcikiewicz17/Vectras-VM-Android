@@ -2,6 +2,8 @@
 apply plugin: 'com.android.application'
 
 import groovy.json.JsonOutput
+import java.util.Locale
+import com.android.build.api.artifact.SingleArtifact
 
 android {
     compileSdk rootProject.ext.compileApi
@@ -21,6 +23,15 @@ android.testOptions.unitTests.includeAndroidResources = true
 android.compileOptions.sourceCompatibility JavaVersion.toVersion(rootProject.ext.javaLanguageVersion)
 android.compileOptions.targetCompatibility JavaVersion.toVersion(rootProject.ext.javaLanguageVersion)
 dependencies.compileOnly project(':shell-loader:stub')
+
+
+ext.shellLoaderVariantApkProviders = [:]
+
+androidComponents {
+    onVariants(selector().all()) { variant ->
+        project.ext.shellLoaderVariantApkProviders[variant.name.toLowerCase(Locale.ROOT)] = variant.artifacts.get(SingleArtifact.APK.INSTANCE)
+    }
+}
 android.applicationVariants.configureEach { outputs.configureEach { outputFileName = "loader.apk" } }
 
 def signatureDigestsSha256Csv = ""
