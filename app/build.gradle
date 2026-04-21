@@ -132,9 +132,13 @@ def officialCi = providers.gradleProperty("OFFICIAL_CI")
     .orElse(System.getenv("GITHUB_ACTIONS") == "true" ? "true" : "false")
     .get()
     .toBoolean()
+def ciInternalValidationEnabled = providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get().toBoolean()
 def requestedTaskNames = gradle.startParameter.taskNames.collect { it.toLowerCase() }
 def releaseLikeRequested = requestedTaskNames.any { taskName ->
     taskName.contains("release") || taskName.contains("perfrelease")
+}
+def debugLikeRequested = requestedTaskNames.isEmpty() || requestedTaskNames.any { taskName ->
+    taskName.contains("debug")
 }
 def strictValidationReasons = []
 if (releaseLikeRequested) {
@@ -151,21 +155,35 @@ if (officialCi) {
 }
 def strictValidationRequired = !strictValidationReasons.isEmpty()
 def allowLocalHeavyValidationBypass = devFastPath && !strictValidationRequired
+def buildExecutionMode = "debug-local"
+if (strictValidationRequired && (releaseSigningMode == 'signed' || ciRelease || officialCi)) {
+    buildExecutionMode = "release-signed-official"
+} else if (strictValidationRequired) {
+    buildExecutionMode = "release-unsigned-internal"
+} else if (ciInternalValidationEnabled || !debugLikeRequested) {
+    buildExecutionMode = "debug-internal-arm32-arm64"
+}
 
 def gateLog = { String cls, String message ->
     logger.lifecycle("[${cls}] ${message}")
 }
 
 gateLog("ENV", "devFastPath=${devFastPath}, officialCi=${officialCi}, ciRelease=${ciRelease}, requestedTasks=${gradle.startParameter.taskNames}")
-gateLog("CONFIG", "signing_mode=${releaseSigningMode}, strictValidationRequired=${strictValidationRequired}")
+gateLog("CONFIG", "signing_mode=${releaseSigningMode}, strictValidationRequired=${strictValidationRequired}, mode=${buildExecutionMode}, ciInternalValidation=${ciInternalValidationEnabled}")
 gateLog("SIGNING", strictValidationRequired
     ? "Validação estrita mantida (${strictValidationReasons.join(' | ')})."
     : "Validação estrita não requerida para trilha local.")
+if (allowLocalHeavyValidationBypass) {
+    gateLog("DEGRADE", "[CONTROLLED] devFastPath=true aplicou degradação somente de gates pesados de pré-build local (ABI_CONTRACT/BOOTSTRAP).")
+}
+if (devFastPath && strictValidationRequired) {
+    gateLog("DEGRADE", "[IGNORED] devFastPath=true foi ignorado porque a trilha '${buildExecutionMode}' exige validação estrita.")
+}
 gateLog("ABI_CONTRACT", allowLocalHeavyValidationBypass
-    ? "Fast-path local habilitado: pré-validações pesadas de ABI/freestanding podem ser puladas."
+    ? "Gate degradado (modo local): pré-validação pesada de ABI/freestanding foi desativada."
     : "Contrato ABI/freestanding permanece ativo.")
 gateLog("BOOTSTRAP", allowLocalHeavyValidationBypass
-    ? "Fast-path local habilitado: validações pesadas de bootstrap/shell-loader podem ser puladas."
+    ? "Gate degradado (modo local): validações pesadas de bootstrap/shell-loader foram desativadas."
     : "Validações de bootstrap/shell-loader permanecem ativas.")
 
     buildTypes {
@@ -369,7 +387,6 @@ if (!checkVariant) {
 def checkVariantTaskSuffix = checkVariant.substring(0, 1).toUpperCase() + checkVariant.substring(1)
 def checkVariantAssembleTask = "assemble${checkVariantTaskSuffix}"
 def termuxBootstrapLibName = "libtermux-bootstrap.so"
-def ciInternalValidationEnabled = Boolean.parseBoolean(providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get())
 def supportedAppAbiPolicies = ['arm64-only', 'arm32-arm64', 'internal-4abi', 'internal-5abi'] as Set<String>
 def abiPoliciesThatRequireTermuxBootstrap = java.util.Collections.unmodifiableSet(['arm64-only', 'arm32-arm64', 'internal-4abi'] as LinkedHashSet<String>)
 
