@@ -22,5 +22,10 @@ Saídas:
 - `bench/results/perf/comparison.json`
 - `bench/results/perf/flag_decisions.json`
 
+## Contrato de runs (fonte única)
+- Fonte única: `tools/perf/profiles.json` em `ci_contract.runs`.
+- Validação automática: `python3 tools/perf/resolve_contract.py --require-consistency` falha se o contrato estiver inválido ou inconsistente com `default_runs`.
+- Workflows canônicos (`host-ci.yml` e `quality-gates.yml`) resolvem `perf_runs` desse contrato antes de executar `run_suite.py`.
+
 ## Gate low-level
 Use `tools/perf/enforce_lowlevel_gate.py` com base/head sha para bloquear alteração low-level sem neutralidade/ganho dentro da margem.
