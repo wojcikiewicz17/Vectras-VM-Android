@@ -10,6 +10,7 @@ import java.util.regex.Pattern
 import java.util.zip.ZipFile
 
 def termuxBootstrapSupportedAbis = (rootProject.ext.termuxBootstrapSupportedAbis ?: ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64']) as List<String>
+def devFastPath = providers.gradleProperty("devFastPath").orElse("false").get().toBoolean()
 
 android {
     namespace = 'com.vectras.vm'
@@ -114,18 +115,57 @@ android {
         }
     }
 
-    def ciRelease = providers.gradleProperty("ciRelease").map { it.toBoolean() }.orElse(false).get()
-    def releaseSigningMode = providers.gradleProperty("signing_mode")
+def ciRelease = providers.gradleProperty("ciRelease").map { it.toBoolean() }.orElse(false).get()
+def releaseSigningMode = providers.gradleProperty("signing_mode")
         .orElse(providers.gradleProperty("SIGNING_MODE").orElse("auto"))
         .get()
         .trim()
         .toLowerCase()
-    def supportedSigningModes = ['auto', 'signed', 'unsigned'] as Set<String>
-    if (!(releaseSigningMode in supportedSigningModes)) {
-        throw new GradleException("signing_mode inválido: '${releaseSigningMode}'. Valores válidos: ${supportedSigningModes}.")
-    }
-    def effectiveSignedRelease = (releaseSigningMode == 'signed') || (releaseSigningMode == 'auto' && ciRelease)
-    def effectiveUnsignedRelease = (releaseSigningMode == 'unsigned')
+def supportedSigningModes = ['auto', 'signed', 'unsigned'] as Set<String>
+if (!(releaseSigningMode in supportedSigningModes)) {
+    throw new GradleException("signing_mode inválido: '${releaseSigningMode}'. Valores válidos: ${supportedSigningModes}.")
+}
+def effectiveSignedRelease = (releaseSigningMode == 'signed') || (releaseSigningMode == 'auto' && ciRelease)
+def effectiveUnsignedRelease = (releaseSigningMode == 'unsigned')
+def officialCi = providers.gradleProperty("OFFICIAL_CI")
+    .orElse(System.getenv("GITHUB_ACTIONS") == "true" ? "true" : "false")
+    .get()
+    .toBoolean()
+def requestedTaskNames = gradle.startParameter.taskNames.collect { it.toLowerCase() }
+def releaseLikeRequested = requestedTaskNames.any { taskName ->
+    taskName.contains("release") || taskName.contains("perfrelease")
+}
+def strictValidationReasons = []
+if (releaseLikeRequested) {
+    strictValidationReasons << "variant release/perfRelease requisitada"
+}
+if (ciRelease) {
+    strictValidationReasons << "ciRelease=true"
+}
+if (releaseSigningMode == 'signed') {
+    strictValidationReasons << "signing_mode=signed"
+}
+if (officialCi) {
+    strictValidationReasons << "CI oficial detectada"
+}
+def strictValidationRequired = !strictValidationReasons.isEmpty()
+def allowLocalHeavyValidationBypass = devFastPath && !strictValidationRequired
+
+def gateLog = { String cls, String message ->
+    logger.lifecycle("[${cls}] ${message}")
+}
+
+gateLog("ENV", "devFastPath=${devFastPath}, officialCi=${officialCi}, ciRelease=${ciRelease}, requestedTasks=${gradle.startParameter.taskNames}")
+gateLog("CONFIG", "signing_mode=${releaseSigningMode}, strictValidationRequired=${strictValidationRequired}")
+gateLog("SIGNING", strictValidationRequired
+    ? "Validação estrita mantida (${strictValidationReasons.join(' | ')})."
+    : "Validação estrita não requerida para trilha local.")
+gateLog("ABI_CONTRACT", allowLocalHeavyValidationBypass
+    ? "Fast-path local habilitado: pré-validações pesadas de ABI/freestanding podem ser puladas."
+    : "Contrato ABI/freestanding permanece ativo.")
+gateLog("BOOTSTRAP", allowLocalHeavyValidationBypass
+    ? "Fast-path local habilitado: validações pesadas de bootstrap/shell-loader podem ser puladas."
+    : "Validações de bootstrap/shell-loader permanecem ativas.")
 
     buildTypes {
         release {
@@ -213,6 +253,13 @@ tasks.register("verifyShellLoaderArtifact") {
     group = "verification"
     description = "Valida loader.apk da variant do shell-loader antes da sincronização para bootstrap."
     dependsOn(shellLoaderAssembleTask)
+    onlyIf {
+        if (allowLocalHeavyValidationBypass) {
+            gateLog("BOOTSTRAP", "Pulando verifyShellLoaderArtifact (devFastPath=true e sem gatilhos estritos).")
+            return false
+        }
+        true
+    }
 
     doLast {
         def artifactFile = shellLoaderArtifactPath.get().asFile
@@ -251,6 +298,13 @@ tasks.register("syncShellLoaderBootstrap", Copy) {
     from(shellLoaderArtifactPath)
     into(generatedBootstrapDir)
     rename { "loader.apk" }
+    onlyIf {
+        if (allowLocalHeavyValidationBypass) {
+            gateLog("BOOTSTRAP", "Pulando syncShellLoaderBootstrap (cadeia de shell-loader desativada para trilha local rápida).")
+            return false
+        }
+        true
+    }
 }
 
 tasks.named("preBuild").configure {
@@ -264,6 +318,13 @@ tasks.register("validateCriticalNativeAbiLayer", Exec) {
     description = "Valida contrato lowlevel ABI consolidado (schema, símbolos e política freestanding)."
     workingDir = rootDir
     commandLine "bash", "tools/ci/validate_lowlevel_abi.sh"
+    onlyIf {
+        if (allowLocalHeavyValidationBypass) {
+            gateLog("ABI_CONTRACT", "Pulando validateCriticalNativeAbiLayer (freestanding/ABI pesado) por devFastPath local.")
+            return false
+        }
+        true
+    }
 }
 
 
