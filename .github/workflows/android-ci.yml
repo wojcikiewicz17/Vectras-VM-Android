@@ -320,15 +320,16 @@ jobs:
           rm -rf ci-artifacts/android-logs ci-artifacts/android-artifacts ci-artifacts/perf-results
           mkdir -p ci-artifacts/android-logs ci-artifacts/android-artifacts ci-artifacts/perf-results
 
-          if [[ -d app/build/reports ]]; then
-            cp -a app/build/reports/. ci-artifacts/android-logs/
-          fi
+          # android-logs: apenas logs textuais (Gradle/NDK/CMake) por lane.
           while IFS= read -r p; do
             rel="${p#./}"
             dst="ci-artifacts/android-logs/${rel}"
             mkdir -p "$(dirname "$dst")"
             cp -a "$p" "$dst"
-          done < <(find . -path '*/build/test-results/*' -type f 2>/dev/null | sort)
+          done < <(find . -type f \
+            \( -name "*.log" -o -name "*.txt" -o -name "*.out" -o -name "*.err" -o -name "*.xml" -o -name "*.html" -o -name "*.json" \) \
+            \( -path "*/build/reports/*" -o -path "*/build/test-results/*" -o -path "*/build/outputs/logs/*" -o -path "*/.cxx/*" \) \
+            2>/dev/null | sort)
 
           if [[ -d app/build/outputs/apk ]]; then
             cp -a app/build/outputs/apk/. ci-artifacts/android-artifacts/
@@ -336,8 +337,20 @@ jobs:
           if [[ -d app/build/outputs/bundle ]]; then
             cp -a app/build/outputs/bundle/. ci-artifacts/android-artifacts/
           fi
+          # android-artifacts: pacotes + libs nativas por ABI.
+          while IFS= read -r p; do
+            rel="${p#./}"
+            dst="ci-artifacts/android-artifacts/${rel}"
+            mkdir -p "$(dirname "$dst")"
+            cp -a "$p" "$dst"
+          done < <(find app/build -type f \
+            \( -path "*/intermediates/stripped_native_libs/*" -o -path "*/intermediates/merged_native_libs/*" -o -path "*/intermediates/merged_jni_libs/*" -o -path "*/intermediates/cmake/*" \) \
+            \( -name "*.so" -o -name "*.a" \) \
+            2>/dev/null | sort)
 
+          perf_found=false
           while IFS= read -r perf_file; do
+            perf_found=true
             rel="${perf_file#./}"
             dst="ci-artifacts/perf-results/${rel}"
             mkdir -p "$(dirname "$dst")"
@@ -350,7 +363,7 @@ jobs:
             --lane "${lane}" \
             --expect-app-artifacts "${{ needs.resolve.outputs.expect_app_artifacts }}" \
             --expect-native-matrix "${{ inputs.run_native_checks }}" \
-            --expect-perf-results false
+            --expect-perf-results "${perf_found}"
 
       - name: Upload Android logs
         uses: actions/upload-artifact@v4
