@@ -266,6 +266,16 @@ jobs:
           ./tools/ci/prepare_android_env.sh --java-version "${JAVA_VERSION}" --ndk-version "${NDK_VERSION}" --require-sdkmanager
           ./tools/ci/verify_android_local_properties_contract.sh
 
+      - name: Enforce bootstrap assets contract
+        if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/verify_bootstrap_contract.sh \
+            -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
+            -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
+            -PCI_INTERNAL_VALIDATION="${{ needs.resolve.outputs.ci_internal_validation }}"
+
       - name: Build selected Android workfile
         shell: bash
         run: |
