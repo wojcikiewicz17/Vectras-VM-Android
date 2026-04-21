@@ -6,7 +6,7 @@ Escopo: todos os arquivos versionados retornados por `git ls-files`.
 - Diretórios auditados (derivados dos paths versionados): **285**
 - Arquivos de texto: **1517**
 - Arquivos binários: **136**
-- Total de linhas de texto inspecionadas: **223120**
+- Total de linhas de texto inspecionadas: **223129**
 - Inventário detalhado por arquivo: `reports/full_repo_audit.tsv`
 
 ## Top 20 extensões

@@ -4,31 +4,21 @@
 
 ## Quick Start
 
-1. **Copy local.properties:**
+1. **Bootstrap local SDK + `local.properties` (single command):**
    ```bash
-   cp local.properties.example local.properties
-   # Edit: set sdk.dir to your Android SDK path
+   ./tools/ci/bootstrap_local_android_sdk.sh
    ```
 
-2. **Install required SDK packages:**
+2. **Build:**
    ```bash
-   sdkmanager --install \
-     'platforms;android-36' \
-     'build-tools;36.0.0' \
-     'ndk;27.2.12479018' \
-     'cmake;3.22.1'
-   ```
-
-3. **Build:**
-   ```bash
-   ./gradlew assembleDebug
+   ./gradlew :app:assembleDebug
    ```
 
 ## Android Compatibility Baseline (Android 10 → 16)
 
 - **minSdk (runtime mínimo):** API 29 (**Android 10**).
-- **targetSdk (release baseline):** API 36 (**Android 16**).
-- **compileSdk (toolchain baseline):** API 36.
+- **targetSdk (release baseline):** API 35 (**Android 15**).
+- **compileSdk (toolchain baseline):** API 35.
 - **Native/JNI linker policy:** `-Wl,-z,max-page-size=16384` habilitado para bibliotecas JNI (`vectra_core_accel` e `termux-bootstrap`) para compatibilidade com dispositivos Android modernos usando page size de 16 KiB.
 
 ## JNI + Bootstrap Validation Checklist

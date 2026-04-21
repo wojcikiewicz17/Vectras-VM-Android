@@ -221,7 +221,7 @@ app/src/main/assets/roms/QEMU_VARS.img	binary	67108864	0	.img	-	-
 app/src/main/assets/roms/RELEASEX64_OVMF.fd	binary	4194304	0	.fd	-	-
 app/src/main/assets/roms/RELEASEX64_OVMF_VARS.fd	binary	540672	0	.fd	-	-
 app/src/main/assets/roms/bios-vectras.bin	binary	262144	0	.bin	-	-
-app/src/main/cpp/CMakeLists.txt	text	11984	299	.txt	-	-
+app/src/main/cpp/CMakeLists.txt	text	12762	319	.txt	-	-
 app/src/main/cpp/hardware_profile_bridge.c	text	3234	118	.c	-	-
 app/src/main/cpp/hardware_profile_bridge_internal.h	text	262	10	.h	-	-
 app/src/main/cpp/lowlevel_abi.c	text	5539	168	.c	-	-
@@ -1212,7 +1212,7 @@ docs/ROOT_FILES_CATALOG.md	text	4796	130	.md	-	-
 docs/ROOT_FILE_CHAIN.md	text	10236	146	.md	-	-
 docs/SALMO_DE_CODIGO_EU_SOU.md	text	5566	128	.md	-	-
 docs/SECURITY.md	text	6804	89	.md	-	-
-docs/SETUP_SDK_NDK.md	text	2568	81	.md	-	-
+docs/SETUP_SDK_NDK.md	text	2370	71	.md	-	-
 docs/SOURCE_TRACEABILITY_MATRIX.md	text	7969	135	.md	-	-
 docs/SURGICAL_PATCHSET.md	text	4435	103	.md	-	-
 docs/THREE_LAYER_ANALYSIS.md	text	6375	112	.md	-	-
@@ -1393,7 +1393,7 @@ reports/CANONICAL_BUILD_STATUS.md	text	1370	34	.md	-	-
 reports/COMPARISON_REPORT.md	text	1813	34	.md	-	-
 reports/EXTERNAL_FORKS_BUILD_INPUTS.md	text	4517	90	.md	-	-
 reports/FILES_MAP.md	text	4743	68	.md	-	-
-reports/FULL_REPO_AUDIT_REPORT.md	text	1468	66	.md	-	-
+reports/FULL_REPO_AUDIT_REPORT.md	text	1445	65	.md	-	-
 reports/MD_INDEX_Vectras-VM-Android.md	text	2079	48	.md	-	-
 reports/NDK_DEPENDENCY_OVERHEAD_AUDIT.md	text	4262	95	.md	-	-
 reports/NON_MD_AUDIT_REPORT.md	text	1604	72	.md	-	-
