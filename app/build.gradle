@@ -243,16 +243,39 @@ def loaderVariant = (providers.gradleProperty("loaderVariant").orElse("release")
 if (!loaderVariant) {
     loaderVariant = "release"
 }
-def loaderVariantTaskSuffix = loaderVariant.substring(0, 1).toUpperCase() + loaderVariant.substring(1)
-def shellLoaderAssembleTask = ":shell-loader:assemble${loaderVariantTaskSuffix}"
+def shellLoaderMetadataTask = ":shell-loader:publishShellLoaderArtifactMetadata"
 def generatedBootstrapDir = layout.buildDirectory.dir("generated/bootstrapAssets/bootstrap")
-def shellLoaderArtifactPath = project(":shell-loader").layout.buildDirectory.file("outputs/apk/${loaderVariant}/loader.apk")
+def shellLoaderMetadataPath = project(":shell-loader").layout.buildDirectory.file("outputs/metadata/shell-loader/loader-artifact.json")
 def verifyShellLoaderManifest = Boolean.parseBoolean(providers.gradleProperty("verifyShellLoaderManifest").orElse("false").get())
+def resolveShellLoaderArtifactFromMetadata = {
+    def metadataFile = shellLoaderMetadataPath.get().asFile
+    if (!metadataFile.exists()) {
+        throw new GradleException("[CONFIG] Metadata do shell-loader ausente em '${metadataFile.absolutePath}'. Execute '${shellLoaderMetadataTask} -PloaderVariant=${loaderVariant}' antes de sincronizar o bootstrap.")
+    }
+
+    def metadata
+    try {
+        metadata = new JsonSlurper().parse(metadataFile)
+    } catch (Exception ex) {
+        throw new GradleException("[CONFIG] Falha ao ler metadata do shell-loader em '${metadataFile.absolutePath}': ${ex.message}. Reexecute '${shellLoaderMetadataTask} -PloaderVariant=${loaderVariant}'.")
+    }
+
+    def artifactPathRaw = (metadata?.artifactPath ?: "").toString().trim()
+    if (!artifactPathRaw) {
+        throw new GradleException("[CONFIG] Metadata do shell-loader sem 'artifactPath' em '${metadataFile.absolutePath}'. Reexecute '${shellLoaderMetadataTask} -PloaderVariant=${loaderVariant}'.")
+    }
+
+    def artifactFile = file(artifactPathRaw)
+    if (!artifactFile.exists()) {
+        throw new GradleException("[CONFIG] Artifact do shell-loader apontado em metadata não existe: '${artifactFile.absolutePath}'. Reexecute '${shellLoaderMetadataTask} -PloaderVariant=${loaderVariant}' para regenerar caminho válido.")
+    }
+    artifactFile
+}
 
 tasks.register("verifyShellLoaderArtifact") {
     group = "verification"
     description = "Valida loader.apk da variant do shell-loader antes da sincronização para bootstrap."
-    dependsOn(shellLoaderAssembleTask)
+    dependsOn(shellLoaderMetadataTask)
     onlyIf {
         if (allowLocalHeavyValidationBypass) {
             gateLog("BOOTSTRAP", "Pulando verifyShellLoaderArtifact (devFastPath=true e sem gatilhos estritos).")
@@ -262,7 +285,7 @@ tasks.register("verifyShellLoaderArtifact") {
     }
 
     doLast {
-        def artifactFile = shellLoaderArtifactPath.get().asFile
+        def artifactFile = resolveShellLoaderArtifactFromMetadata()
         def expectedPath = artifactFile.absolutePath
         def failMessage = { String reason ->
             throw new GradleException("Shell loader artifact inválido em '${expectedPath}': ${reason}.")
@@ -291,19 +314,27 @@ tasks.register("verifyShellLoaderArtifact") {
     }
 }
 
-tasks.register("syncShellLoaderBootstrap", Copy) {
+tasks.register("syncShellLoaderBootstrap") {
     group = "build setup"
     description = "Copia shell-loader (${loaderVariant}) para assets intermediários em bootstrap/loader.apk."
     dependsOn(tasks.named("verifyShellLoaderArtifact"))
-    from(shellLoaderArtifactPath)
-    into(generatedBootstrapDir)
-    rename { "loader.apk" }
     onlyIf {
         if (allowLocalHeavyValidationBypass) {
             gateLog("BOOTSTRAP", "Pulando syncShellLoaderBootstrap (cadeia de shell-loader desativada para trilha local rápida).")
             return false
         }
         true
+    }
+
+    doLast {
+        def artifactFile = resolveShellLoaderArtifactFromMetadata()
+        def destinationDir = generatedBootstrapDir.get().asFile
+        destinationDir.mkdirs()
+        copy {
+            from(artifactFile)
+            into(destinationDir)
+            rename { "loader.apk" }
+        }
     }
 }
 

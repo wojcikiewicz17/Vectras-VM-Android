@@ -1,6 +1,8 @@
 //file:noinspection UnnecessaryQualifiedReference, GrDeprecatedAPIUsage
 apply plugin: 'com.android.application'
 
+import groovy.json.JsonOutput
+
 android {
     compileSdk rootProject.ext.compileApi
     buildToolsVersion rootProject.ext.toolsVersion
@@ -83,9 +85,37 @@ dependencies {
 
 def stableLoaderVariant = (findProperty("loaderVariant") ?: "release").toString().trim().toLowerCase()
 def stableLoaderAssembleTask = "assemble${stableLoaderVariant.substring(0, 1).toUpperCase()}${stableLoaderVariant.substring(1)}"
+def stableLoaderApk = layout.buildDirectory.file("outputs/apk/${stableLoaderVariant}/loader.apk")
+def stableLoaderMetadataFile = layout.buildDirectory.file("outputs/metadata/shell-loader/loader-artifact.json")
+
+tasks.register("publishShellLoaderArtifactMetadata") {
+    group = "build"
+    description = "Publica metadata do shell-loader com caminho final do APK para consumidores externos."
+    dependsOn(stableLoaderAssembleTask)
+    outputs.file(stableLoaderMetadataFile)
+
+    doLast {
+        def apkFile = stableLoaderApk.get().asFile
+        if (!apkFile.exists()) {
+            throw new GradleException("[CONFIG] shell-loader não gerou loader.apk esperado em '${apkFile.absolutePath}' para loaderVariant='${stableLoaderVariant}'. Verifique o variant e execute :shell-loader:${stableLoaderAssembleTask}.")
+        }
+
+        def metadataFile = stableLoaderMetadataFile.get().asFile
+        metadataFile.parentFile.mkdirs()
+        def payload = [
+                variant          : stableLoaderVariant,
+                artifactPath     : apkFile.absolutePath,
+                artifactName     : apkFile.name,
+                producerTask     : stableLoaderAssembleTask,
+                generatedAtEpoch : System.currentTimeMillis()
+        ]
+        metadataFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(payload)) + System.lineSeparator()
+        logger.lifecycle("[CONFIG] shell-loader metadata publicada em ${metadataFile.absolutePath}")
+    }
+}
 
 tasks.register("buildStableLoader") {
     group = "build"
     description = "Gera APK estável do shell-loader para o variant configurado (-PloaderVariant=<variant>, padrão: release)."
-    dependsOn(stableLoaderAssembleTask)
+    dependsOn(tasks.named("publishShellLoaderArtifactMetadata"))
 }
