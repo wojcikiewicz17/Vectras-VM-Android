@@ -40,6 +40,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 echo "[validate-lowlevel-abi] validating schema + exported symbols"
+if ! command -v python3 >/dev/null 2>&1; then
+  echo "ENV: missing toolchain dependency: python3" >&2
+  exit 1
+fi
 python3 "${ROOT_DIR}/tools/ci/validate_lowlevel_abi_contract.py"
 
 echo "[validate-lowlevel-abi] validating freestanding source contract"
@@ -64,24 +68,32 @@ if [[ -n "${critical_binary}" ]]; then
     fi
   done
 
-  [[ -n "${nm_tool}" ]] || { echo "missing nm tool (llvm-nm or nm)" >&2; exit 1; }
+  [[ -n "${nm_tool}" ]] || { echo "ENV: missing toolchain dependency: nm/llvm-nm" >&2; exit 1; }
 
-  forbidden_regex='(malloc|calloc|realloc|free|posix_memalign)$'
+  forbidden_regex='^(malloc|calloc|realloc|free|posix_memalign)$'
   symbols="$(${nm_tool} -D --undefined-only "${critical_binary}" 2>/dev/null || true)"
   if [[ -z "${symbols}" ]]; then
     symbols="$(${nm_tool} -u "${critical_binary}" 2>/dev/null || true)"
   fi
 
-  violations="$(printf '%s\n' "${symbols}" | awk '{print $NF}' | rg -N "${forbidden_regex}" || true)"
+  if command -v rg >/dev/null 2>&1; then
+    violations="$(printf '%s\n' "${symbols}" | awk '{print $NF}' | rg -N "${forbidden_regex}" || true)"
+  elif command -v grep >/dev/null 2>&1; then
+    violations="$(printf '%s\n' "${symbols}" | awk '{print $NF}' | grep -E "${forbidden_regex}" || true)"
+  else
+    echo "ENV: missing toolchain dependency: rg|grep" >&2
+    exit 1
+  fi
+
   if [[ -n "${violations}" ]]; then
-    echo "LOWLEVEL_ABI_CONTRACT_VIOLATION: critical binary references forbidden runtime symbols:" >&2
+    echo "ABI_CONTRACT: critical binary references forbidden runtime symbols:" >&2
     printf '%s\n' "${violations}" >&2
     exit 1
   fi
 
   echo "[validate-lowlevel-abi] binary policy OK"
 elif [[ "${require_binary}" == "true" ]]; then
-  echo "LOWLEVEL_ABI_CONTRACT_VIOLATION: --require-critical-binary set, but no critical binary was found" >&2
+  echo "ABI_CONTRACT: --require-critical-binary set, but no critical binary was found" >&2
   exit 1
 else
   echo "[validate-lowlevel-abi] no critical binary found yet; binary policy check skipped"
