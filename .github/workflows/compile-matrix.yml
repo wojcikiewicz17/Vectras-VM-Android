@@ -98,8 +98,8 @@ jobs:
 
           eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${profile}" --allow-generic-fallback)"
 
-          if [[ "${{ matrix.variant }}" == "Release" && "${profile}" != "official_arm64" ]]; then
-            echo "Release lane bloqueada para profile=${profile}; gate oficial exige official_arm64."
+          if [[ "${{ matrix.variant }}" == "Release" && "${profile}" != "official_arm64" && "${profile}" != "official_arm32_arm64" ]]; then
+            echo "Release lane bloqueada para profile=${profile}; gate oficial exige official_arm64 ou official_arm32_arm64."
             exit 1
           fi
 

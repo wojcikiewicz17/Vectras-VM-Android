@@ -22,6 +22,13 @@ Matriz final de workflows CI após consolidação da trilha host/android.
 4. `tools/ci/validate_build_matrix.py` bloqueia regressões que reintroduzam trilhas host duplicadas/conflitantes.
 5. Toda responsabilidade Android oficial (SDK/NDK/JDK, Gradle tasks, validações nativas e artefatos de release) fica em `android-ci.yml`; wrappers Android devem apenas delegar ou acionar gates auxiliares sem duplicar política oficial.
 
+## Lanes explícitas Android
+
+- `debug-local` (com `upstream-debug-compat`).
+- `debug-internal-arm32-arm64` (unsigned).
+- `release-unsigned-internal`.
+- `release-signed-official`.
+
 ## Referência canônica de CI Android/Host
 
 - Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).

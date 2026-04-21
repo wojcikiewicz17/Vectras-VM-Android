@@ -12,9 +12,13 @@ on:
         required: false
         default: 'full'
       run_workfile:
-        description: 'Android profile: smoke_debug, unit_loader, full_debug, release_gate'
+        description: 'Android profile: smoke_debug, unit_loader, full_debug, compat_matrix_debug, upstream-debug-compat, release_gate'
         required: false
         default: 'smoke_debug'
+      ci_lane:
+        description: 'Android explicit lane: auto, debug-local, debug-internal-arm32-arm64, release-unsigned-internal, release-signed-official'
+        required: false
+        default: 'auto'
       build_variant:
         description: 'Android variant: debug, release, both'
         required: false
@@ -89,6 +93,7 @@ jobs:
     uses: ./.github/workflows/android-ci.yml
     with:
       run_workfile: ${{ github.event.inputs.run_workfile || 'smoke_debug' }}
+      ci_lane: ${{ github.event.inputs.ci_lane || 'auto' }}
       build_variant: ${{ github.event.inputs.build_variant || 'debug' }}
       signing_mode: auto
       abi_profile: ${{ github.event.inputs.abi_profile || 'official_arm64' }}
