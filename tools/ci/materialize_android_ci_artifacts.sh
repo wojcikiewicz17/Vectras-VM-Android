@@ -98,12 +98,41 @@ write_manifests() {
   file_count="$(find "${destination}/files" -type f | wc -l | tr -d ' ')"
 
   local error_classification="ok"
+  local abi_mix_detected="false"
+  local abi_policy_violation="false"
+  local detected_abis_csv=""
+
+  mapfile -t detected_abis < <(
+    find "${destination}/files" -type f -print \
+      | sed -nE 's#.*(armeabi-v7a|arm64-v8a|x86_64|x86|riscv64).*#\1#p' \
+      | sort -u
+  )
+  if [[ "${#detected_abis[@]}" -gt 0 ]]; then
+    detected_abis_csv="$(printf '%s\n' "${detected_abis[@]}" | paste -sd ',' -)"
+  fi
+  if [[ "${#detected_abis[@]}" -gt 1 ]]; then
+    abi_mix_detected="true"
+  fi
+
+  if [[ "${APP_ABI_POLICY}" == "arm64-only" && "${#detected_abis[@]}" -gt 0 ]]; then
+    for detected_abi in "${detected_abis[@]}"; do
+      if [[ "${detected_abi}" != "arm64-v8a" ]]; then
+        abi_policy_violation="true"
+        break
+      fi
+    done
+  fi
+
   if [[ "${file_count}" == "0" ]]; then
     if [[ "${required}" == "true" ]]; then
       error_classification="missing_required_artifacts"
     else
       error_classification="empty_optional"
     fi
+  elif [[ "${abi_policy_violation}" == "true" ]]; then
+    error_classification="abi_policy_violation"
+  elif [[ "${abi_mix_detected}" == "true" ]]; then
+    error_classification="mixed_abis_with_manifest"
   fi
 
   {
@@ -166,6 +195,10 @@ write_manifests() {
 - perf_runs: ${PERF_RUNS:-n/a}
 - file_count: ${file_count}
 - error_classification: ${error_classification}
+- supported_abis: ${SUPPORTED_ABIS}
+- detected_abis: ${detected_abis_csv:-none}
+- abi_mix_detected: ${abi_mix_detected}
+- abi_policy_violation: ${abi_policy_violation}
 - json_manifest: artifact-manifest.json
 EOF
 
