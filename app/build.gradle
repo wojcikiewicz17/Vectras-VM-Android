@@ -717,6 +717,17 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
             byte[] hash = digest.digest(bytes)
             return hash.collect { String.format("%02x", it) }.join("")
         }
+        def sha256File = { File inputFile ->
+            MessageDigest digest = MessageDigest.getInstance("SHA-256")
+            inputFile.withInputStream { is ->
+                byte[] buffer = new byte[8192]
+                int read = 0
+                while ((read = is.read(buffer)) > 0) {
+                    digest.update(buffer, 0, read)
+                }
+            }
+            return digest.digest().collect { String.format("%02x", it) }.join("")
+        }
         def toolAvailable = { String toolName ->
             def output = new ByteArrayOutputStream()
             def result = exec {
@@ -737,6 +748,8 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
             }
             return [exitCode: result.exitValue, output: output.toString("UTF-8").trim()]
         }
+        def helperScript = file("${rootProject.projectDir}/tools/ci/collect_elf_evidence.py")
+        def hasElfEvidenceHelper = helperScript.exists()
 
         def requestedVariantsRaw = (providers.gradleProperty("artifactVariants")
             .orElse("debug,release,perfRelease")
@@ -754,6 +767,7 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
         def reportVariants = []
         def missingVariants = []
         def manifestFiles = []
+        def evidenceReports = []
         def internalLaneAbiMissingByVariant = []
         def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
         def appAbiPolicy = (rootProject.ext.appAbiPolicy ?: providers.gradleProperty("APP_ABI_POLICY").orElse("").get()).toString()
@@ -783,6 +797,7 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
             def artifacts = (apkFiles + bundleFiles).collect { artifact ->
                 def zipFile = new ZipFile(artifact)
                 def artifactEntries = []
+                def libsByAbi = [:].withDefault { [] }
                 try {
                     zipFile.entries().findAll { entry ->
                         !entry.isDirectory() && entry.name ==~ /^lib\/[^\/]+\/.+\.so$/
@@ -813,30 +828,67 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
                                     }
                                 }
                             }
+                            if (hasElfEvidenceHelper) {
+                                def helperResult = runToolEvidence(["python3", helperScript.absolutePath, tempSo.absolutePath])
+                                if (helperResult.exitCode == 0 && helperResult.output) {
+                                    try {
+                                        def parsed = new groovy.json.JsonSlurper().parseText(helperResult.output)
+                                        evidenceReports << [
+                                            artifact : artifact.name,
+                                            variant  : variant,
+                                            abi      : abi,
+                                            soPath   : entry.name,
+                                            evidence : parsed
+                                        ]
+                                    } catch (Exception ignored) {
+                                        evidenceParts << "helper=parse_error"
+                                    }
+                                } else {
+                                    evidenceParts << "helper=failed(exit=${helperResult.exitCode})"
+                                }
+                            }
                         } finally {
                             tempSo.delete()
                         }
 
                         def evidenceText = evidenceParts.isEmpty() ? "unavailable:file/readelf not found or failed" : evidenceParts.join(" || ")
-                        artifactEntries << [
+                        def entryInfo = [
                             path    : entry.name,
                             size    : entry.size,
                             sha256  : sha256,
                             abi     : abi,
                             evidence: evidenceText
                         ]
+                        artifactEntries << entryInfo
+                        libsByAbi[abi] << entryInfo
                     }
                 } finally {
                     zipFile.close()
                 }
                 variantManifestFiles.addAll(artifactEntries)
-                manifestFiles.addAll(artifactEntries)
+                def presentAbis = libsByAbi.keySet().toList().sort()
+                def missingSupportedAbis = supportedAbis.findAll { !(it in presentAbis) }
+                def artifactRecord = [
+                    name                  : artifact.name,
+                    type                  : artifact.name.endsWith(".aab") ? "AAB" : "APK",
+                    variant               : variant,
+                    size_bytes            : artifact.length(),
+                    sha256                : sha256File(artifact),
+                    path                  : rootProject.projectDir.toPath().relativize(artifact.toPath()).toString(),
+                    jni_libs_by_abi       : libsByAbi.collectEntries { abiName, values -> [(abiName): values.sort { a, b -> a.path <=> b.path }] },
+                    present_abis          : presentAbis,
+                    missing_supported_abis: missingSupportedAbis
+                ]
+                manifestFiles << artifactRecord
                 [
-                    name      : artifact.name,
-                    type      : artifact.name.endsWith(".aab") ? "AAB" : "APK",
-                    sizeBytes : artifact.length(),
-                    path      : rootProject.projectDir.toPath().relativize(artifact.toPath()).toString(),
-                    abiEntries: artifactEntries.size()
+                    name       : artifactRecord.name,
+                    type       : artifactRecord.type,
+                    sizeBytes  : artifactRecord.size_bytes,
+                    sha256     : artifactRecord.sha256,
+                    path       : artifactRecord.path,
+                    abiEntries : artifactEntries.size(),
+                    presentAbis: artifactRecord.present_abis,
+                    missingAbis: artifactRecord.missing_supported_abis
                 ]
             }
 
@@ -862,7 +914,8 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
         def report = [
             generatedAtUtc: new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone("UTC")),
             project       : project.path,
-            variants      : reportVariants
+            variants      : reportVariants,
+            elfEvidence   : evidenceReports
         ]
 
         def reportFile = file("${buildDir}/reports/artifacts/compiled-artifacts-report.json")
@@ -879,7 +932,8 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
             supported_abis  : supportedAbis,
             build_variant   : requestedVariants.join(","),
             signing_mode    : signingMode,
-            files           : manifestFiles.sort { a, b -> a.path <=> b.path ?: a.sha256 <=> b.sha256 }
+            files           : manifestFiles.sort { a, b -> a.path <=> b.path ?: a.sha256 <=> b.sha256 },
+            elf_evidence    : evidenceReports
         ]
 
         def manifestFile = file("${buildDir}/reports/artifacts/artifact-manifest.json")
@@ -895,7 +949,7 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
         }
 
         logger.lifecycle("[verifyDeliveredCompiledArtifacts] Relatório gerado em ${reportFile}")
-        logger.lifecycle("[verifyDeliveredCompiledArtifacts] Manifesto gerado em ${manifestFile} com ${manifestFiles.size()} entradas lib/<abi>/*.so")
+        logger.lifecycle("[verifyDeliveredCompiledArtifacts] Manifesto gerado em ${manifestFile} com ${manifestFiles.size()} artefatos e ${evidenceReports.size()} evidências ELF")
         reportVariants.each { entry ->
             logger.lifecycle("[verifyDeliveredCompiledArtifacts] variant=${entry.variant} artifacts=${entry.artifactCount}")
         }
