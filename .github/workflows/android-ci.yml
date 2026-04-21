@@ -267,7 +267,16 @@ jobs:
 
       - name: Verify delivered artifacts
         if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
-        run: ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=${{ needs.resolve.outputs.artifact_variants }}
+        run: |
+          ./tools/gradle_with_jdk21.sh \
+            :app:verifyDeliveredCompiledArtifacts \
+            -PartifactVariants=${{ needs.resolve.outputs.artifact_variants }} \
+            -Pworkflow="${{ github.workflow }}" \
+            -Plane="android-ci" \
+            -Pabi_profile="${{ needs.resolve.outputs.abi_profile }}" \
+            -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
+            -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
+            -Psigning_mode="${{ needs.resolve.outputs.signing_mode_effective }}"
 
       - name: Run lint
         if: inputs.run_lint
