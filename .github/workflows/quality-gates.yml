@@ -63,6 +63,22 @@ jobs:
           python3 tools/perf/compare_baseline.py --margin "${{ inputs.perf_margin }}"
           python3 tools/perf/derive_flag_decisions.py
 
+      - name: Download perf-related artifacts from previous jobs
+        if: always()
+        uses: actions/download-artifact@v4
+        with:
+          path: gate-artifacts
+          pattern: "*"
+          merge-multiple: false
+
+      - name: Validate perf runs consistency across suite/manifest artifacts
+        if: always()
+        run: |
+          set -euo pipefail
+          python3 tools/perf/validate_artifact_runs.py \
+            --artifacts-root gate-artifacts \
+            --expected-runs "$perf_runs"
+
       - name: Enforce low-level perf neutrality/gain gate
         run: |
           set -euo pipefail

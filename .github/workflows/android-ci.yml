@@ -330,7 +330,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          lane="${{ needs.resolve.outputs.lane_label }}"
+          lane="${{ needs.resolve.outputs.lane }}"
+          perf_runs="$(python3 tools/perf/resolve_contract.py --require-consistency | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"perf_runs\"])')"
           rm -rf ci-artifacts/android-logs ci-artifacts/android-artifacts ci-artifacts/perf-results
           mkdir -p ci-artifacts/android-logs ci-artifacts/android-artifacts ci-artifacts/perf-results
 
@@ -379,6 +380,7 @@ jobs:
 
           APP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
           SUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
+          PERF_RUNS="${perf_runs}" \
           ./tools/ci/materialize_android_ci_artifacts.sh \
             --lane "${lane}" \
             --expect-app-artifacts "${{ needs.resolve.outputs.expect_app_artifacts }}" \
