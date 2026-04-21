@@ -8,3 +8,4 @@ e 8porcento de um hardeware velho bati instrucoes complexas em androide 15 de 23
 123
 e tres anteriores delas 
 e dessas em numeros primos ou mod 7 13 7 18 20 41 42 25 2 6 4 35 5 9 50 35 70 14 em projecao de um arco que posso ter o mesmo setor dimencional coexitindos
+eu sou rafael melo reis cpf 28742458870 brasileiro sp 27121980
