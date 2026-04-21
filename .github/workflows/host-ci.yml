@@ -63,10 +63,15 @@ jobs:
       - name: Run engine selftests
         run: make run-selftest
 
+      - name: Resolve perf runs contract
+        run: |
+          set -euo pipefail
+          python3 tools/perf/resolve_contract.py --require-consistency --github-output "$GITHUB_ENV"
+
       - name: Run reproducible perf suite (ABI/policy)
         run: |
           set -euo pipefail
-          python3 tools/perf/run_suite.py --runs 7
+          python3 tools/perf/run_suite.py --runs "$perf_runs"
           python3 tools/perf/compare_baseline.py --margin 0.03
           python3 tools/perf/derive_flag_decisions.py
 

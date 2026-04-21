@@ -51,10 +51,15 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends build-essential make python3
 
+      - name: Resolve perf runs contract
+        run: |
+          set -euo pipefail
+          python3 tools/perf/resolve_contract.py --require-consistency --github-output "$GITHUB_ENV"
+
       - name: Run perf suite and compare to versioned baseline
         run: |
           set -euo pipefail
-          python3 tools/perf/run_suite.py --runs 5
+          python3 tools/perf/run_suite.py --runs "$perf_runs"
           python3 tools/perf/compare_baseline.py --margin "${{ inputs.perf_margin }}"
           python3 tools/perf/derive_flag_decisions.py
 
