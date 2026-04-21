@@ -114,6 +114,7 @@ jobs:
           path: |
             bench-results/**
             bench/results/perf/**
+            bench/results/perf/manifest.json
             bench/baseline/*.json
             build-host/rmr_build_config.env
             build-cmake/rmr_build_config.env

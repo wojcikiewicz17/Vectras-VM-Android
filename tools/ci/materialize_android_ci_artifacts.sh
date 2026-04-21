@@ -12,6 +12,7 @@ EXPECT_NATIVE_MATRIX="${EXPECT_NATIVE_MATRIX:-false}"
 EXPECT_PERF_RESULTS="${EXPECT_PERF_RESULTS:-false}"
 APP_ABI_POLICY="${APP_ABI_POLICY:-unknown}"
 SUPPORTED_ABIS="${SUPPORTED_ABIS:-unknown}"
+PERF_RUNS="${PERF_RUNS:-}"
 
 usage() {
   cat <<USAGE
@@ -106,6 +107,10 @@ write_manifests() {
   fi
 
   {
+    local perf_runs_json="null"
+    if [[ -n "${PERF_RUNS}" && "${PERF_RUNS}" =~ ^[0-9]+$ ]]; then
+      perf_runs_json="${PERF_RUNS}"
+    fi
     printf '{\n'
     printf '  "generated_at_utc": "%s",\n' "${TIMESTAMP_UTC}"
     printf '  "category": "%s",\n' "${category}"
@@ -119,6 +124,7 @@ write_manifests() {
     printf '  "required": %s,\n' "${required}"
     printf '  "app_abi_policy": "%s",\n' "$(json_escape "${APP_ABI_POLICY}")"
     printf '  "supported_abis": "%s",\n' "$(json_escape "${SUPPORTED_ABIS}")"
+    printf '  "perf_runs": %s,\n' "${perf_runs_json}"
     printf '  "file_count": %s,\n' "${file_count}"
     printf '  "error_classification": "%s",\n' "${error_classification}"
     printf '  "files": [\n'
@@ -157,6 +163,7 @@ write_manifests() {
 - ref: ${GITHUB_REF:-local}
 - sha: ${GITHUB_SHA:-local}
 - required: ${required}
+- perf_runs: ${PERF_RUNS:-n/a}
 - file_count: ${file_count}
 - error_classification: ${error_classification}
 - json_manifest: artifact-manifest.json

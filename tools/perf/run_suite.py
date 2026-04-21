@@ -179,6 +179,10 @@ def main() -> int:
         "schema": "vectras-perf-suite-v1",
         "generated_at": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "host_arch": host_arch,
+        "ci_contract": {
+            "runs": runs,
+            "source": str(Path(args.profiles).relative_to(ROOT)),
+        },
         "profiles": rows,
     }
 
@@ -233,7 +237,28 @@ def main() -> int:
                 }
             )
 
-    print(json.dumps({"suite_json": str(suite_json.relative_to(ROOT)), "suite_csv": str(csv_path.relative_to(ROOT)), "profiles": len(rows)}))
+    manifest_json = out_dir / "manifest.json"
+    manifest_payload = {
+        "schema": "vectras-perf-artifact-manifest-v1",
+        "generated_at": suite["generated_at"],
+        "suite_json": str(suite_json.relative_to(ROOT)),
+        "suite_csv": str(csv_path.relative_to(ROOT)),
+        "runs": runs,
+        "profiles": [item["profile_id"] for item in rows],
+    }
+    manifest_json.write_text(json.dumps(manifest_payload, indent=2), encoding="utf-8")
+
+    print(
+        json.dumps(
+            {
+                "suite_json": str(suite_json.relative_to(ROOT)),
+                "suite_csv": str(csv_path.relative_to(ROOT)),
+                "manifest_json": str(manifest_json.relative_to(ROOT)),
+                "profiles": len(rows),
+                "runs": runs,
+            }
+        )
+    )
     return 0
 
 
