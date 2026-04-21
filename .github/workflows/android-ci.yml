@@ -3,6 +3,9 @@ name: Android CI
 on:
   workflow_call:
     inputs:
+      ci_lane:
+        type: string
+        default: auto
       run_workfile:
         type: string
         default: smoke_debug
@@ -64,11 +67,45 @@ jobs:
         run: |
           set -euo pipefail
 
+          ci_lane="${{ inputs.ci_lane || 'auto' }}"
           run_workfile="${{ inputs.run_workfile || 'smoke_debug' }}"
           build_variant="${{ inputs.build_variant || 'debug' }}"
           signing_mode="${{ inputs.signing_mode || 'auto' }}"
           abi_profile="${{ inputs.abi_profile || 'official_arm64' }}"
           native_matrix_profile="${{ inputs.native_matrix_profile || 'canonical' }}"
+
+          case "${ci_lane}" in
+            auto)
+              ;;
+            debug-local)
+              run_workfile="upstream-debug-compat"
+              build_variant="debug"
+              signing_mode="unsigned"
+              abi_profile="official_arm32_arm64"
+              ;;
+            debug-internal-arm32-arm64)
+              run_workfile="compat_matrix_debug"
+              build_variant="debug"
+              signing_mode="unsigned"
+              abi_profile="internal_arm32_arm64"
+              ;;
+            release-unsigned-internal)
+              run_workfile="release_gate"
+              build_variant="release"
+              signing_mode="unsigned"
+              abi_profile="internal_arm32_arm64"
+              ;;
+            release-signed-official)
+              run_workfile="release_gate"
+              build_variant="release"
+              signing_mode="signed"
+              abi_profile="official_arm32_arm64"
+              ;;
+            *)
+              echo "ci_lane inválida: ${ci_lane}" >&2
+              exit 1
+              ;;
+          esac
 
           case "${run_workfile}" in
             smoke_debug)
@@ -83,7 +120,7 @@ jobs:
               gradle_tasks=":app:assembleDebug :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :shell-loader:testDebugUnitTest"
               expect_app_artifacts=true
               ;;
-            compat_matrix_debug)
+            compat_matrix_debug|upstream-debug-compat)
               gradle_tasks=":app:checkNativeExtendedMatrix :app:assembleDebug :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :shell-loader:testDebugUnitTest"
               expect_app_artifacts=true
               ;;
@@ -105,52 +142,7 @@ jobs:
             *) echo "build_variant inválido: ${build_variant}" >&2; exit 1 ;;
           esac
 
-          case "${abi_profile}" in
-            official_arm64)
-              app_abi_policy="arm64-only"
-              supported_abis="arm64-v8a"
-              ci_internal_validation="false"
-              ;;
-            official_arm32_arm64)
-              app_abi_policy="arm32-arm64"
-              supported_abis="arm64-v8a,armeabi-v7a"
-              ci_internal_validation="false"
-              ;;
-            internal_arm64)
-              app_abi_policy="arm64-only"
-              supported_abis="arm64-v8a"
-              ci_internal_validation="true"
-              ;;
-            internal_arm32_arm64)
-              app_abi_policy="arm32-arm64"
-              supported_abis="arm64-v8a,armeabi-v7a"
-              ci_internal_validation="true"
-              ;;
-            internal_4abi)
-              app_abi_policy="internal-4abi"
-              supported_abis="arm64-v8a,armeabi-v7a,x86,x86_64"
-              ci_internal_validation="true"
-              ;;
-            internal_5abi|internal_riscv64)
-              app_abi_policy="internal-5abi"
-              supported_abis="arm64-v8a,armeabi-v7a,x86,x86_64,riscv64"
-              ci_internal_validation="true"
-              ;;
-            generic)
-              app_abi_policy="arm32-arm64"
-              supported_abis="arm64-v8a,armeabi-v7a"
-              ci_internal_validation="true"
-              ;;
-            *)
-              echo "abi_profile inválido: ${abi_profile}." >&2
-              exit 1
-              ;;
-          esac
-
-          if [[ "${artifact_variants}" == *"release"* && "${abi_profile}" != "official_arm64" ]]; then
-            echo "release bloqueado para abi_profile=${abi_profile}; apenas official_arm64 é permitido." >&2
-            exit 1
-          fi
+          eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${abi_profile}" --allow-generic-fallback)"
 
           signing_mode_effective="${signing_mode}"
           if [[ "${artifact_variants}" == *"release"* && "${signing_mode}" == "auto" ]]; then
@@ -182,16 +174,10 @@ jobs:
           echo "ci_internal_validation=${ci_internal_validation}" >> "$GITHUB_OUTPUT"
           echo "native_matrix_specs=${native_matrix_specs}" >> "$GITHUB_OUTPUT"
           echo "native_matrix_profile=${native_matrix_profile}" >> "$GITHUB_OUTPUT"
-          lane="${abi_profile}"
-          lane_label="${lane}"
-          case "${abi_profile}" in
-            official_arm64)
-              lane_label="official_arm64"
-              ;;
-            internal_arm32_arm64)
-              lane_label="internal_arm32_arm64"
-              ;;
-          esac
+          lane="${ci_lane}"
+          if [[ "${lane}" == "auto" ]]; then
+            lane="${abi_profile}"
+          fi
           echo "abi_profile=${abi_profile}" >> "$GITHUB_OUTPUT"
           echo "lane=${lane}" >> "$GITHUB_OUTPUT"
           echo "lane_label=${lane_label}" >> "$GITHUB_OUTPUT"

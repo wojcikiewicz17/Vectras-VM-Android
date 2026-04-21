@@ -701,20 +701,28 @@ tasks.register("printNativeVariantConfig") {
     group = "verification"
     description = "Imprime ABIs efetivas e argumentos CMake configurados por variant."
 
+    def variantSnapshots = []
+    androidComponents.onVariants(androidComponents.selector().all()) { variant ->
+        def variantCmakeArgs = []
+        def externalNativeBuild = variant.externalNativeBuild
+        if (externalNativeBuild != null && externalNativeBuild.cmake != null && externalNativeBuild.cmake.arguments != null) {
+            variantCmakeArgs.addAll(externalNativeBuild.cmake.arguments)
+        }
+        variantSnapshots << [
+            name: variant.name,
+            cmakeArgs: variantCmakeArgs.unique()
+        ]
+    }
+
     doLast {
         def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
         def defaultConfigCmakeArgs = android.defaultConfig.externalNativeBuild?.cmake?.arguments ?: []
 
         logger.lifecycle("[printNativeVariantConfig] supportedAbis=${supportedAbis}")
-        android.applicationVariants.all { variant ->
-            def variantCmakeArgs = []
-            if (variant.mergedFlavor?.externalNativeBuild?.cmake?.arguments) {
-                variantCmakeArgs.addAll(variant.mergedFlavor.externalNativeBuild.cmake.arguments)
-            }
-
-            logger.lifecycle("[printNativeVariantConfig] variant=${variant.name}")
+        variantSnapshots.each { snapshot ->
+            logger.lifecycle("[printNativeVariantConfig] variant=${snapshot.name}")
             logger.lifecycle("[printNativeVariantConfig] abiFilters=${supportedAbis}")
-            logger.lifecycle("[printNativeVariantConfig] cmakeArgs=${(defaultConfigCmakeArgs + variantCmakeArgs).unique()}")
+            logger.lifecycle("[printNativeVariantConfig] cmakeArgs=${(defaultConfigCmakeArgs + snapshot.cmakeArgs).unique()}")
         }
     }
 }
