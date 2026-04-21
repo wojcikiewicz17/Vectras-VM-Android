@@ -76,19 +76,23 @@ def main() -> None:
     manifest_host = extract_manifest("RMR_SOURCE_GROUP_HOST_ONLY")
     manifest_policy = extract_manifest("RMR_SOURCE_GROUP_OPTIONAL_POLICY")
     manifest_android = extract_manifest("RMR_SOURCE_GROUP_ANDROID_ONLY")
+    manifest_arm64_neon = extract_manifest("RMR_SOURCE_GROUP_ASM_ARM64_NEON")
 
     mk_core = extract_make_block(MK_MANIFEST, "RMR_SOURCE_GROUP_CORE")
     mk_host = extract_make_block(MK_MANIFEST, "RMR_SOURCE_GROUP_HOST_ONLY")
     mk_policy = extract_make_block(MK_MANIFEST, "RMR_SOURCE_GROUP_OPTIONAL_POLICY")
     mk_android = extract_make_block(MK_MANIFEST, "RMR_SOURCE_GROUP_ANDROID_ONLY")
+    mk_arm64_neon = extract_make_block(MK_MANIFEST, "RMR_SOURCE_GROUP_ASM_ARM64_NEON")
 
     compare("core group sources", manifest_core, mk_core)
     compare("host-only sources", manifest_host, mk_host)
     compare("policy sources", manifest_policy, mk_policy)
     compare("android-only sources", manifest_android, mk_android)
+    compare("arm64 neon sources", manifest_arm64_neon, mk_arm64_neon)
 
     compare("make ENGINE_CORE_SRCS mapping", ["$(RMR_SOURCE_GROUP_CORE)", "$(RMR_SOURCE_GROUP_HOST_ONLY)"], extract_make_inline("ENGINE_CORE_SRCS"))
     compare("make ENGINE_POLICY_SRCS mapping", ["$(RMR_SOURCE_GROUP_OPTIONAL_POLICY)"], extract_make_inline("ENGINE_POLICY_SRCS"))
+    compare("make ENGINE_ASM_ARM64_NEON_SRCS mapping", ["$(RMR_SOURCE_GROUP_ASM_ARM64_NEON)"], extract_make_inline("ENGINE_ASM_ARM64_NEON_SRCS"))
 
     ensure_contains(ROOT_CMAKE, "include(${CMAKE_SOURCE_DIR}/engine/rmr/sources_rmr_core.cmake)")
     ensure_contains(ROOT_CMAKE, "${RMR_SOURCE_GROUP_CORE}")
