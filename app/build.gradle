@@ -156,6 +156,7 @@ if (officialCi) {
 }
 def strictValidationRequired = !strictValidationReasons.isEmpty()
 def allowLocalHeavyValidationBypass = devFastPath && !strictValidationRequired
+project.ext.set("allowLocalHeavyValidationBypass", allowLocalHeavyValidationBypass)
 def buildExecutionMode = "debug-local"
 if (strictValidationRequired && (releaseSigningMode == 'signed' || ciRelease || officialCi)) {
     buildExecutionMode = "release-signed-official"
@@ -287,13 +288,29 @@ def resolveShellLoaderArtifactFromVariant = {
             "Corrija com -PloaderVariant=<${discoveredVariants.join('|')}> e execute '${shellLoaderAssembleTask}'.")
     }
 
-    def artifactFile = artifactProvider.get().asFile
-    if (!artifactFile.exists()) {
+    def artifactCandidate = artifactProvider.get().asFile
+    if (!artifactCandidate.exists()) {
         throw new GradleException("[CONFIG] Artifact do shell-loader ausente para variante '${loaderVariant}'. " +
-            "Procurado em '${artifactFile.absolutePath}' (AGP artifacts API) e fallback '${conventionalPath.absolutePath}'. " +
+            "Procurado em '${artifactCandidate.absolutePath}' (AGP artifacts API) e fallback '${conventionalPath.absolutePath}'. " +
             "Corrija com -PloaderVariant=${normalizedLoaderVariant} e execute '${shellLoaderAssembleTask}'.")
     }
-    artifactFile
+
+    if (artifactCandidate.isFile()) {
+        return artifactCandidate
+    }
+
+    def fileCandidates = [
+        new File(artifactCandidate, "loader.apk"),
+        new File(artifactCandidate, "app-${normalizedLoaderVariant}.apk"),
+        conventionalPath
+    ].findAll { it != null }
+
+    def resolvedFile = fileCandidates.find { it.exists() && it.isFile() }
+    if (resolvedFile == null) {
+        throw new GradleException("[CONFIG] Artifact provider do shell-loader retornou diretório sem APK resolvível para variante '${loaderVariant}': '${artifactCandidate.absolutePath}'. " +
+            "Tentativas: ${fileCandidates*.absolutePath}.")
+    }
+    resolvedFile
 }
 
 tasks.register("verifyShellLoaderArtifact") {
@@ -301,7 +318,7 @@ tasks.register("verifyShellLoaderArtifact") {
     description = "Valida loader.apk da variant do shell-loader antes da sincronização para bootstrap."
     dependsOn(shellLoaderAssembleTask)
     onlyIf {
-        if (allowLocalHeavyValidationBypass) {
+        if (project.findProperty("allowLocalHeavyValidationBypass")?.toString()?.toBoolean()) {
             gateLog("BOOTSTRAP", "Pulando verifyShellLoaderArtifact (devFastPath=true e sem gatilhos estritos).")
             return false
         }
@@ -344,7 +361,7 @@ tasks.register("syncShellLoaderBootstrap") {
     description = "Copia shell-loader (${loaderVariant}) para assets intermediários em bootstrap/loader.apk."
     dependsOn(tasks.named("verifyShellLoaderArtifact"))
     onlyIf {
-        if (allowLocalHeavyValidationBypass) {
+        if (project.findProperty("allowLocalHeavyValidationBypass")?.toString()?.toBoolean()) {
             gateLog("BOOTSTRAP", "Pulando syncShellLoaderBootstrap (cadeia de shell-loader desativada para trilha local rápida).")
             return false
         }
@@ -375,7 +392,7 @@ tasks.register("validateCriticalNativeAbiLayer", Exec) {
     workingDir = rootDir
     commandLine "bash", "tools/ci/validate_lowlevel_abi.sh"
     onlyIf {
-        if (allowLocalHeavyValidationBypass) {
+        if (project.findProperty("allowLocalHeavyValidationBypass")?.toString()?.toBoolean()) {
             gateLog("ABI_CONTRACT", "Pulando validateCriticalNativeAbiLayer (freestanding/ABI pesado) por devFastPath local.")
             return false
         }

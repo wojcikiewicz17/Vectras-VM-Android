@@ -1,0 +1,48 @@
+name: APK Wizard
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches: [ main, develop ]
+
+permissions:
+  contents: read
+
+jobs:
+  build-apk-wizard:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve Java baseline
+        id: java
+        shell: bash
+        run: |
+          set -euo pipefail
+          java_version="$(awk -F= '$1=="java.language.version" {gsub(/[[:space:]]/, "", $2); print $2; exit}' gradle.properties)"
+          if [[ -z "${java_version}" ]]; then
+            echo "java.language.version not found in gradle.properties" >&2
+            exit 1
+          fi
+          echo "version=${java_version}" >> "$GITHUB_OUTPUT"
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ steps.java.outputs.version }}
+
+      - name: Build APK wizard lanes (arm64 and arm32+arm64)
+        shell: bash
+        run: ./tools/ci/build_apk_wizard.sh
+
+      - name: Upload APK wizard artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-wizard
+          path: |
+            artifacts/apk-wizard/*.apk
+            artifacts/apk-wizard/REPORT.md
+            artifacts/apk-wizard/sizes.tsv
+          if-no-files-found: error
