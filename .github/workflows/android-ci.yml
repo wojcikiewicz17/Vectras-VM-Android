@@ -73,6 +73,7 @@ jobs:
           signing_mode="${{ inputs.signing_mode || 'auto' }}"
           abi_profile="${{ inputs.abi_profile || 'official_arm64' }}"
           native_matrix_profile="${{ inputs.native_matrix_profile || 'canonical' }}"
+          allowed_abi_profiles="official_arm64 official_arm32_arm64 internal_arm64 internal_arm32_arm64 internal_4abi internal_5abi internal_riscv64 universal_guarded generic"
 
           case "${ci_lane}" in
             auto)
@@ -106,6 +107,11 @@ jobs:
               exit 1
               ;;
           esac
+
+          if [[ ! " ${allowed_abi_profiles} " =~ [[:space:]]${abi_profile}[[:space:]] ]]; then
+            echo "abi_profile inválido para Android CI: ${abi_profile}" >&2
+            exit 1
+          fi
 
           case "${run_workfile}" in
             smoke_debug)
@@ -159,6 +165,9 @@ jobs:
             android8_16plus_allarch)
               native_matrix_specs="26:armeabi-v7a arm64-v8a x86 x86_64;28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
               ;;
+            universal_hardening)
+              native_matrix_specs="26:armeabi-v7a arm64-v8a x86 x86_64;28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
+              ;;
             *)
               echo "native_matrix_profile inválido: ${native_matrix_profile}." >&2
               exit 1
@@ -178,6 +187,7 @@ jobs:
           if [[ "${lane}" == "auto" ]]; then
             lane="${abi_profile}"
           fi
+          lane_label="$(echo "${lane}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9._-' '-')"
           echo "abi_profile=${abi_profile}" >> "$GITHUB_OUTPUT"
           echo "lane=${lane}" >> "$GITHUB_OUTPUT"
           echo "lane_label=${lane_label}" >> "$GITHUB_OUTPUT"

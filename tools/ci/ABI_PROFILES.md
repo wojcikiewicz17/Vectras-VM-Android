@@ -2,7 +2,7 @@
 
 Fonte de verdade versionada para perfis ABI de CI: `tools/ci/abi_profiles_contract.json`.
 
-## Perfis suportados (7 + genérico)
+## Perfis suportados (8 + genérico)
 
 - `official_arm64` → `APP_ABI_POLICY=arm64-only`
 - `official_arm32_arm64` → `APP_ABI_POLICY=arm32-arm64`
@@ -10,6 +10,7 @@ Fonte de verdade versionada para perfis ABI de CI: `tools/ci/abi_profiles_contra
 - `internal_arm32_arm64` → `APP_ABI_POLICY=arm32-arm64`
 - `internal_4abi` → `APP_ABI_POLICY=internal-4abi`
 - `internal_5abi` → `APP_ABI_POLICY=internal-5abi`
+- `universal_guarded` → `APP_ABI_POLICY=internal-5abi` (somente trilha interna, exige validação explícita)
 - `internal_riscv64` → `APP_ABI_POLICY=internal-5abi`
 - `generic` → fallback adaptativo para perfis não oficiais mapeados
 
@@ -19,6 +20,8 @@ Aliases aceitos no resolvedor (`tools/ci/resolve_abi_profile.py`):
 
 - `internal-4abi` => `internal_4abi`
 - `internal-5abi` => `internal_5abi`
+- `universal` => `universal_guarded`
+- `universal-guarded` => `universal_guarded`
 - `official-arm64` => `official_arm64`
 
 A saída final sempre usa `APP_ABI_POLICY` no formato esperado pelo Gradle:

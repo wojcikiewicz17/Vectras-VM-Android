@@ -83,12 +83,12 @@ on:
         description: "Perfil ABI (trilha oficial)"
         type: choice
         default: official_arm64
-        options: [official_arm64, official_arm32_arm64, internal_arm32_arm64, internal_4abi]
+        options: [official_arm64, official_arm32_arm64, internal_arm32_arm64, internal_4abi, internal_5abi, universal_guarded]
       native_matrix_profile:
         description: "Cobertura nativa CMake (arquiteturas + bandas de API)"
         type: choice
         default: canonical
-        options: [canonical, pilot_android9_16_5arch, android8_16plus_allarch]
+        options: [canonical, pilot_android9_16_5arch, android8_16plus_allarch, universal_hardening]
       log_level:
         description: "Nível de logs Gradle"
         type: choice
