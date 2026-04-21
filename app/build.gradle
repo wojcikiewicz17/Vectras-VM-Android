@@ -277,6 +277,8 @@ def checkVariantTaskSuffix = checkVariant.substring(0, 1).toUpperCase() + checkV
 def checkVariantAssembleTask = "assemble${checkVariantTaskSuffix}"
 def termuxBootstrapLibName = "libtermux-bootstrap.so"
 def ciInternalValidationEnabled = Boolean.parseBoolean(providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get())
+def supportedAppAbiPolicies = ['arm64-only', 'arm32-arm64', 'internal-4abi', 'internal-5abi'] as Set<String>
+def abiPoliciesThatRequireTermuxBootstrap = java.util.Collections.unmodifiableSet(['arm64-only', 'arm32-arm64', 'internal-4abi'] as LinkedHashSet<String>)
 
 tasks.register("verifyTermuxBootstrapAbiCoverage") {
     group = "verification"
@@ -330,7 +332,7 @@ tasks.register("verifyTermuxBootstrapAbiCoverage") {
                 }
                 break
             default:
-                throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only, arm32-arm64, internal-4abi ou internal-5abi.")
+                throw new GradleException("[ABI_CONTRACT] APP_ABI_POLICY inválida: '${appAbiPolicy}'. Políticas suportadas: ${supportedAppAbiPolicies}.")
         }
 
         if (appAbiPolicy in abiPoliciesThatRequireTermuxBootstrap) {
@@ -697,6 +699,10 @@ tasks.register("verifyTermuxBootstrapPackagingRules") {
         def allowedAbis = (rootProject.ext.allowedAbis ?: officialAbis) as List<String>
         def appAbiPolicy = (rootProject.ext.appAbiPolicy ?: "").toString()
         def excludes = (android.packaging.jniLibs.excludes ?: [] as Set<String>).collect { it.toString() }
+
+        if (!(appAbiPolicy in supportedAppAbiPolicies)) {
+            throw new GradleException("[ABI_CONTRACT] APP_ABI_POLICY inválida: '${appAbiPolicy}'. Políticas suportadas: ${supportedAppAbiPolicies}.")
+        }
 
         if (!supportedAbis.every { it in allowedAbis }) {
             throw new GradleException("SUPPORTED_ABIS (${supportedAbis}) contém ABI fora da matriz permitida (${allowedAbis}).")
