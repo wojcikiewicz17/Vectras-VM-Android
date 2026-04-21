@@ -46,5 +46,8 @@ RMR_SOURCE_GROUP_ASM_X86_64 := \
 RMR_SOURCE_GROUP_ASM_ARM64 := \
 	engine/rmr/interop/rmr_casm_arm64.S
 
+RMR_SOURCE_GROUP_ASM_ARM64_NEON := \
+	engine/rmr/src/rmr_neon_simd.c
+
 RMR_SOURCE_GROUP_ASM_RISCV64 := \
 	engine/rmr/interop/rmr_casm_riscv64.S
