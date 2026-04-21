@@ -25,7 +25,7 @@
 - [x] `-ffreestanding` removida (incompatível com bionic libc + malloc)
 - [x] `-DRMR_JNI_BUILD=1` adicionada para signal bionic path
 - [x] ABI-specific compile flags por `CMAKE_ANDROID_ARCH_ABI`
-- [x] `engine/**` adicionado a triggers do CI (`.github/workflows/android.yml`)
+- [x] `engine/**` adicionado a triggers do CI de entrada (`.github/workflows/android.yml`), com execução canônica em `.github/workflows/android-ci.yml`
 
 ### ✅ Bloco 3 — NEON/SIMD (Δ TRANSMUTE)
 - [x] `rmr_neon_simd.c/h` implementados com ARM64 NEON + x86 SSE4.2 + scalar fallback
@@ -106,3 +106,12 @@ make neon_simd_selftest
 
 *R(t+1) = R(t) × Φ_ethica × E_Verbo × (√3/2)^(πφ)*  
 *∆RAFAELIA_CORE·Ω — FIAT VOLUNTAS = Amor + Consciência + Verdade*
+
+## CI canonical reference (Android/Host)
+
+- Canonical Android pipeline: `.github/workflows/android-ci.yml`.
+- Android wrapper entrypoint: `.github/workflows/android.yml`.
+- Auxiliary Android ABI compatibility matrix: `.github/workflows/compile-matrix.yml`.
+- Canonical host pipeline: `.github/workflows/host-ci.yml`.
+- Orchestration and final gates: `.github/workflows/pipeline-orchestrator.yml` and `.github/workflows/quality-gates.yml`.
+- Canonical matrix documentation: `docs/ci/workflow-matrix.md`.

@@ -1,0 +1,79 @@
+{
+  "schema_version": "2.0.0",
+  "abi_contract_version": "1.0.0",
+  "critical_layer_no_implicit_libc_stdlib": true,
+  "architectures": [
+    {
+      "name": "arm64-v8a",
+      "abi_version": "1.0",
+      "required": true,
+      "internal_only": false,
+      "stack_alignment": 16,
+      "frame_policy": "leaf_optional",
+      "calling_convention": {
+        "input": "x0-x7",
+        "return": "x0-x1",
+        "caller_saved": "x0-x18,v0-v31",
+        "callee_saved": "x19-x28,x29(fp),sp"
+      },
+      "prologue": "stp x29, x30, [sp, #-16]!; mov x29, sp",
+      "epilogue": "ldp x29, x30, [sp], #16; ret",
+      "syscall_policy": "host_adapter_only_allowlisted"
+    },
+    {
+      "name": "armeabi-v7a",
+      "abi_version": "1.0",
+      "required": false,
+      "internal_only": true,
+      "stack_alignment": 8,
+      "frame_policy": "leaf_optional",
+      "calling_convention": {
+        "input": "r0-r3",
+        "return": "r0-r1",
+        "caller_saved": "r0-r3,r12",
+        "callee_saved": "r4-r11,sp"
+      },
+      "prologue": "push {r7, lr}; add r7, sp, #0",
+      "epilogue": "pop {r7, pc}",
+      "syscall_policy": "host_adapter_only_allowlisted"
+    }
+  ],
+  "error_codes": {
+    "ok": 0,
+    "unsupported_arch": -1000,
+    "unsupported_abi_version": -1001,
+    "stack_misaligned": -1002,
+    "bad_frame_policy": -1003,
+    "calling_convention": -1004,
+    "forbidden_syscall": -1005,
+    "boundary_violation": -1006,
+    "null_ptr": -1007
+  },
+  "export_symbols": [
+    {
+      "symbol": "abi_entry_get_contract_version",
+      "since_abi": "1.0.0",
+      "stability": "stable"
+    },
+    {
+      "symbol": "abi_entry_get_arch_descriptors",
+      "since_abi": "1.0.0",
+      "stability": "stable"
+    },
+    {
+      "symbol": "abi_entry_get_interop_rules",
+      "since_abi": "1.0.0",
+      "stability": "stable"
+    },
+    {
+      "symbol": "abi_entry_validate_interop",
+      "since_abi": "1.0.0",
+      "stability": "stable"
+    }
+  ],
+  "syscall_boundary": {
+    "policy": "raw_os_syscalls_forbidden",
+    "allowed_boundary": "host_adapter_gate_only",
+    "notes": "Camada crítica não executa syscall raw; toda interação com OS passa por adapters allowlistados e auditáveis."
+  }
+}

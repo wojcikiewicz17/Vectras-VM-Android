@@ -117,3 +117,12 @@ Este documento segue as normas definidas em [docs/DOCUMENTATION_STANDARDS.md](DO
 - A custódia deve ocorrer em cofre seguro/segredos de CI, com controle de acesso mínimo e rastreabilidade de uso.
 - Rotação periódica e por incidente é mandatória para reduzir risco de comprometimento de cadeia de supply chain.
 - Exceções para arquivos sensíveis devem ser formalmente documentadas e aprovadas antes de versionamento.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

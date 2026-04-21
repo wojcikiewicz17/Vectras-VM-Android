@@ -1,0 +1,118 @@
+name: Compilation Matrix
+
+on:
+  workflow_call:
+    inputs:
+      run_workfile:
+        type: string
+        default: compat_matrix_debug
+      build_variant:
+        type: string
+        default: debug
+      signing_mode:
+        type: string
+        default: auto
+      abi_profile:
+        type: string
+        default: internal_4abi
+      native_matrix_profile:
+        type: string
+        default: android8_16plus_allarch
+      log_level:
+        type: string
+        default: lifecycle
+      run_lint:
+        type: boolean
+        default: false
+      run_native_checks:
+        type: boolean
+        default: true
+
+
+jobs:
+  abi-contract-gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate lowlevel ABI contract (mandatory gate)
+        run: ./tools/ci/validate_lowlevel_abi.sh
+
+  android-matrix:
+    runs-on: ubuntu-latest
+    needs: abi-contract-gate
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [arm64-v8a, armeabi-v7a, x86, x86_64]
+        variant: [Debug, Release]
+    steps:
+      - uses: actions/checkout@v4
+
+
+      - name: Resolve canonical build versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -A key_map=(
+            ["compile.api"]="COMPILE_API"
+            ["tools.version"]="TOOLS_VERSION"
+            ["ndk.version"]="NDK_VERSION"
+            ["cmake.version"]="CMAKE_VERSION"
+          )
+          for key in "${!key_map[@]}"; do
+            env_key="${key_map[$key]}"
+            value="$(awk -F= -v key="$key" '$1==key {print $2; exit}' gradle.properties | tr -d '[:space:]')"
+            if [[ -z "${value}" ]]; then
+              echo "Missing '${key}' in gradle.properties" >&2
+              exit 1
+            fi
+            echo "${env_key}=${value}" >> "$GITHUB_ENV"
+          done
+
+      - uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install SDK components
+        shell: bash
+        run: |
+          set -euo pipefail
+          yes | sdkmanager --licenses >/dev/null
+          sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
+
+      - name: Build ABI lane
+        shell: bash
+        run: |
+          set -euo pipefail
+          case "${{ matrix.abi }}" in
+            arm64-v8a) profile="official_arm64" ;;
+            armeabi-v7a) profile="internal_arm32_arm64" ;;
+            x86|x86_64) profile="internal_4abi" ;;
+            *) profile="${{ inputs.abi_profile }}" ;;
+          esac
+
+          eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${profile}" --allow-generic-fallback)"
+
+          if [[ "${{ matrix.variant }}" == "Release" && "${profile}" != "official_arm64" ]]; then
+            echo "Release lane bloqueada para profile=${profile}; gate oficial exige official_arm64."
+            exit 1
+          fi
+
+          ./tools/gradle_with_jdk21.sh \
+            -PAPP_ABI_POLICY="${app_abi_policy}" \
+            -PSUPPORTED_ABIS="${supported_abis}" \
+            -PCI_INTERNAL_VALIDATION="${ci_internal_validation}" \
+            :app:assemble${{ matrix.variant }}
+
+      - name: Upload lane outputs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: compile-matrix-${{ matrix.abi }}-${{ matrix.variant }}
+          path: |
+            app/build/outputs/apk/**
+            app/build/reports/**
+          if-no-files-found: warn

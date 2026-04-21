@@ -183,3 +183,12 @@ A toolchain observada compila JNI para Android/bionic e mantém comentários exp
 - Documento: `UNIFIED_CODE_DOCUMENTATION_ALIGNMENT_2026-04-12.md`
 - Data: 2026-04-12
 - Base de verificação: leitura direta dos arquivos citados neste relatório.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

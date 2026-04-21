@@ -41,7 +41,7 @@ public final class NativeFastPath {
     public static synchronized boolean init() {
         if (!loadLibrary()) return false;
         int rc = nativeInit();
-        return rc == 0x52414641; /* RMR_UK_NATIVE_OK_MAGIC = "RAFA" */
+        return rc == 0x56414343; /* RMR_UK_NATIVE_OK_MAGIC = "VACC" */
     }
 
     public static int[] getHardwareContract() {

@@ -29,3 +29,12 @@ Este release endurece o runtime contra travamentos operacionais de execução/lo
 - Impacto de build: novos fontes C adicionados aos alvos CMake `rmr` (root) e `vectra_core_accel` (JNI Android).
 - Impacto esperado em runtime/performance: custo por transição de baixa ordem e previsível; melhora na governança/auditoria de estado sem alterar o caminho crítico de módulos que ainda não consomem BITOMEGA diretamente.
 - Compatibilidade: integração aditiva e retrocompatível, preservando comportamento dos módulos existentes até o acoplamento funcional completo.
+
+## CI canonical reference (Android/Host)
+
+- Canonical Android pipeline: `.github/workflows/android-ci.yml`.
+- Android wrapper entrypoint: `.github/workflows/android.yml`.
+- Auxiliary Android ABI compatibility matrix: `.github/workflows/compile-matrix.yml`.
+- Canonical host pipeline: `.github/workflows/host-ci.yml`.
+- Orchestration and final gates: `.github/workflows/pipeline-orchestrator.yml` and `.github/workflows/quality-gates.yml`.
+- Canonical matrix documentation: `docs/ci/workflow-matrix.md`.

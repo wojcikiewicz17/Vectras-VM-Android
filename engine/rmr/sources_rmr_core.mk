@@ -4,7 +4,6 @@
 
 RMR_SOURCE_GROUP_CORE := \
 	engine/rmr/src/bitomega.c \
-	engine/rmr/src/rmr_baremetal_compat.c \
 	engine/rmr/src/rmr_cycles.c \
 	engine/rmr/src/rmr_hw_detect.c \
 	engine/rmr/src/rmr_isorf.c \
@@ -23,8 +22,7 @@ RMR_SOURCE_GROUP_CORE := \
 	engine/rmr/src/rmr_zipraf_core.c \
 	engine/rmr/src/rmr_lowlevel_portable.c \
 	engine/rmr/src/rmr_lowlevel_mix.c \
-	engine/rmr/src/rmr_lowlevel_reduce.c \
-	engine/rmr/src/rmr_neon_simd.c
+	engine/rmr/src/rmr_lowlevel_reduce.c
 
 RMR_SOURCE_GROUP_OPTIONAL_POLICY := \
 	engine/rmr/src/rmr_policy_kernel.c
@@ -37,6 +35,7 @@ RMR_SOURCE_GROUP_ANDROID_ONLY := \
 	engine/rmr/src/rmr_ethica_loss.c
 
 RMR_SOURCE_GROUP_HOST_ONLY := \
+	engine/rmr/src/rmr_baremetal_compat.c \
 	engine/rmr/src/rmr_bench.c \
 	engine/rmr/src/rmr_bench_suite.c
 

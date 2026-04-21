@@ -9,10 +9,12 @@ option(RMR_ASM_CORE_EXPERIMENTAL "Enable experimental ASM core hot paths" ON)
 option(RMR_ASM_CORE_X86_64_VALIDATED "Enable ASM hot paths on x86_64 (validated ABI)" ON)
 option(RMR_ASM_CORE_ARM64_VALIDATED "Enable ASM hot paths on arm64-v8a (validated ABI)" ON)
 option(RMR_ASM_CORE_RISCV64_VALIDATED "Enable RV64I-compatible CASM path on riscv64 (validated ABI)" ON)
+option(VECTRA_REQUIRE_FREESTANDING_CORE "Fail configuration when freestanding ABI core is not active" ON)
 
 set(VECTRA_REPO_ROOT ${CMAKE_CURRENT_LIST_DIR}/../../../../)
 set(VECTRA_RMR_INCLUDE_DIR ${VECTRA_REPO_ROOT}/engine/rmr/include)
 set(RMR_SOURCE_BASE "${VECTRA_REPO_ROOT}/")
+set(VECTRA_PLATFORM_ANDROID_COMPAT_SOURCE ${VECTRA_REPO_ROOT}/engine/platform/android/rmr_android_compat.c)
 
 include(${VECTRA_REPO_ROOT}/engine/rmr/sources_rmr_core.cmake)
 
@@ -23,9 +25,11 @@ rmr_manifest_apply_base(VECTRA_ENGINE_POLICY_SOURCES ${RMR_SOURCE_GROUP_OPTIONAL
 rmr_manifest_apply_base(VECTRA_ENGINE_ASM_X86_64_SOURCES ${RMR_SOURCE_GROUP_ASM_X86_64})
 rmr_manifest_apply_base(VECTRA_ENGINE_ASM_ARM64_SOURCES ${RMR_SOURCE_GROUP_ASM_ARM64})
 rmr_manifest_apply_base(VECTRA_ENGINE_ASM_RISCV64_SOURCES ${RMR_SOURCE_GROUP_ASM_RISCV64})
+rmr_manifest_apply_base(VECTRA_ENGINE_ARM64_NEON_SOURCES ${RMR_SOURCE_GROUP_ASM_ARM64_NEON})
 
 set(VECTRA_LOWLEVEL_SOURCES)
 set(VECTRA_CASM_SOURCES)
+set(VECTRA_NEON_SOURCES)
 
 if(RMR_ASM_CORE_EXPERIMENTAL AND ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64" AND RMR_ASM_CORE_X86_64_VALIDATED)
     list(APPEND VECTRA_LOWLEVEL_SOURCES ${VECTRA_ENGINE_ASM_X86_64_SOURCES})
@@ -41,6 +45,10 @@ if(RMR_ASM_CORE_EXPERIMENTAL AND ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "ar
     list(APPEND VECTRA_CASM_SOURCES ${VECTRA_ENGINE_ASM_ARM64_SOURCES})
 endif()
 
+if(ANDROID AND (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a" OR CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a"))
+    list(APPEND VECTRA_NEON_SOURCES ${VECTRA_ENGINE_ARM64_NEON_SOURCES})
+endif()
+
 # Roadmap explícito: ABI riscv64 permanece INATIVA por política Android
 # (APP_ABI_POLICY/SUPPORTED_ABIS). A rotina CASM riscv64 já é RV64I-compatible
 # (sem extensão M) e depende apenas de habilitação dessa política ABI.
@@ -49,19 +57,51 @@ endif()
 # endif()
 
 
-add_library(vectra_core_accel SHARED
-    vectra_core_accel.c
-    lowlevel_bridge.c
-    hardware_profile_bridge.c
+if(DEFINED Python3_EXECUTABLE AND NOT Python3_EXECUTABLE STREQUAL "")
+    execute_process(
+        COMMAND ${Python3_EXECUTABLE} --version
+        RESULT_VARIABLE VECTRA_PYTHON3_OK
+        OUTPUT_QUIET
+        ERROR_QUIET
+    )
+    if(NOT VECTRA_PYTHON3_OK EQUAL 0)
+        message(WARNING "Ignoring unusable Python3_EXECUTABLE from environment/cache: ${Python3_EXECUTABLE}")
+        unset(Python3_EXECUTABLE CACHE)
+        unset(Python3_EXECUTABLE)
+    endif()
+endif()
+
+if(NOT DEFINED Python3_EXECUTABLE OR Python3_EXECUTABLE STREQUAL "")
+    find_program(VECTRA_PYTHON3_FALLBACK NAMES python3 python REQUIRED)
+    set(Python3_EXECUTABLE "${VECTRA_PYTHON3_FALLBACK}" CACHE FILEPATH "Python interpreter used by lowlevel ABI checks" FORCE)
+endif()
+
+find_package(Python3 COMPONENTS Interpreter REQUIRED)
+add_custom_target(lowlevel_abi_contract_check
+    COMMAND ${Python3_EXECUTABLE} ${VECTRA_REPO_ROOT}/tools/ci/validate_lowlevel_abi_contract.py
+    WORKING_DIRECTORY ${VECTRA_REPO_ROOT}
+    COMMENT "Validating lowlevel ABI contract + no implicit libc/stdlib policy")
+
+add_library(abi_core_freestanding STATIC
+    lowlevel_abi.c
     vectra_lowlevel_backend_fallback.c
     vectra_lowlevel_backend_arm64.c
     vectra_lowlevel_backend_armv7.c
     vectra_lowlevel_backend_x86_64.c
     vectra_lowlevel_backend_x86.c
     vectra_lowlevel_backend_riscv64.c
-    ${VECTRA_ENGINE_CORE_SOURCES}
     ${VECTRA_LOWLEVEL_SOURCES}
-    ${VECTRA_CASM_SOURCES})
+    ${VECTRA_CASM_SOURCES}
+    ${VECTRA_NEON_SOURCES})
+
+add_library(vectra_core_accel SHARED
+    vectra_core_accel.c
+    lowlevel_bridge.c
+    hardware_profile_bridge.c
+    ${VECTRA_PLATFORM_ANDROID_COMPAT_SOURCE}
+    ${VECTRA_ENGINE_CORE_SOURCES})
+
+add_dependencies(vectra_core_accel lowlevel_abi_contract_check)
 
 set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "arm64-v8a;armeabi-v7a;x86;x86_64" CACHE STRING "ABIs that should build termux-bootstrap")
 
@@ -106,9 +146,22 @@ else()
     set(log-lib "")
 endif()
 
-# BUG#3 FIX: -ffreestanding/-fno-builtin removed — Android JNI requires bionic libc
 set(VECTRA_COMMON_COMPILE_OPTIONS -O2 -fno-fast-math -fvisibility=hidden -DRMR_JNI_BUILD=1 -DRMR_BUILD_HOST_TOOLING=1)
+set(VECTRA_FREESTANDING_COMPILE_OPTIONS
+    -O2
+    -fno-fast-math
+    -fvisibility=hidden
+    -ffreestanding
+    -fno-exceptions
+    -fno-rtti
+    -fno-unwind-tables
+    -fno-asynchronous-unwind-tables
+    -fdata-sections
+    -ffunction-sections
+    -DRMR_BUILD_HOST_TOOLING=1)
 set(VECTRA_ABI_COMPILE_OPTIONS)
+set(VECTRA_LTO_MODE "${VECTRA_LTO_MODE}" CACHE STRING "LTO mode from CI perf decisions")
+set(VECTRA_INLINE_POLICY "${VECTRA_INLINE_POLICY}" CACHE STRING "Inline policy from CI perf decisions")
 
 # Flag arm64 vinda do Gradle: baseline (-march=armv8-a) e tuning opcional (-mcpu=<valor>).
 set(VECTRA_ARM64_CPP_FLAGS "${VECTRA_ARM64_CPP_FLAGS}" CACHE STRING "Extra arm64 C/C++ flags from Gradle")
@@ -152,6 +205,16 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
         -DRMR_FEAT_NEON=1)
 endif()
 
+if(VECTRA_INLINE_POLICY STREQUAL "aggressive")
+    list(APPEND VECTRA_ABI_COMPILE_OPTIONS -finline-functions)
+elseif(VECTRA_INLINE_POLICY STREQUAL "controlled")
+    list(APPEND VECTRA_ABI_COMPILE_OPTIONS -fno-inline-functions)
+endif()
+
+if(VECTRA_LTO_MODE STREQUAL "thin" OR VECTRA_LTO_MODE STREQUAL "full")
+    list(APPEND VECTRA_ABI_COMPILE_OPTIONS -flto)
+endif()
+
 if(TARGET rmr_policy_static)
     target_compile_options(rmr_policy_static PRIVATE
         ${VECTRA_COMMON_COMPILE_OPTIONS}
@@ -182,6 +245,24 @@ if(TARGET bitraf_static)
     target_link_libraries(vectra_core_accel PRIVATE bitraf_static)
 endif()
 
+if(VECTRA_REQUIRE_FREESTANDING_CORE AND NOT TARGET abi_core_freestanding)
+    message(FATAL_ERROR "Freestanding ABI core target missing. Silent downgrade is forbidden.")
+endif()
+
+if(NOT VECTRA_REQUIRE_FREESTANDING_CORE)
+    message(FATAL_ERROR "VECTRA_REQUIRE_FREESTANDING_CORE must remain ON for release-safe builds.")
+endif()
+
+target_compile_options(abi_core_freestanding PRIVATE
+    ${VECTRA_FREESTANDING_COMPILE_OPTIONS}
+    ${VECTRA_ABI_COMPILE_OPTIONS})
+target_include_directories(abi_core_freestanding PRIVATE
+    ${VECTRA_RMR_INCLUDE_DIR})
+target_link_options(abi_core_freestanding PRIVATE
+    -nostdlib
+    -Wl,--gc-sections
+    -Wl,--build-id=none)
+
 if(ANDROID)
     # Compatibilidade Android 15/16 (dispositivos com page size de 16 KiB).
     target_link_options(vectra_core_accel PRIVATE -Wl,-z,max-page-size=16384)
@@ -206,6 +287,7 @@ target_compile_definitions(vectra_core_accel PRIVATE
     RMR_ASM_CORE_RISCV64_VALIDATED=$<BOOL:${RMR_ASM_CORE_RISCV64_VALIDATED}>)
 
 target_link_libraries(vectra_core_accel PRIVATE ${log-lib})
+target_link_libraries(vectra_core_accel PRIVATE abi_core_freestanding)
 if(TARGET termux-bootstrap)
     target_link_libraries(termux-bootstrap PRIVATE ${log-lib})
 endif()

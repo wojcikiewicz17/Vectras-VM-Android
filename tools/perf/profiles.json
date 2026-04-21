@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "default_runs": 9,
+  "profiles": [
+    {
+      "id": "host_x86_64_balanced",
+      "abi": "x86_64",
+      "policy": "balanced",
+      "cc": "cc",
+      "enabled_if_host_arch": ["x86_64", "amd64"],
+      "cflags": "-O2 -fno-fast-math -fno-inline-functions",
+      "lto": "off",
+      "inline": "controlled",
+      "description": "Baseline reproducível para runners x86_64"
+    },
+    {
+      "id": "host_x86_64_aggressive",
+      "abi": "x86_64",
+      "policy": "aggressive",
+      "cc": "cc",
+      "enabled_if_host_arch": ["x86_64", "amd64"],
+      "cflags": "-O3 -march=x86-64-v2 -finline-functions",
+      "lto": "thin",
+      "inline": "aggressive",
+      "description": "Perfil de tuning para regressão/ganho em runner x86_64"
+    },
+    {
+      "id": "host_aarch64_balanced",
+      "abi": "arm64-v8a",
+      "policy": "balanced",
+      "cc": "aarch64-linux-gnu-gcc",
+      "enabled_if_host_arch": ["aarch64", "arm64"],
+      "cflags": "-O2 -march=armv8-a -fno-fast-math -fno-inline-functions",
+      "lto": "off",
+      "inline": "controlled",
+      "description": "Baseline para runners/dispositivos ARM64"
+    }
+  ]
+}

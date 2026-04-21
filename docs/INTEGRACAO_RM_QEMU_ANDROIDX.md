@@ -168,3 +168,12 @@ Pipeline Android atualizado para execução determinística de build no GitHub A
 - exportação de `ANDROID_HOME`/`ANDROID_SDK_ROOT` para os passos de `assembleDebug` e `assembleRelease`.
 
 Com isso, a validação de runtime da UI deixa de depender de configuração manual do runner.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

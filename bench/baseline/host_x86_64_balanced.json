@@ -1,0 +1,9 @@
+{
+  "profile_id": "host_x86_64_balanced",
+  "latency_p50_ms": 4.423831999702088,
+  "latency_p95_ms": 6.403487000170571,
+  "throughput_median_score_per_s": 796087723321.5828,
+  "binary_size_bytes": 22360,
+  "cold_start_ms": 4.869235000114713,
+  "warm_start_ms": 4.381111500151746
+}

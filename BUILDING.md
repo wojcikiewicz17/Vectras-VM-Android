@@ -56,6 +56,23 @@ python3 tools/verify_bootstrap_assets.py
 
 > Use `./tools/gradle_with_jdk21.sh` como comando canônico: o wrapper aplica a política de JVM suportada (17/21) e faz autoajuste de `sdk.dir` quando possível.
 
+
+## Build model: JNI-first on Android
+- Android native builds are hosted/JNI and rely on bionic libc + pthread.
+- Baremetal flags are intentionally not used for Android JNI targets.
+
+Forbidden for JNI targets:
+- `-ffreestanding`
+- `-fno-builtin`
+- `-DRMR_NO_STDLIB=1`
+
+Required JNI baseline flags:
+- `-DRMR_JNI_BUILD=1`
+- `-O2`
+- `-fno-fast-math`
+- `-fno-exceptions`
+- `-fno-rtti`
+
 ## ABI policy
 Configured by `APP_ABI_POLICY` and `SUPPORTED_ABIS` in `gradle.properties`.
 The ABI baseline is also declared in `tools/qemu_launch.yml` with explicit scope:
@@ -73,7 +90,7 @@ Accepted policies in code and docs are exactly:
 
 `termux-bootstrap` is built/packaged only for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64` (aligned with `TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS` in `app/src/main/cpp/CMakeLists.txt`). Official lanes (`arm64-only` and `arm32-arm64`) must stay inside this matrix.
 
-Default is arm64-only.
+Default in this repository branch is arm32-arm64 (dual ARM for development/validation). Official distribution policy remains arm64-only.
 
 To run full internal ABI validation coverage:
 ```bash
@@ -168,3 +185,12 @@ Expected per architecture:
 | Host x86_64 Linux | `make run-selftest` and/or `run_selftest` | `rmr_casm_bridge_selftest` (supported ABI), `rmr_neon_simd_selftest` not required | `bench/results/selftest-host-x86_64.log`, `bench/results/rmr_casm_bridge_selftest-x86_64.log` |
 | Host arm64 Linux (aarch64/arm64) | `make run-selftest` and/or `run_selftest` | `rmr_neon_simd_selftest` (required), `rmr_casm_bridge_selftest` optional/unsupported | `bench/results/selftest-host-arm64.log`, `bench/results/rmr_neon_simd_selftest-arm64.log`, `bench/results/rmr_casm_bridge_selftest-arm64.log` |
 | Android (NDK / app ABI lanes) | Native selftests must be wired through the same gate contract before release | ABI-specific execution required for `arm64-v8a`; other ABIs per policy (`APP_ABI_POLICY`) | Keep per-ABI logs in CI artifacts and fail lane when required selftests are missing or failing |
+
+## CI canonical reference (Android/Host)
+
+- Canonical Android pipeline: `.github/workflows/android-ci.yml`.
+- Android wrapper entrypoint: `.github/workflows/android.yml`.
+- Auxiliary Android ABI compatibility matrix: `.github/workflows/compile-matrix.yml`.
+- Canonical host pipeline: `.github/workflows/host-ci.yml`.
+- Orchestration and final gates: `.github/workflows/pipeline-orchestrator.yml` and `.github/workflows/quality-gates.yml`.
+- Canonical matrix documentation: `docs/ci/workflow-matrix.md`.

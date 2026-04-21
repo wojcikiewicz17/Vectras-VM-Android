@@ -14,7 +14,7 @@ Micro-base RAFCODE❤️PHI para **C (casca)** e **ASM (núcleo)** com emissão 
 - `include/rafcode_phi_abi.h`
   - ABI autoral C↔ASM;
   - tipos fixos sem dependência de `stdint`/libc;
-  - contratos de emissão (`rafphi_emit_word_asm`, `rafphi_emit_block_hex`).
+  - contratos de emissão (`rafphi_emit_word_abi`, `rafphi_emit_word_asm`, `rafphi_emit_block_hex`).
 - `c/rafcode_phi_front_shell.c`
   - casca determinística em C;
   - mapa mínimo de mnemônicos (`NOP`, `RET`, `BRK`, `HLT`) para hex por arquitetura (`aarch64`, `x86_64`, `riscv64`);
@@ -25,6 +25,7 @@ Micro-base RAFCODE❤️PHI para **C (casca)** e **ASM (núcleo)** com emissão 
   - hash chain FNV-1a 64-bit sobre toda cadeia.
 - `asm/rafcode_phi_emit_word.S`
   - rotina ASM para gravação da palavra hex no buffer de saída;
+  - entrada ABI crua em registradores (`rafphi_emit_word_abi`);
   - caminhos para `__aarch64__` e `__x86_64__`.
 
 ## Contrato de direção

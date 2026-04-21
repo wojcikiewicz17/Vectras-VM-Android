@@ -3,11 +3,18 @@
 
 #include <stddef.h>
 #include <stdint.h>
+#include <assert.h>
 
 #include "bitomega.h"
 
 #ifdef __cplusplus
 extern "C" {
+#endif
+
+#if defined(__cplusplus)
+#define RMR_STATIC_ASSERT(expr, msg) static_assert((expr), msg)
+#else
+#define RMR_STATIC_ASSERT(expr, msg) _Static_assert((expr), msg)
 #endif
 
 #define RMR_UK_OK 0
@@ -16,30 +23,16 @@ extern "C" {
 #define RMR_KERNEL_ERR_STATE -2
 #define RMR_UK_NATIVE_OK_MAGIC 0x56414343u  /* "VACC" — MUST match NativeFastPath.NATIVE_OK_MAGIC */
 
-#if defined(__cplusplus)
-static_assert(RMR_UK_OK == RMR_KERNEL_OK, "status contract mismatch: RMR_UK_OK != RMR_KERNEL_OK");
-#else
-_Static_assert(RMR_UK_OK == RMR_KERNEL_OK, "status contract mismatch: RMR_UK_OK != RMR_KERNEL_OK");
-#endif
+RMR_STATIC_ASSERT(RMR_UK_OK == RMR_KERNEL_OK, "status contract mismatch: RMR_UK_OK != RMR_KERNEL_OK");
 
 #if defined(RMR_UK_ERR_ARG) && defined(RMR_KERNEL_ERR_ARG)
-#if defined(__cplusplus)
-static_assert(RMR_UK_ERR_ARG == RMR_KERNEL_ERR_ARG,
-              "status contract mismatch: RMR_UK_ERR_ARG != RMR_KERNEL_ERR_ARG");
-#else
-_Static_assert(RMR_UK_ERR_ARG == RMR_KERNEL_ERR_ARG,
-               "status contract mismatch: RMR_UK_ERR_ARG != RMR_KERNEL_ERR_ARG");
-#endif
+RMR_STATIC_ASSERT(RMR_UK_ERR_ARG == RMR_KERNEL_ERR_ARG,
+                  "status contract mismatch: RMR_UK_ERR_ARG != RMR_KERNEL_ERR_ARG");
 #endif
 
 #if defined(RMR_UK_ERR_STATE) && defined(RMR_KERNEL_ERR_STATE)
-#if defined(__cplusplus)
-static_assert(RMR_UK_ERR_STATE == RMR_KERNEL_ERR_STATE,
-              "status contract mismatch: RMR_UK_ERR_STATE != RMR_KERNEL_ERR_STATE");
-#else
-_Static_assert(RMR_UK_ERR_STATE == RMR_KERNEL_ERR_STATE,
-               "status contract mismatch: RMR_UK_ERR_STATE != RMR_KERNEL_ERR_STATE");
-#endif
+RMR_STATIC_ASSERT(RMR_UK_ERR_STATE == RMR_KERNEL_ERR_STATE,
+                  "status contract mismatch: RMR_UK_ERR_STATE != RMR_KERNEL_ERR_STATE");
 #endif
 
 #define RMR_UK_MAX_SLOTS 1024u

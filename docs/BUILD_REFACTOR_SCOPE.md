@@ -4,12 +4,12 @@
 
 ## Prioridade P0 — inconsistências estruturais (toolchain/ABI/CI)
 
-### 1) Unidade: `.github/workflows/android.yml` + job `preflight` (step `Resolve dispatch controls and diagnostic profile`)
+### 1) Unidade: `.github/workflows/android-ci.yml` (canônico) + `.github/workflows/android.yml` (wrapper de entrada)
 - **Motivo**: é o contrato oficial que governa variantes, modo de execução e política de assinatura para todo pipeline Android.
 - **Problema observável**: documentação raiz descrevia inputs legados (`build_debug`, `build_release`, `sign_release`) que não existem mais no workflow canônico (hoje usa `build_variant`, `signing_mode`, `allow_legacy_fallback`).
 - **Contrato esperado**: documentação e workflow devem ter o mesmo contrato de entrada para evitar disparo manual inválido e diagnósticos falsos de CI.
 - **Risco de regressão**: médio (quebra operacional em runs manuais por parâmetros errados; não quebra compilação local diretamente).
-- **Critério de aceite**: `README.md` refletindo exatamente inputs ativos em `.github/workflows/android.yml`; validação textual por diff e inspeção direta.
+- **Critério de aceite**: `README.md` refletindo inputs ativos do contrato canônico em `.github/workflows/android-ci.yml` e o subconjunto exposto por `.github/workflows/android.yml`.
 
 ### 2) Unidade: `README.md` + seção `Como rodar manualmente` (bloco de inputs do Android CI)
 - **Motivo**: é o ponto de entrada operacional para release/build manual.
@@ -40,3 +40,12 @@
 - **Status**: bloqueada por ausência de base fonte no repositório.
 - **Evidência técnica**: não há arquivo `llama.cpp` no inventário atual do projeto.
 - **Ação aplicada**: bloqueio formalizado neste plano para evitar alteração não reprodutível fora da árvore versionada.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

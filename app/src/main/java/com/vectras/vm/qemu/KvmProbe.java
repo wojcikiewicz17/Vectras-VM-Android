@@ -17,6 +17,7 @@ public final class KvmProbe {
     private static final String PROC_MODULES_PATH = "/proc/modules";
     private static final String PROC_CPUINFO_PATH = "/proc/cpuinfo";
     private static final Pattern TOKEN_VIRT = Pattern.compile("\\bvirt\\b");
+    private static final Pattern TOKEN_RISCV_VIRT = Pattern.compile("\\b(hypervisor|kvm|h)\\b");
 
     private KvmProbe() {
         throw new AssertionError("KvmProbe is a utility class and cannot be instantiated");
@@ -65,7 +66,9 @@ public final class KvmProbe {
             return false;
         }
         String normalized = abi.toLowerCase(Locale.ROOT);
-        return normalized.contains("arm64") || normalized.contains("x86_64");
+        return normalized.contains("arm64")
+                || normalized.contains("x86_64")
+                || normalized.contains("riscv64");
     }
 
     static boolean hasKvmModule(String modulesText) {
@@ -102,6 +105,9 @@ public final class KvmProbe {
                     || normalized.contains(" kvm")
                     || normalized.contains(" hypervisor")
                     || TOKEN_VIRT.matcher(normalized).find();
+        }
+        if (abi != null && abi.toLowerCase(Locale.ROOT).contains("riscv64")) {
+            return TOKEN_RISCV_VIRT.matcher(normalized).find();
         }
         return false;
     }

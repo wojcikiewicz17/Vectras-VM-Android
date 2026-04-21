@@ -158,7 +158,7 @@ This repository follows a hybrid policy:
 
 Telemetry/failure tracking details and release guardrails are documented in [FIREBASE.md](../app/FIREBASE.md) and enforced in `app/build.gradle` (`validateFirebaseReleaseConfig`).
 
-CI (`.github/workflows/android.yml`) executa validação/build de `perfRelease`/`release` apenas quando o secret `VECTRAS_GOOGLE_SERVICES_JSON_B64` está presente; sem esse secret, a trilha de release é pulada de forma explícita e o fluxo debug/local permanece válido.
+CI canônico Android (`.github/workflows/android-ci.yml`) executa validação/build de `release` conforme política de assinatura; `android.yml` atua como wrapper de entrada. A trilha oficial de release exige segredos válidos e não é enfraquecida por fallback unsigned fora de validação interna explícita.
 
 ---
 
@@ -202,6 +202,7 @@ CI (`.github/workflows/android.yml`) executa validação/build de `perfRelease`/
    - Follow the coding standards
    - Write tests for new functionality
    - Update documentation as needed
+   - **Contrato `_incoming/` (obrigatório):** não adicionar código em `_incoming/` sem registrar o arquivo em `docs/INCOMING_INGESTION_MAP.md` e sem vincular um plano de promoção em `docs/INCOMING_PROMOTION_PLAN.md`. Entradas marcadas como `integrado` devem apontar para um `target_path` existente no repositório.
 
 5. **Commit Changes**
    ```bash
@@ -592,3 +593,12 @@ By contributing to Vectras VM, you agree that:
 *© 2024-2026 Vectras VM Development Team. Licensed under GNU GPL v2.0*
 
 *Document Version: 1.0.0 | Last Updated: January 2026*
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

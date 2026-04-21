@@ -63,3 +63,12 @@ Guia para avaliação e operação corporativa com foco em implantação técnic
 - Última atualização: 2026-03-06
 - Commit de referência: `HEAD`
 - Domínio de código coberto: Arquitetura e operação full-stack (app, engine/runtime, governança docs).
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

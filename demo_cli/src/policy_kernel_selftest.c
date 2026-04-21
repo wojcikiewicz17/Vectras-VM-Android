@@ -34,6 +34,21 @@ static int write_fixture(const char *path) {
 }
 
 int main(void) {
+  const char *fixture_dir = "bench/results";
+  const char *policy_in = "bench/results/policy_in.bin";
+  const char *policy_out1 = "bench/results/policy_out1.bin";
+  const char *policy_out2 = "bench/results/policy_out2.bin";
+  const char *policy_out3 = "bench/results/policy_out3.bin";
+  const char *policy_log_same = "bench/results/policy_log_same.log";
+  const char *policy_log1 = "bench/results/policy_log1.log";
+  const char *policy_log2 = "bench/results/policy_log2.log";
+  const char *policy_log3 = "bench/results/policy_log3.log";
+
+  if (system("mkdir -p bench/results") != 0) {
+    printf("FAIL create fixture dir %s\n", fixture_dir);
+    return 1;
+  }
+
   const uint8_t vec[] = {'1','2','3','4','5','6','7','8','9'};
   uint32_t crc = RmR_CRC32C(vec, sizeof(vec));
   if (crc != 0xE3069283u) {
@@ -41,7 +56,7 @@ int main(void) {
     return 1;
   }
 
-  if (write_fixture("build/policy_in.bin") != 0) {
+  if (write_fixture(policy_in) != 0) {
     printf("FAIL fixture write\n");
     return 1;
   }
@@ -56,24 +71,24 @@ int main(void) {
 
   RmR_AuditSummary s1, s2;
   RmR_AuditSummary s_same;
-  int rc_same = RmR_RunPolicyPipeline("build/policy_in.bin", "build/policy_in.bin", "build/policy_log_same.log", &cfg, &s_same);
+  int rc_same = RmR_RunPolicyPipeline(policy_in, policy_in, policy_log_same, &cfg, &s_same);
   if (rc_same != -7) {
     printf("FAIL same input/output path should be rejected rc=%d\n", rc_same);
     return 1;
   }
 
-  int rc1 = RmR_RunPolicyPipeline("build/policy_in.bin", "build/policy_out1.bin", "build/policy_log1.log", &cfg, &s1);
-  int rc2 = RmR_RunPolicyPipeline("build/policy_in.bin", "build/policy_out2.bin", "build/policy_log2.log", &cfg, &s2);
+  int rc1 = RmR_RunPolicyPipeline(policy_in, policy_out1, policy_log1, &cfg, &s1);
+  int rc2 = RmR_RunPolicyPipeline(policy_in, policy_out2, policy_log2, &cfg, &s2);
   if (rc1 != 0 || rc2 != 0) {
     printf("FAIL pipeline run rc1=%d rc2=%d\n", rc1, rc2);
     return 1;
   }
-  if (!file_equal("build/policy_log1.log", "build/policy_log2.log")) {
+  if (!file_equal(policy_log1, policy_log2)) {
     printf("FAIL determinism log mismatch\n");
     return 1;
   }
 
-  FILE *flip = fopen("build/policy_out2.bin", "r+b");
+  FILE *flip = fopen(policy_out2, "r+b");
   if (!flip) {
     printf("FAIL open bitflip target\n");
     return 1;
@@ -85,12 +100,12 @@ int main(void) {
   fputc((c ^ 0x01), flip);
   fclose(flip);
 
-  rc2 = RmR_RunPolicyPipeline("build/policy_out2.bin", "build/policy_out3.bin", "build/policy_log3.log", &cfg, &s2);
+  rc2 = RmR_RunPolicyPipeline(policy_out2, policy_out3, policy_log3, &cfg, &s2);
   if (rc2 != 0) {
     printf("FAIL rerun over corrupted stream rc=%d\n", rc2);
     return 1;
   }
-  if (file_equal("build/policy_log1.log", "build/policy_log3.log")) {
+  if (file_equal(policy_log1, policy_log3)) {
     printf("FAIL corruption resistance expected different logs after bitflip\n");
     return 1;
   }

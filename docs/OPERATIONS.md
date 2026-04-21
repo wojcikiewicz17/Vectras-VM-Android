@@ -37,7 +37,7 @@
 ## Matriz de gates (auditoria de processo)
 | Gate | Objetivo | Execução/critério | Evidência gerada |
 |---|---|---|---|
-| Build Android (debug + release) | Garantir integridade de compilação dos módulos Android antes de distribuição | Workflow canônico `Pipeline Orchestrator` em `.github/workflows/pipeline-orchestrator.yml`, encadeando apenas os workflows canônicos reutilizáveis `ci.yml` (host) e `android.yml` (Android) via `workflow_call`. O estágio Android mantém `assembleDebug`/`assembleRelease` com parâmetros controlados pelo orquestrador. | APKs publicados como artefatos `android-debug-apk` e `android-release-apk` no Actions. |
+| Build Android (debug + release) | Garantir integridade de compilação dos módulos Android antes de distribuição | Workflow canônico `Pipeline Orchestrator` em `.github/workflows/pipeline-orchestrator.yml`, encadeando os workflows canônicos reutilizáveis `host-ci.yml` (host) e `android-ci.yml` (Android) via `workflow_call`, mantendo `android.yml` apenas como wrapper de entrada. O estágio Android mantém `assembleDebug`/`assembleRelease` com parâmetros controlados pelo orquestrador. | APKs publicados como artefatos `android-debug-apk` e `android-release-apk` no Actions. |
 | Dependências de arquivos de repositório | Bloquear divergências entre documentação, mapeamentos e cadeia de arquivos essenciais | Etapa explícita `./tools/gradle_with_jdk21.sh verifyRepoFileDependencies` executada antes das etapas de build. | Log da etapa `Verify repository file dependencies` no job de CI. |
 | Documentação crítica (links locais markdown) | Detectar referências quebradas em `README.md` e `docs/**/*.md` | Etapa opcional `Validate local markdown links` em Python (com `continue-on-error`) verifica caminhos locais não-HTTP. | Relatório no log da etapa, com lista de links inválidos quando detectados. |
 | Artefatos de distribuição | Assegurar rastreabilidade de binários gerados na pipeline | Upload automatizado dos APKs de debug/release via `actions/upload-artifact@v5` com execução forçada das JavaScript Actions em Node.js 24 (`FORCE_JAVASCRIPT_ACTIONS_TO_NODE24=true`). | Artefatos versionados por run no GitHub Actions + upload Telegram condicionado a segredo. |
@@ -100,3 +100,12 @@ para inspeção de gargalo e reconsolidação no troubleshooting.
 - Apenas `.github/workflows/pipeline-orchestrator.yml` deve responder a eventos de branch e pull request.
 - Workflows filhos devem operar em modo reutilizável (`on: workflow_call`) e podem manter `workflow_dispatch` somente para debug manual controlado.
 - Chamadas entre workflows devem usar `uses: ./.github/workflows/<arquivo>.yml` para preservar rastreabilidade e governança do pipeline.
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.

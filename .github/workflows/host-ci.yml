@@ -1,0 +1,127 @@
+name: host-ci
+
+on:
+  workflow_call:
+  push:
+    branches: [main, develop]
+  pull_request:
+    branches: [main, develop]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: host-ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  host-engine:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate consolidated lowlevel ABI guard
+        run: ./tools/ci/validate_lowlevel_abi.sh
+
+      - name: Validate host pipeline directories
+        run: ./tools/ci/validate_pipeline_directories.sh --profile host
+
+      - name: Block duplicated overlay ZIP source
+        run: bash tools/check_overlay_zip_duplicates.sh
+
+      - name: Block firebasestorage links in web assets
+        run: bash tools/check_no_firebasestorage_links.sh
+
+      - name: Validate docs reference commit consistency
+        run: bash tools/check_docs_reference_commit.sh
+
+      - name: Install host build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential cmake ninja-build make pkg-config python3 ripgrep
+
+      - name: Validate incoming ingestion map contract
+        run: ./tools/ci/check_incoming_ingestion.py
+
+      - name: Validate native toolchain dependencies
+        run: |
+          set -euo pipefail
+          required_tools=(cc gcc as ld ar nm make cmake ninja python3 rg)
+          for tool in "${required_tools[@]}"; do
+            command -v "$tool" >/dev/null || { echo "Missing required tool: $tool" >&2; exit 1; }
+            echo "OK: $tool -> $(command -v "$tool")"
+          done
+
+      - name: Show hosted engine config
+        run: make print-build-config
+
+      - name: Build engine with Makefile
+        run: make -j"$(nproc)"
+
+      - name: Run engine selftests
+        run: make run-selftest
+
+      - name: Run reproducible perf suite (ABI/policy)
+        run: |
+          set -euo pipefail
+          python3 tools/perf/run_suite.py --runs 7
+          python3 tools/perf/compare_baseline.py --margin 0.03
+          python3 tools/perf/derive_flag_decisions.py
+
+      - name: Build engine with root CMake
+        run: |
+          cmake -S . -B build-cmake -G Ninja -DRMR_JNI_BUILD=ON -DRMR_ENABLE_POLICY_MODULE=ON
+          cmake --build build-cmake -j"$(nproc)"
+
+      - name: Run torus flow focused selftest (CMake artifact)
+        run: ./build-cmake/rmr_torus_flow_selftest
+
+      - name: Verify link contracts (CMake)
+        run: cmake --build build-cmake --target verify_contracts
+
+      - name: Collect host artifacts
+        if: always()
+        run: |
+          mkdir -p artifacts/bin bench-results
+          find bench/results -type f \( -name '*.csv' -o -name '*.log' \) -exec cp {} bench-results/ \; 2>/dev/null || true
+          find . -type f -executable -not -path './build-cmake/*' -not -path './.git/*' | head -20 | xargs -r -I {} cp {} artifacts/bin/
+          find . -name '*.so' -not -path './build-cmake/*' -exec cp {} artifacts/bin/ \; 2>/dev/null || true
+          cp -r build-cmake/bin/* artifacts/bin/ 2>/dev/null || true
+          cp -r build-cmake/lib/* artifacts/bin/ 2>/dev/null || true
+          cp build-cmake/rmr_torus_flow_selftest artifacts/bin/ 2>/dev/null || true
+          tar -czf host-engine-artifacts.tar.gz -C artifacts .
+
+      - name: Upload host binaries
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-engine-binaries-${{ github.run_id }}
+          path: host-engine-artifacts.tar.gz
+          if-no-files-found: warn
+
+      - name: Upload host reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-ci-results
+          path: |
+            bench-results/**
+            bench/results/perf/**
+            bench/baseline/*.json
+            build-host/rmr_build_config.env
+            build-cmake/rmr_build_config.env
+          if-no-files-found: warn
+
+      - name: Upload host logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: host-logs-${{ github.run_id }}
+          path: |
+            build
+            build-cmake
+            bench/results
+            reports
+          if-no-files-found: warn

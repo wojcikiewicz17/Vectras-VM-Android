@@ -11,6 +11,7 @@ public class KvmProbeTest {
     public void supportedAbi_allowsArm64AndX8664() {
         assertTrue(KvmProbe.isSupportedAbi("arm64-v8a"));
         assertTrue(KvmProbe.isSupportedAbi("x86_64"));
+        assertTrue(KvmProbe.isSupportedAbi("riscv64"));
         assertFalse(KvmProbe.isSupportedAbi("armeabi-v7a"));
     }
 
@@ -40,9 +41,22 @@ public class KvmProbeTest {
 
     @Test
     public void supportsCpuVirtualization_armVirtTokenDoesNotMatchVirtio() {
-        String cpuInfo = "processor	: 0\n"
-                + "Features	: fp asimd evtstrm virtio crc32\n";
+        String cpuInfo = "processor\t: 0\n"
+                + "Features\t: fp asimd evtstrm virtio crc32\n";
 
         assertFalse(KvmProbe.supportsCpuVirtualization("arm64-v8a", cpuInfo));
     }
+
+    @Test
+    public void supportsCpuVirtualization_detectsRiscvHints() {
+        assertTrue(KvmProbe.supportsCpuVirtualization("riscv64", "isa\t:\trv64imafdc h"));
+        assertTrue(KvmProbe.supportsCpuVirtualization("riscv64", "features\t:\thypervisor"));
+        assertFalse(KvmProbe.supportsCpuVirtualization("riscv64", "isa\t:\trv64imafdc"));
+    }
+    @Test
+    public void supportsCpuVirtualization_riscvDoesNotAcceptNonVirtualizationTokens() {
+        assertFalse(KvmProbe.supportsCpuVirtualization("riscv64", "isa	:	rv64imafdc zba zbb"));
+        assertFalse(KvmProbe.supportsCpuVirtualization("riscv64", "features	:	sha2"));
+    }
+
 }

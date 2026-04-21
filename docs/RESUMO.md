@@ -206,3 +206,12 @@ EQUIPE DE DESENVOLVIMENTO VECTRAS VM. **Vectras VM: Uma Implementação de Máqu
 *© 2024-2026 Equipe de Desenvolvimento Vectras VM. Licenciado sob GNU GPL v2.0*
 
 *Versão do Documento: 1.0.0 | Classificação: Documentação Técnica Pública*
+
+## Referência canônica de CI Android/Host
+
+- Pipeline oficial Android: `.github/workflows/android-ci.yml` (acionado por wrappers/orquestração).
+- Entrada Android: `.github/workflows/android.yml` (wrapper de eventos + delegação).
+- Compatibilidade ABI Android: `.github/workflows/compile-matrix.yml` (trilha auxiliar).
+- Pipeline oficial Host: `.github/workflows/host-ci.yml`.
+- Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
+- Matriz canônica documentada em `docs/ci/workflow-matrix.md`.
