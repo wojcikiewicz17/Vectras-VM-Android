@@ -9,6 +9,7 @@ import groovy.json.JsonSlurper
 import java.security.MessageDigest
 import java.util.regex.Pattern
 import java.util.zip.ZipFile
+import java.util.Locale
 
 def termuxBootstrapSupportedAbis = (rootProject.ext.termuxBootstrapSupportedAbis ?: ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64']) as List<String>
 def devFastPath = providers.gradleProperty("devFastPath").orElse("false").get().toBoolean()
@@ -262,31 +263,35 @@ def loaderVariant = (providers.gradleProperty("loaderVariant").orElse("release")
 if (!loaderVariant) {
     loaderVariant = "release"
 }
-def shellLoaderMetadataTask = ":shell-loader:publishShellLoaderArtifactMetadata"
+def normalizedLoaderVariant = loaderVariant.toLowerCase(Locale.ROOT)
+def loaderVariantTaskSuffix = loaderVariant.substring(0, 1).toUpperCase(Locale.ROOT) + loaderVariant.substring(1)
+def shellLoaderAssembleTask = ":shell-loader:assemble${loaderVariantTaskSuffix}"
 def generatedBootstrapDir = layout.buildDirectory.dir("generated/bootstrapAssets/bootstrap")
-def shellLoaderMetadataPath = project(":shell-loader").layout.buildDirectory.file("outputs/metadata/shell-loader/loader-artifact.json")
 def verifyShellLoaderManifest = Boolean.parseBoolean(providers.gradleProperty("verifyShellLoaderManifest").orElse("false").get())
-def resolveShellLoaderArtifactFromMetadata = {
-    def metadataFile = shellLoaderMetadataPath.get().asFile
-    if (!metadataFile.exists()) {
-        throw new GradleException("[CONFIG] Metadata do shell-loader ausente em '${metadataFile.absolutePath}'. Execute '${shellLoaderMetadataTask} -PloaderVariant=${loaderVariant}' antes de sincronizar o bootstrap.")
+
+evaluationDependsOn(":shell-loader")
+def shellLoaderProject = project(":shell-loader")
+def shellLoaderVariantApkProviders = shellLoaderProject.ext.has("shellLoaderVariantApkProviders") ? shellLoaderProject.ext.shellLoaderVariantApkProviders : null
+
+def resolveShellLoaderArtifactFromVariant = {
+    if (!(shellLoaderVariantApkProviders instanceof Map)) {
+        throw new GradleException("[CONFIG] :shell-loader não publicou mapa de artefatos por variante via AGP. Verifique shell-loader/build.gradle (androidComponents/onVariants).")
+    }
+    def artifactProvider = shellLoaderVariantApkProviders[normalizedLoaderVariant]
+    def conventionalPath = shellLoaderProject.layout.buildDirectory.file("outputs/apk/${normalizedLoaderVariant}/loader.apk").get().asFile
+
+    if (artifactProvider == null) {
+        def discoveredVariants = shellLoaderVariantApkProviders.keySet().sort()
+        throw new GradleException("[CONFIG] Variante '${loaderVariant}' não encontrada em :shell-loader. Variantes disponíveis: ${discoveredVariants}. " +
+            "Procura realizada via AGP artifacts API e caminho convencional '${conventionalPath.absolutePath}'. " +
+            "Corrija com -PloaderVariant=<${discoveredVariants.join('|')}> e execute '${shellLoaderAssembleTask}'.")
     }
 
-    def metadata
-    try {
-        metadata = new JsonSlurper().parse(metadataFile)
-    } catch (Exception ex) {
-        throw new GradleException("[CONFIG] Falha ao ler metadata do shell-loader em '${metadataFile.absolutePath}': ${ex.message}. Reexecute '${shellLoaderMetadataTask} -PloaderVariant=${loaderVariant}'.")
-    }
-
-    def artifactPathRaw = (metadata?.artifactPath ?: "").toString().trim()
-    if (!artifactPathRaw) {
-        throw new GradleException("[CONFIG] Metadata do shell-loader sem 'artifactPath' em '${metadataFile.absolutePath}'. Reexecute '${shellLoaderMetadataTask} -PloaderVariant=${loaderVariant}'.")
-    }
-
-    def artifactFile = file(artifactPathRaw)
+    def artifactFile = artifactProvider.get().asFile
     if (!artifactFile.exists()) {
-        throw new GradleException("[CONFIG] Artifact do shell-loader apontado em metadata não existe: '${artifactFile.absolutePath}'. Reexecute '${shellLoaderMetadataTask} -PloaderVariant=${loaderVariant}' para regenerar caminho válido.")
+        throw new GradleException("[CONFIG] Artifact do shell-loader ausente para variante '${loaderVariant}'. " +
+            "Procurado em '${artifactFile.absolutePath}' (AGP artifacts API) e fallback '${conventionalPath.absolutePath}'. " +
+            "Corrija com -PloaderVariant=${normalizedLoaderVariant} e execute '${shellLoaderAssembleTask}'.")
     }
     artifactFile
 }
@@ -294,7 +299,7 @@ def resolveShellLoaderArtifactFromMetadata = {
 tasks.register("verifyShellLoaderArtifact") {
     group = "verification"
     description = "Valida loader.apk da variant do shell-loader antes da sincronização para bootstrap."
-    dependsOn(shellLoaderMetadataTask)
+    dependsOn(shellLoaderAssembleTask)
     onlyIf {
         if (allowLocalHeavyValidationBypass) {
             gateLog("BOOTSTRAP", "Pulando verifyShellLoaderArtifact (devFastPath=true e sem gatilhos estritos).")
@@ -304,10 +309,11 @@ tasks.register("verifyShellLoaderArtifact") {
     }
 
     doLast {
-        def artifactFile = resolveShellLoaderArtifactFromMetadata()
-        def expectedPath = artifactFile.absolutePath
+        def artifactFile = resolveShellLoaderArtifactFromVariant()
         def failMessage = { String reason ->
-            throw new GradleException("Shell loader artifact inválido em '${expectedPath}': ${reason}.")
+            throw new GradleException("Shell loader artifact inválido para variante '${loaderVariant}' em '${artifactFile.absolutePath}': ${reason}. " +
+                "Procura via AGP artifacts API em :shell-loader e fallback '${shellLoaderProject.layout.buildDirectory.file("outputs/apk/${normalizedLoaderVariant}/loader.apk").get().asFile.absolutePath}'. " +
+                "Corrija com -PloaderVariant=${normalizedLoaderVariant} e execute '${shellLoaderAssembleTask}'.")
         }
 
         if (!artifactFile.exists()) {
@@ -346,7 +352,7 @@ tasks.register("syncShellLoaderBootstrap") {
     }
 
     doLast {
-        def artifactFile = resolveShellLoaderArtifactFromMetadata()
+        def artifactFile = resolveShellLoaderArtifactFromVariant()
         def destinationDir = generatedBootstrapDir.get().asFile
         destinationDir.mkdirs()
         copy {
