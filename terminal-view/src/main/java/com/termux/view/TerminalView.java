@@ -1,7 +1,6 @@
 package com.termux.view;
 
 import android.annotation.SuppressLint;
-import android.annotation.TargetApi;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
@@ -9,7 +8,6 @@ import android.graphics.Canvas;
 import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.Drawable;
-import android.os.Build;
 import android.os.SystemClock;
 import android.text.Editable;
 import android.text.InputType;
@@ -37,8 +35,6 @@ import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.widget.PopupWindow;
 import android.widget.Scroller;
-
-import androidx.annotation.RequiresApi;
 
 import com.termux.terminal.EmulatorDebug;
 import com.termux.terminal.KeyHandler;
@@ -499,7 +495,6 @@ public final class TerminalView extends View {
 
     @SuppressLint("ClickableViewAccessibility")
     @Override
-    @TargetApi(23)
     public boolean onTouchEvent(MotionEvent ev) {
         if (mEmulator == null) return true;
         final int action = ev.getAction();
@@ -770,7 +765,6 @@ public final class TerminalView extends View {
     }
 
     /** Toggle text selection mode in the view. */
-    @TargetApi(23)
     public void startSelectingText(MotionEvent ev) {
         int cx = (int) (ev.getX() / mRenderer.mFontWidth);
         final boolean eventFromMouse = ev.isFromSource(InputDevice.SOURCE_MOUSE);
@@ -1567,7 +1561,6 @@ public final class TerminalView extends View {
         return props;
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public void autofill(AutofillValue value) {
         if (value.isText()) {
@@ -1575,13 +1568,11 @@ public final class TerminalView extends View {
         }
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public int getAutofillType() {
         return AUTOFILL_TYPE_TEXT;
     }
 
-    @RequiresApi(api = Build.VERSION_CODES.O)
     @Override
     public AutofillValue getAutofillValue() {
         return AutofillValue.forText("");
