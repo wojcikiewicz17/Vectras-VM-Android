@@ -4,17 +4,43 @@ on:
   workflow_dispatch:
     inputs:
       acknowledge_arm32_warning:
-        description: "Digite IMUTAVEL para confirmar ciência do alerta ARM32"
+        description: "Combobox obrigatório: aceite explícito da marca d'água ARM32."
+        type: choice
         required: true
-        default: "IMUTAVEL"
+        default: IMUTAVEL
+        options:
+          - IMUTAVEL
       run_workfile:
-        description: "Perfil Android para lane ARM32"
-        required: false
-        default: "compat_matrix_debug"
+        description: "Combobox: perfil Android para lane ARM32."
+        type: choice
+        required: true
+        default: compat_matrix_debug
+        options:
+          - smoke_debug
+          - unit_loader
+          - full_debug
+          - compat_matrix_debug
+          - upstream-debug-compat
+          - release_gate
       log_level:
-        description: "Nível de log Gradle"
-        required: false
-        default: "lifecycle"
+        description: "Combobox: nível de log Gradle."
+        type: choice
+        required: true
+        default: lifecycle
+        options:
+          - lifecycle
+          - info
+          - debug
+      run_lint:
+        description: "Checkbox: executa lint no lane ARM32."
+        type: boolean
+        required: true
+        default: true
+      run_native_checks:
+        description: "Checkbox: executa matriz nativa CMake/NDK."
+        type: boolean
+        required: true
+        default: true
 
 permissions:
   contents: read
@@ -67,8 +93,8 @@ jobs:
       abi_profile: internal_arm32_arm64
       native_matrix_profile: universal_hardening
       log_level: ${{ github.event.inputs.log_level || 'lifecycle' }}
-      run_lint: true
-      run_native_checks: true
+      run_lint: ${{ fromJSON(github.event.inputs.run_lint || 'true') }}
+      run_native_checks: ${{ fromJSON(github.event.inputs.run_native_checks || 'true') }}
     secrets: inherit
 
   arm32-e2e-attestation:
