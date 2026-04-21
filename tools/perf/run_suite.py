@@ -73,7 +73,8 @@ def main() -> int:
     profiles_doc = json.loads(Path(args.profiles).read_text(encoding="utf-8"))
     profiles = profiles_doc["profiles"]
     host_arch = platform.machine().lower()
-    runs = args.runs if args.runs > 0 else int(profiles_doc.get("default_runs", 9))
+    contract_runs = int(profiles_doc.get("ci_contract", {}).get("runs", 9))
+    runs = args.runs if args.runs > 0 else contract_runs
 
     selected: list[dict] = []
     for profile in profiles:

@@ -1,6 +1,5 @@
 {
   "version": 1,
-  "default_runs": 7,
   "profiles": [
     {
       "id": "host_x86_64_balanced",
@@ -47,6 +46,10 @@
   ],
   "ci_contract": {
     "runs": 7,
-    "owner": "tools/perf/profiles.json"
+    "owner": "tools/perf/profiles.json",
+    "enforced_workflows": [
+      ".github/workflows/host-ci.yml",
+      ".github/workflows/quality-gates.yml"
+    ]
   }
 }

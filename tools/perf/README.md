@@ -24,7 +24,7 @@ Saídas:
 
 ## Contrato de runs (fonte única)
 - Fonte única: `tools/perf/profiles.json` em `ci_contract.runs`.
-- Validação automática: `python3 tools/perf/resolve_contract.py --require-consistency` falha se o contrato estiver inválido ou inconsistente com `default_runs`.
+- Validação automática: `python3 tools/perf/resolve_contract.py --require-consistency --validate-workflows` falha se o contrato estiver inválido ou se os workflows canônicos não consumirem o contrato.
 - Workflows canônicos (`host-ci.yml` e `quality-gates.yml`) resolvem `perf_runs` desse contrato antes de executar `run_suite.py`.
 
 ## Gate low-level

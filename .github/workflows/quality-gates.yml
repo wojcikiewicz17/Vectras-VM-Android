@@ -54,7 +54,7 @@ jobs:
       - name: Resolve perf runs contract
         run: |
           set -euo pipefail
-          python3 tools/perf/resolve_contract.py --require-consistency --github-output "$GITHUB_ENV"
+          python3 tools/perf/resolve_contract.py --require-consistency --validate-workflows --github-output "$GITHUB_ENV"
 
       - name: Run perf suite and compare to versioned baseline
         run: |
