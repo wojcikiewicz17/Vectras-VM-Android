@@ -41,6 +41,8 @@ def normalize_profile(raw_profile: str, aliases: dict[str, str]) -> str:
 
 def infer_generic_profile(raw_profile: str) -> str:
     token = raw_profile.lower().replace("-", "_")
+    if "universal" in token:
+        return "universal_guarded"
     if any(k in token for k in ["5abi", "riscv"]):
         return "internal_5abi"
     if any(k in token for k in ["4abi", "x86"]):
