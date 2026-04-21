@@ -256,6 +256,8 @@ endif()
 target_compile_options(abi_core_freestanding PRIVATE
     ${VECTRA_FREESTANDING_COMPILE_OPTIONS}
     ${VECTRA_ABI_COMPILE_OPTIONS})
+target_compile_definitions(abi_core_freestanding PRIVATE
+    VECTRA_LL_NO_STDLIB_TYPES=1)
 target_include_directories(abi_core_freestanding PRIVATE
     ${VECTRA_RMR_INCLUDE_DIR})
 target_link_options(abi_core_freestanding PRIVATE

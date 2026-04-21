@@ -1,8 +1,7 @@
 #ifndef VECTRA_LOWLEVEL_BACKEND_H
 #define VECTRA_LOWLEVEL_BACKEND_H
 
-#include <stddef.h>
-#include <stdint.h>
+#include "vectra_ll_base.h"
 
 typedef uint32_t (*vectra_reduce_xor_fn)(const uint8_t* data, size_t len);
 typedef uint32_t (*vectra_checksum32_fn)(const uint8_t* data, size_t len, uint32_t seed);

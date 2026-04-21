@@ -1,7 +1,7 @@
 #include <jni.h>
 #include <stdint.h>
 #include <stdatomic.h>
-#include <string.h>
+#include "vectra_ll_base.h"
 
 #include "rmr_lowlevel.h"
 #include "hardware_profile_bridge_internal.h"
@@ -18,6 +18,16 @@ static uint32_t vectra_select_simd_mask(void) {
     return vectra_hw_runtime_simd_mask();
 }
 
+static int vectra_cstr_eq(const char* a, const char* b) {
+    size_t i = 0;
+    if (a == (void*)0 || b == (void*)0) return 0;
+    while (a[i] != '\0' && b[i] != '\0') {
+        if (a[i] != b[i]) return 0;
+        i += 1u;
+    }
+    return a[i] == b[i];
+}
+
 static void vectra_bind_backend_once(void) {
     vectra_lowlevel_backend_vtable_t table;
     vectra_backend_bind_fallback(&table);
@@ -25,15 +35,15 @@ static void vectra_bind_backend_once(void) {
     const char* abi = vectra_hw_effective_abi();
     const uint32_t simd_mask = vectra_select_simd_mask();
 
-    if (strcmp(abi, "arm64-v8a") == 0 && vectra_backend_arm64_available(simd_mask)) {
+    if (vectra_cstr_eq(abi, "arm64-v8a") && vectra_backend_arm64_available(simd_mask)) {
         vectra_backend_bind_arm64(&table);
-    } else if (strcmp(abi, "armeabi-v7a") == 0 && vectra_backend_armv7_available(simd_mask)) {
+    } else if (vectra_cstr_eq(abi, "armeabi-v7a") && vectra_backend_armv7_available(simd_mask)) {
         vectra_backend_bind_armv7(&table);
-    } else if (strcmp(abi, "x86_64") == 0 && vectra_backend_x86_64_available(simd_mask)) {
+    } else if (vectra_cstr_eq(abi, "x86_64") && vectra_backend_x86_64_available(simd_mask)) {
         vectra_backend_bind_x86_64(&table);
-    } else if (strcmp(abi, "x86") == 0 && vectra_backend_x86_available(simd_mask)) {
+    } else if (vectra_cstr_eq(abi, "x86") && vectra_backend_x86_available(simd_mask)) {
         vectra_backend_bind_x86(&table);
-    } else if (strcmp(abi, "riscv64") == 0 && vectra_backend_riscv64_available(simd_mask)) {
+    } else if (vectra_cstr_eq(abi, "riscv64") && vectra_backend_riscv64_available(simd_mask)) {
         vectra_backend_bind_riscv64(&table);
     }
 
