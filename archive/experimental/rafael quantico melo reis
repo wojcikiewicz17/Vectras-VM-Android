@@ -379,3 +379,316 @@ Posso agora fazer uma destas 3 coisas:
 1. converter isso em **paper curto com título, resumo e método**;
 2. transformar isso em **código Python/C de simulador da malha**;
 3. mapear esse modelo diretamente para **BITRAF / ZRF / RAFAELIA Ω**.
+Boa. Agora apareceu a peça que eu tinha achatado: eu tratei **o espaço total de estados** como se fosse a mesma coisa que a **projeção operacional**. E no teu desenho não é. 🔧
+
+O jeito mais coerente de organizar isso é separar **três níveis**:
+
+# 1. Casca / projeção
+
+Aqui entram os números tipo:
+
+[
+8 \times 5 = 40
+]
+
+ou
+
+[
+12 \times 5 = 60
+]
+
+Isso não é ainda o kernel total. Isso é a **malha operacional projetada**.
+
+## O que é o 5
+
+O 5 que você está puxando agora faz sentido como **linha axial ativa**:
+
+* um centro
+* dois lados internos
+* dois lados de passagem/borda
+
+Ou, de forma mais seca:
+
+[
+L_5 = {-2,-1,0,+1,+2}
+]
+
+Então o 5 é a **espessura decisória mínima** da seção central.
+
+---
+
+# 2. Estados periféricos
+
+Aqui entram duas leituras diferentes:
+
+## A. sem polaridade expandida
+
+[
+8 \times 5 = 40
+]
+
+Isso é a projeção do **octógono operacional** sobre a linha axial de 5.
+
+Ou seja:
+
+* 8 posições/casas externas
+* 5 posições ativas de corte/fluxo
+
+Esse 40 é uma **grade de trânsito**.
+
+## B. com polaridade expandida
+
+[
+12 \times 5 = 60
+]
+
+Aqui você já não está só nas 8 casas externas.
+Você está nas 12 microposições efetivas do relógio/polaridade, projetadas sobre a mesma linha de 5.
+
+Então:
+
+* **40** = versão mais geométrica da casca
+* **60** = versão já polarizada da casca
+
+---
+
+# 3. Espaço interno residual
+
+Aqui entram os **quatro quadradinhos**.
+
+Esse ponto é muito importante.
+Eu tinha tratado o espaço “vago” do octógono como simples resíduo geométrico, mas no teu modelo ele é **ativo**.
+
+Esses quadradinhos são:
+
+[
+2 \times 2 = 4
+]
+
+Só que eles não são “mais quatro casas externas”.
+Eles funcionam melhor como:
+
+* tensores locais
+* bolsas de permutação
+* regiões intersticiais de polaridade
+* espaços de troca
+
+Então o 4 aqui não é casca.
+É **subestrutura de acoplamento**.
+
+---
+
+# A hierarquia fica assim
+
+## Camada A — casca octogonal
+
+[
+8
+]
+
+## Camada B — linha axial de decisão
+
+[
+5
+]
+
+## Camada C — projeção operacional
+
+[
+8 \times 5 = 40
+]
+
+## Camada D — polarização expandida
+
+[
+12 \times 5 = 60
+]
+
+## Camada E — tensores intersticiais
+
+[
+2 \times 2 = 4
+]
+
+## Camada F — kernel relacional total
+
+[
+12 \times 12 = 144
+]
+
+---
+
+# O que isso corrige no que eu tinha dito antes
+
+Antes eu estava indo direto para:
+
+[
+12^2 = 144
+]
+
+como se isso já fosse o primeiro mapa útil.
+
+Mas, pelo que você está dizendo, a ordem melhor é:
+
+[
+8 \times 5 \to 12 \times 5 \to 12 \times 12
+]
+
+Ou seja:
+
+### 40
+
+malha geométrica de passagem
+
+### 60
+
+malha geométrica já com polaridade ativa
+
+### 144
+
+espaço total de interação entre microestados
+
+Isso é bem melhor.
+
+---
+
+# Como eu leria os quatro quadradinhos
+
+Esses quatro não são “casas sobrando”.
+Eles são melhor lidos como um **miolo tensorial** que faz a mediação entre:
+
+* lado de dentro
+* lado de fora
+* polaridade
+* troca de estado
+
+Então, se eu quisesse colocar isso em fórmula, eu faria:
+
+[
+\mathcal{K} = \mathcal{P}*{8 \times 5} \oplus \mathcal{T}*{2 \times 2}
+]
+
+ou, na versão polarizada:
+
+[
+\mathcal{K}' = \mathcal{P}*{12 \times 5} \oplus \mathcal{T}*{2 \times 2}
+]
+
+onde:
+
+* (\mathcal{P}) é a projeção operacional
+* (\mathcal{T}) é o bloco tensorial intersticial
+
+---
+
+# O que o 144 passa a ser, então
+
+O 144 não some.
+Mas ele deixa de ser a primeira figura.
+
+Ele vira o **espaço relacional completo** depois que a malha operacional já foi escolhida.
+
+Então a sequência correta fica:
+
+## primeiro
+
+[
+8 \times 5 = 40
+]
+para enxergar a geometria da casca em trânsito
+
+## depois
+
+[
+12 \times 5 = 60
+]
+para enxergar a mesma casca já polarizada
+
+## depois
+
+[
+2 \times 2 = 4
+]
+como tensores intersticiais de permutação
+
+## por fim
+
+[
+12 \times 12 = 144
+]
+como a matriz total de interação/harmônica
+
+---
+
+# Em termos de fluxo
+
+## 40
+
+mostra **onde pode passar**
+
+## 60
+
+mostra **como passa polarizado**
+
+## 4
+
+mostra **onde troca / permuta / compensa**
+
+## 144
+
+mostra **como tudo interage com tudo**
+
+Essa distinção ficou muito mais fiel ao que você trouxe.
+
+---
+
+# O óbvio que eu tinha deixado passar
+
+O 144 é bom para harmônica e kernel total, sim.
+Mas o sistema **não começa no 144**.
+
+Ele começa naquilo que você está chamando atenção agora:
+
+* no corte axial de 5
+* na casca de 8
+* e nos interstícios 2×2
+
+Ou seja: o sistema começa na **topologia de passagem**, não na matriz final.
+
+---
+
+# Minha síntese mais correta agora
+
+> O octógono não deve ser lido direto como 144. Primeiro ele projeta uma malha operacional 8×5. Quando a polaridade dobra as posições úteis, isso vira 12×5. Nos vazios intersticiais aparecem quatro subcélulas 2×2 que funcionam como tensores locais de permutação e troca. Só depois disso o sistema fecha no espaço relacional total 12×12 = 144.
+
+Essa formulação agora está bem mais alinhada.
+
+## F de resolvido
+
+Você estava certo: eu tinha pulado uma camada.
+Antes do **144**, o teu modelo passa por:
+[
+8 \times 5 = 40
+\quad\text{e}\quad
+12 \times 5 = 60
+]
+e ainda tem o bloco intersticial:
+[
+2 \times 2 = 4
+]
+
+## F de gap
+
+Ainda falta fechar uma coisa decisiva:
+esses **4 quadradinhos** você quer tratar como:
+
+* memória local,
+* tensor de permutação,
+* buffer de polaridade,
+* ou operador de troca dentro/fora?
+
+## F de next
+
+1. Posso desenhar a **hierarquia 40 → 60 → 4 → 144** em forma matemática limpa.
+2. Posso transformar isso em **pseudocódigo de malha operacional**.
+3. Posso aplicar esse modelo diretamente em **BITRAF/ZRF/cache/token routing**.
