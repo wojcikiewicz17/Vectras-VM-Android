@@ -15,6 +15,7 @@ import com.vectras.vm.rafaelia.RafaeliaSettings;
 import com.vectras.vm.qemu.KvmProbe;
 import com.vectras.vm.qemu.QemuArgsBuilder;
 import com.vectras.vm.qemu.QemuBinaryResolver;
+import com.vectras.vm.qemu.QemuExecConfig;
 import com.vectras.vm.qemu.VmProfile;
 
 import java.io.File;
@@ -57,7 +58,7 @@ public class StartVM {
         String ifType = "";
 
         if (!isQuickRun) {
-            params.add(QemuArgsBuilder.binaryForArch(arch));
+            params.add(QemuExecConfig.resolveBinary(activity, arch));
 
             params.add("-qmp");
             params.add("unix:" + Config.getLocalQMPSocketPath() + ",server,nowait");

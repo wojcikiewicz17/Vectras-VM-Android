@@ -6,7 +6,7 @@ import static com.vectras.vm.utils.LibraryChecker.isPackageInstalled2;
 import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
+import android.content.pm.PackageManager;
 import android.util.Log;
 
 import com.termux.app.TermuxService;
@@ -29,6 +29,8 @@ import java.util.Set;
 
 public class DisplaySystem {
     private static final String TAG = "DisplaySystem";
+    private static final String TERMUX_X11_PACKAGE = "com.termux.x11";
+    private static final String TERMUX_X11_ACTIVITY = "com.termux.x11.MainActivity";
     private static boolean isTermuxClassLoaded = false;
 
     public static boolean isUseBuiltInX11() {
@@ -52,19 +54,16 @@ public class DisplaySystem {
     }
 
     public static void launchX11(Context context, boolean isKill) {
-        if (!isUseBuiltInX11() && !PackageUtils.isInstalled("com.termux.x11", context)) {
+        if (!isUseBuiltInX11() && !isTermuxX11Available(context)) {
             DialogUtils.needInstallTermuxX11(context);
             return;
         }
 
-        // XFCE4 meta-package
         String necessaryPackage = "fluxbox";
 
-        // Check if XFCE4 is installed
         isPackageInstalled2(context, necessaryPackage, (output, errors) -> {
             boolean isInstalled = false;
 
-            // Check if the package exists in the installed packages output
             if (output != null) {
                 Set<String> installedPackages = new HashSet<>();
                 for (String installedPackage : output.split("\n")) {
@@ -74,7 +73,6 @@ public class DisplaySystem {
                 isInstalled = installedPackages.contains(necessaryPackage.trim());
             }
 
-            // If not installed, show a dialog to install it
             if (!isInstalled) {
                 DialogUtils.twoDialog(
                         context,
@@ -93,10 +91,10 @@ public class DisplaySystem {
                         null
                 );
             } else {
-                if (!isUseBuiltInX11() ) {
+                if (!isUseBuiltInX11()) {
                     Log.d(TAG, "launchX11: Opened: com.termux.x11.MainActivity.");
                     Intent intent = new Intent();
-                    intent.setClassName("com.termux.x11", "com.termux.x11.MainActivity");
+                    intent.setClassName(TERMUX_X11_PACKAGE, TERMUX_X11_ACTIVITY);
                     intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
                     intent.addFlags(Intent.FLAG_ACTIVITY_MULTIPLE_TASK);
                     context.startActivity(intent);
@@ -123,7 +121,7 @@ public class DisplaySystem {
             ShellExecutor shellExec = new ShellExecutor();
             shellExec.exec(TermuxService.PREFIX_PATH + "/bin/termux-x11 :0");
         } else {
-            if (PackageUtils.isInstalled("com.termux.x11", context)){
+            if (isTermuxX11Available(context)){
                 try {
                     TermuxX11.main(new String[]{":0"});
                 } catch (Exception e) {
@@ -131,5 +129,15 @@ public class DisplaySystem {
                 }
             }
         }
+    }
+
+    private static boolean isTermuxX11Available(Context context) {
+        if (!PackageUtils.isInstalled(TERMUX_X11_PACKAGE, context)) {
+            return false;
+        }
+        Intent intent = new Intent();
+        intent.setClassName(TERMUX_X11_PACKAGE, TERMUX_X11_ACTIVITY);
+        PackageManager pm = context.getPackageManager();
+        return pm.resolveActivity(intent, 0) != null;
     }
 }
