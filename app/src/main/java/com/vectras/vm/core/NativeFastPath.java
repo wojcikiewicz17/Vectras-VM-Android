@@ -549,7 +549,7 @@ public final class NativeFastPath {
         if (data == null || length <= 0) {
             return initial;
         }
-        if (offset < 0 || offset + length > data.length) {
+        if (!isValidRange(data.length, offset, length)) {
             throw new IllegalArgumentException("Invalid crc range");
         }
         TELEMETRY_CRC_CALLS.incrementAndGet();
@@ -644,7 +644,7 @@ public final class NativeFastPath {
         if (offset < 0 || srcOffset < 0 || length < 0) {
             throw new IllegalArgumentException("Arena write offsets/length must be >= 0");
         }
-        if (srcOffset + length > src.length) {
+        if (!isValidRange(src.length, srcOffset, length)) {
             throw new IllegalArgumentException("Source range exceeds buffer length");
         }
         if (length == 0) {
@@ -809,6 +809,13 @@ public final class NativeFastPath {
             return Short.MAX_VALUE;
         }
         return value;
+    }
+
+    private static boolean isValidRange(int bufferLength, int offset, int length) {
+        if (offset < 0 || length < 0 || bufferLength < 0 || offset > bufferLength) {
+            return false;
+        }
+        return (long) offset + (long) length <= (long) bufferLength;
     }
 
     private static String toHex8(int value) {

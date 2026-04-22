@@ -55,6 +55,16 @@ static int vectra_kernel_ensure(void) {
     return rc;
 }
 
+static int vectra_validate_byte_range(jsize array_len, jint offset, jint length) {
+    if (array_len < 0 || offset < 0 || length < 0) {
+        return 0;
+    }
+    if (offset > array_len) {
+        return 0;
+    }
+    return ((int64_t)offset + (int64_t)length) <= (int64_t)array_len;
+}
+
 JNIEXPORT jint JNICALL
 Java_com_vectras_vm_core_NativeFastPath_nativeInit(JNIEnv* env, jclass clazz) {
     (void)env; (void)clazz;
@@ -121,15 +131,14 @@ JNIEXPORT jint JNICALL
 Java_com_vectras_vm_core_NativeFastPath_nativeCopyBytes(JNIEnv* env, jclass clazz, jbyteArray src, jint srcOffset, jbyteArray dst, jint dstOffset, jint length) {
     (void)clazz;
     if (vectra_kernel_ensure() != RMR_KERNEL_OK) return RMR_KERNEL_ERR_STATE;
-    if (!src || !dst || srcOffset < 0 || dstOffset < 0 || length < 0) return RMR_KERNEL_ERR_ARG;
+    if (!src || !dst) return RMR_KERNEL_ERR_ARG;
 
     jsize srcLen = (*env)->GetArrayLength(env, src);
     jsize dstLen = (*env)->GetArrayLength(env, dst);
     if (srcLen < 0 || dstLen < 0) return RMR_KERNEL_ERR_STATE;
 
-    if (srcOffset > srcLen || dstOffset > dstLen) return RMR_KERNEL_ERR_ARG;
-    if (length > srcLen - srcOffset) return RMR_KERNEL_ERR_ARG;
-    if (length > dstLen - dstOffset) return RMR_KERNEL_ERR_ARG;
+    if (!vectra_validate_byte_range(srcLen, srcOffset, length)) return RMR_KERNEL_ERR_ARG;
+    if (!vectra_validate_byte_range(dstLen, dstOffset, length)) return RMR_KERNEL_ERR_ARG;
 
     jbyte* s = (*env)->GetPrimitiveArrayCritical(env, src, NULL);
     if (!s) {
@@ -158,9 +167,7 @@ Java_com_vectras_vm_core_NativeFastPath_nativeXorChecksum(JNIEnv* env, jclass cl
     (void)clazz;
     if (vectra_kernel_ensure() != RMR_KERNEL_OK || !data) return (jint)0x80000000u;
     jsize len = (*env)->GetArrayLength(env, data);
-    if (offset < 0 || length < 0) return (jint)0x80000000u;
-    if (offset > len) return (jint)0x80000000u;
-    if (length > (len - offset)) return (jint)0x80000000u;
+    if (!vectra_validate_byte_range(len, offset, length)) return (jint)0x80000000u;
     jbyte* p = (*env)->GetPrimitiveArrayCritical(env, data, NULL);
     if (!p) return (jint)0x80000000u;
     uint32_t x = RmR_UnifiedKernel_XorChecksum(&g_unified_state, (const uint8_t*)p + offset, (size_t)length);
@@ -178,9 +185,9 @@ Java_com_vectras_vm_core_NativeFastPath_nativeFold32(JNIEnv* env, jclass clazz, 
 JNIEXPORT jint JNICALL
 Java_com_vectras_vm_core_NativeFastPath_nativeReduceXor(JNIEnv* env, jclass clazz, jbyteArray data, jint offset, jint length) {
     (void)clazz;
-    if (!data || offset < 0 || length < 0) return 0;
+    if (!data) return 0;
     const jsize n = (*env)->GetArrayLength(env, data);
-    if (offset > n || length > (n - offset)) return 0;
+    if (!vectra_validate_byte_range(n, offset, length)) return 0;
     jbyte* p = (*env)->GetPrimitiveArrayCritical(env, data, NULL);
     if (!p) return 0;
     const uint32_t out = rmr_lowlevel_reduce_xor((const uint8_t*)p + (size_t)offset, (size_t)length);
@@ -191,9 +198,9 @@ Java_com_vectras_vm_core_NativeFastPath_nativeReduceXor(JNIEnv* env, jclass claz
 JNIEXPORT jint JNICALL
 Java_com_vectras_vm_core_NativeFastPath_nativeChecksum32(JNIEnv* env, jclass clazz, jbyteArray data, jint offset, jint length, jint seed) {
     (void)clazz;
-    if (!data || offset < 0 || length < 0) return seed;
+    if (!data) return seed;
     const jsize n = (*env)->GetArrayLength(env, data);
-    if (offset > n || length > (n - offset)) return seed;
+    if (!vectra_validate_byte_range(n, offset, length)) return seed;
     jbyte* p = (*env)->GetPrimitiveArrayCritical(env, data, NULL);
     if (!p) return seed;
     const uint32_t out = rmr_lowlevel_checksum32((const uint8_t*)p + (size_t)offset, (size_t)length, (uint32_t)seed);
@@ -221,17 +228,17 @@ JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativePageBytes(J
 JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeFeatureMask(JNIEnv* env, jclass clazz){(void)env;(void)clazz;rmr_jni_capabilities_t caps; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return 0; pthread_mutex_lock(&g_unified_lock); int rc=rmr_jni_kernel_get_capabilities(&g_unified_state,&caps); pthread_mutex_unlock(&g_unified_lock); if(rc!=RMR_KERNEL_OK)return 0; return (jint)caps.feature_mask;}
 
 // Contrato legado RMR_UK arena: wrappers JNI ainda não expõem alocador de arenas e handles.
-JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeAllocArena(JNIEnv* env, jclass clazz, jint bytes){(void)env;(void)clazz;uint32_t h=0; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; int rc=RmR_UnifiedKernel_ArenaAlloc(&g_unified_state,(uint32_t)bytes,&h); return (rc==RMR_KERNEL_OK)?(jint)h:(jint)rc;}
+JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeAllocArena(JNIEnv* env, jclass clazz, jint bytes){(void)env;(void)clazz;uint32_t h=0; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; if(bytes<=0)return RMR_KERNEL_ERR_ARG; int rc=RmR_UnifiedKernel_ArenaAlloc(&g_unified_state,(uint32_t)bytes,&h); return (rc==RMR_KERNEL_OK)?(jint)h:(jint)rc;}
 // Contrato legado RMR_UK arena: wrappers JNI ainda não expõem alocador de arenas e handles.
 JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeFreeArena(JNIEnv* env, jclass clazz, jint handle){(void)env;(void)clazz; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; return (jint)RmR_UnifiedKernel_ArenaFree(&g_unified_state,(uint32_t)handle);} 
 // Contrato legado RMR_UK arena: wrappers JNI ainda não expõem alocador de arenas e handles.
-JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeArenaCopy(JNIEnv* env, jclass clazz, jint sH, jint sO, jint dH, jint dO, jint l){(void)env;(void)clazz; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; return (jint)RmR_UnifiedKernel_ArenaCopy(&g_unified_state,(uint32_t)sH,(uint32_t)sO,(uint32_t)dH,(uint32_t)dO,(uint32_t)l);} 
+JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeArenaCopy(JNIEnv* env, jclass clazz, jint sH, jint sO, jint dH, jint dO, jint l){(void)env;(void)clazz; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; if(sH<=0||dH<=0||sO<0||dO<0||l<0)return RMR_KERNEL_ERR_ARG; return (jint)RmR_UnifiedKernel_ArenaCopy(&g_unified_state,(uint32_t)sH,(uint32_t)sO,(uint32_t)dH,(uint32_t)dO,(uint32_t)l);} 
 // Contrato legado RMR_UK arena: wrappers JNI ainda não expõem alocador de arenas e handles.
-JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeArenaXorChecksum(JNIEnv* env, jclass clazz, jint h, jint o, jint l){(void)env;(void)clazz; uint32_t out=0; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; int rc=RmR_UnifiedKernel_ArenaXorChecksum(&g_unified_state,(uint32_t)h,(uint32_t)o,(uint32_t)l,&out); return (rc==RMR_KERNEL_OK)?(jint)out:(jint)rc;} 
+JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeArenaXorChecksum(JNIEnv* env, jclass clazz, jint h, jint o, jint l){(void)env;(void)clazz; uint32_t out=0; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; if(h<=0||o<0||l<0)return RMR_KERNEL_ERR_ARG; int rc=RmR_UnifiedKernel_ArenaXorChecksum(&g_unified_state,(uint32_t)h,(uint32_t)o,(uint32_t)l,&out); return (rc==RMR_KERNEL_OK)?(jint)out:(jint)rc;} 
 // Contrato legado RMR_UK arena: wrappers JNI ainda não expõem alocador de arenas e handles.
-JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeArenaFill(JNIEnv* env, jclass clazz, jint h, jint o, jint l, jint v){(void)env;(void)clazz; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; return (jint)RmR_UnifiedKernel_ArenaFill(&g_unified_state,(uint32_t)h,(uint32_t)o,(uint32_t)l,(uint8_t)v);} 
+JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeArenaFill(JNIEnv* env, jclass clazz, jint h, jint o, jint l, jint v){(void)env;(void)clazz; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; if(h<=0||o<0||l<0)return RMR_KERNEL_ERR_ARG; return (jint)RmR_UnifiedKernel_ArenaFill(&g_unified_state,(uint32_t)h,(uint32_t)o,(uint32_t)l,(uint8_t)v);} 
 // Contrato legado RMR_UK arena: wrappers JNI ainda não expõem alocador de arenas e handles.
-JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeArenaWrite(JNIEnv* env, jclass clazz, jint h, jint o, jbyteArray src, jint srcOffset, jint l){(void)clazz; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; if(!src)return RMR_KERNEL_ERR_ARG; jsize srcLen=(*env)->GetArrayLength(env,src); if(srcOffset<0||l<0)return RMR_KERNEL_ERR_ARG; if(srcOffset>srcLen)return RMR_KERNEL_ERR_ARG; if(l>(srcLen-srcOffset))return RMR_KERNEL_ERR_ARG; jbyte* p=(*env)->GetPrimitiveArrayCritical(env,src,NULL); if(!p)return RMR_KERNEL_ERR_STATE; int rc=RmR_UnifiedKernel_ArenaWrite(&g_unified_state,(uint32_t)h,(uint32_t)o,(const uint8_t*)p+srcOffset,(uint32_t)l); (*env)->ReleasePrimitiveArrayCritical(env,src,p,JNI_ABORT); return (jint)rc;}
+JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeArenaWrite(JNIEnv* env, jclass clazz, jint h, jint o, jbyteArray src, jint srcOffset, jint l){(void)clazz; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; if(h<=0||o<0||!src)return RMR_KERNEL_ERR_ARG; jsize srcLen=(*env)->GetArrayLength(env,src); if(!vectra_validate_byte_range(srcLen,srcOffset,l))return RMR_KERNEL_ERR_ARG; jbyte* p=(*env)->GetPrimitiveArrayCritical(env,src,NULL); if(!p)return RMR_KERNEL_ERR_STATE; int rc=RmR_UnifiedKernel_ArenaWrite(&g_unified_state,(uint32_t)h,(uint32_t)o,(const uint8_t*)p+srcOffset,(uint32_t)l); (*env)->ReleasePrimitiveArrayCritical(env,src,p,JNI_ABORT); return (jint)rc;}
 
 JNIEXPORT jint JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeIngest(JNIEnv* env, jclass clazz, jbyteArray payload){(void)clazz; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return RMR_KERNEL_ERR_STATE; if(!payload)return RMR_KERNEL_ERR_ARG; jsize n=(*env)->GetArrayLength(env,payload); jbyte* p=(*env)->GetPrimitiveArrayCritical(env,payload,NULL); if(!p)return RMR_KERNEL_ERR_STATE; uint32_t out=0u; pthread_mutex_lock(&g_unified_lock); int rc=rmr_jni_kernel_ingest(&g_unified_state,(const uint8_t*)p,(uint32_t)n,&out); pthread_mutex_unlock(&g_unified_lock); (*env)->ReleasePrimitiveArrayCritical(env,payload,p,JNI_ABORT); return (rc==RMR_KERNEL_OK)?(jint)out:(jint)rc;}
 JNIEXPORT jlongArray JNICALL Java_com_vectras_vm_core_NativeFastPath_nativeProcessRoute(JNIEnv* env, jclass clazz, jlong cpu, jlong sR, jlong sW, jlong inB, jlong outB, jlong m00, jlong m01, jlong m10, jlong m11){(void)clazz; if(vectra_kernel_ensure()!=RMR_KERNEL_OK)return NULL; rmr_jni_route_input_t in; in.cpu_cycles=(uint64_t)cpu; in.storage_read_bytes=(uint64_t)sR; in.storage_write_bytes=(uint64_t)sW; in.input_bytes=(uint64_t)inB; in.output_bytes=(uint64_t)outB; in.m00=(int64_t)m00; in.m01=(int64_t)m01; in.m10=(int64_t)m10; in.m11=(int64_t)m11; rmr_jni_route_output_t out_state; pthread_mutex_lock(&g_unified_lock); int rc=rmr_jni_kernel_route(&g_unified_state,&in,&out_state); pthread_mutex_unlock(&g_unified_lock); if(rc!=RMR_KERNEL_OK)return NULL; jlong out[9]={(jlong)out_state.cpu_pressure,(jlong)out_state.storage_pressure,(jlong)out_state.io_pressure,(jlong)out_state.matrix_determinant,(jlong)out_state.route_tag,(jlong)out_state.bitomega_state,(jlong)out_state.bitomega_dir,(jlong)out_state.bitomega_invariant_ok,(jlong)out_state.bitomega_fallback_safe}; jlongArray arr=(*env)->NewLongArray(env,9); if(!arr)return NULL; (*env)->SetLongArrayRegion(env,arr,0,9,out); return arr;}
