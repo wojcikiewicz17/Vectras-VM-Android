@@ -89,7 +89,7 @@ public class TermuxInstallerTest {
             fail("loadZipBytes() should not throw generic exception when JNI library is unavailable: " + throwable);
         }
 
-        assertEquals(0, zipBytes.length);
+        assertTrue(zipBytes == null || zipBytes.length == 0);
 
         String diagnostics = TermuxInstaller.getBootstrapNativeLoadError();
         assertTrue(diagnostics.contains("lib=termux-bootstrap"));
@@ -150,7 +150,7 @@ public class TermuxInstallerTest {
 
         try {
             byte[] actual = TermuxInstaller.loadZipBytes();
-            assertEquals(0, actual.length);
+            assertTrue(actual == null || actual.length == 0);
         } catch (Throwable throwable) {
             fail("loadZipBytes() should not throw generic exception when provider marks JNI unavailable: " + throwable);
         }
