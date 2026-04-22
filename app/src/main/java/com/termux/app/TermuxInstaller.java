@@ -244,12 +244,16 @@ final class TermuxInstaller {
         Os.chmod(file.getAbsolutePath(), 0700);
     }
 
-    private static void ensureExecutablePermissions(List<File> executableCandidates) throws ErrnoException {
+    private static void ensureExecutablePermissions(List<File> executableCandidates) {
         if (executableCandidates == null) {
             return;
         }
         for (File candidate : executableCandidates) {
-            applyExecutablePermission(candidate);
+            try {
+                applyExecutablePermission(candidate);
+            } catch (ErrnoException e) {
+                Log.w(EmulatorDebug.LOG_TAG, "Failed to apply executable permission: " + candidate, e);
+            }
         }
     }
 

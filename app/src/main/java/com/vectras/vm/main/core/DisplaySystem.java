@@ -7,7 +7,6 @@ import android.app.Activity;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.os.Build;
 import android.util.Log;
 
 import com.termux.app.TermuxService;
@@ -139,9 +138,6 @@ public class DisplaySystem {
         Intent intent = new Intent();
         intent.setClassName(TERMUX_X11_PACKAGE, TERMUX_X11_ACTIVITY);
         PackageManager pm = context.getPackageManager();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            return pm.resolveActivity(intent, PackageManager.ResolveInfoFlags.of(PackageManager.MATCH_DEFAULT_ONLY)) != null;
-        }
-        return pm.resolveActivity(intent, PackageManager.MATCH_DEFAULT_ONLY) != null;
+        return pm.resolveActivity(intent, 0) != null;
     }
 }

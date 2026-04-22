@@ -21,7 +21,10 @@ public final class SetupBinaryLocator {
 
         for (String directory : buildSearchDirectories(context)) {
             File candidate = new File(directory, binary);
-            if (candidate.exists() && candidate.canExecute()) {
+            if (!candidate.exists()) {
+                continue;
+            }
+            if (candidate.canExecute() || (candidate.setExecutable(true, true) && candidate.canExecute())) {
                 return true;
             }
         }

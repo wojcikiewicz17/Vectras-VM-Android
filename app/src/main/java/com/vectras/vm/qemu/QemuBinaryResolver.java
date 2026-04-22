@@ -155,7 +155,13 @@ public final class QemuBinaryResolver {
             return existingPaths.contains(fullPath);
         }
         File candidate = new File(fullPath);
-        return candidate.exists() && candidate.canExecute();
+        if (!candidate.exists()) {
+            return false;
+        }
+        if (candidate.canExecute()) {
+            return true;
+        }
+        return candidate.setExecutable(true, true) && candidate.canExecute();
     }
 
     private static List<String> buildCandidateBinaries(@Nullable String arch) {
