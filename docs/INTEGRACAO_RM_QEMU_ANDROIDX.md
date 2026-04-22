@@ -16,6 +16,24 @@ Consolidar melhorias comprovadas dos projetos externos (QEMU e AndroidX) dentro 
 - **Compatibilidade QEMU** com presets, telemetria e tuning.
 - **Documentação baseada em diagramas** (imagens fornecidas pelo autor).
 
+### 1.1 Contrato operacional dos repositórios externos
+
+Fonte de verdade para os links e branches de integração:
+
+- `tools/ci/external_sources.manifest`
+
+Validação automática (local/CI):
+
+```bash
+./tools/ci/verify_external_sources.sh --check-remote
+```
+
+Sincronização opcional para workspace local em `.third_party_forks/`:
+
+```bash
+./tools/ci/verify_external_sources.sh --sync-clone
+```
+
 ---
 
 ## 2. Pilares de integração (o que é “melhor” e deve ser absorvido)
