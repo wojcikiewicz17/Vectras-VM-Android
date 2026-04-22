@@ -13,6 +13,9 @@ Esta revisão consolida a documentação em três camadas por diretório (propó
 - Metadados de governança documental atualizados para acompanhamento de ciclo.
 
 
+## START HERE
+- Entrada rápida profissional: [`START_HERE.md`](START_HERE.md)
+
 ## Governança e estado — navegação rápida
 - Estado do projeto: [`PROJECT_STATE.md`](PROJECT_STATE.md)
 - Histórico de mudanças: [`CHANGELOG.md`](CHANGELOG.md)
