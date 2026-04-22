@@ -19,3 +19,13 @@ Wrapper e bootstrap de build.
 find gradle -maxdepth 3 -type d | sort
 sed -n '1,120p' gradle/FILES_MAP.md
 ```
+
+## Bootstrap Android SDK (local)
+Quando o ambiente local ainda não tem `local.properties` coerente com o contrato do repositório:
+
+```bash
+./gradlew prepareAndroidLocalEnv
+./gradlew verifyAndroidSdkPackages
+```
+
+O task `prepareAndroidLocalEnv` usa o mesmo contrato de fallback de SDK aplicado no build (`.android-sdk`, `/workspace/android-sdk`, `/usr/lib/android-sdk`, `/opt/android-sdk`, `/opt/android-sdk-linux`, `$HOME/Android/Sdk`) e grava apenas `sdk.dir` em `local.properties` (sem `ndk.dir`). 
