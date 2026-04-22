@@ -234,6 +234,9 @@ jobs:
       - name: Validate Android pipeline directories
         run: ./tools/ci/validate_pipeline_directories.sh --profile android
 
+      - name: Validate external integration sources (androidx_RmR/qemu_rafaelia)
+        run: ./tools/ci/verify_external_sources.sh --check-remote
+
       - name: Validate Java source contracts
         run: python3 ./tools/ci/check_java_contracts.py
 
