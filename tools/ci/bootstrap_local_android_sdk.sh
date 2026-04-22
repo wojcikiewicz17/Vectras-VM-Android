@@ -65,17 +65,63 @@ TOOLS_VERSION="$(read_gradle_prop 'tools.version')"
 CMAKE_VERSION="$(read_gradle_prop 'cmake.version')"
 NDK_VERSION="$(read_gradle_prop 'ndk.version')"
 JAVA_VERSION="$(read_gradle_prop 'java.language.version')"
+MAX_RUNTIME_JAVA_VERSION="$(read_gradle_prop 'gradle.max.runtime.java.version')"
 
-for required_var in COMPILE_API TOOLS_VERSION CMAKE_VERSION NDK_VERSION JAVA_VERSION; do
+for required_var in COMPILE_API TOOLS_VERSION CMAKE_VERSION NDK_VERSION JAVA_VERSION MAX_RUNTIME_JAVA_VERSION; do
   if [[ -z "${!required_var}" ]]; then
     echo "Missing ${required_var} in gradle.properties" >&2
     exit 1
   fi
 done
 
+ensure_java_runtime() {
+  if command -v java >/dev/null 2>&1; then
+    return 0
+  fi
+
+  for candidate in \
+    "$HOME/.local/share/mise/installs/java/17/bin/java" \
+    "$HOME/.local/share/mise/installs/java/21/bin/java" \
+    "/usr/lib/jvm/java-17-openjdk-amd64/bin/java" \
+    "/usr/lib/jvm/java-21-openjdk-amd64/bin/java"; do
+    if [[ -x "$candidate" ]]; then
+      export JAVA_HOME="$(dirname "$(dirname "$candidate")")"
+      export PATH="$JAVA_HOME/bin:$PATH"
+      break
+    fi
+  done
+
+  if ! command -v java >/dev/null 2>&1; then
+    echo "java not found in PATH and no known JDK candidate was detected" >&2
+    exit 1
+  fi
+}
+
+detect_java_major() {
+  local java_bin
+  java_bin="$(command -v java)"
+  "$java_bin" -XshowSettings:properties -version 2>&1 \
+    | awk -F= '/java\.specification\.version/ {gsub(/ /,"",$2); print $2; exit}'
+}
+
+assert_java_runtime_policy() {
+  local java_major="$1"
+  if (( java_major < JAVA_VERSION )); then
+    echo "Java runtime ${java_major} is below baseline ${JAVA_VERSION}" >&2
+    exit 1
+  fi
+  if (( java_major > MAX_RUNTIME_JAVA_VERSION )); then
+    echo "Java runtime ${java_major} exceeds allowed maximum ${MAX_RUNTIME_JAVA_VERSION}" >&2
+    exit 1
+  fi
+}
+
 mkdir -p "${SDK_ROOT}"
 export ANDROID_SDK_ROOT="${SDK_ROOT}"
 export ANDROID_HOME="${SDK_ROOT}"
+ensure_java_runtime
+JAVA_MAJOR="$(detect_java_major)"
+assert_java_runtime_policy "${JAVA_MAJOR}"
 if [[ -d "${SDK_ROOT}/cmdline-tools/latest/bin" ]]; then
   export PATH="${SDK_ROOT}/cmdline-tools/latest/bin:${SDK_ROOT}/platform-tools:${PATH}"
 fi
@@ -117,7 +163,7 @@ sdkmanager \
   "ndk;${NDK_VERSION}"
 
 "${SCRIPT_DIR}/prepare_android_env.sh" \
-  --java-version "${JAVA_VERSION}" \
+  --java-version "${JAVA_MAJOR}" \
   --sdk-root "${SDK_ROOT}" \
   --ndk-version "${NDK_VERSION}"
 

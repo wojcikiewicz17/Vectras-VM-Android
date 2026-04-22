@@ -3,6 +3,7 @@ package com.termux.terminal;
 import android.annotation.SuppressLint;
 import android.os.Build;
 import android.os.Handler;
+import android.os.Looper;
 import android.os.Message;
 import android.system.ErrnoException;
 import android.system.Os;
@@ -53,6 +54,7 @@ public final class TerminalSession extends TerminalOutput {
 
     }
 
+    @SuppressLint("DiscouragedPrivateApi")
     private static FileDescriptor wrapFileDescriptor(int fileDescriptor) {
         FileDescriptor result = new FileDescriptor();
         try {
@@ -111,7 +113,7 @@ public final class TerminalSession extends TerminalOutput {
     public String mSessionName;
 
     @SuppressLint("HandlerLeak")
-    final Handler mMainThreadHandler = new Handler() {
+    final Handler mMainThreadHandler = new Handler(Looper.getMainLooper()) {
         final byte[] mReceiveBuffer = new byte[4 * 1024];
 
         @Override

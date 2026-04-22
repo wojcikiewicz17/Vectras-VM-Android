@@ -69,6 +69,9 @@ jobs:
             echo "${env_key}=${value}" >> "$GITHUB_ENV"
           done
 
+      - name: Validate external integration sources (androidx_RmR/qemu_rafaelia)
+        run: ./tools/ci/verify_external_sources.sh --check-remote
+
       - uses: actions/setup-java@v4
         with:
           java-version: '17'
@@ -80,7 +83,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +o pipefail
           yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
           sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
 
       - name: Build ABI lane
@@ -96,8 +101,8 @@ jobs:
 
           eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${profile}" --allow-generic-fallback)"
 
-          if [[ "${{ matrix.variant }}" == "Release" && "${profile}" != "official_arm64" ]]; then
-            echo "Release lane bloqueada para profile=${profile}; gate oficial exige official_arm64."
+          if [[ "${{ matrix.variant }}" == "Release" && "${profile}" != "official_arm64" && "${profile}" != "official_arm32_arm64" ]]; then
+            echo "Release lane bloqueada para profile=${profile}; gate oficial exige official_arm64 ou official_arm32_arm64."
             exit 1
           fi
 

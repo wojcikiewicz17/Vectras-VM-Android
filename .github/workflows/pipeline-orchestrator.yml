@@ -8,25 +8,67 @@ on:
   workflow_dispatch:
     inputs:
       pipeline_profile:
-        description: 'Build profile: host_only, android_only, full'
-        required: false
-        default: 'full'
+        description: 'Combobox: escolhe quais trilhas executar (host/android/full).'
+        type: choice
+        required: true
+        default: full
+        options:
+          - full
+          - host_only
+          - android_only
       run_workfile:
-        description: 'Android profile: smoke_debug, unit_loader, full_debug, release_gate'
-        required: false
-        default: 'smoke_debug'
+        description: 'Combobox: perfil didático de execução Android.'
+        type: choice
+        required: true
+        default: smoke_debug
+        options:
+          - smoke_debug
+          - unit_loader
+          - full_debug
+          - compat_matrix_debug
+          - upstream-debug-compat
+          - release_gate
+      ci_lane:
+        description: 'Combobox: lane explícita (evita erro de digitação).'
+        type: choice
+        required: true
+        default: auto
+        options:
+          - auto
+          - debug-local
+          - debug-internal-arm32-arm64
+          - release-unsigned-internal
+          - release-signed-official
       build_variant:
-        description: 'Android variant: debug, release, both'
-        required: false
-        default: 'debug'
+        description: 'Combobox: variante de build Android.'
+        type: choice
+        required: true
+        default: debug
+        options:
+          - debug
+          - release
+          - both
       abi_profile:
-        description: 'ABI profile: official_arm64, internal_arm32_arm64'
-        required: false
-        default: 'official_arm64'
+        description: 'Combobox: perfil ABI (oficial/interno/universal_guarded).'
+        type: choice
+        required: true
+        default: official_arm64
+        options:
+          - official_arm64
+          - official_arm32_arm64
+          - internal_arm32_arm64
+          - internal_4abi
+          - internal_5abi
+          - universal_guarded
       log_level:
-        description: 'Gradle log level: lifecycle, info, debug'
-        required: false
-        default: 'lifecycle'
+        description: 'Combobox: nível de log Gradle.'
+        type: choice
+        required: true
+        default: lifecycle
+        options:
+          - lifecycle
+          - info
+          - debug
 
 env:
   GRADLE_OPTS: "-Xmx4g -Dfile.encoding=UTF-8"
@@ -89,6 +131,7 @@ jobs:
     uses: ./.github/workflows/android-ci.yml
     with:
       run_workfile: ${{ github.event.inputs.run_workfile || 'smoke_debug' }}
+      ci_lane: ${{ github.event.inputs.ci_lane || 'auto' }}
       build_variant: ${{ github.event.inputs.build_variant || 'debug' }}
       signing_mode: auto
       abi_profile: ${{ github.event.inputs.abi_profile || 'official_arm64' }}

@@ -227,6 +227,17 @@ def validateArm64ToolchainCompatibility() {
     println "NDK_VERSION=${ndkVersion} validated for arm64-v8a toolchain flags (-march=armv8-a)."
 }
 
+def getAndroidSdkFallbackDirs() {
+    return [
+        "${rootProject.projectDir}/.android-sdk".toString(),
+        '/workspace/android-sdk',
+        '/usr/lib/android-sdk',
+        '/opt/android-sdk',
+        '/opt/android-sdk-linux',
+        "${System.properties['user.home']}/Android/Sdk".toString()
+    ]
+}
+
 def resolveAndroidSdkRootDir() {
     def localPropertiesFile = rootProject.file('local.properties')
     if (localPropertiesFile.exists()) {
@@ -243,12 +254,7 @@ def resolveAndroidSdkRootDir() {
         return file(envSdk)
     }
 
-    def fallbackSdkDirs = [
-        '/usr/lib/android-sdk',
-        '/opt/android-sdk',
-        '/opt/android-sdk-linux',
-        "${System.properties['user.home']}/Android/Sdk"
-    ]
+    def fallbackSdkDirs = getAndroidSdkFallbackDirs()
 
     def discovered = fallbackSdkDirs.collect { file(it) }.find { it.exists() }
     if (discovered != null) {
@@ -377,6 +383,32 @@ tasks.register("verifyAndroidSdkPackages") {
     description = "Valida sdk.dir/ANDROID_HOME e pacotes SDK/NDK/CMake requeridos pelo baseline"
     doLast {
         validateAndroidSdkPackages()
+    }
+}
+
+tasks.register("prepareAndroidLocalEnv") {
+    group = "verification"
+    description = "Normaliza local.properties (sdk.dir) usando o contrato de fallback do repositório."
+    doLast {
+        def resolvedSdk = resolveAndroidSdkRootDir()
+        if (resolvedSdk == null || !resolvedSdk.exists()) {
+            throw new GradleException(
+                    "Nenhum Android SDK encontrado. Fallbacks verificados: ${getAndroidSdkFallbackDirs().join(', ')}")
+        }
+
+        def prepareScript = file("tools/ci/prepare_android_env.sh")
+        if (!prepareScript.exists()) {
+            throw new GradleException("Script não encontrado: ${prepareScript}")
+        }
+
+        exec {
+            workingDir rootDir
+            commandLine "bash", prepareScript.absolutePath,
+                    "--sdk-root", resolvedSdk.absolutePath,
+                    "--ndk-version", ndkVersion,
+                    "--local-properties", rootProject.file("local.properties").absolutePath
+        }
+        println "Ambiente Android local preparado com sdk.dir=${resolvedSdk.absolutePath}"
     }
 }
 

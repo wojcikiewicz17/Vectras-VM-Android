@@ -4,6 +4,29 @@
 
 Scripts focados em gerar artefato APK release assinado com rastreabilidade.
 
+## build_apk_wizard.sh
+
+Wizard de build CI/local para trilhas debug multi-ABI com foco em compatibilidade.
+
+Fluxo:
+1. bootstrap de SDK/NDK/CMake com `tools/ci/bootstrap_local_android_sdk.sh`;
+2. build `:app:assembleDebug` arm64 oficial (`APP_ABI_POLICY=arm64-only`);
+3. build `:app:assembleDebug` dual ARM (`APP_ABI_POLICY=arm32-arm64`);
+4. materialização de artefatos em `artifacts/apk-wizard/` com relatório de tamanho.
+
+### Uso
+
+```bash
+bash tools/ci/build_apk_wizard.sh
+```
+
+### Saídas
+
+- `artifacts/apk-wizard/app-debug-arm64-v8a.apk`
+- `artifacts/apk-wizard/app-debug-arm32-arm64.apk`
+- `artifacts/apk-wizard/sizes.tsv`
+- `artifacts/apk-wizard/REPORT.md`
+
 ## build_release_signed_local.sh
 
 Pipeline local para:

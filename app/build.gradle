@@ -6,10 +6,13 @@ plugins {
 
 import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
+import java.security.MessageDigest
 import java.util.regex.Pattern
 import java.util.zip.ZipFile
+import java.util.Locale
 
 def termuxBootstrapSupportedAbis = (rootProject.ext.termuxBootstrapSupportedAbis ?: ['arm64-v8a', 'armeabi-v7a', 'x86', 'x86_64']) as List<String>
+def devFastPath = providers.gradleProperty("devFastPath").orElse("false").get().toBoolean()
 
 android {
     namespace = 'com.vectras.vm'
@@ -114,18 +117,76 @@ android {
         }
     }
 
-    def ciRelease = providers.gradleProperty("ciRelease").map { it.toBoolean() }.orElse(false).get()
-    def releaseSigningMode = providers.gradleProperty("signing_mode")
+def ciRelease = providers.gradleProperty("ciRelease").map { it.toBoolean() }.orElse(false).get()
+def releaseSigningMode = providers.gradleProperty("signing_mode")
         .orElse(providers.gradleProperty("SIGNING_MODE").orElse("auto"))
         .get()
         .trim()
         .toLowerCase()
-    def supportedSigningModes = ['auto', 'signed', 'unsigned'] as Set<String>
-    if (!(releaseSigningMode in supportedSigningModes)) {
-        throw new GradleException("signing_mode inválido: '${releaseSigningMode}'. Valores válidos: ${supportedSigningModes}.")
-    }
-    def effectiveSignedRelease = (releaseSigningMode == 'signed') || (releaseSigningMode == 'auto' && ciRelease)
-    def effectiveUnsignedRelease = (releaseSigningMode == 'unsigned')
+def supportedSigningModes = ['auto', 'signed', 'unsigned'] as Set<String>
+if (!(releaseSigningMode in supportedSigningModes)) {
+    throw new GradleException("signing_mode inválido: '${releaseSigningMode}'. Valores válidos: ${supportedSigningModes}.")
+}
+def effectiveSignedRelease = (releaseSigningMode == 'signed') || (releaseSigningMode == 'auto' && ciRelease)
+def effectiveUnsignedRelease = (releaseSigningMode == 'unsigned')
+def officialCi = providers.gradleProperty("OFFICIAL_CI")
+    .orElse(System.getenv("GITHUB_ACTIONS") == "true" ? "true" : "false")
+    .get()
+    .toBoolean()
+def ciInternalValidationEnabled = providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get().toBoolean()
+def requestedTaskNames = gradle.startParameter.taskNames.collect { it.toLowerCase() }
+def releaseLikeRequested = requestedTaskNames.any { taskName ->
+    taskName.contains("release") || taskName.contains("perfrelease")
+}
+def debugLikeRequested = requestedTaskNames.isEmpty() || requestedTaskNames.any { taskName ->
+    taskName.contains("debug")
+}
+def strictValidationReasons = []
+if (releaseLikeRequested) {
+    strictValidationReasons << "variant release/perfRelease requisitada"
+}
+if (ciRelease) {
+    strictValidationReasons << "ciRelease=true"
+}
+if (releaseSigningMode == 'signed') {
+    strictValidationReasons << "signing_mode=signed"
+}
+if (officialCi) {
+    strictValidationReasons << "CI oficial detectada"
+}
+def strictValidationRequired = !strictValidationReasons.isEmpty()
+def allowLocalHeavyValidationBypass = devFastPath && !strictValidationRequired
+project.ext.set("allowLocalHeavyValidationBypass", allowLocalHeavyValidationBypass)
+def buildExecutionMode = "debug-local"
+if (strictValidationRequired && (releaseSigningMode == 'signed' || ciRelease || officialCi)) {
+    buildExecutionMode = "release-signed-official"
+} else if (strictValidationRequired) {
+    buildExecutionMode = "release-unsigned-internal"
+} else if (ciInternalValidationEnabled || !debugLikeRequested) {
+    buildExecutionMode = "debug-internal-arm32-arm64"
+}
+
+def gateLog = { String cls, String message ->
+    logger.lifecycle("[${cls}] ${message}")
+}
+
+gateLog("ENV", "devFastPath=${devFastPath}, officialCi=${officialCi}, ciRelease=${ciRelease}, requestedTasks=${gradle.startParameter.taskNames}")
+gateLog("CONFIG", "signing_mode=${releaseSigningMode}, strictValidationRequired=${strictValidationRequired}, mode=${buildExecutionMode}, ciInternalValidation=${ciInternalValidationEnabled}")
+gateLog("SIGNING", strictValidationRequired
+    ? "Validação estrita mantida (${strictValidationReasons.join(' | ')})."
+    : "Validação estrita não requerida para trilha local.")
+if (allowLocalHeavyValidationBypass) {
+    gateLog("DEGRADE", "[CONTROLLED] devFastPath=true aplicou degradação somente de gates pesados de pré-build local (ABI_CONTRACT/BOOTSTRAP).")
+}
+if (devFastPath && strictValidationRequired) {
+    gateLog("DEGRADE", "[IGNORED] devFastPath=true foi ignorado porque a trilha '${buildExecutionMode}' exige validação estrita.")
+}
+gateLog("ABI_CONTRACT", allowLocalHeavyValidationBypass
+    ? "Gate degradado (modo local): pré-validação pesada de ABI/freestanding foi desativada."
+    : "Contrato ABI/freestanding permanece ativo.")
+gateLog("BOOTSTRAP", allowLocalHeavyValidationBypass
+    ? "Gate degradado (modo local): validações pesadas de bootstrap/shell-loader foram desativadas."
+    : "Validações de bootstrap/shell-loader permanecem ativas.")
 
     buildTypes {
         release {
@@ -203,22 +264,73 @@ def loaderVariant = (providers.gradleProperty("loaderVariant").orElse("release")
 if (!loaderVariant) {
     loaderVariant = "release"
 }
-def loaderVariantTaskSuffix = loaderVariant.substring(0, 1).toUpperCase() + loaderVariant.substring(1)
+def normalizedLoaderVariant = loaderVariant.toLowerCase(Locale.ROOT)
+def loaderVariantTaskSuffix = loaderVariant.substring(0, 1).toUpperCase(Locale.ROOT) + loaderVariant.substring(1)
 def shellLoaderAssembleTask = ":shell-loader:assemble${loaderVariantTaskSuffix}"
 def generatedBootstrapDir = layout.buildDirectory.dir("generated/bootstrapAssets/bootstrap")
-def shellLoaderArtifactPath = project(":shell-loader").layout.buildDirectory.file("outputs/apk/${loaderVariant}/loader.apk")
 def verifyShellLoaderManifest = Boolean.parseBoolean(providers.gradleProperty("verifyShellLoaderManifest").orElse("false").get())
+
+evaluationDependsOn(":shell-loader")
+def shellLoaderProject = project(":shell-loader")
+def shellLoaderVariantApkProviders = shellLoaderProject.ext.has("shellLoaderVariantApkProviders") ? shellLoaderProject.ext.shellLoaderVariantApkProviders : null
+
+def resolveShellLoaderArtifactFromVariant = {
+    if (!(shellLoaderVariantApkProviders instanceof Map)) {
+        throw new GradleException("[CONFIG] :shell-loader não publicou mapa de artefatos por variante via AGP. Verifique shell-loader/build.gradle (androidComponents/onVariants).")
+    }
+    def artifactProvider = shellLoaderVariantApkProviders[normalizedLoaderVariant]
+    def conventionalPath = shellLoaderProject.layout.buildDirectory.file("outputs/apk/${normalizedLoaderVariant}/loader.apk").get().asFile
+
+    if (artifactProvider == null) {
+        def discoveredVariants = shellLoaderVariantApkProviders.keySet().sort()
+        throw new GradleException("[CONFIG] Variante '${loaderVariant}' não encontrada em :shell-loader. Variantes disponíveis: ${discoveredVariants}. " +
+            "Procura realizada via AGP artifacts API e caminho convencional '${conventionalPath.absolutePath}'. " +
+            "Corrija com -PloaderVariant=<${discoveredVariants.join('|')}> e execute '${shellLoaderAssembleTask}'.")
+    }
+
+    def artifactCandidate = artifactProvider.get().asFile
+    if (!artifactCandidate.exists()) {
+        throw new GradleException("[CONFIG] Artifact do shell-loader ausente para variante '${loaderVariant}'. " +
+            "Procurado em '${artifactCandidate.absolutePath}' (AGP artifacts API) e fallback '${conventionalPath.absolutePath}'. " +
+            "Corrija com -PloaderVariant=${normalizedLoaderVariant} e execute '${shellLoaderAssembleTask}'.")
+    }
+
+    if (artifactCandidate.isFile()) {
+        return artifactCandidate
+    }
+
+    def fileCandidates = [
+        new File(artifactCandidate, "loader.apk"),
+        new File(artifactCandidate, "app-${normalizedLoaderVariant}.apk"),
+        conventionalPath
+    ].findAll { it != null }
+
+    def resolvedFile = fileCandidates.find { it.exists() && it.isFile() }
+    if (resolvedFile == null) {
+        throw new GradleException("[CONFIG] Artifact provider do shell-loader retornou diretório sem APK resolvível para variante '${loaderVariant}': '${artifactCandidate.absolutePath}'. " +
+            "Tentativas: ${fileCandidates*.absolutePath}.")
+    }
+    resolvedFile
+}
 
 tasks.register("verifyShellLoaderArtifact") {
     group = "verification"
     description = "Valida loader.apk da variant do shell-loader antes da sincronização para bootstrap."
     dependsOn(shellLoaderAssembleTask)
+    onlyIf {
+        if (project.findProperty("allowLocalHeavyValidationBypass")?.toString()?.toBoolean()) {
+            gateLog("BOOTSTRAP", "Pulando verifyShellLoaderArtifact (devFastPath=true e sem gatilhos estritos).")
+            return false
+        }
+        true
+    }
 
     doLast {
-        def artifactFile = shellLoaderArtifactPath.get().asFile
-        def expectedPath = artifactFile.absolutePath
+        def artifactFile = resolveShellLoaderArtifactFromVariant()
         def failMessage = { String reason ->
-            throw new GradleException("Shell loader artifact inválido em '${expectedPath}': ${reason}.")
+            throw new GradleException("Shell loader artifact inválido para variante '${loaderVariant}' em '${artifactFile.absolutePath}': ${reason}. " +
+                "Procura via AGP artifacts API em :shell-loader e fallback '${shellLoaderProject.layout.buildDirectory.file("outputs/apk/${normalizedLoaderVariant}/loader.apk").get().asFile.absolutePath}'. " +
+                "Corrija com -PloaderVariant=${normalizedLoaderVariant} e execute '${shellLoaderAssembleTask}'.")
         }
 
         if (!artifactFile.exists()) {
@@ -244,13 +356,28 @@ tasks.register("verifyShellLoaderArtifact") {
     }
 }
 
-tasks.register("syncShellLoaderBootstrap", Copy) {
+tasks.register("syncShellLoaderBootstrap") {
     group = "build setup"
     description = "Copia shell-loader (${loaderVariant}) para assets intermediários em bootstrap/loader.apk."
     dependsOn(tasks.named("verifyShellLoaderArtifact"))
-    from(shellLoaderArtifactPath)
-    into(generatedBootstrapDir)
-    rename { "loader.apk" }
+    onlyIf {
+        if (project.findProperty("allowLocalHeavyValidationBypass")?.toString()?.toBoolean()) {
+            gateLog("BOOTSTRAP", "Pulando syncShellLoaderBootstrap (cadeia de shell-loader desativada para trilha local rápida).")
+            return false
+        }
+        true
+    }
+
+    doLast {
+        def artifactFile = resolveShellLoaderArtifactFromVariant()
+        def destinationDir = generatedBootstrapDir.get().asFile
+        destinationDir.mkdirs()
+        copy {
+            from(artifactFile)
+            into(destinationDir)
+            rename { "loader.apk" }
+        }
+    }
 }
 
 tasks.named("preBuild").configure {
@@ -264,6 +391,13 @@ tasks.register("validateCriticalNativeAbiLayer", Exec) {
     description = "Valida contrato lowlevel ABI consolidado (schema, símbolos e política freestanding)."
     workingDir = rootDir
     commandLine "bash", "tools/ci/validate_lowlevel_abi.sh"
+    onlyIf {
+        if (project.findProperty("allowLocalHeavyValidationBypass")?.toString()?.toBoolean()) {
+            gateLog("ABI_CONTRACT", "Pulando validateCriticalNativeAbiLayer (freestanding/ABI pesado) por devFastPath local.")
+            return false
+        }
+        true
+    }
 }
 
 
@@ -276,7 +410,8 @@ if (!checkVariant) {
 def checkVariantTaskSuffix = checkVariant.substring(0, 1).toUpperCase() + checkVariant.substring(1)
 def checkVariantAssembleTask = "assemble${checkVariantTaskSuffix}"
 def termuxBootstrapLibName = "libtermux-bootstrap.so"
-def ciInternalValidationEnabled = Boolean.parseBoolean(providers.gradleProperty("CI_INTERNAL_VALIDATION").orElse("false").get())
+def supportedAppAbiPolicies = ['arm64-only', 'arm32-arm64', 'internal-4abi', 'internal-5abi'] as Set<String>
+def abiPoliciesThatRequireTermuxBootstrap = java.util.Collections.unmodifiableSet(['arm64-only', 'arm32-arm64', 'internal-4abi'] as LinkedHashSet<String>)
 
 tasks.register("verifyTermuxBootstrapAbiCoverage") {
     group = "verification"
@@ -330,7 +465,7 @@ tasks.register("verifyTermuxBootstrapAbiCoverage") {
                 }
                 break
             default:
-                throw new GradleException("APP_ABI_POLICY inválida: ${appAbiPolicy}. Esperado: arm64-only, arm32-arm64, internal-4abi ou internal-5abi.")
+                throw new GradleException("[ABI_CONTRACT] APP_ABI_POLICY inválida: '${appAbiPolicy}'. Políticas suportadas: ${supportedAppAbiPolicies}.")
         }
 
         if (appAbiPolicy in abiPoliciesThatRequireTermuxBootstrap) {
@@ -583,20 +718,28 @@ tasks.register("printNativeVariantConfig") {
     group = "verification"
     description = "Imprime ABIs efetivas e argumentos CMake configurados por variant."
 
+    def variantSnapshots = []
+    androidComponents.onVariants(androidComponents.selector().all()) { variant ->
+        def variantCmakeArgs = []
+        def externalNativeBuild = variant.externalNativeBuild
+        if (externalNativeBuild != null && externalNativeBuild.cmake != null && externalNativeBuild.cmake.arguments != null) {
+            variantCmakeArgs.addAll(externalNativeBuild.cmake.arguments)
+        }
+        variantSnapshots << [
+            name: variant.name,
+            cmakeArgs: variantCmakeArgs.unique()
+        ]
+    }
+
     doLast {
         def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
         def defaultConfigCmakeArgs = android.defaultConfig.externalNativeBuild?.cmake?.arguments ?: []
 
         logger.lifecycle("[printNativeVariantConfig] supportedAbis=${supportedAbis}")
-        android.applicationVariants.all { variant ->
-            def variantCmakeArgs = []
-            if (variant.mergedFlavor?.externalNativeBuild?.cmake?.arguments) {
-                variantCmakeArgs.addAll(variant.mergedFlavor.externalNativeBuild.cmake.arguments)
-            }
-
-            logger.lifecycle("[printNativeVariantConfig] variant=${variant.name}")
+        variantSnapshots.each { snapshot ->
+            logger.lifecycle("[printNativeVariantConfig] variant=${snapshot.name}")
             logger.lifecycle("[printNativeVariantConfig] abiFilters=${supportedAbis}")
-            logger.lifecycle("[printNativeVariantConfig] cmakeArgs=${(defaultConfigCmakeArgs + variantCmakeArgs).unique()}")
+            logger.lifecycle("[printNativeVariantConfig] cmakeArgs=${(defaultConfigCmakeArgs + snapshot.cmakeArgs).unique()}")
         }
     }
 }
@@ -606,6 +749,56 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
     description = "Valida se os artefatos compilados esperados (APK/AAB) foram gerados e emite relatório JSON para entrega."
 
     doLast {
+        def readGradleOrEnv = { String gradleKey, String envKey, String fallback ->
+            def fromGradle = providers.gradleProperty(gradleKey).orNull
+            if (fromGradle != null && !fromGradle.toString().trim().isEmpty()) {
+                return fromGradle.toString().trim()
+            }
+            def fromEnv = System.getenv(envKey)
+            if (fromEnv != null && !fromEnv.toString().trim().isEmpty()) {
+                return fromEnv.toString().trim()
+            }
+            return fallback
+        }
+        def sha256Hex = { byte[] bytes ->
+            MessageDigest digest = MessageDigest.getInstance("SHA-256")
+            byte[] hash = digest.digest(bytes)
+            return hash.collect { String.format("%02x", it) }.join("")
+        }
+        def sha256File = { File inputFile ->
+            MessageDigest digest = MessageDigest.getInstance("SHA-256")
+            inputFile.withInputStream { is ->
+                byte[] buffer = new byte[8192]
+                int read = 0
+                while ((read = is.read(buffer)) > 0) {
+                    digest.update(buffer, 0, read)
+                }
+            }
+            return digest.digest().collect { String.format("%02x", it) }.join("")
+        }
+        def toolAvailable = { String toolName ->
+            def output = new ByteArrayOutputStream()
+            def result = exec {
+                commandLine("bash", "-lc", "command -v ${toolName}")
+                standardOutput = output
+                errorOutput = new ByteArrayOutputStream()
+                ignoreExitValue = true
+            }
+            return result.exitValue == 0 && !output.toString().trim().isEmpty()
+        }
+        def runToolEvidence = { List<String> commandLineArgs ->
+            def output = new ByteArrayOutputStream()
+            def result = exec {
+                commandLine(commandLineArgs)
+                standardOutput = output
+                errorOutput = output
+                ignoreExitValue = true
+            }
+            return [exitCode: result.exitValue, output: output.toString("UTF-8").trim()]
+        }
+        def helperScript = file("${rootProject.projectDir}/tools/ci/collect_elf_evidence.py")
+        def hasElfEvidenceHelper = helperScript.exists()
+
         def requestedVariantsRaw = (providers.gradleProperty("artifactVariants")
             .orElse("debug,release,perfRelease")
             .get() ?: "debug,release,perfRelease")
@@ -621,10 +814,25 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
 
         def reportVariants = []
         def missingVariants = []
+        def manifestFiles = []
+        def evidenceReports = []
+        def internalLaneAbiMissingByVariant = []
+        def supportedAbis = (rootProject.ext.supportedAbis ?: []) as List<String>
+        def appAbiPolicy = (rootProject.ext.appAbiPolicy ?: providers.gradleProperty("APP_ABI_POLICY").orElse("").get()).toString()
+        def abiProfile = readGradleOrEnv("abi_profile", "ABI_PROFILE", "unknown")
+        def workflowName = readGradleOrEnv("workflow", "GITHUB_WORKFLOW", "local")
+        def laneName = readGradleOrEnv("lane", "CI_LANE", "android")
+        def signingMode = readGradleOrEnv("signing_mode", "SIGNING_MODE", "auto")
+        def repositoryId = readGradleOrEnv("repo", "GITHUB_REPOSITORY", rootProject.name)
+        def commitSha = readGradleOrEnv("commit", "GITHUB_SHA", "unknown")
+        def hasFileTool = toolAvailable("file")
+        def hasReadelfTool = toolAvailable("readelf")
+        def internalLane = abiProfile.startsWith("internal_") || appAbiPolicy.startsWith("internal-") || laneName.toLowerCase(Locale.ROOT).contains("internal")
 
         requestedVariants.each { variant ->
             def apkDir = file("${buildDir}/outputs/apk/${variant}")
             def bundleDir = file("${buildDir}/outputs/bundle/${variant}")
+            def variantManifestFiles = []
 
             def apkFiles = fileTree(apkDir) {
                 include "**/*.apk"
@@ -635,16 +843,113 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
             }.files.sort { it.name }
 
             def artifacts = (apkFiles + bundleFiles).collect { artifact ->
+                def zipFile = new ZipFile(artifact)
+                def artifactEntries = []
+                def libsByAbi = [:].withDefault { [] }
+                try {
+                    zipFile.entries().findAll { entry ->
+                        !entry.isDirectory() && entry.name ==~ /^lib\/[^\/]+\/.+\.so$/
+                    }.each { entry ->
+                        def matcher = (entry.name =~ /^lib\/([^\/]+)\/.+\.so$/)
+                        def abi = matcher.matches() ? matcher.group(1) : "unknown"
+                        def bytes = zipFile.getInputStream(entry).bytes
+                        def sha256 = sha256Hex(bytes)
+                        def evidenceParts = []
+                        def tempSo = File.createTempFile("abi-evidence-", ".so")
+                        tempSo.deleteOnExit()
+                        tempSo.bytes = bytes
+                        try {
+                            if (hasFileTool) {
+                                def fileResult = runToolEvidence(["file", tempSo.absolutePath])
+                                if (fileResult.exitCode == 0 && fileResult.output) {
+                                    evidenceParts << "file=${fileResult.output}"
+                                }
+                            }
+                            if (hasReadelfTool) {
+                                def readelfResult = runToolEvidence(["readelf", "-h", tempSo.absolutePath])
+                                if (readelfResult.exitCode == 0 && readelfResult.output) {
+                                    def archLine = readelfResult.output.readLines().findAll {
+                                        it.contains("Class:") || it.contains("Machine:")
+                                    }.join(" | ")
+                                    if (!archLine.isEmpty()) {
+                                        evidenceParts << "readelf=${archLine}"
+                                    }
+                                }
+                            }
+                            if (hasElfEvidenceHelper) {
+                                def helperResult = runToolEvidence(["python3", helperScript.absolutePath, tempSo.absolutePath])
+                                if (helperResult.exitCode == 0 && helperResult.output) {
+                                    try {
+                                        def parsed = new groovy.json.JsonSlurper().parseText(helperResult.output)
+                                        evidenceReports << [
+                                            artifact : artifact.name,
+                                            variant  : variant,
+                                            abi      : abi,
+                                            soPath   : entry.name,
+                                            evidence : parsed
+                                        ]
+                                    } catch (Exception ignored) {
+                                        evidenceParts << "helper=parse_error"
+                                    }
+                                } else {
+                                    evidenceParts << "helper=failed(exit=${helperResult.exitCode})"
+                                }
+                            }
+                        } finally {
+                            tempSo.delete()
+                        }
+
+                        def evidenceText = evidenceParts.isEmpty() ? "unavailable:file/readelf not found or failed" : evidenceParts.join(" || ")
+                        def entryInfo = [
+                            path    : entry.name,
+                            size    : entry.size,
+                            sha256  : sha256,
+                            abi     : abi,
+                            evidence: evidenceText
+                        ]
+                        artifactEntries << entryInfo
+                        libsByAbi[abi] << entryInfo
+                    }
+                } finally {
+                    zipFile.close()
+                }
+                variantManifestFiles.addAll(artifactEntries)
+                def presentAbis = libsByAbi.keySet().toList().sort()
+                def missingSupportedAbis = supportedAbis.findAll { !(it in presentAbis) }
+                def artifactRecord = [
+                    name                  : artifact.name,
+                    type                  : artifact.name.endsWith(".aab") ? "AAB" : "APK",
+                    variant               : variant,
+                    size_bytes            : artifact.length(),
+                    sha256                : sha256File(artifact),
+                    path                  : rootProject.projectDir.toPath().relativize(artifact.toPath()).toString(),
+                    jni_libs_by_abi       : libsByAbi.collectEntries { abiName, values -> [(abiName): values.sort { a, b -> a.path <=> b.path }] },
+                    present_abis          : presentAbis,
+                    missing_supported_abis: missingSupportedAbis
+                ]
+                manifestFiles << artifactRecord
                 [
-                    name      : artifact.name,
-                    type      : artifact.name.endsWith(".aab") ? "AAB" : "APK",
-                    sizeBytes : artifact.length(),
-                    path      : rootProject.projectDir.toPath().relativize(artifact.toPath()).toString()
+                    name       : artifactRecord.name,
+                    type       : artifactRecord.type,
+                    sizeBytes  : artifactRecord.size_bytes,
+                    sha256     : artifactRecord.sha256,
+                    path       : artifactRecord.path,
+                    abiEntries : artifactEntries.size(),
+                    presentAbis: artifactRecord.present_abis,
+                    missingAbis: artifactRecord.missing_supported_abis
                 ]
             }
 
             if (artifacts.isEmpty()) {
                 missingVariants << variant
+            }
+
+            if (internalLane && !supportedAbis.isEmpty()) {
+                def variantAbiSet = (variantManifestFiles*.abi).toSet()
+                def missingExpectedAbis = supportedAbis.findAll { !(it in variantAbiSet) }
+                if (!missingExpectedAbis.isEmpty()) {
+                    internalLaneAbiMissingByVariant << [variant: variant, missingAbis: missingExpectedAbis]
+                }
             }
 
             reportVariants << [
@@ -657,18 +962,42 @@ tasks.register("verifyDeliveredCompiledArtifacts") {
         def report = [
             generatedAtUtc: new Date().format("yyyy-MM-dd'T'HH:mm:ss'Z'", TimeZone.getTimeZone("UTC")),
             project       : project.path,
-            variants      : reportVariants
+            variants      : reportVariants,
+            elfEvidence   : evidenceReports
         ]
 
         def reportFile = file("${buildDir}/reports/artifacts/compiled-artifacts-report.json")
         reportFile.parentFile.mkdirs()
         reportFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(report))
 
+        def manifest = [
+            repo            : repositoryId,
+            commit          : commitSha,
+            workflow        : workflowName,
+            lane            : laneName,
+            abi_profile     : abiProfile,
+            app_abi_policy  : appAbiPolicy,
+            supported_abis  : supportedAbis,
+            build_variant   : requestedVariants.join(","),
+            signing_mode    : signingMode,
+            files           : manifestFiles.sort { a, b -> a.path <=> b.path ?: a.sha256 <=> b.sha256 },
+            elf_evidence    : evidenceReports
+        ]
+
+        def manifestFile = file("${buildDir}/reports/artifacts/artifact-manifest.json")
+        manifestFile.parentFile.mkdirs()
+        manifestFile.text = JsonOutput.prettyPrint(JsonOutput.toJson(manifest))
+
         if (!missingVariants.isEmpty()) {
             throw new GradleException("Artefatos compilados ausentes para variants=${missingVariants}. Execute assemble correspondente antes de validar. Relatório: ${reportFile}")
         }
+        if (!internalLaneAbiMissingByVariant.isEmpty()) {
+            def details = internalLaneAbiMissingByVariant.collect { "variant=${it.variant} missing=${it.missingAbis}" }.join("; ")
+            throw new GradleException("[ABI_CONTRACT] ABI esperada ausente na trilha interna: ${details}. Manifesto: ${manifestFile}")
+        }
 
         logger.lifecycle("[verifyDeliveredCompiledArtifacts] Relatório gerado em ${reportFile}")
+        logger.lifecycle("[verifyDeliveredCompiledArtifacts] Manifesto gerado em ${manifestFile} com ${manifestFiles.size()} artefatos e ${evidenceReports.size()} evidências ELF")
         reportVariants.each { entry ->
             logger.lifecycle("[verifyDeliveredCompiledArtifacts] variant=${entry.variant} artifacts=${entry.artifactCount}")
         }
@@ -697,6 +1026,10 @@ tasks.register("verifyTermuxBootstrapPackagingRules") {
         def allowedAbis = (rootProject.ext.allowedAbis ?: officialAbis) as List<String>
         def appAbiPolicy = (rootProject.ext.appAbiPolicy ?: "").toString()
         def excludes = (android.packaging.jniLibs.excludes ?: [] as Set<String>).collect { it.toString() }
+
+        if (!(appAbiPolicy in supportedAppAbiPolicies)) {
+            throw new GradleException("[ABI_CONTRACT] APP_ABI_POLICY inválida: '${appAbiPolicy}'. Políticas suportadas: ${supportedAppAbiPolicies}.")
+        }
 
         if (!supportedAbis.every { it in allowedAbis }) {
             throw new GradleException("SUPPORTED_ABIS (${supportedAbis}) contém ABI fora da matriz permitida (${allowedAbis}).")

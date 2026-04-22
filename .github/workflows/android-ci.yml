@@ -3,6 +3,9 @@ name: Android CI
 on:
   workflow_call:
     inputs:
+      ci_lane:
+        type: string
+        default: auto
       run_workfile:
         type: string
         default: smoke_debug
@@ -52,6 +55,10 @@ jobs:
       ci_internal_validation: ${{ steps.flags.outputs.ci_internal_validation }}
       native_matrix_specs: ${{ steps.flags.outputs.native_matrix_specs }}
       native_matrix_profile: ${{ steps.flags.outputs.native_matrix_profile }}
+      abi_profile: ${{ steps.flags.outputs.abi_profile }}
+      lane: ${{ steps.flags.outputs.lane }}
+      lane_label: ${{ steps.flags.outputs.lane_label }}
+      expect_perf_results: ${{ steps.flags.outputs.expect_perf_results }}
     steps:
       - uses: actions/checkout@v4
 
@@ -60,11 +67,51 @@ jobs:
         run: |
           set -euo pipefail
 
+          ci_lane="${{ inputs.ci_lane || 'auto' }}"
           run_workfile="${{ inputs.run_workfile || 'smoke_debug' }}"
           build_variant="${{ inputs.build_variant || 'debug' }}"
           signing_mode="${{ inputs.signing_mode || 'auto' }}"
           abi_profile="${{ inputs.abi_profile || 'official_arm64' }}"
           native_matrix_profile="${{ inputs.native_matrix_profile || 'canonical' }}"
+          allowed_abi_profiles="official_arm64 official_arm32_arm64 internal_arm64 internal_arm32_arm64 internal_4abi internal_5abi internal_riscv64 universal_guarded generic"
+
+          case "${ci_lane}" in
+            auto)
+              ;;
+            debug-local)
+              run_workfile="upstream-debug-compat"
+              build_variant="debug"
+              signing_mode="unsigned"
+              abi_profile="official_arm32_arm64"
+              ;;
+            debug-internal-arm32-arm64)
+              run_workfile="compat_matrix_debug"
+              build_variant="debug"
+              signing_mode="unsigned"
+              abi_profile="internal_arm32_arm64"
+              ;;
+            release-unsigned-internal)
+              run_workfile="release_gate"
+              build_variant="release"
+              signing_mode="unsigned"
+              abi_profile="internal_arm32_arm64"
+              ;;
+            release-signed-official)
+              run_workfile="release_gate"
+              build_variant="release"
+              signing_mode="signed"
+              abi_profile="official_arm32_arm64"
+              ;;
+            *)
+              echo "ci_lane inválida: ${ci_lane}" >&2
+              exit 1
+              ;;
+          esac
+
+          if [[ ! " ${allowed_abi_profiles} " =~ [[:space:]]${abi_profile}[[:space:]] ]]; then
+            echo "abi_profile inválido para Android CI: ${abi_profile}" >&2
+            exit 1
+          fi
 
           case "${run_workfile}" in
             smoke_debug)
@@ -79,7 +126,7 @@ jobs:
               gradle_tasks=":app:assembleDebug :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :shell-loader:testDebugUnitTest"
               expect_app_artifacts=true
               ;;
-            compat_matrix_debug)
+            compat_matrix_debug|upstream-debug-compat)
               gradle_tasks=":app:checkNativeExtendedMatrix :app:assembleDebug :app:testDebugUnitTest :terminal-emulator:testDebugUnitTest :shell-loader:testDebugUnitTest"
               expect_app_artifacts=true
               ;;
@@ -92,6 +139,7 @@ jobs:
               exit 1
               ;;
           esac
+          expect_perf_results=false
 
           case "${build_variant}" in
             debug) artifact_variants="debug" ;;
@@ -100,52 +148,7 @@ jobs:
             *) echo "build_variant inválido: ${build_variant}" >&2; exit 1 ;;
           esac
 
-          case "${abi_profile}" in
-            official_arm64)
-              app_abi_policy="arm64-only"
-              supported_abis="arm64-v8a"
-              ci_internal_validation="false"
-              ;;
-            official_arm32_arm64)
-              app_abi_policy="arm32-arm64"
-              supported_abis="arm64-v8a,armeabi-v7a"
-              ci_internal_validation="false"
-              ;;
-            internal_arm64)
-              app_abi_policy="arm64-only"
-              supported_abis="arm64-v8a"
-              ci_internal_validation="true"
-              ;;
-            internal_arm32_arm64)
-              app_abi_policy="arm32-arm64"
-              supported_abis="arm64-v8a,armeabi-v7a"
-              ci_internal_validation="true"
-              ;;
-            internal_4abi)
-              app_abi_policy="internal-4abi"
-              supported_abis="arm64-v8a,armeabi-v7a,x86,x86_64"
-              ci_internal_validation="true"
-              ;;
-            internal_5abi|internal_riscv64)
-              app_abi_policy="internal-5abi"
-              supported_abis="arm64-v8a,armeabi-v7a,x86,x86_64,riscv64"
-              ci_internal_validation="true"
-              ;;
-            generic)
-              app_abi_policy="arm32-arm64"
-              supported_abis="arm64-v8a,armeabi-v7a"
-              ci_internal_validation="true"
-              ;;
-            *)
-              echo "abi_profile inválido: ${abi_profile}." >&2
-              exit 1
-              ;;
-          esac
-
-          if [[ "${artifact_variants}" == *"release"* && "${abi_profile}" != "official_arm64" ]]; then
-            echo "release bloqueado para abi_profile=${abi_profile}; apenas official_arm64 é permitido." >&2
-            exit 1
-          fi
+          eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${abi_profile}" --allow-generic-fallback)"
 
           signing_mode_effective="${signing_mode}"
           if [[ "${artifact_variants}" == *"release"* && "${signing_mode}" == "auto" ]]; then
@@ -160,6 +163,9 @@ jobs:
               native_matrix_specs="28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
               ;;
             android8_16plus_allarch)
+              native_matrix_specs="26:armeabi-v7a arm64-v8a x86 x86_64;28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
+              ;;
+            universal_hardening)
               native_matrix_specs="26:armeabi-v7a arm64-v8a x86 x86_64;28:armeabi-v7a arm64-v8a x86 x86_64;35:riscv64"
               ;;
             *)
@@ -177,6 +183,15 @@ jobs:
           echo "ci_internal_validation=${ci_internal_validation}" >> "$GITHUB_OUTPUT"
           echo "native_matrix_specs=${native_matrix_specs}" >> "$GITHUB_OUTPUT"
           echo "native_matrix_profile=${native_matrix_profile}" >> "$GITHUB_OUTPUT"
+          lane="${ci_lane}"
+          if [[ "${lane}" == "auto" ]]; then
+            lane="${abi_profile}"
+          fi
+          lane_label="$(echo "${lane}" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9._-' '-')"
+          echo "abi_profile=${abi_profile}" >> "$GITHUB_OUTPUT"
+          echo "lane=${lane}" >> "$GITHUB_OUTPUT"
+          echo "lane_label=${lane_label}" >> "$GITHUB_OUTPUT"
+          echo "expect_perf_results=${expect_perf_results}" >> "$GITHUB_OUTPUT"
 
 
   abi-contract-gate:
@@ -219,6 +234,9 @@ jobs:
       - name: Validate Android pipeline directories
         run: ./tools/ci/validate_pipeline_directories.sh --profile android
 
+      - name: Validate external integration sources (androidx_RmR/qemu_rafaelia)
+        run: ./tools/ci/verify_external_sources.sh --check-remote
+
       - name: Validate Java source contracts
         run: python3 ./tools/ci/check_java_contracts.py
 
@@ -239,7 +257,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          set +o pipefail
           yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
           sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
 
       - name: Bootstrap Android environment contract
@@ -248,6 +268,16 @@ jobs:
           set -euo pipefail
           ./tools/ci/prepare_android_env.sh --java-version "${JAVA_VERSION}" --ndk-version "${NDK_VERSION}" --require-sdkmanager
           ./tools/ci/verify_android_local_properties_contract.sh
+
+      - name: Enforce bootstrap assets contract
+        if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./tools/ci/verify_bootstrap_contract.sh \
+            -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
+            -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
+            -PCI_INTERNAL_VALIDATION="${{ needs.resolve.outputs.ci_internal_validation }}"
 
       - name: Build selected Android workfile
         shell: bash
@@ -267,7 +297,16 @@ jobs:
 
       - name: Verify delivered artifacts
         if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
-        run: ./tools/gradle_with_jdk21.sh :app:verifyDeliveredCompiledArtifacts -PartifactVariants=${{ needs.resolve.outputs.artifact_variants }}
+        run: |
+          ./tools/gradle_with_jdk21.sh \
+            :app:verifyDeliveredCompiledArtifacts \
+            -PartifactVariants=${{ needs.resolve.outputs.artifact_variants }} \
+            -Pworkflow="${{ github.workflow }}" \
+            -Plane="android-ci" \
+            -Pabi_profile="${{ needs.resolve.outputs.abi_profile }}" \
+            -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
+            -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
+            -Psigning_mode="${{ needs.resolve.outputs.signing_mode_effective }}"
 
       - name: Run lint
         if: inputs.run_lint
@@ -295,15 +334,96 @@ jobs:
             append_flag="--append-artifacts"
           done
 
-      - name: Upload Android outputs
+      - name: Collect Android CI artifacts by lane
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          lane="${{ needs.resolve.outputs.lane }}"
+          perf_runs="$(python3 tools/perf/resolve_contract.py --require-consistency | python3 -c 'import json,sys; print(json.load(sys.stdin)[\"perf_runs\"])')"
+          rm -rf ci-artifacts/android-logs ci-artifacts/android-artifacts ci-artifacts/perf-results
+          mkdir -p ci-artifacts/android-logs ci-artifacts/android-artifacts ci-artifacts/perf-results
+
+          # android-logs: apenas logs textuais (Gradle/NDK/CMake) por lane.
+          while IFS= read -r p; do
+            rel="${p#./}"
+            dst="ci-artifacts/android-logs/${rel}"
+            mkdir -p "$(dirname "$dst")"
+            cp -a "$p" "$dst"
+          done < <(find . -type f \
+            \( -name "*.log" -o -name "*.txt" -o -name "*.out" -o -name "*.err" -o -name "*.xml" -o -name "*.html" -o -name "*.json" \) \
+            \( -path "*/build/reports/*" -o -path "*/build/test-results/*" -o -path "*/build/outputs/logs/*" -o -path "*/.cxx/*" \) \
+            2>/dev/null | sort)
+
+          if [[ -d app/build/outputs/apk ]]; then
+            cp -a app/build/outputs/apk/. ci-artifacts/android-artifacts/
+          fi
+          if [[ -d app/build/outputs/bundle ]]; then
+            cp -a app/build/outputs/bundle/. ci-artifacts/android-artifacts/
+          fi
+          # android-artifacts: pacotes + libs nativas por ABI.
+          while IFS= read -r p; do
+            rel="${p#./}"
+            dst="ci-artifacts/android-artifacts/${rel}"
+            mkdir -p "$(dirname "$dst")"
+            cp -a "$p" "$dst"
+          done < <(find app/build -type f \
+            \( -path "*/intermediates/stripped_native_libs/*" -o -path "*/intermediates/merged_native_libs/*" -o -path "*/intermediates/merged_jni_libs/*" -o -path "*/intermediates/cmake/*" \) \
+            \( -name "*.so" -o -name "*.a" \) \
+            2>/dev/null | sort)
+
+          perf_found=false
+          while IFS= read -r perf_file; do
+            perf_found=true
+            rel="${perf_file#./}"
+            dst="ci-artifacts/perf-results/${rel}"
+            mkdir -p "$(dirname "$dst")"
+            cp -a "$perf_file" "$dst"
+          done < <(find app/build -type f \( -name '*benchmark*' -o -name '*perf*' -o -name '*profileinstaller*' \) 2>/dev/null | sort)
+
+          perf_file_count="$(find ci-artifacts/perf-results -type f 2>/dev/null | wc -l | tr -d ' ')"
+          expect_perf_results=false
+          if [[ "${perf_file_count}" != "0" ]]; then
+            expect_perf_results=true
+          fi
+
+          APP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
+          SUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
+          PERF_RUNS="${perf_runs}" \
+          ./tools/ci/materialize_android_ci_artifacts.sh \
+            --lane "${lane}" \
+            --expect-app-artifacts "${{ needs.resolve.outputs.expect_app_artifacts }}" \
+            --expect-native-matrix "${{ inputs.run_native_checks }}" \
+            --expect-perf-results "${perf_found}"
+
+      - name: Upload Android logs
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: android-${{ needs.resolve.outputs.artifact_variants }}-${{ needs.resolve.outputs.app_abi_policy }}
-          path: |
-            app/build/outputs/apk/**
-            app/build/outputs/bundle/**
-            app/build/reports/**
-            **/build/test-results/**
-            ci-artifacts/android-cmake-matrix/**
+          name: android-logs-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/upload-staging/android-logs-${{ needs.resolve.outputs.lane_label }}/**
+          if-no-files-found: warn
+
+      - name: Upload Android artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-artifacts-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/upload-staging/android-artifacts-${{ needs.resolve.outputs.lane_label }}/**
+          if-no-files-found: warn
+
+      - name: Upload native matrix
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: native-matrix-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/upload-staging/native-matrix-${{ needs.resolve.outputs.lane_label }}/**
+          if-no-files-found: warn
+
+      - name: Upload perf results
+        uses: actions/upload-artifact@v4
+        if: always() && hashFiles(format('ci-artifacts/upload-staging/perf-results-{0}/files/**', needs.resolve.outputs.lane_label)) != ''
+        with:
+          name: perf-results-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/upload-staging/perf-results-${{ needs.resolve.outputs.lane_label }}/**
           if-no-files-found: warn

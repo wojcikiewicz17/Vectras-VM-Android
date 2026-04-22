@@ -28,3 +28,10 @@
 - Pipeline oficial Host: `.github/workflows/host-ci.yml`.
 - Orquestração e gate final: `.github/workflows/pipeline-orchestrator.yml` + `.github/workflows/quality-gates.yml`.
 - Matriz canônica documentada em `docs/ci/workflow-matrix.md`.
+
+## Atualização 2026-04-21 (núcleo low-level C/ASM adaptativo)
+
+- Core de ABI freestanding (`abi_core_freestanding`) agora compila com `VECTRA_LL_NO_STDLIB_TYPES=1`, removendo dependência direta de `stdint.h/stddef.h` no contrato low-level.
+- Tipos-base nativos centralizados em `app/src/main/cpp/vectra_ll_base.h` com modo freestanding e modo hosted.
+- Seleção de backend adaptativo deixou de depender de `strcmp` (libc), usando comparação local `vectra_cstr_eq` em `lowlevel_bridge.c`.
+- Limite estrutural mantido: camada JNI Android continua dependente de `jni.h` e runtime do SO; acesso direto a registradores/pinos físicos da GPU não é permitido sem trilha kernel/driver (fora do escopo app sem root).

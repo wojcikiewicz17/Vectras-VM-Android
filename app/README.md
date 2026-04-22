@@ -20,6 +20,53 @@ find app -maxdepth 3 -type d | sort
 sed -n '1,120p' app/FILES_MAP.md
 ```
 
+## Modos operacionais de build/release (Gradle)
+
+> Fonte de verdade das flags: `app/build.gradle`.
+
+### 1) `debug-local`
+- Objetivo: ciclo local mais rápido, com bypass apenas de pré-validações pesadas.
+- Propriedades:
+  - `-PdevFastPath=true`
+  - `-PciRelease=false`
+  - `-Psigning_mode=unsigned` (ou `auto` sem credenciais)
+  - `-POFFICIAL_CI=false` (opcional local)
+- Efeito:
+  - Pode pular `validateCriticalNativeAbiLayer`, `verifyShellLoaderArtifact` e `syncShellLoaderBootstrap`.
+  - Logs de classificação explicam cada skip (`ENV`, `CONFIG`, `ABI_CONTRACT`, `SIGNING`, `BOOTSTRAP`).
+
+### 2) `debug-internal-arm32-arm64`
+- Objetivo: validação interna com matriz dual ARM.
+- Propriedades:
+  - `-PAPP_ABI_POLICY=arm32-arm64`
+  - `-PCI_INTERNAL_VALIDATION=true`
+  - `-PcheckVariant=debug`
+  - Opcional: `-PdevFastPath=true` para acelerar apenas trilha local.
+- Observação:
+  - Mantém regras de contrato ABI/política interna; `APP_ABI_POLICY=arm32-arm64` exige `CI_INTERNAL_VALIDATION=true`.
+
+### 3) `release-unsigned-internal`
+- Objetivo: validação interna de release sem assinatura oficial.
+- Propriedades:
+  - `-PciRelease=false`
+  - `-Psigning_mode=unsigned`
+  - `-PALLOW_UNSIGNED_RELEASE=true`
+  - `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true` (apenas validação interna)
+  - `-POFFICIAL_CI=false`
+- Observação:
+  - Mesmo com unsigned, tarefas release/perfRelease mantêm trilha estrita de pré-validações pesadas.
+
+### 4) `release-signed-official`
+- Objetivo: trilha oficial de distribuição.
+- Propriedades:
+  - `-PciRelease=true`
+  - `-Psigning_mode=signed`
+  - `-POFFICIAL_CI=true` (ou `GITHUB_ACTIONS=true`)
+  - Credenciais de assinatura release válidas (`android.injected.signing.*` ou `VECTRAS_RELEASE_*`)
+- Efeito:
+  - Sempre estrito: sem bypass de pré-validação pesada.
+  - Validação de assinatura e contrato release/perfRelease bloqueante.
+
 ## Fontes nativas obrigatórias do APK
 
 ### Obrigatório

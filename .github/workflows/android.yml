@@ -48,6 +48,16 @@ on:
       - '.github/workflows/compile-matrix.yml'
   workflow_dispatch:
     inputs:
+      ci_lane:
+        description: "Trilha explícita (sobrepõe parâmetros individuais quando != auto)"
+        type: choice
+        default: auto
+        options:
+          - auto
+          - debug-local
+          - debug-internal-arm32-arm64
+          - release-unsigned-internal
+          - release-signed-official
       run_workfile:
         description: "Perfil de execução Gradle"
         type: choice
@@ -57,6 +67,7 @@ on:
           - unit_loader
           - full_debug
           - compat_matrix_debug
+          - upstream-debug-compat
           - release_gate
       build_variant:
         description: "Variante Android"
@@ -72,12 +83,12 @@ on:
         description: "Perfil ABI (trilha oficial)"
         type: choice
         default: official_arm64
-        options: [official_arm64, internal_arm32_arm64, internal_4abi]
+        options: [official_arm64, official_arm32_arm64, internal_arm32_arm64, internal_4abi, internal_5abi, universal_guarded]
       native_matrix_profile:
         description: "Cobertura nativa CMake (arquiteturas + bandas de API)"
         type: choice
         default: canonical
-        options: [canonical, pilot_android9_16_5arch, android8_16plus_allarch]
+        options: [canonical, pilot_android9_16_5arch, android8_16plus_allarch, universal_hardening]
       log_level:
         description: "Nível de logs Gradle"
         type: choice
@@ -105,6 +116,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       run_workfile: ${{ steps.resolve.outputs.run_workfile }}
+      ci_lane: ${{ steps.resolve.outputs.ci_lane }}
       build_variant: ${{ steps.resolve.outputs.build_variant }}
       signing_mode: ${{ steps.resolve.outputs.signing_mode }}
       abi_profile: ${{ steps.resolve.outputs.abi_profile }}
@@ -119,6 +131,7 @@ jobs:
           set -euo pipefail
 
           run_workfile="${{ github.event.inputs.run_workfile || 'smoke_debug' }}"
+          ci_lane="${{ github.event.inputs.ci_lane || 'auto' }}"
           build_variant="${{ github.event.inputs.build_variant || 'debug' }}"
           signing_mode="${{ github.event.inputs.signing_mode || 'auto' }}"
           abi_profile="${{ github.event.inputs.abi_profile || 'official_arm64' }}"
@@ -134,6 +147,7 @@ jobs:
           fi
 
           echo "run_workfile=${run_workfile}" >> "$GITHUB_OUTPUT"
+          echo "ci_lane=${ci_lane}" >> "$GITHUB_OUTPUT"
           echo "build_variant=${build_variant}" >> "$GITHUB_OUTPUT"
           echo "signing_mode=${signing_mode}" >> "$GITHUB_OUTPUT"
           echo "abi_profile=${abi_profile}" >> "$GITHUB_OUTPUT"
@@ -148,6 +162,7 @@ jobs:
     uses: ./.github/workflows/android-ci.yml
     with:
       run_workfile: ${{ needs.resolve-inputs.outputs.run_workfile }}
+      ci_lane: ${{ needs.resolve-inputs.outputs.ci_lane }}
       build_variant: ${{ needs.resolve-inputs.outputs.build_variant }}
       signing_mode: ${{ needs.resolve-inputs.outputs.signing_mode }}
       abi_profile: ${{ needs.resolve-inputs.outputs.abi_profile }}

@@ -16,6 +16,24 @@ Consolidar melhorias comprovadas dos projetos externos (QEMU e AndroidX) dentro 
 - **Compatibilidade QEMU** com presets, telemetria e tuning.
 - **Documentação baseada em diagramas** (imagens fornecidas pelo autor).
 
+### 1.1 Contrato operacional dos repositórios externos
+
+Fonte de verdade para os links e branches de integração:
+
+- `tools/ci/external_sources.manifest`
+
+Validação automática (local/CI):
+
+```bash
+./tools/ci/verify_external_sources.sh --check-remote
+```
+
+Sincronização opcional para workspace local em `.third_party_forks/`:
+
+```bash
+./tools/ci/verify_external_sources.sh --sync-clone
+```
+
 ---
 
 ## 2. Pilares de integração (o que é “melhor” e deve ser absorvido)
@@ -156,6 +174,12 @@ Implementação aplicada em `engine/rmr/` para consolidar pontos de `qemu_rafael
   - validação executável de planejamento e leitura de telemetria.
 
 Esses entregáveis colocam em produção local os pilares de presets + observabilidade QMP do eixo `qemu_rafaelia` com abordagem determinística e baixo overhead alinhada ao RMR.
+
+### 8.1 Contrato de resolução binária QEMU (forks Rafaelia)
+
+- O resolvedor Android agora aceita binários canônicos e aliases do fork (`*-rafacodephi` e `*-rafaelia`) para `x86_64`, `aarch64`, `i386` e `ppc`.
+- O setup wizard usa o resolvedor central para detectar instalação de QEMU, removendo hardcode somente `qemu-system-x86_64`.
+- O preflight passa a exigir o binário principal conforme arquitetura configurada no app (`MainSettingsManager.getArch`), mantendo o contrato multi-ABI.
 
 
 ## 9. Implantação total (CI Android)

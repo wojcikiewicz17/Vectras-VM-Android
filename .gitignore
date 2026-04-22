@@ -97,3 +97,6 @@ credentials.*
 .android-sdk/
 .build-spill/
 
+
+# Local fork sync cache (downloaded via termux orchestrator)
+.third_party_forks/

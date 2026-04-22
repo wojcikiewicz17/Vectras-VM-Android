@@ -63,10 +63,21 @@ jobs:
       - name: Run engine selftests
         run: make run-selftest
 
+      - name: Run ASM compiler refactor gate (integrity + failsafe)
+        run: ./tools/ci/run_asm_compiler_refactor_gate.sh
+
+      - name: Run ISO 8000/27000 + Six Sigma audit (8-point)
+        run: python3 tools/ci/run_iso_sixsigma_audit.py --strict
+
+      - name: Resolve perf runs contract
+        run: |
+          set -euo pipefail
+          python3 tools/perf/resolve_contract.py --require-consistency --validate-workflows --github-output "$GITHUB_ENV"
+
       - name: Run reproducible perf suite (ABI/policy)
         run: |
           set -euo pipefail
-          python3 tools/perf/run_suite.py --runs 7
+          python3 tools/perf/run_suite.py --runs "$perf_runs"
           python3 tools/perf/compare_baseline.py --margin 0.03
           python3 tools/perf/derive_flag_decisions.py
 
@@ -109,7 +120,10 @@ jobs:
           path: |
             bench-results/**
             bench/results/perf/**
+            bench/results/perf/manifest.json
             bench/baseline/*.json
+            reports/asm-compiler/**
+            reports/iso-sixsigma/**
             build-host/rmr_build_config.env
             build-cmake/rmr_build_config.env
           if-no-files-found: warn

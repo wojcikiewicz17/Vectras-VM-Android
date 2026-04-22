@@ -92,7 +92,7 @@ public final class LowLevelBridge {
             markLastCallNative(false);
             return 0;
         }
-        if (offset < 0 || offset + length > data.length) {
+        if (!isValidRange(data.length, offset, length)) {
             throw new IllegalArgumentException("Invalid checksum range");
         }
         if (LOADED) {
@@ -113,7 +113,7 @@ public final class LowLevelBridge {
             markLastCallNative(false);
             return initial;
         }
-        if (offset < 0 || offset + length > data.length) {
+        if (!isValidRange(data.length, offset, length)) {
             throw new IllegalArgumentException("Invalid crc range");
         }
         if (LOADED) {
@@ -134,7 +134,7 @@ public final class LowLevelBridge {
      * Returns true when every backend matches the canonical low-level contract.
      */
     public static boolean validateReduceXorBackendParity(byte[] data, int offset, int length) {
-        if (data == null || offset < 0 || length < 0 || offset + length > data.length) {
+        if (data == null || !isValidRange(data.length, offset, length)) {
             return false;
         }
         if (!LOADED) {
@@ -159,4 +159,11 @@ public final class LowLevelBridge {
     private static native int nativeCrc32cCompat(int initial, byte[] data, int offset, int length);
 
     private static native int nativeValidateReduceXorBackendParity(byte[] data, int offset, int length);
+
+    private static boolean isValidRange(int bufferLength, int offset, int length) {
+        if (offset < 0 || length < 0 || bufferLength < 0 || offset > bufferLength) {
+            return false;
+        }
+        return (long) offset + (long) length <= (long) bufferLength;
+    }
 }
