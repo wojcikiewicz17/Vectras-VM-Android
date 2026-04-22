@@ -24,6 +24,16 @@ public final class QemuBinaryResolver {
             "qemu-system-i386",
             "qemu-system-ppc"
     ));
+    private static final List<String> RAFAELIA_ALIAS_BINARIES = Collections.unmodifiableList(Arrays.asList(
+            "qemu-system-x86_64-rafacodephi",
+            "qemu-system-aarch64-rafacodephi",
+            "qemu-system-i386-rafacodephi",
+            "qemu-system-ppc-rafacodephi",
+            "qemu-system-x86_64-rafaelia",
+            "qemu-system-aarch64-rafaelia",
+            "qemu-system-i386-rafaelia",
+            "qemu-system-ppc-rafaelia"
+    ));
 
     private static final String[] BIN_SEARCH_PREFIXES = new String[]{
             "/distro/usr/local/bin/",
@@ -106,8 +116,15 @@ public final class QemuBinaryResolver {
     private static List<String> buildCandidateBinaries(@Nullable String arch) {
         LinkedHashSet<String> ordered = new LinkedHashSet<>();
         ordered.add(primaryBinaryForArch(arch));
+        ordered.add(aliasBinaryForArch(arch, "-rafacodephi"));
+        ordered.add(aliasBinaryForArch(arch, "-rafaelia"));
         ordered.addAll(SUPPORTED_BINARIES);
+        ordered.addAll(RAFAELIA_ALIAS_BINARIES);
         return new ArrayList<>(ordered);
+    }
+
+    private static String aliasBinaryForArch(@Nullable String arch, String suffix) {
+        return primaryBinaryForArch(arch) + suffix;
     }
 
     private static void logNotFound(@Nullable String logTag, @Nullable String arch, Resolution resolution) {

@@ -175,6 +175,12 @@ Implementação aplicada em `engine/rmr/` para consolidar pontos de `qemu_rafael
 
 Esses entregáveis colocam em produção local os pilares de presets + observabilidade QMP do eixo `qemu_rafaelia` com abordagem determinística e baixo overhead alinhada ao RMR.
 
+### 8.1 Contrato de resolução binária QEMU (forks Rafaelia)
+
+- O resolvedor Android agora aceita binários canônicos e aliases do fork (`*-rafacodephi` e `*-rafaelia`) para `x86_64`, `aarch64`, `i386` e `ppc`.
+- O setup wizard usa o resolvedor central para detectar instalação de QEMU, removendo hardcode somente `qemu-system-x86_64`.
+- O preflight passa a exigir o binário principal conforme arquitetura configurada no app (`MainSettingsManager.getArch`), mantendo o contrato multi-ABI.
+
 
 ## 9. Implantação total (CI Android)
 
