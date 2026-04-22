@@ -48,6 +48,23 @@ public class QemuBinaryResolverTest {
     }
 
     @Test
+    public void resolveForArch_acceptsRafaeliaAliasBinary() {
+        String filesDir = "/data/user/0/com.vectras.vm/files";
+        Set<String> existing = new HashSet<>();
+        existing.add(filesDir + "/distro/usr/bin/qemu-system-x86_64-rafacodephi");
+
+        QemuBinaryResolver.Resolution resolution = QemuBinaryResolver.resolveForArch(
+                filesDir,
+                "X86_64",
+                existing,
+                "QemuBinaryResolverTest"
+        );
+
+        assertTrue(resolution.found);
+        assertEquals("qemu-system-x86_64-rafacodephi", resolution.binaryName);
+    }
+
+    @Test
     public void resolveForArch_reportsNotFoundWhenNoBinaryExists() {
         QemuBinaryResolver.Resolution resolution = QemuBinaryResolver.resolveForArch(
                 "/data/user/0/com.vectras.vm/files",

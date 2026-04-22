@@ -35,9 +35,9 @@ public class AppConfig {
     public static String vectrasPrivacy = vectrasRaw + "PRIVACYANDPOLICY.md";
     public static String vectrasTerms = vectrasRaw + "TERMSOFSERVICE.md";
     public static String vectrasInfo = vectrasRaw + "info.md";
-    public static String vectrasRepo = "https://github.com/xoureldeen/Vectras-VM-Android";
-    public static String rafaeliaQemuRepo = "https://github.com/rafaelmeloreisnovo/qemu_rafaelia";
-    public static String rafaeliaAndroidxRepo = "https://github.com/rafaelmeloreisnovo/androidx_RmR";
+    public static String vectrasRepo = "https://github.com/wojcikiewicz17/Vectras-VM-Android";
+    public static String rafaeliaQemuRepo = "https://github.com/wojcikiewicz17/qemu_rafaelia";
+    public static String rafaeliaAndroidxRepo = "https://github.com/wojcikiewicz17/androidx_RmR";
     public static String qemuDocsUrl = rafaeliaQemuRepo;
     public static String updateJson = vectrasRaw + "UpdateConfig.json";
     public static String blogJson = vectrasRaw + "news_list.json";
