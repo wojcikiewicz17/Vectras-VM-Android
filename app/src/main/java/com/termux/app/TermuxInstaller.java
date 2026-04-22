@@ -94,6 +94,7 @@ final class TermuxInstaller {
 
                     final byte[] buffer = new byte[8096];
                     final List<Pair<String, String>> symlinks = new ArrayList<>(50);
+                    final List<File> executableCandidates = new ArrayList<>(64);
 
                     final byte[] zipBytes = loadZipBytes();
                     if (zipBytes == null || zipBytes.length == 0) {
@@ -155,8 +156,8 @@ final class TermuxInstaller {
                                             outStream.write(buffer, 0, readBytes);
                                     }
                                     if (zipEntryName.startsWith("bin/") || zipEntryName.startsWith("libexec") || zipEntryName.startsWith("lib/apt/methods")) {
-                                        //noinspection OctalInteger
-                                        Os.chmod(targetFile.getAbsolutePath(), 0700);
+                                        executableCandidates.add(targetFile);
+                                        applyExecutablePermission(targetFile);
                                     }
                                 }
                             }
@@ -189,6 +190,8 @@ final class TermuxInstaller {
                     for (Pair<String, String> symlink : symlinks) {
                         Os.symlink(symlink.first, symlink.second);
                     }
+
+                    ensureExecutablePermissions(executableCandidates);
 
                     if (!STAGING_PREFIX_FILE.renameTo(PREFIX_FILE)) {
                         throw new RuntimeException("Unable to rename staging folder");
@@ -229,6 +232,24 @@ final class TermuxInstaller {
     private static void ensureDirectoryExists(File directory) {
         if (!directory.isDirectory() && !directory.mkdirs()) {
             throw new RuntimeException("Unable to create directory: " + directory.getAbsolutePath());
+        }
+    }
+
+
+    private static void applyExecutablePermission(File file) throws ErrnoException {
+        if (file == null || !file.exists()) {
+            return;
+        }
+        //noinspection OctalInteger
+        Os.chmod(file.getAbsolutePath(), 0700);
+    }
+
+    private static void ensureExecutablePermissions(List<File> executableCandidates) throws ErrnoException {
+        if (executableCandidates == null) {
+            return;
+        }
+        for (File candidate : executableCandidates) {
+            applyExecutablePermission(candidate);
         }
     }
 
@@ -343,7 +364,7 @@ final class TermuxInstaller {
                 byte[] zipBytes = provider.getZipBytes();
                 if (zipBytes == null || zipBytes.length == 0) {
                     bootstrapZipFailureCategory = BOOTSTRAP_FAILURE_BOOTSTRAP_ARCHIVE_MISSING;
-                    bootstrapZipFailureDetail = "nativeGetZip returned empty payload";
+                    bootstrapZipFailureDetail = "nativeGetZip returned NULL/empty payload";
                     updateBootstrapNativeLoadError();
                     Log.e(EmulatorDebug.LOG_TAG, "Bootstrap payload missing from JNI provider");
                     return null;

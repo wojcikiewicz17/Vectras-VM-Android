@@ -35,12 +35,6 @@ public final class QemuBinaryResolver {
             "qemu-system-ppc-rafaelia"
     ));
 
-    private static final String[] BIN_SEARCH_PREFIXES = new String[]{
-            "/distro/usr/local/bin/",
-            "/distro/usr/bin/",
-            "/usr/bin/"
-    };
-
     private QemuBinaryResolver() {
         throw new AssertionError("QemuBinaryResolver is a utility class and cannot be instantiated");
     }
@@ -90,10 +84,28 @@ public final class QemuBinaryResolver {
             return resolution;
         }
 
+        List<String> searchDirectories = buildSearchDirectories(filesDir);
+        if (existingPaths != null && !existingPaths.isEmpty()) {
+            LinkedHashSet<String> merged = new LinkedHashSet<>(searchDirectories);
+            for (String path : existingPaths) {
+                if (path == null || path.trim().isEmpty()) continue;
+                File parent = new File(path).getParentFile();
+                if (parent != null) {
+                    merged.add(parent.getAbsolutePath());
+                }
+            }
+            searchDirectories = new ArrayList<>(merged);
+        }
+        if (searchDirectories.isEmpty()) {
+            Resolution resolution = Resolution.notFound("no-search-directories", Collections.emptyList());
+            logNotFound(logTag, arch, resolution);
+            return resolution;
+        }
+
         ArrayList<String> checkedPaths = new ArrayList<>();
         for (String candidate : candidates) {
-            for (String prefix : BIN_SEARCH_PREFIXES) {
-                String fullPath = filesDir + prefix + candidate;
+            for (String directory : searchDirectories) {
+                String fullPath = new File(directory, candidate).getAbsolutePath();
                 checkedPaths.add(fullPath);
                 if (pathExists(fullPath, existingPaths)) {
                     return Resolution.found(candidate, fullPath, checkedPaths);
@@ -106,11 +118,44 @@ public final class QemuBinaryResolver {
         return resolution;
     }
 
+    private static List<String> buildSearchDirectories(String filesDir) {
+        LinkedHashSet<String> directories = new LinkedHashSet<>();
+        if (filesDir != null && !filesDir.trim().isEmpty()) {
+            File root = new File(filesDir);
+            registerPathIfDirectory(directories, new File(root, "distro/usr/local/bin"));
+            registerPathIfDirectory(directories, new File(root, "distro/usr/bin"));
+            registerPathIfDirectory(directories, new File(root, "usr/bin"));
+            registerPathIfDirectory(directories, new File(root, "bin"));
+        }
+
+        registerPathIfDirectory(directories, new File("/usr/local/bin"));
+        registerPathIfDirectory(directories, new File("/usr/bin"));
+
+        String runtimePath = System.getenv("PATH");
+        if (runtimePath != null && !runtimePath.trim().isEmpty()) {
+            for (String entry : runtimePath.split(":")) {
+                if (entry == null || entry.trim().isEmpty()) {
+                    continue;
+                }
+                registerPathIfDirectory(directories, new File(entry.trim()));
+            }
+        }
+        return new ArrayList<>(directories);
+    }
+
+    private static void registerPathIfDirectory(Set<String> directories, File directory) {
+        if (directory == null || !directory.isDirectory()) {
+            return;
+        }
+        directories.add(directory.getAbsolutePath());
+    }
+
     private static boolean pathExists(String fullPath, @Nullable Set<String> existingPaths) {
         if (existingPaths != null) {
             return existingPaths.contains(fullPath);
         }
-        return new File(fullPath).exists();
+        File candidate = new File(fullPath);
+        return candidate.exists() && candidate.canExecute();
     }
 
     private static List<String> buildCandidateBinaries(@Nullable String arch) {
