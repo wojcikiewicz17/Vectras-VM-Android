@@ -41,10 +41,29 @@ jobs:
     runs-on: ubuntu-latest
     needs: abi-contract-gate
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
-        abi: [arm64-v8a, armeabi-v7a, x86, x86_64]
-        variant: [Debug, Release]
+        include:
+          - abi: arm64-v8a
+            variant: Debug
+            profile: official_arm64
+            profile_channel: official
+          - abi: arm64-v8a
+            variant: Release
+            profile: official_arm64
+            profile_channel: official
+          - abi: armeabi-v7a
+            variant: Debug
+            profile: internal_arm32_arm64
+            profile_channel: internal
+          - abi: x86
+            variant: Debug
+            profile: internal_4abi
+            profile_channel: internal
+          - abi: x86_64
+            variant: Debug
+            profile: internal_4abi
+            profile_channel: internal
     steps:
       - uses: actions/checkout@v4
 
@@ -88,23 +107,33 @@ jobs:
           set -o pipefail
           sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
 
+      - name: Validate matrix lane policy (fail-fast config)
+        shell: bash
+        run: |
+          set -euo pipefail
+          profile="${{ matrix.profile }}"
+          variant="${{ matrix.variant }}"
+
+          if [[ "${variant}" == "Release" && "${profile}" != "official_arm64" && "${profile}" != "official_arm32_arm64" ]]; then
+            echo "Invalid matrix lane: Release requires official_arm64 or official_arm32_arm64 profile." >&2
+            exit 1
+          fi
+
+          case "${{ matrix.abi }}" in
+            armeabi-v7a|x86|x86_64)
+              if [[ "${variant}" != "Debug" || "${profile}" != internal_* ]]; then
+                echo "Invalid matrix lane: internal ABI (${{ matrix.abi }}) must run Debug with internal_* profile." >&2
+                exit 1
+              fi
+              ;;
+          esac
+
       - name: Build ABI lane
         shell: bash
         run: |
           set -euo pipefail
-          case "${{ matrix.abi }}" in
-            arm64-v8a) profile="official_arm64" ;;
-            armeabi-v7a) profile="internal_arm32_arm64" ;;
-            x86|x86_64) profile="internal_4abi" ;;
-            *) profile="${{ inputs.abi_profile }}" ;;
-          esac
-
+          profile="${{ matrix.profile }}"
           eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${profile}" --allow-generic-fallback)"
-
-          if [[ "${{ matrix.variant }}" == "Release" && "${profile}" != "official_arm64" && "${profile}" != "official_arm32_arm64" ]]; then
-            echo "Release lane bloqueada para profile=${profile}; gate oficial exige official_arm64 ou official_arm32_arm64."
-            exit 1
-          fi
 
           ./tools/gradle_with_jdk21.sh \
             -PAPP_ABI_POLICY="${app_abi_policy}" \
@@ -116,7 +145,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: compile-matrix-${{ matrix.abi }}-${{ matrix.variant }}
+          name: compile-matrix-${{ matrix.abi }}-${{ matrix.variant }}-${{ matrix.profile_channel }}
           path: |
             app/build/outputs/apk/**
             app/build/reports/**
