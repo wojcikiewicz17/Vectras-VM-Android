@@ -4,13 +4,17 @@
       "app_abi_policy": "arm64-only",
       "supported_abis": ["arm64-v8a"],
       "ci_internal_validation": false,
-      "channel": "official"
+      "channel": "official",
+      "release_track": "store-official",
+      "description": "Official store release profile (default for release-signed-official lane)."
     },
     "official_arm32_arm64": {
       "app_abi_policy": "arm32-arm64",
       "supported_abis": ["arm64-v8a", "armeabi-v7a"],
       "ci_internal_validation": false,
-      "channel": "official"
+      "channel": "compatibility",
+      "release_track": "compat-non-store",
+      "description": "Explicit dual-ABI compatibility profile for non-store distribution/testing only."
     },
     "internal_arm64": {
       "app_abi_policy": "arm64-only",
@@ -62,6 +66,8 @@
     "universal-guarded": "universal_guarded",
     "official-arm64": "official_arm64",
     "arm64-only": "official_arm64",
-    "arm32-arm64": "internal_arm32_arm64"
+    "arm32-arm64": "internal_arm32_arm64",
+    "official-arm32-arm64-compat": "official_arm32_arm64",
+    "dual-arm-compat": "official_arm32_arm64"
   }
 }

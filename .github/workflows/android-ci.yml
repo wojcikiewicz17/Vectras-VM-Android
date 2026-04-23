@@ -100,7 +100,7 @@ jobs:
               run_workfile="release_gate"
               build_variant="release"
               signing_mode="signed"
-              abi_profile="official_arm32_arm64"
+              abi_profile="official_arm64"
               ;;
             *)
               echo "ci_lane inválida: ${ci_lane}" >&2
@@ -110,6 +110,12 @@ jobs:
 
           if [[ ! " ${allowed_abi_profiles} " =~ [[:space:]]${abi_profile}[[:space:]] ]]; then
             echo "abi_profile inválido para Android CI: ${abi_profile}" >&2
+            exit 1
+          fi
+
+
+          if [[ "${ci_lane}" == "release-signed-official" && "${abi_profile}" != "official_arm64" ]]; then
+            echo "release-signed-official must resolve to abi_profile=official_arm64; got ${abi_profile}" >&2
             exit 1
           fi
 

@@ -61,6 +61,18 @@ materialization, which allows diagnostics in clean environments before Android S
    - usar assinatura de produção (`-Psigning_mode=signed` e/ou `-PciRelease=true` em CI oficial);
    - **`devFastPath` é ignorado**: gates pesados e validações estritas permanecem obrigatórios.
 
+
+### Lane -> abi_profile -> uso permitido
+
+| lane | abi_profile resolvido | uso permitido |
+|---|---|---|
+| `debug-local` | `official_arm32_arm64` | Compatibilidade local/debug com dual-ARM (não-oficial de loja). |
+| `debug-internal-arm32-arm64` | `internal_arm32_arm64` | Validação interna dual-ARM em CI. |
+| `release-unsigned-internal` | `internal_arm32_arm64` | Release interno sem assinatura de produção. |
+| `release-signed-official` | `official_arm64` | **Único perfil permitido para trilha oficial assinada (store oficial).** |
+
+`official_arm32_arm64` permanece disponível apenas como perfil explícito de compatibilidade fora da trilha oficial de loja.
+
 ## Fluxo oficial para gerar bootstrap/loader.apk (Termux)
 O artefato `loader.apk` é produzido pelo módulo `shell-loader` e copiado para assets intermediários do app
 em `app/build/generated/bootstrapAssets/bootstrap/loader.apk` (sem versionar binário em `app/src/main/assets`).
