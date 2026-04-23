@@ -73,7 +73,7 @@ jobs:
           signing_mode="${{ inputs.signing_mode || 'auto' }}"
           abi_profile="${{ inputs.abi_profile || 'official_arm64' }}"
           native_matrix_profile="${{ inputs.native_matrix_profile || 'canonical' }}"
-          allowed_abi_profiles="official_arm64 official_arm32_arm64 internal_arm64 internal_arm32_arm64 internal_4abi internal_5abi internal_riscv64 universal_guarded generic"
+          allowed_abi_profiles="$(python3 -c 'import json; from pathlib import Path; c=json.loads(Path("tools/ci/abi_profiles_contract.json").read_text()); print(" ".join(c["profiles"].keys()))')"
 
           case "${ci_lane}" in
             auto)
