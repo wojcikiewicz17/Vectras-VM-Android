@@ -57,6 +57,16 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
+echo "[validate-lowlevel-abi] validating ABI contract drift (gradle/qemu/workflows)"
+if ! command -v python3 >/dev/null 2>&1; then
+  fail "ENV" "dependência ausente para validação de contrato ABI" "python3" "command -v python3" "instalar Python 3 no ambiente de CI/build"
+fi
+
+python_drift_cmd=(python3 "${ROOT_DIR}/tools/ci/check_abi_contract_drift.py")
+if ! "${python_drift_cmd[@]}"; then
+  fail "CI_SCRIPT" "drift de contrato ABI detectado" "${ROOT_DIR}/tools/ci/check_abi_contract_drift.py" "${python_drift_cmd[*]}" "alinhar gradle.properties, tools/qemu_launch.yml e .github/workflows ao contrato tools/ci/abi_profiles_contract.json"
+fi
+
 echo "[validate-lowlevel-abi] validating schema + exported symbols"
 if ! command -v python3 >/dev/null 2>&1; then
   fail "ENV" "dependência ausente para validação de contrato ABI" "python3" "command -v python3" "instalar Python 3 no ambiente de CI/build"

@@ -73,7 +73,7 @@ jobs:
           signing_mode="${{ inputs.signing_mode || 'auto' }}"
           abi_profile="${{ inputs.abi_profile || 'official_arm64' }}"
           native_matrix_profile="${{ inputs.native_matrix_profile || 'canonical' }}"
-          allowed_abi_profiles="official_arm64 official_arm32_arm64 internal_arm64 internal_arm32_arm64 internal_4abi internal_5abi internal_riscv64 universal_guarded generic"
+          allowed_abi_profiles="$(python3 -c 'import json; from pathlib import Path; c=json.loads(Path("tools/ci/abi_profiles_contract.json").read_text()); print(" ".join(c["profiles"].keys()))')"
 
           case "${ci_lane}" in
             auto)
@@ -100,7 +100,7 @@ jobs:
               run_workfile="release_gate"
               build_variant="release"
               signing_mode="signed"
-              abi_profile="official_arm32_arm64"
+              abi_profile="official_arm64"
               ;;
             *)
               echo "ci_lane inválida: ${ci_lane}" >&2
@@ -110,6 +110,12 @@ jobs:
 
           if [[ ! " ${allowed_abi_profiles} " =~ [[:space:]]${abi_profile}[[:space:]] ]]; then
             echo "abi_profile inválido para Android CI: ${abi_profile}" >&2
+            exit 1
+          fi
+
+
+          if [[ "${ci_lane}" == "release-signed-official" && "${abi_profile}" != "official_arm64" ]]; then
+            echo "release-signed-official must resolve to abi_profile=official_arm64; got ${abi_profile}" >&2
             exit 1
           fi
 

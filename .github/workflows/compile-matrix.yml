@@ -37,9 +37,23 @@ jobs:
       - name: Validate lowlevel ABI contract (mandatory gate)
         run: ./tools/ci/validate_lowlevel_abi.sh
 
-  android-matrix:
+  matrix-contract:
     runs-on: ubuntu-latest
     needs: abi-contract-gate
+    outputs:
+      matrix_abis: ${{ steps.contract.outputs.matrix_abis }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          matrix_abis="$(python3 -c 'import json; from pathlib import Path; c=json.loads(Path("tools/ci/abi_profiles_contract.json").read_text()); print(json.dumps(c["profiles"]["internal_4abi"]["supported_abis"]))')"
+          echo "matrix_abis=${matrix_abis}" >> "$GITHUB_OUTPUT"
+
+  android-matrix:
+    runs-on: ubuntu-latest
+    needs: [abi-contract-gate, matrix-contract]
     strategy:
       fail-fast: true
       matrix:
