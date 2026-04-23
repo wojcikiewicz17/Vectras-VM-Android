@@ -26,6 +26,22 @@ For metadata-only Gradle invocations (`--version`, `help`, `tasks`, `properties`
 materialization, which allows diagnostics in clean environments before Android SDK setup.
 
 ## Build commands
+
+## Não usar `android/`
+O subdiretório `android/` é **legado** e está fora da trilha suportada de build/release.
+
+Rationale técnico:
+- contratos de AGP, SDK/Build Tools, NDK, CMake, ABI e signing são centralizados no projeto Gradle da **raiz**;
+- manter uma trilha ativa em `android/` cria drift de versão e ambiguidades de entrypoint;
+- CI/release oficial valida e publica artefatos exclusivamente a partir da raiz (`:app:*`).
+
+Comandos canônicos (raiz):
+```bash
+./tools/gradle_with_jdk21.sh :app:assembleDebug
+./tools/gradle_with_jdk21.sh :app:assembleRelease
+./tools/gradle_with_jdk21.sh :app:bundleRelease
+```
+
 ```bash
 ./tools/gradle_with_jdk21.sh --version
 ./tools/gradle_with_jdk21.sh clean
@@ -60,6 +76,18 @@ materialization, which allows diagnostics in clean environments before Android S
    - alvo: trilha oficial de distribuição;
    - usar assinatura de produção (`-Psigning_mode=signed` e/ou `-PciRelease=true` em CI oficial);
    - **`devFastPath` é ignorado**: gates pesados e validações estritas permanecem obrigatórios.
+
+
+### Lane -> abi_profile -> uso permitido
+
+| lane | abi_profile resolvido | uso permitido |
+|---|---|---|
+| `debug-local` | `official_arm32_arm64` | Compatibilidade local/debug com dual-ARM (não-oficial de loja). |
+| `debug-internal-arm32-arm64` | `internal_arm32_arm64` | Validação interna dual-ARM em CI. |
+| `release-unsigned-internal` | `internal_arm32_arm64` | Release interno sem assinatura de produção. |
+| `release-signed-official` | `official_arm64` | **Único perfil permitido para trilha oficial assinada (store oficial).** |
+
+`official_arm32_arm64` permanece disponível apenas como perfil explícito de compatibilidade fora da trilha oficial de loja.
 
 ## Fluxo oficial para gerar bootstrap/loader.apk (Termux)
 O artefato `loader.apk` é produzido pelo módulo `shell-loader` e copiado para assets intermediários do app
@@ -99,34 +127,22 @@ Required JNI baseline flags:
 - `-fno-rtti`
 
 ## ABI policy
-Configured by `APP_ABI_POLICY` and `SUPPORTED_ABIS` in `gradle.properties`.
-The ABI baseline is also declared in `tools/qemu_launch.yml` with explicit scope:
-- `build_env.abi_filters.scope=official_distribution` (official default)
-- `build_env.abi_filters.internal_validation` (expanded internal matrix)
+A fonte única de verdade dos perfis ABI é `tools/ci/abi_profiles_contract.json`.
 
-Accepted policies in code and docs are exactly:
-- `APP_ABI_POLICY=arm64-only` → `SUPPORTED_ABIS=arm64-v8a` (official minimum distribution)
-- `APP_ABI_POLICY=arm32-arm64` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a` (dual-ARM distribution lane; must remain compatible with termux-bootstrap)
-- `APP_ABI_POLICY=internal-5abi` → `SUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64` (**internal validation only; not for official distribution**, requires `CI_INTERNAL_VALIDATION=true` and `min.api>=35`)
+- `tools/ci/resolve_abi_profile.py` é o resolvedor canônico para CI/workflows.
+- `tools/ci/check_abi_contract_drift.py` valida drift entre:
+  - `gradle.properties` (`APP_ABI_POLICY`, `SUPPORTED_ABIS`)
+  - `tools/qemu_launch.yml` (`build_env.abi_filters`)
+  - `.github/workflows/*.yml`
+- `tools/ci/validate_lowlevel_abi.sh` executa esse gate antes de builds Android em CI.
 
-`SUPPORTED_ABIS` também aceita aliases comuns e normaliza automaticamente para ABI Android canônica:
-- `arm64`, `aarch64`, `armv8`, `arm64-v8a` → `arm64-v8a`
-- `arm32`, `armv7`, `armeabi`, `armeabi-v7a` → `armeabi-v7a`
-
-`termux-bootstrap` is built/packaged only for `arm64-v8a`, `armeabi-v7a`, `x86`, and `x86_64` (aligned with `TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS` in `app/src/main/cpp/CMakeLists.txt`). Official lanes (`arm64-only` and `arm32-arm64`) must stay inside this matrix.
-
-Default in this repository branch is arm32-arm64 (dual ARM for development/validation). Official distribution policy remains arm64-only.
-
-To run full internal ABI validation coverage:
+Para inspecionar um perfil sem hardcode:
 ```bash
-./tools/gradle_with_jdk21.sh -PAPP_ABI_POLICY=internal-5abi -PSUPPORTED_ABIS=arm64-v8a,armeabi-v7a,x86,x86_64,riscv64 -PCI_INTERNAL_VALIDATION=true -Pmin.api=35 :app:assembleDebug
+python3 tools/ci/resolve_abi_profile.py --profile official_arm64
+python3 tools/ci/resolve_abi_profile.py --profile internal_4abi
 ```
 
-Alignment check command (used by CI before build):
-```bash
-python3 tools/check_abi_policy_alignment.py
-```
-
+A matriz ABI textual não deve ser duplicada em documentação/workflows; consulte sempre o contrato JSON.
 
 
 ## CMake presets (host + Android ARM32/ARM64)

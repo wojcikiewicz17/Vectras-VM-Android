@@ -40,14 +40,15 @@ def normalize_profile(raw_profile: str, aliases: dict[str, str]) -> str:
 
 
 def infer_generic_profile(raw_profile: str) -> str:
-    token = raw_profile.lower().replace("-", "_")
+    token = re.sub(r"[^a-z0-9_]+", "_", raw_profile.lower())
     if "universal" in token:
         return "universal_guarded"
     if any(k in token for k in ["5abi", "riscv"]):
         return "internal_5abi"
     if any(k in token for k in ["4abi", "x86"]):
         return "internal_4abi"
-    if any(k in token for k in ["arm32", "dual", "32_64"]):
+    # Never infer dual-ABI as an official default.
+    if any(k in token for k in ["arm32", "dual", "32_64", "32arm64", "armv7"]):
         return "internal_arm32_arm64"
     if "arm64" in token or "official" in token:
         return "official_arm64"
