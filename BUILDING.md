@@ -26,6 +26,22 @@ For metadata-only Gradle invocations (`--version`, `help`, `tasks`, `properties`
 materialization, which allows diagnostics in clean environments before Android SDK setup.
 
 ## Build commands
+
+## Não usar `android/`
+O subdiretório `android/` é **legado** e está fora da trilha suportada de build/release.
+
+Rationale técnico:
+- contratos de AGP, SDK/Build Tools, NDK, CMake, ABI e signing são centralizados no projeto Gradle da **raiz**;
+- manter uma trilha ativa em `android/` cria drift de versão e ambiguidades de entrypoint;
+- CI/release oficial valida e publica artefatos exclusivamente a partir da raiz (`:app:*`).
+
+Comandos canônicos (raiz):
+```bash
+./tools/gradle_with_jdk21.sh :app:assembleDebug
+./tools/gradle_with_jdk21.sh :app:assembleRelease
+./tools/gradle_with_jdk21.sh :app:bundleRelease
+```
+
 ```bash
 ./tools/gradle_with_jdk21.sh --version
 ./tools/gradle_with_jdk21.sh clean
