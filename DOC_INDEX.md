@@ -7,6 +7,7 @@
 - [`docs/README.md`](docs/README.md): curadoria técnica.
 - [`docs/THREE_LAYER_ANALYSIS.md`](docs/THREE_LAYER_ANALYSIS.md): análise estrutural em 3 camadas.
 - [`docs/ROOT_FILE_CHAIN.md`](docs/ROOT_FILE_CHAIN.md): reflexão arquivo-a-arquivo da raiz.
+- [`docs/AI_BUILD_RELEASE_INDEX.md`](docs/AI_BUILD_RELEASE_INDEX.md): índice operacional IA para build/release/ABI/signing.
 
 ## Documentos de raiz
 | Documento | Finalidade | Público-alvo | Classificação | Localização atual | Inbound link |
@@ -59,6 +60,7 @@ Cada diretório tem:
 - Operação: `docs/OPERATIONS.md`, `docs/BLUEPRINT_FLUXOS_VM.md`
 - Performance: `docs/PERFORMANCE_INTEGRITY.md`, `docs/BENCHMARKS.md`
 - Conformidade: `docs/LEGAL_AND_LICENSES.md`, `docs/IP_MAP.md`, `THIRD_PARTY_NOTICES.md`
+- Build/release para IA: `docs/AI_BUILD_RELEASE_INDEX.md`
 
 
 ## Governança operacional (CI e segurança)

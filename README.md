@@ -27,6 +27,7 @@ Esta revisão consolida a documentação em três camadas por diretório (propó
 - Auditoria de cobertura dos Markdown (2026-04-07): [`docs/active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md`](docs/active/DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md)
 - Catálogo completo de Markdown (2026-04-07): [`docs/active/ALL_MARKDOWN_FILES_2026-04-07.md`](docs/active/ALL_MARKDOWN_FILES_2026-04-07.md)
 - Guia operacional de build: [`BUILDING.md`](BUILDING.md)
+- Índice operacional para IA (build/release/ABI/signing): [`docs/AI_BUILD_RELEASE_INDEX.md`](docs/AI_BUILD_RELEASE_INDEX.md)
 - Matriz de alinhamento diretórios críticos: [`docs/active/DIRECTORY_ALIGNMENT_MATRIX.md`](docs/active/DIRECTORY_ALIGNMENT_MATRIX.md)
 - Troubleshooting operacional: [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)
 - Sumário de correções: [`FIXES_SUMMARY.md`](FIXES_SUMMARY.md)
@@ -95,6 +96,7 @@ find . -maxdepth 2 -type d | sort
 ## Índices
 - [DOC_INDEX.md](DOC_INDEX.md)
 - [docs/README.md](docs/README.md)
+- [docs/AI_BUILD_RELEASE_INDEX.md](docs/AI_BUILD_RELEASE_INDEX.md)
 - [docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md](docs/navigation/BIGTECH_REVOLUTION_ANNOUNCE.md)
 
 ## Execução padrão de CI/CD

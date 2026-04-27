@@ -110,6 +110,21 @@ python3 tools/verify_bootstrap_assets.py
 > Use `./tools/gradle_with_jdk21.sh` como comando canônico: o wrapper aplica a política de JVM suportada (17/21) e faz autoajuste de `sdk.dir` quando possível.
 
 
+
+## Matriz local de artefatos (arm32+arm64, signed + unsigned)
+Use o helper canônico para gerar ambos os artefatos de release internos (unsigned e signed com keystore local de validação), incluindo manifesto e hashes:
+
+```bash
+./tools/ci/build_artifact_matrix_local.sh
+```
+
+Saída:
+- `artifacts/local-matrix/app-release-unsigned.apk`
+- `artifacts/local-matrix/app-release-unsigned.aab`
+- `artifacts/local-matrix/app-release-signed-internal.apk`
+- `artifacts/local-matrix/app-release-signed-internal.aab`
+- `artifacts/local-matrix/manifest.json`
+
 ## Build model: JNI-first on Android
 - Android native builds are hosted/JNI and rely on bionic libc + pthread.
 - Baremetal flags are intentionally not used for Android JNI targets.
