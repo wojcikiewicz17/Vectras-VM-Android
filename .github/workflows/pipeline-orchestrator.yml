@@ -141,6 +141,14 @@ jobs:
       run_native_checks: false
     secrets: inherit
 
+
+  android-native-ci:
+    name: Android Native CI (arm32+arm64)
+    needs: [matrix-build, abi-preflight, host-ci]
+    if: ${{ always() && needs.matrix-build.outputs.should_run_android == 'true' && (needs.host-ci.result == 'success' || needs.host-ci.result == 'skipped') }}
+    uses: ./.github/workflows/android-native-ci.yml
+    secrets: inherit
+
   android-release-binaries-arm32-arm64:
     name: Android Release Binaries (unsigned/signed arm32+arm64)
     needs: [matrix-build, abi-preflight, host-ci]
@@ -170,14 +178,14 @@ jobs:
 
   quality-gates:
     name: Quality Gates
-    needs: [matrix-build, abi-preflight, host-ci, android-ci, android-release-binaries-arm32-arm64]
+    needs: [matrix-build, abi-preflight, host-ci, android-ci, android-native-ci, android-release-binaries-arm32-arm64]
     if: always()
     uses: ./.github/workflows/quality-gates.yml
     with:
       run_host: ${{ needs.matrix-build.outputs.should_run_host == 'true' }}
       run_android: ${{ needs.matrix-build.outputs.should_run_android == 'true' }}
       host_result: ${{ needs.host-ci.result }}
-      android_result: ${{ needs.android-ci.result == 'success' && needs.android-release-binaries-arm32-arm64.result == 'success' && 'success' || 'failure' }}
+      android_result: ${{ needs.android-ci.result == 'success' && needs.android-native-ci.result == 'success' && needs.android-release-binaries-arm32-arm64.result == 'success' && 'success' || 'failure' }}
       profile: ${{ needs.matrix-build.outputs.profile }}
       base_sha: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
       head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
