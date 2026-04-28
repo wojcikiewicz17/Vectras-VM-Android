@@ -3,7 +3,13 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: prepare_release_signing.sh --mode <signed|unsigned|auto> [--keystore-out <path>] [--allow-legacy-fallback]
+Usage: prepare_release_signing.sh --mode <signed|unsigned|auto>
+
+Required secrets for signed mode:
+  ANDROID_KEYSTORE_BASE64
+  ANDROID_KEYSTORE_PASSWORD
+  ANDROID_KEY_ALIAS
+  ANDROID_KEY_PASSWORD
 
 Outputs (when GITHUB_ENV exists):
   VECTRAS_CI_RELEASE_FLAGS
@@ -13,22 +19,13 @@ USAGE
 }
 
 MODE=""
-KEYSTORE_OUT="${RUNNER_TEMP:-/tmp}/vectras-release.keystore"
-ALLOW_LEGACY_FALLBACK="false"
+KEYSTORE_OUT=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --mode)
       MODE="$2"
       shift 2
-      ;;
-    --keystore-out)
-      KEYSTORE_OUT="$2"
-      shift 2
-      ;;
-    --allow-legacy-fallback)
-      ALLOW_LEGACY_FALLBACK="true"
-      shift
       ;;
     -h|--help)
       usage
@@ -47,42 +44,48 @@ if [[ -z "$MODE" ]]; then
   exit 1
 fi
 
+cleanup_keystore() {
+  if [[ -n "${KEYSTORE_OUT:-}" && -f "$KEYSTORE_OUT" ]]; then
+    rm -f "$KEYSTORE_OUT"
+  fi
+}
+
+trap cleanup_keystore EXIT
+
+missing_required_secrets() {
+  local missing=()
+  [[ -n "${ANDROID_KEYSTORE_BASE64:-}" ]] || missing+=("ANDROID_KEYSTORE_BASE64")
+  [[ -n "${ANDROID_KEYSTORE_PASSWORD:-}" ]] || missing+=("ANDROID_KEYSTORE_PASSWORD")
+  [[ -n "${ANDROID_KEY_ALIAS:-}" ]] || missing+=("ANDROID_KEY_ALIAS")
+  [[ -n "${ANDROID_KEY_PASSWORD:-}" ]] || missing+=("ANDROID_KEY_PASSWORD")
+  printf '%s\n' "${missing[@]:-}"
+}
+
 has_required_signing_secrets() {
-  [[ -n "${VECTRAS_RELEASE_STORE_PASSWORD:-}" && -n "${VECTRAS_RELEASE_KEY_ALIAS:-}" && -n "${VECTRAS_RELEASE_KEY_PASSWORD:-}" ]]
+  [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "${ANDROID_KEYSTORE_PASSWORD:-}" && -n "${ANDROID_KEY_ALIAS:-}" && -n "${ANDROID_KEY_PASSWORD:-}" ]]
 }
 
 resolve_keystore() {
-  if [[ -n "${VECTRAS_RELEASE_STORE_FILE:-}" ]]; then
-    [[ -s "${VECTRAS_RELEASE_STORE_FILE}" ]]
-    return
+  local runner_tmp="${RUNNER_TEMP:-/tmp}"
+  umask 077
+  KEYSTORE_OUT="$(mktemp "${runner_tmp%/}/vectras-release-XXXXXX.keystore")"
+
+  if ! printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "$KEYSTORE_OUT"; then
+    echo "::error::Failed to decode ANDROID_KEYSTORE_BASE64" >&2
+    exit 1
   fi
 
-  if [[ -n "${VECTRAS_RELEASE_KEYSTORE_B64:-}" ]]; then
-    echo "${VECTRAS_RELEASE_KEYSTORE_B64}" | base64 --decode > "$KEYSTORE_OUT"
-    if [[ ! -s "$KEYSTORE_OUT" ]]; then
-      echo "::error::VECTRAS_RELEASE_KEYSTORE_B64 provided but decoded keystore is empty" >&2
-      exit 1
-    fi
-    export VECTRAS_RELEASE_STORE_FILE="$KEYSTORE_OUT"
-    return
+  if [[ ! -s "$KEYSTORE_OUT" ]]; then
+    echo "::error::ANDROID_KEYSTORE_BASE64 provided but decoded keystore is empty" >&2
+    exit 1
   fi
 
-  if [[ "$ALLOW_LEGACY_FALLBACK" == "true" && -n "${ANDROID_SIGNING_KEYSTORE:-}" ]]; then
-    echo "::warning::Using legacy ANDROID_SIGNING_KEYSTORE fallback"
-    echo "${ANDROID_SIGNING_KEYSTORE}" | base64 --decode > "$KEYSTORE_OUT"
-    if [[ ! -s "$KEYSTORE_OUT" ]]; then
-      echo "::error::ANDROID_SIGNING_KEYSTORE decoded keystore is empty" >&2
-      exit 1
-    fi
-    export VECTRAS_RELEASE_STORE_FILE="$KEYSTORE_OUT"
-    return
-  fi
-
-  return 1
+  export VECTRAS_RELEASE_STORE_FILE="$KEYSTORE_OUT"
 }
 
 signed_ready="false"
-if has_required_signing_secrets && resolve_keystore; then
+if has_required_signing_secrets; then
+  resolve_keystore
   signed_ready="true"
 fi
 
@@ -92,7 +95,12 @@ SIGNING_ARGS=""
 case "$MODE" in
   signed)
     if [[ "$signed_ready" != "true" ]]; then
-      echo "::error::signed mode requires valid keystore and signing secrets" >&2
+      mapfile -t missing < <(missing_required_secrets)
+      if [[ ${#missing[@]} -gt 0 && -n "${missing[0]}" ]]; then
+        echo "::error::signed mode missing required secrets: ${missing[*]}" >&2
+      else
+        echo "::error::signed mode requires valid keystore and signing secrets" >&2
+      fi
       exit 1
     fi
     ;;
@@ -111,7 +119,7 @@ case "$MODE" in
 esac
 
 if [[ -z "$RELEASE_FLAGS" ]]; then
-  SIGNING_ARGS="-Pandroid.injected.signing.store.file=${VECTRAS_RELEASE_STORE_FILE} -Pandroid.injected.signing.store.password=${VECTRAS_RELEASE_STORE_PASSWORD} -Pandroid.injected.signing.key.alias=${VECTRAS_RELEASE_KEY_ALIAS} -Pandroid.injected.signing.key.password=${VECTRAS_RELEASE_KEY_PASSWORD}"
+  SIGNING_ARGS="-Pandroid.injected.signing.store.file=${VECTRAS_RELEASE_STORE_FILE} -Pandroid.injected.signing.store.password=${ANDROID_KEYSTORE_PASSWORD} -Pandroid.injected.signing.key.alias=${ANDROID_KEY_ALIAS} -Pandroid.injected.signing.key.password=${ANDROID_KEY_PASSWORD}"
 fi
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then
