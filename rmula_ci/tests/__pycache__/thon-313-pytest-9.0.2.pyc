@@ -1,0 +1,85 @@
+ó
+    --ñi$	  ã                   ób  • S r SSKrSSKJs  Jr  SSK r SSKrSSK	r	SSK
+r
+\R                  R                  \R                  R                  \5      5      r\R                  R                  \5      r\R                  R                  \5      r\	R                  R%                  S\5        SSKJrJr  S rS r\
+R0                  R3                  S\" SS SSSSS5       S4\" SSS SSSS5       S	4\" SSSS SSS5       S
+4\" SSSSS SS5       S
+4\" SSSSSS S5       S4\" SSSSSSS 5       S
+4/5      S 5       rg)aÂ  
+Unit tests for the example transformation function defined in `formula_ci/model.py`.
+
+These tests verify that the weighted sum implemented in `F` produces the
+expected next state for a variety of input conditions. While the weights
+themselves are arbitrary, consistent outcomes are essential for CI-based
+validation. Running these tests in a CI pipeline ensures that any future
+modification to the transformation logic will be detected immediately.
+é    N)Ú
+SystemStateÚFc            
+      ó  • [        SSSSSSS S9 n S	n[        U 5      n[        R                  nS
+oC" X!US
+9oU(       GdM  SS
+[        R
+                  " 5       ;   d  [        R                  " [        5      (       a  [        R                  " [        5      OS
+[        R                  " U5      S[        R
+                  " 5       ;   d  [        R                  " U5      (       a  [        R                  " U5      OSS[        R
+                  " 5       ;   d  [        R                  " U5      (       a  [        R                  " U5      OS[        R                  " U5      [        R                  " U5      S.-  n[        [        R                  " U5      5      eS=n=pEg)z.Test a typical combination of state variables.g      ð?g       @g      @g      @g      @g      @g      @© ÚsÚmÚvÚlÚpÚrÚzgffffff@ç•Ö&è
+.>©Ú rel_tolúcassert %(py8)s
+{%(py8)s = %(py2)s
+{%(py2)s = %(py0)s.isclose
+}(%(py3)s, %(py4)s, rel_tol=%(py6)s)
+}ÚmathÚresultÚexpected©Úpy0Úpy2Úpy3Úpy4Úpy6Úpy8N)
+r   r   r   Ú iscloseÚ@py_builtinsÚlocalsÚ
+@pytest_arÚ_should_repr_global_nameÚ	_safereprÚAssertionErrorÚ_format_explanation© Ústater   r   Ú
+@py_assert1Ú
+@py_assert5Ú
+@py_assert7Ú
+@py_format9s           Ú./home/oai/share/formula_ci/tests/test_model.pyÚtest_basic_transitionr+      så   € ä˜# ¨¨s°c¸SÀCÑH€Eð	ð 
+ô ˆu‹X€FÜ
+<‰<Ð7°$Ð7ˆ<˜°$Ñ
+7Ð7Ö
+7×7×7×7×7×7Ñ7Œ4×7×7×7Ñ7Œ4×7×7Õ7ˆ<×7×7×7×7×7Ô7˜×7×7×7Ñ7˜×7×7×7×7×7Ö7 ×7×7×7Ñ7 ×7×7Õ7°$×7×7Ó7Ð
+7×7×7×7×7×7Õ7ó    c            
+      óv  • [        SSSSSSSS9 n [        U 5      nSo!U:H  o3(       Gd
+  [        R                  " SU4SX45      S[        R
+                  " 5       ;   d  [        R                  " [        5      (       a  [        R                  " [        5      OSS[        R
+                  " 5       ;   d  [        R                  " U 5      (       a  [        R                  " U 5      OS[        R                  " U5      [        R                  " U5      S .-  nSS	U0-  n[        [        R                  " U5      5      eS
+=n=p2g
+)
+z-All zero inputs should result in zero output.r   r   )ú==)z0%(py3)s
+{%(py3)s = %(py0)s(%(py1)s)
+} == %(py6)sr   r%   )r   Úpy1r   r   zassert %(py8)sr   N)
+r   r   r   Ú_call_reprcomparer   r   r    r!   r"   r#   )r%   Ú
+@py_assert2r'   Ú
+@py_assert4Ú
+@py_format7r)   s         r*   Útest_zero_inputsr4   -   s¨   € ä˜!˜q A¨¨a°1¸Ñ:€EÜ
+ˆU‹8ÐqÐq‰=×××Óˆ8×××××ÕŒ1×××ÑŒ1×××××ÖˆU×××ÑˆU××Õˆ8××Óq××××××Ôr,   zstate, expectedé   g      à?g333333Ó?gš™™™™™É¿gš™™™™™Ù?g333333ã?g333333Ó¿c           	      óü  • [        U 5      n[        R                  nSoC" X!US9oU(       GdM  SS[        R                  " 5       ;   d  [
+        R                  " [        5      (       a  [
+        R                  " [        5      OS[
+        R                  " U5      S[        R                  " 5       ;   d  [
+        R                  " U5      (       a  [
+        R                  " U5      OSS[        R                  " 5       ;   d  [
+        R                  " U5      (       a  [
+        R                  " U5      OS[
+        R                  " U5      [
+        R                  " U5      S .-  n[        [
+        R                  " U5      5      eS=n=pEg)	z<Verify that each factor contributes correctly when isolated.r   r   r   r   r   r   r   N)
+r   r   r   r   r   r   r    r!   r"   r#   r$   s           r*   Útest_single_factor_effectsr7   2   sÅ   € ô ˆu‹X€FÜ
+<‰<Ð7°$Ð7ˆ<˜°$Ñ
+7Ð7Ö
+7×7×7×7×7×7Ñ7Œ4×7×7×7Ñ7Œ4×7×7Õ7ˆ<×7×7×7×7×7Ô7˜×7×7×7Ñ7˜×7×7×7×7×7Ö7 ×7×7×7Ñ7 ×7×7Õ7°$×7×7Ó7Ð
+7×7×7×7×7×7Õ7r,   )Ú __doc__Úbuiltinsr   Ú_pytest.assertion.rewriteÚ	assertionÚ rewriter   r   ÚosÚsysÚpytestÚpathÚ dirnameÚ abspathÚ__file__Ú	TESTS_DIRÚPROJECT_ROOTÚ
+PARENT_DIRÚinsertÚformula_ci.modelr   r   r+   r4   ÚmarkÚ
+parametrizer7   © r,   r*   Ú<module>rL      sC  ðñ÷ „ ƒ
+Û 	Û 
+ã 
+ð 
+G‰GO‰O˜BŸG™GŸO™O¨HÓ5Ó6€	ð
+ w‰w‰˜yÓ)€Ø
+W‰W_‰_˜\Ó
+*€
+Ø ‡‡:Ô ç +ò
+8òð
+ ‡×ÑØá	Q˜˜1˜a  A qÓ	)¨3Ð/Ù	Q˜˜1˜a  A qÓ	)¨3Ð/Ù	Q˜˜1˜a  A qÓ	)¨4Ð0Ù	Q˜˜1˜a  A qÓ	)¨3Ð/Ù	Q˜˜1˜a  A qÓ	)¨3Ð/Ù	Q˜˜1˜a  A qÓ	)¨4Ð0ð
+ ó
+ñ8ó
+ñ8r,   
