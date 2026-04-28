@@ -1,0 +1,139 @@
+name: Android Native CI
+
+on:
+  workflow_call:
+  pull_request:
+    paths:
+      - 'app/**'
+      - 'engine/**'
+      - 'terminal-emulator/**'
+      - 'shell-loader/**'
+      - 'gradle/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'settings.gradle'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android-native-ci.yml'
+  push:
+    branches: [main, master, develop, 'release/**']
+    paths:
+      - 'app/**'
+      - 'engine/**'
+      - 'terminal-emulator/**'
+      - 'shell-loader/**'
+      - 'gradle/**'
+      - '**/*.gradle'
+      - '**/*.gradle.kts'
+      - 'settings.gradle'
+      - 'settings.gradle.kts'
+      - 'gradle.properties'
+      - '.github/workflows/android-native-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: android-native-ci-${{ github.ref }}-${{ github.workflow }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CI: true
+  GRADLE_OPTS: -Xmx4g -Dfile.encoding=UTF-8
+
+jobs:
+  build-android:
+    name: Android ${{ matrix.variant }} • ${{ matrix.abi }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    strategy:
+      fail-fast: false
+      matrix:
+        abi: [armeabi-v7a, arm64-v8a]
+        variant: [debug, release]
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Resolve canonical build versions
+        shell: bash
+        run: |
+          set -euo pipefail
+          declare -A key_map=(
+            ["compile.api"]="COMPILE_API"
+            ["tools.version"]="TOOLS_VERSION"
+            ["ndk.version"]="NDK_VERSION"
+            ["cmake.version"]="CMAKE_VERSION"
+            ["java.language.version"]="JAVA_VERSION"
+          )
+          for key in "${!key_map[@]}"; do
+            env_key="${key_map[$key]}"
+            value="$(awk -F= -v key="$key" '$1==key {print $2; exit}' gradle.properties | tr -d '[:space:]')"
+            if [[ -z "${value}" ]]; then
+              echo "Missing '${key}' in gradle.properties" >&2
+              exit 1
+            fi
+            echo "${env_key}=${value}" >> "$GITHUB_ENV"
+          done
+
+      - name: Setup JDK
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v3
+
+      - name: Install Android dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +o pipefail
+          yes | sdkmanager --licenses >/dev/null
+          set -o pipefail
+          sdkmanager "platform-tools" "platforms;android-${COMPILE_API}" "build-tools;${TOOLS_VERSION}" "cmake;${CMAKE_VERSION}" "ndk;${NDK_VERSION}"
+
+      - name: Lint Debug
+        shell: bash
+        run: ./gradlew --no-daemon -PAPP_ABI_POLICY=split-arm32-arm64 -PSUPPORTED_ABIS="${{ matrix.abi }}" :app:lintDebug
+
+      - name: Unit tests (${{ matrix.variant }})
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ matrix.variant }}" == "debug" ]]; then
+            ./gradlew --no-daemon -PAPP_ABI_POLICY=split-arm32-arm64 -PSUPPORTED_ABIS="${{ matrix.abi }}" :app:testDebugUnitTest
+          else
+            ./gradlew --no-daemon -PAPP_ABI_POLICY=split-arm32-arm64 -PSUPPORTED_ABIS="${{ matrix.abi }}" :app:testReleaseUnitTest
+          fi
+
+      - name: Assemble APK (${{ matrix.variant }})
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ matrix.variant }}" == "debug" ]]; then
+            ./gradlew --no-daemon -PAPP_ABI_POLICY=split-arm32-arm64 -PSUPPORTED_ABIS="${{ matrix.abi }}" :app:assembleDebug
+          else
+            ./gradlew --no-daemon -PAPP_ABI_POLICY=split-arm32-arm64 -PSUPPORTED_ABIS="${{ matrix.abi }}" :app:assembleRelease
+          fi
+
+      - name: Stage APK artifacts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "ci-artifacts/apk/${{ matrix.variant }}/${{ matrix.abi }}"
+          if [[ "${{ matrix.variant }}" == "debug" ]]; then
+            find app/build/outputs/apk/debug -type f -name "*${{ matrix.abi }}*.apk" -exec cp {} "ci-artifacts/apk/${{ matrix.variant }}/${{ matrix.abi }}/" \;
+          else
+            find app/build/outputs/apk/release -type f -name "*${{ matrix.abi }}*.apk" -exec cp {} "ci-artifacts/apk/${{ matrix.variant }}/${{ matrix.abi }}/" \;
+          fi
+
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ matrix.variant }}-${{ matrix.abi }}
+          path: ci-artifacts/apk/${{ matrix.variant }}/${{ matrix.abi }}/**/*.apk
+          if-no-files-found: error
