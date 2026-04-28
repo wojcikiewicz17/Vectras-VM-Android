@@ -84,6 +84,8 @@ add_custom_target(lowlevel_abi_contract_check
 
 add_library(abi_core_freestanding STATIC
     lowlevel_abi.c
+    core/sector.c
+    core/arch/primitives.c
     vectra_lowlevel_backend_fallback.c
     vectra_lowlevel_backend_arm64.c
     vectra_lowlevel_backend_armv7.c
@@ -259,7 +261,8 @@ target_compile_options(abi_core_freestanding PRIVATE
 target_compile_definitions(abi_core_freestanding PRIVATE
     VECTRA_LL_NO_STDLIB_TYPES=1)
 target_include_directories(abi_core_freestanding PRIVATE
-    ${VECTRA_RMR_INCLUDE_DIR})
+    ${VECTRA_RMR_INCLUDE_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/core)
 target_link_options(abi_core_freestanding PRIVATE
     -nostdlib
     -Wl,--gc-sections
@@ -295,11 +298,13 @@ if(TARGET termux-bootstrap)
 endif()
 
 target_include_directories(vectra_core_accel PRIVATE
-    ${VECTRA_RMR_INCLUDE_DIR})
+    ${VECTRA_RMR_INCLUDE_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/core)
 
 if(TARGET termux-bootstrap)
     target_include_directories(termux-bootstrap PRIVATE
-        ${VECTRA_RMR_INCLUDE_DIR})
+        ${VECTRA_RMR_INCLUDE_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/core)
 endif()
 
 if(NOT ANDROID)
