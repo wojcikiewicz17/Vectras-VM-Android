@@ -11,6 +11,12 @@ Required secrets for signed mode:
   ANDROID_KEY_ALIAS
   ANDROID_KEY_PASSWORD
 
+Canonical signing secrets:
+  ANDROID_KEYSTORE_BASE64
+  ANDROID_KEYSTORE_PASSWORD
+  ANDROID_KEY_ALIAS
+  ANDROID_KEY_PASSWORD
+
 Outputs (when GITHUB_ENV exists):
   VECTRAS_CI_RELEASE_FLAGS
   VECTRAS_CI_SIGNING_ARGS
@@ -20,6 +26,7 @@ USAGE
 
 MODE=""
 KEYSTORE_OUT=""
+ALLOW_LEGACY_FALLBACK="false"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -44,43 +51,52 @@ if [[ -z "$MODE" ]]; then
   exit 1
 fi
 
-cleanup_keystore() {
-  if [[ -n "${KEYSTORE_OUT:-}" && -f "$KEYSTORE_OUT" ]]; then
-    rm -f "$KEYSTORE_OUT"
-  fi
-}
+if [[ "$ALLOW_LEGACY_FALLBACK" == "true" ]]; then
+  echo "::warning::--allow-legacy-fallback is ignored; legacy signing fallbacks are disabled" >&2
+fi
 
-trap cleanup_keystore EXIT
-
-missing_required_secrets() {
+missing_android_signing_secrets() {
   local missing=()
+
   [[ -n "${ANDROID_KEYSTORE_BASE64:-}" ]] || missing+=("ANDROID_KEYSTORE_BASE64")
   [[ -n "${ANDROID_KEYSTORE_PASSWORD:-}" ]] || missing+=("ANDROID_KEYSTORE_PASSWORD")
   [[ -n "${ANDROID_KEY_ALIAS:-}" ]] || missing+=("ANDROID_KEY_ALIAS")
   [[ -n "${ANDROID_KEY_PASSWORD:-}" ]] || missing+=("ANDROID_KEY_PASSWORD")
-  printf '%s\n' "${missing[@]:-}"
+
+  if ((${#missing[@]} > 0)); then
+    printf '%s\n' "${missing[@]}"
+    return 1
+  fi
+
+  return 0
 }
 
 has_required_signing_secrets() {
-  [[ -n "${ANDROID_KEYSTORE_BASE64:-}" && -n "${ANDROID_KEYSTORE_PASSWORD:-}" && -n "${ANDROID_KEY_ALIAS:-}" && -n "${ANDROID_KEY_PASSWORD:-}" ]]
+  missing_android_signing_secrets >/dev/null
 }
 
 resolve_keystore() {
-  local runner_tmp="${RUNNER_TEMP:-/tmp}"
-  umask 077
-  KEYSTORE_OUT="$(mktemp "${runner_tmp%/}/vectras-release-XXXXXX.keystore")"
+  local out_path="$KEYSTORE_OUT"
 
-  if ! printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "$KEYSTORE_OUT"; then
-    echo "::error::Failed to decode ANDROID_KEYSTORE_BASE64" >&2
-    exit 1
+  if [[ -z "$out_path" ]]; then
+    local tmp_dir="${RUNNER_TEMP:-/tmp}"
+    out_path="$(mktemp "${tmp_dir%/}/vectras-release-keystore.XXXXXX.jks")"
   fi
 
-  if [[ ! -s "$KEYSTORE_OUT" ]]; then
+  umask 077
+  printf '%s' "${ANDROID_KEYSTORE_BASE64}" | base64 --decode > "$out_path"
+
+  if [[ ! -s "$out_path" ]]; then
     echo "::error::ANDROID_KEYSTORE_BASE64 provided but decoded keystore is empty" >&2
     exit 1
   fi
 
-  export VECTRAS_RELEASE_STORE_FILE="$KEYSTORE_OUT"
+  chmod 600 "$out_path"
+
+  export VECTRAS_RELEASE_STORE_FILE="$out_path"
+  export VECTRAS_RELEASE_STORE_PASSWORD="$ANDROID_KEYSTORE_PASSWORD"
+  export VECTRAS_RELEASE_KEY_ALIAS="$ANDROID_KEY_ALIAS"
+  export VECTRAS_RELEASE_KEY_PASSWORD="$ANDROID_KEY_PASSWORD"
 }
 
 signed_ready="false"
@@ -95,11 +111,11 @@ SIGNING_ARGS=""
 case "$MODE" in
   signed)
     if [[ "$signed_ready" != "true" ]]; then
-      mapfile -t missing < <(missing_required_secrets)
-      if [[ ${#missing[@]} -gt 0 && -n "${missing[0]}" ]]; then
-        echo "::error::signed mode missing required secrets: ${missing[*]}" >&2
+      missing="$(missing_android_signing_secrets || true)"
+      if [[ -n "$missing" ]]; then
+        echo "::error::signed mode requires all Android signing secrets. Missing: ${missing//$'\n'/, }" >&2
       else
-        echo "::error::signed mode requires valid keystore and signing secrets" >&2
+        echo "::error::signed mode requires valid Android signing secrets and keystore decoding" >&2
       fi
       exit 1
     fi
