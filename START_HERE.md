@@ -49,7 +49,7 @@ cp local.properties.example local.properties
 - Priorizar propriedades canônicas (`lowercase.with.dots`) no Gradle.
 - Manter alinhamento de ABIs entre `gradle.properties` e `tools/qemu_launch.yml`.
 - Evitar `ndk.dir` em `local.properties` (usar contrato atual com `ndk.version`).
-- Não usar caminho legado `android/` como trilha oficial de build.
+- Não usar caminho legado `android/` como trilha oficial de build/release (apenas compatibilidade local).
 
 ## 6) Mapa de leitura recomendado (30 minutos)
 1. `README.md`

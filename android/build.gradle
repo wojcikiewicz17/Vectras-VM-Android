@@ -1,2 +1,23 @@
-// Intencionalmente vazio: android/ é diretório legado sem trilha de build suportada.
-// Guardrail único e hard-fail permanece em android/settings.gradle.
+buildscript {
+    ext {
+        agp_version = '8.5.2'
+    }
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath "com.android.tools.build:gradle:${agp_version}"
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
+
+tasks.register('clean', Delete) {
+    delete rootProject.buildDir
+}
