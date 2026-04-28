@@ -44,13 +44,13 @@ env:
 
 jobs:
   build-android:
-    name: Android ${{ matrix.variant }} • ${{ matrix.abi }}
+    name: Android ${{ matrix.variant }} • ${{ matrix.profile }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        abi: [armeabi-v7a, arm64-v8a]
+        profile: [official_arm64, official_arm32_arm64]
         variant: [debug, release]
 
     steps:
@@ -87,6 +87,15 @@ jobs:
       - name: Setup Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Resolve ABI profile contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${{ matrix.profile }}" --allow-generic-fallback)"
+          echo "app_abi_policy=${app_abi_policy}" >> "$GITHUB_ENV"
+          echo "supported_abis=${supported_abis}" >> "$GITHUB_ENV"
+          echo "ci_internal_validation=${ci_internal_validation}" >> "$GITHUB_ENV"
+
       - name: Install Android dependencies
         shell: bash
         run: |
@@ -98,16 +107,16 @@ jobs:
 
       - name: Lint Debug
         shell: bash
-        run: ./gradlew --no-daemon -PAPP_ABI_POLICY=split-arm32-arm64 -PSUPPORTED_ABIS="${{ matrix.abi }}" :app:lintDebug
+        run: ./gradlew --no-daemon -PAPP_ABI_POLICY="${app_abi_policy}" -PSUPPORTED_ABIS="${supported_abis}" -PCI_INTERNAL_VALIDATION="${ci_internal_validation}" :app:lintDebug
 
       - name: Unit tests (${{ matrix.variant }})
         shell: bash
         run: |
           set -euo pipefail
           if [[ "${{ matrix.variant }}" == "debug" ]]; then
-            ./gradlew --no-daemon -PAPP_ABI_POLICY=split-arm32-arm64 -PSUPPORTED_ABIS="${{ matrix.abi }}" :app:testDebugUnitTest
+            ./gradlew --no-daemon -PAPP_ABI_POLICY="${app_abi_policy}" -PSUPPORTED_ABIS="${supported_abis}" -PCI_INTERNAL_VALIDATION="${ci_internal_validation}" :app:testDebugUnitTest
           else
-            ./gradlew --no-daemon -PAPP_ABI_POLICY=split-arm32-arm64 -PSUPPORTED_ABIS="${{ matrix.abi }}" :app:testReleaseUnitTest
+            ./gradlew --no-daemon -PAPP_ABI_POLICY="${app_abi_policy}" -PSUPPORTED_ABIS="${supported_abis}" -PCI_INTERNAL_VALIDATION="${ci_internal_validation}" :app:testReleaseUnitTest
           fi
 
       - name: Assemble APK (${{ matrix.variant }})
@@ -115,25 +124,23 @@ jobs:
         run: |
           set -euo pipefail
           if [[ "${{ matrix.variant }}" == "debug" ]]; then
-            ./gradlew --no-daemon -PAPP_ABI_POLICY=split-arm32-arm64 -PSUPPORTED_ABIS="${{ matrix.abi }}" :app:assembleDebug
+            ./gradlew --no-daemon -PAPP_ABI_POLICY="${app_abi_policy}" -PSUPPORTED_ABIS="${supported_abis}" -PCI_INTERNAL_VALIDATION="${ci_internal_validation}" :app:assembleDebug
           else
-            ./gradlew --no-daemon -PAPP_ABI_POLICY=split-arm32-arm64 -PSUPPORTED_ABIS="${{ matrix.abi }}" :app:assembleRelease
+            ./gradlew --no-daemon -PAPP_ABI_POLICY="${app_abi_policy}" -PSUPPORTED_ABIS="${supported_abis}" -PCI_INTERNAL_VALIDATION="${ci_internal_validation}" :app:assembleRelease
           fi
 
       - name: Stage APK artifacts
         shell: bash
         run: |
           set -euo pipefail
-          mkdir -p "ci-artifacts/apk/${{ matrix.variant }}/${{ matrix.abi }}"
-          if [[ "${{ matrix.variant }}" == "debug" ]]; then
-            find app/build/outputs/apk/debug -type f -name "*${{ matrix.abi }}*.apk" -exec cp {} "ci-artifacts/apk/${{ matrix.variant }}/${{ matrix.abi }}/" \;
-          else
-            find app/build/outputs/apk/release -type f -name "*${{ matrix.abi }}*.apk" -exec cp {} "ci-artifacts/apk/${{ matrix.variant }}/${{ matrix.abi }}/" \;
-          fi
+          lane_dir="ci-artifacts/apk/${{ matrix.variant }}/${{ matrix.profile }}"
+          mkdir -p "${lane_dir}"
+          apk_dir="app/build/outputs/apk/${{ matrix.variant }}"
+          find "${apk_dir}" -type f -name "*.apk" -exec cp {} "${lane_dir}/" \;
 
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: apk-${{ matrix.variant }}-${{ matrix.abi }}
-          path: ci-artifacts/apk/${{ matrix.variant }}/${{ matrix.abi }}/**/*.apk
+          name: apk-${{ matrix.variant }}-${{ matrix.profile }}
+          path: ci-artifacts/apk/${{ matrix.variant }}/${{ matrix.profile }}/**/*.apk
           if-no-files-found: error
