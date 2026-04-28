@@ -3,7 +3,13 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE'
-Usage: prepare_release_signing.sh --mode <signed|unsigned|auto> [--keystore-out <path>] [--allow-legacy-fallback]
+Usage: prepare_release_signing.sh --mode <signed|unsigned|auto>
+
+Required secrets for signed mode:
+  ANDROID_KEYSTORE_BASE64
+  ANDROID_KEYSTORE_PASSWORD
+  ANDROID_KEY_ALIAS
+  ANDROID_KEY_PASSWORD
 
 Canonical signing secrets:
   ANDROID_KEYSTORE_BASE64
@@ -27,14 +33,6 @@ while [[ $# -gt 0 ]]; do
     --mode)
       MODE="$2"
       shift 2
-      ;;
-    --keystore-out)
-      KEYSTORE_OUT="$2"
-      shift 2
-      ;;
-    --allow-legacy-fallback)
-      ALLOW_LEGACY_FALLBACK="true"
-      shift
       ;;
     -h|--help)
       usage
@@ -137,7 +135,7 @@ case "$MODE" in
 esac
 
 if [[ -z "$RELEASE_FLAGS" ]]; then
-  SIGNING_ARGS="-Pandroid.injected.signing.store.file=${VECTRAS_RELEASE_STORE_FILE} -Pandroid.injected.signing.store.password=${VECTRAS_RELEASE_STORE_PASSWORD} -Pandroid.injected.signing.key.alias=${VECTRAS_RELEASE_KEY_ALIAS} -Pandroid.injected.signing.key.password=${VECTRAS_RELEASE_KEY_PASSWORD}"
+  SIGNING_ARGS="-Pandroid.injected.signing.store.file=${VECTRAS_RELEASE_STORE_FILE} -Pandroid.injected.signing.store.password=${ANDROID_KEYSTORE_PASSWORD} -Pandroid.injected.signing.key.alias=${ANDROID_KEY_ALIAS} -Pandroid.injected.signing.key.password=${ANDROID_KEY_PASSWORD}"
 fi
 
 if [[ -n "${GITHUB_ENV:-}" ]]; then
