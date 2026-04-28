@@ -22,6 +22,7 @@ typedef struct vectra_sector_out {
  * - run_sector() is ABI-stable and always exported by C object code.
  * - Internals may use ABI-specific ASM primitives behind core/arch/primitives.h.
  * - If no ASM backend is enabled for the current ABI, C fallback is used.
+ * - Current implementation is reentrant/thread-safe (no shared mutable global state).
  */
 void run_sector(const uint8_t* data, size_t len, vectra_sector_out* out);
 
