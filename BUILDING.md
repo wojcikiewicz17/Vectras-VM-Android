@@ -28,12 +28,13 @@ materialization, which allows diagnostics in clean environments before Android S
 ## Build commands
 
 ## Não usar `android/`
-O subdiretório `android/` é **legado** e está fora da trilha suportada de build/release.
+O subdiretório `android/` é **legado** e não é entrypoint oficial de build/release.
 
 Rationale técnico:
 - contratos de AGP, SDK/Build Tools, NDK, CMake, ABI e signing são centralizados no projeto Gradle da **raiz**;
-- manter uma trilha ativa em `android/` cria drift de versão e ambiguidades de entrypoint;
+- manter `android/` como fonte de verdade cria drift de versão e ambiguidades de entrypoint;
 - CI/release oficial valida e publica artefatos exclusivamente a partir da raiz (`:app:*`).
+- A orquestração em `.github/workflows/pipeline-orchestrator.yml` compila release **unsigned e signed** em `arm64-v8a+armeabi-v7a` via `android-ci.yml` e publica artefatos por lane.
 
 Comandos canônicos (raiz):
 ```bash

@@ -21,7 +21,7 @@ android {
     ndkVersion = rootProject.ext.ndkVersion
 
     defaultConfig {
-        applicationId "com.vectras.vm"
+        applicationId "com.rafacodephi.app"
         minSdk = rootProject.ext.minApi
         targetSdk = rootProject.ext.targetApi
         versionCode = 70

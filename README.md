@@ -177,7 +177,7 @@ Essa task já encadeia `verifyMinApiAbiCompatibility`, `verifyArm64ToolchainComp
 
 ### Caminho Android canônico (anti-drift)
 - O caminho oficial de build Android é **somente o Gradle da raiz** (`./gradlew`, módulos `:app`, `:shell-loader`, `:terminal-*`).
-- O diretório legado `android/` está **deprecated** e bloqueado para compilação acidental.
+- O diretório `android/` permanece legado para compatibilidade local, mas a fonte de verdade de build/release continua sendo apenas a raiz (`:app`).
 - O CI executa `tools/ci/validate_android_sdk_alignment.sh` para falhar quando houver referência oficial ao caminho legado ou divergência de baseline SDK entre caminhos.
 - O CI executa `tools/ci/check_java_contracts.py` para bloquear regressão de assinatura duplicada em `NativeFastPath` antes do `compileDebugJavaWithJavac`.
 - O CI executa `tools/ci/verify_android_local_properties_contract.sh` para garantir `sdk.dir` válido, `ndk.dir` ausente (deprecado) e presença da `ndk.version` canônica no SDK instalado.
