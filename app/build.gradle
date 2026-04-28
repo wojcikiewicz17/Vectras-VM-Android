@@ -129,6 +129,9 @@ if (!(releaseSigningMode in supportedSigningModes)) {
 }
 def effectiveSignedRelease = (releaseSigningMode == 'signed') || (releaseSigningMode == 'auto' && ciRelease)
 def effectiveUnsignedRelease = (releaseSigningMode == 'unsigned')
+project.ext.set("releaseSigningModeResolved", releaseSigningMode)
+project.ext.set("effectiveUnsignedRelease", effectiveUnsignedRelease)
+project.ext.set("effectiveSignedRelease", effectiveSignedRelease)
 def officialCi = providers.gradleProperty("OFFICIAL_CI")
     .orElse(System.getenv("GITHUB_ACTIONS") == "true" ? "true" : "false")
     .get()
@@ -586,10 +589,12 @@ tasks.register("validateReleaseSigningConfig") {
     description = "Falha builds release/perfRelease quando assinatura de produção obrigatória não foi configurada."
 
     doLast {
-        def allowUnsignedRelease = providers.gradleProperty("ALLOW_UNSIGNED_RELEASE").orElse("false").get().toBoolean() || effectiveUnsignedRelease
+        def releaseSigningModeResolved = project.ext.get("releaseSigningModeResolved")
+        def unsignedModeEnabled = (project.ext.get("effectiveUnsignedRelease") ?: false).toString().toBoolean()
+        def allowUnsignedRelease = providers.gradleProperty("ALLOW_UNSIGNED_RELEASE").orElse("false").get().toBoolean() || unsignedModeEnabled
         def hasReleaseSigning = android.signingConfigs.findByName('release') != null
 
-        if (!hasReleaseSigning && releaseSigningMode == 'signed') {
+        if (!hasReleaseSigning && releaseSigningModeResolved == 'signed') {
             throw new GradleException("signing_mode=signed requer signingConfig 'release' configurado com credenciais válidas.")
         }
 

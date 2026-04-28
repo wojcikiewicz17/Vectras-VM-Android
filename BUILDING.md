@@ -78,6 +78,13 @@ Comandos canônicos (raiz):
    - usar assinatura de produção (`-Psigning_mode=signed` e/ou `-PciRelease=true` em CI oficial);
    - **`devFastPath` é ignorado**: gates pesados e validações estritas permanecem obrigatórios.
 
+### Assinatura em CI (contrato canônico)
+- Workflow Android CI usa `tools/ci/prepare_release_signing.sh` como fonte de verdade para assinatura.
+- `signing_mode=auto`:
+  - com segredos `ANDROID_KEYSTORE_*` válidos: executa release assinado;
+  - sem segredos: executa release interno unsigned (sem degradar trilha oficial `signing_mode=signed`).
+- `signing_mode=signed` sem segredos falha explicitamente (não há fallback silencioso).
+
 
 ### Lane -> abi_profile -> uso permitido
 
