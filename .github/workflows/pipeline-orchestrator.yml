@@ -131,6 +131,14 @@ jobs:
     uses: ./.github/workflows/android-native-ci.yml
     secrets: inherit
 
+
+  android-native-ci:
+    name: Android Native CI (arm32+arm64)
+    needs: [matrix-build, abi-preflight, host-ci]
+    if: ${{ always() && needs.matrix-build.outputs.should_run_android == 'true' && (needs.host-ci.result == 'success' || needs.host-ci.result == 'skipped') }}
+    uses: ./.github/workflows/android-native-ci.yml
+    secrets: inherit
+
   android-release-binaries-arm32-arm64:
     name: Android Release Binaries (unsigned/signed arm32+arm64)
     needs: [matrix-build, abi-preflight, host-ci]
