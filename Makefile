@@ -72,6 +72,8 @@ NEON_SIMD_SELFTEST_BIN := build/demo/rmr_neon_simd_selftest
 ASM_EQUIVALENCE_SELFTEST_BIN := build/demo/rmr_asm_equivalence_selftest
 ZIPRAF_CORE_SELFTEST_BIN := build/demo/zipraf_core_selftest
 SECTOR_SELFTEST_BIN := build/demo/sector_selftest
+SNAPSHOT_42_BIN := build/demo/sector_snapshot_42
+CORE_BENCH_SMOKE_BIN := build/bench/core_benchmark_smoke
 RMR_REQUIRED_SYMBOLS := RmR_MathFabric_AutodetectPlan RmR_MathFabric_VectorMix
 RMR_LINK_LIBS := $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 
@@ -294,3 +296,18 @@ print-build-config-env:
 	@cat build/rmr_build_config.env
 
 .PHONY: print-build-config print-build-config-env
+
+$(SNAPSHOT_42_BIN): app/src/main/cpp/core/tests/sector_snapshot_42.c app/src/main/cpp/core/sector.c app/src/main/cpp/core/arch/primitives.c
+	@mkdir -p $(dir $@)
+	$(CC) -Iapp/src/main/cpp $(CPPFLAGS) $(CFLAGS) app/src/main/cpp/core/tests/sector_snapshot_42.c app/src/main/cpp/core/sector.c app/src/main/cpp/core/arch/primitives.c $(LDFLAGS) -o $@
+
+$(CORE_BENCH_SMOKE_BIN): app/src/main/cpp/core/tests/core_benchmark_smoke.c app/src/main/cpp/core/sector.c app/src/main/cpp/core/arch/primitives.c
+	@mkdir -p $(dir $@)
+	$(CC) -Iapp/src/main/cpp $(CPPFLAGS) $(CFLAGS) app/src/main/cpp/core/tests/core_benchmark_smoke.c app/src/main/cpp/core/sector.c app/src/main/cpp/core/arch/primitives.c $(LDFLAGS) -o $@
+
+run-sector-snapshot-42: $(SNAPSHOT_42_BIN)
+	./$(SNAPSHOT_42_BIN)
+
+run-core-bench-smoke: $(CORE_BENCH_SMOKE_BIN)
+	./$(CORE_BENCH_SMOKE_BIN)
+

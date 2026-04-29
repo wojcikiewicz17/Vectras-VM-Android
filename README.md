@@ -213,3 +213,12 @@ org.gradle.java.home=/usr/lib/jvm/java-21-openjdk
 - Host CI now enforces `make run-sector-selftest` as a mandatory gate.
 - The test fixture validates fixed expected outputs for `hash64`, `crc32`, `coherence_q16`, `entropy_q16`, `last_entropy_milli`, and `last_invariant_milli`.
 - The gate also executes consecutive and parallel calls to detect shared global state regressions in `run_sector`.
+
+## Native deterministic snapshot + benchmark smoke
+- Snapshot determinístico do core: `make run-sector-snapshot-42` (input fixo de 42 bytes em `run_sector`).
+- Benchmark nativo simples (smoke, sem promessa de performance): `make run-core-bench-smoke`.
+- Scripts auxiliares:
+  - `scripts/native/build.sh`
+  - `scripts/native/test.sh`
+  - `scripts/native/benchmark.sh`
+- Limite atual: benchmark smoke roda no host CI (não representa benchmark Android real por ABI).
