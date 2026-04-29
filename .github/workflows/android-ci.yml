@@ -157,9 +157,6 @@ jobs:
           eval "$(python3 ./tools/ci/resolve_abi_profile.py --profile "${abi_profile}" --allow-generic-fallback)"
 
           signing_mode_effective="${signing_mode}"
-          if [[ "${artifact_variants}" == *"release"* && "${signing_mode}" == "auto" ]]; then
-            signing_mode_effective="signed"
-          fi
 
           case "${native_matrix_profile}" in
             canonical)
@@ -211,6 +208,11 @@ jobs:
   build:
     runs-on: ubuntu-latest
     needs: [resolve, abi-contract-gate]
+    env:
+      VECTRAS_RELEASE_STORE_FILE: ${{ secrets.VECTRAS_RELEASE_STORE_FILE }}
+      VECTRAS_RELEASE_STORE_PASSWORD: ${{ secrets.VECTRAS_RELEASE_STORE_PASSWORD }}
+      VECTRAS_RELEASE_KEY_ALIAS: ${{ secrets.VECTRAS_RELEASE_KEY_ALIAS }}
+      VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
 
@@ -285,16 +287,58 @@ jobs:
             -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
             -PCI_INTERNAL_VALIDATION="${{ needs.resolve.outputs.ci_internal_validation }}"
 
+      - name: Resolve release signing contract
+        id: signing
+        if: ${{ contains(needs.resolve.outputs.artifact_variants, 'release') }}
+        shell: bash
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          ./tools/ci/prepare_release_signing.sh --mode "${{ needs.resolve.outputs.signing_mode_effective }}"
+
       - name: Build selected Android workfile
         shell: bash
         run: |
           set -euo pipefail
+          effective_signing_mode="${{ needs.resolve.outputs.signing_mode_effective }}"
+          signed_ready="${{ steps.signing.outputs.signed_ready }}"
+          release_flags_str="${{ steps.signing.outputs.release_flags }}"
+          signing_args_str="${{ steps.signing.outputs.signing_args }}"
+          if [[ -z "${signed_ready}" ]]; then
+            signed_ready="false"
+          fi
+          if [[ "${effective_signing_mode}" == "auto" ]]; then
+            if [[ "${signed_ready}" == "true" ]]; then
+              effective_signing_mode="signed"
+            else
+              effective_signing_mode="unsigned"
+            fi
+          fi
+          ci_release_flag="false"
+          if [[ "${effective_signing_mode}" == "signed" ]]; then
+            ci_release_flag="true"
+          fi
+          release_flags=()
+          signing_args=()
+          if [[ -n "${release_flags_str}" ]]; then
+            read -r -a release_flags <<< "${release_flags_str}"
+          fi
+          if [[ -n "${signing_args_str}" ]]; then
+            read -r -a signing_args <<< "${signing_args_str}"
+          fi
           ./tools/gradle_with_jdk21.sh \
             -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
             -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
             -PCI_INTERNAL_VALIDATION="${{ needs.resolve.outputs.ci_internal_validation }}" \
-            -Psigning_mode="${{ needs.resolve.outputs.signing_mode_effective }}" \
+            -Psigning_mode="${effective_signing_mode}" \
+            -PciRelease="${ci_release_flag}" \
             -Dorg.gradle.logging.level="${{ inputs.log_level }}" \
+            "${release_flags[@]}" \
+            "${signing_args[@]}" \
             ${{ needs.resolve.outputs.gradle_tasks }}
 
       - name: Validate critical native binary freestanding policy
@@ -304,6 +348,19 @@ jobs:
       - name: Verify delivered artifacts
         if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
         run: |
+          set -euo pipefail
+          effective_signing_mode="${{ needs.resolve.outputs.signing_mode_effective }}"
+          signed_ready="${{ steps.signing.outputs.signed_ready }}"
+          if [[ -z "${signed_ready}" ]]; then
+            signed_ready="false"
+          fi
+          if [[ "${effective_signing_mode}" == "auto" ]]; then
+            if [[ "${signed_ready}" == "true" ]]; then
+              effective_signing_mode="signed"
+            else
+              effective_signing_mode="unsigned"
+            fi
+          fi
           ./tools/gradle_with_jdk21.sh \
             :app:verifyDeliveredCompiledArtifacts \
             -PartifactVariants=${{ needs.resolve.outputs.artifact_variants }} \
@@ -312,7 +369,7 @@ jobs:
             -Pabi_profile="${{ needs.resolve.outputs.abi_profile }}" \
             -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
             -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
-            -Psigning_mode="${{ needs.resolve.outputs.signing_mode_effective }}"
+            -Psigning_mode="${effective_signing_mode}"
 
       - name: Run lint
         if: inputs.run_lint

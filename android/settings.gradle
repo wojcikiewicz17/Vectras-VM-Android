@@ -1,1 +1,2 @@
-throw new GradleException("android/ é legado e bloqueado (legacy-only / unsupported for release). Use SOMENTE o entrypoint canônico na raiz: ./tools/gradle_with_jdk21.sh :app:assembleDebug (ou :app:assembleRelease). Veja BUILDING.md na raiz.")
+rootProject.name = "VectrasAndroidLegacy"
+include ':app'

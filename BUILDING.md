@@ -28,12 +28,13 @@ materialization, which allows diagnostics in clean environments before Android S
 ## Build commands
 
 ## Não usar `android/`
-O subdiretório `android/` é **legado** e está fora da trilha suportada de build/release.
+O subdiretório `android/` é **legado** e não é entrypoint oficial de build/release.
 
 Rationale técnico:
 - contratos de AGP, SDK/Build Tools, NDK, CMake, ABI e signing são centralizados no projeto Gradle da **raiz**;
-- manter uma trilha ativa em `android/` cria drift de versão e ambiguidades de entrypoint;
+- manter `android/` como fonte de verdade cria drift de versão e ambiguidades de entrypoint;
 - CI/release oficial valida e publica artefatos exclusivamente a partir da raiz (`:app:*`).
+- A orquestração em `.github/workflows/pipeline-orchestrator.yml` compila release **unsigned e signed** em `arm64-v8a+armeabi-v7a` via `android-ci.yml` e publica artefatos por lane.
 
 Comandos canônicos (raiz):
 ```bash
@@ -76,6 +77,13 @@ Comandos canônicos (raiz):
    - alvo: trilha oficial de distribuição;
    - usar assinatura de produção (`-Psigning_mode=signed` e/ou `-PciRelease=true` em CI oficial);
    - **`devFastPath` é ignorado**: gates pesados e validações estritas permanecem obrigatórios.
+
+### Assinatura em CI (contrato canônico)
+- Workflow Android CI usa `tools/ci/prepare_release_signing.sh` como fonte de verdade para assinatura.
+- `signing_mode=auto`:
+  - com segredos `ANDROID_KEYSTORE_*` válidos: executa release assinado;
+  - sem segredos: executa release interno unsigned (sem degradar trilha oficial `signing_mode=signed`).
+- `signing_mode=signed` sem segredos falha explicitamente (não há fallback silencioso).
 
 
 ### Lane -> abi_profile -> uso permitido
@@ -124,6 +132,94 @@ Saída:
 - `artifacts/local-matrix/app-release-signed-internal.apk`
 - `artifacts/local-matrix/app-release-signed-internal.aab`
 - `artifacts/local-matrix/manifest.json`
+
+## RAFCoder Android/NDK
+
+Seção dedicada para execução local, JNI e release do core RAFCoder no pipeline Android oficial da raiz.
+
+### 1) Build local Android (Gradle raiz)
+```bash
+./gradlew :app:assembleDebug
+./gradlew :app:assembleRelease
+```
+
+Alternativa canônica com proteção de JVM/SDK (recomendada no repositório):
+```bash
+./tools/gradle_with_jdk21.sh :app:assembleDebug
+./tools/gradle_with_jdk21.sh :app:assembleRelease
+```
+
+### 2) Build nativo do core (CMake/Ninja ou externalNativeBuild)
+Build direto do core JNI (fora do Gradle):
+```bash
+export ANDROID_NDK_ROOT="$ANDROID_SDK_ROOT/ndk/27.2.12479018"
+cmake --preset android-armv7
+cmake --build --preset build-android-armv7 -j$(nproc)
+
+cmake --preset android-arm64-v8
+cmake --build --preset build-android-arm64-v8 -j$(nproc)
+```
+
+Build JNI via Gradle (externalNativeBuild):
+```bash
+./tools/gradle_with_jdk21.sh :app:externalNativeBuildDebug
+./tools/gradle_with_jdk21.sh :app:externalNativeBuildRelease
+```
+
+### 3) ABIs suportadas e backend ativo por ABI
+ABIs Android ativos para validação dual-ARM: `armeabi-v7a` e `arm64-v8a`.
+
+Backend RAFCoder selecionado no CMake JNI:
+- `armeabi-v7a` -> `armv7-c-fallback`
+- `arm64-v8a` -> `arm64-asm` (quando NDK >= 26 e `core/arch/primitives.S` presente), com fallback automático `arm64-c-fallback`
+
+A seleção é registrada no configure CMake por ABI com log:
+`[RAFCoder] ABI=<abi> selected primitives backend: <backend>`.
+
+### 4) APK release unsigned e signed (segredos `ANDROID_*`)
+Unsigned (validação interna):
+```bash
+./tools/gradle_with_jdk21.sh :app:assembleRelease \
+  -Psigning_mode=unsigned \
+  -PCI_INTERNAL_VALIDATION=true
+```
+
+Signed (oficial), usando injeção Gradle e segredos de CI:
+```bash
+./tools/gradle_with_jdk21.sh :app:assembleRelease \
+  -Psigning_mode=signed \
+  -Pandroid.injected.signing.store.file="$VECTRAS_RELEASE_STORE_FILE" \
+  -Pandroid.injected.signing.store.password="$VECTRAS_RELEASE_STORE_PASSWORD" \
+  -Pandroid.injected.signing.key.alias="$VECTRAS_RELEASE_KEY_ALIAS" \
+  -Pandroid.injected.signing.key.password="$VECTRAS_RELEASE_KEY_PASSWORD"
+```
+
+Compatibilidade com segredos `ANDROID_*` (legado/ponte para CI interno):
+```bash
+export VECTRAS_RELEASE_KEYSTORE_B64="$ANDROID_SIGNING_KEYSTORE"
+export VECTRAS_RELEASE_STORE_PASSWORD="$ANDROID_SIGNING_STORE_PASSWORD"
+export VECTRAS_RELEASE_KEY_ALIAS="$ANDROID_SIGNING_KEY_ALIAS"
+export VECTRAS_RELEASE_KEY_PASSWORD="$ANDROID_SIGNING_KEY_PASSWORD"
+./tools/ci/prepare_release_signing.sh --mode signed
+```
+
+Para gerar matriz local de artefatos unsigned + signed de validação interna:
+```bash
+./tools/ci/build_artifact_matrix_local.sh
+```
+
+### 5) Status JNI do core RAFCoder
+Status atual: JNI **ativo no módulo legado `android/`**, com os métodos Java nativos:
+- `nativeMessage`
+- `nativeSectorSummary`
+
+Ambos estão exportados e consumidos por `MainActivity`, servindo como smoke path JNI mínimo do core RAFCoder no escopo legado.
+
+### 6) Roadmap DevOps curto (Android/NDK/JNI)
+1. CI matrix ABI obrigatório para `armeabi-v7a` + `arm64-v8a` em build JNI (`externalNativeBuild`) e CMake puro (`android-cmake-matrix-*`).
+2. Assinatura: convergir segredos para namespace único (`VECTRAS_RELEASE_*`) com ponte de compatibilidade `ANDROID_*` apenas em trilha interna controlada.
+3. Hardening de release: reforçar gates de alinhamento ABI/SDK/JVM + verificação de cadeia de signing antes de upload.
+4. Testes nativos: promover smoke JNI (`nativeMessage`/`nativeSectorSummary`) para check automatizado em CI (instrumentado) e manter selftests low-level por ABI.
 
 ## Build model: JNI-first on Android
 - Android native builds are hosted/JNI and rely on bionic libc + pthread.

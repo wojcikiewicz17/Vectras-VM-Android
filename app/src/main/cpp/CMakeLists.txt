@@ -31,7 +31,18 @@ set(VECTRA_LOWLEVEL_SOURCES)
 set(VECTRA_CASM_SOURCES)
 set(VECTRA_NEON_SOURCES)
 
-if(RMR_ASM_CORE_EXPERIMENTAL AND ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64" AND RMR_ASM_CORE_X86_64_VALIDATED)
+set(VECTRA_ANDROID_ABI "${ANDROID_ABI}")
+if(ANDROID AND (NOT DEFINED VECTRA_ANDROID_ABI OR VECTRA_ANDROID_ABI STREQUAL ""))
+    set(VECTRA_ANDROID_ABI "${CMAKE_ANDROID_ARCH_ABI}")
+    message(STATUS "[RAFCoder] ANDROID_ABI not provided, using compatibility fallback CMAKE_ANDROID_ARCH_ABI=${VECTRA_ANDROID_ABI}")
+endif()
+
+set(RAFCODER_PRIMITIVES_C_SOURCE ${CMAKE_CURRENT_LIST_DIR}/core/arch/primitives.c)
+set(RAFCODER_PRIMITIVES_ARM64_ASM_SOURCE ${CMAKE_CURRENT_LIST_DIR}/core/arch/primitives.S)
+set(RAFCODER_PRIMITIVES_BACKEND_SOURCES)
+set(RAFCODER_PRIMITIVES_BACKEND_NAME "portable-c")
+
+if(RMR_ASM_CORE_EXPERIMENTAL AND ANDROID AND VECTRA_ANDROID_ABI STREQUAL "x86_64" AND RMR_ASM_CORE_X86_64_VALIDATED)
     list(APPEND VECTRA_LOWLEVEL_SOURCES ${VECTRA_ENGINE_ASM_X86_64_SOURCES})
     list(APPEND VECTRA_CASM_SOURCES ${VECTRA_ENGINE_ASM_X86_64_SOURCES})
 endif()
@@ -41,21 +52,44 @@ if(RMR_ASM_CORE_EXPERIMENTAL AND NOT ANDROID AND (CMAKE_SYSTEM_PROCESSOR MATCHES
     list(APPEND VECTRA_CASM_SOURCES ${VECTRA_ENGINE_ASM_X86_64_SOURCES})
 endif()
 
-if(RMR_ASM_CORE_EXPERIMENTAL AND ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a" AND RMR_ASM_CORE_ARM64_VALIDATED)
+if(RMR_ASM_CORE_EXPERIMENTAL AND ANDROID AND VECTRA_ANDROID_ABI STREQUAL "arm64-v8a" AND RMR_ASM_CORE_ARM64_VALIDATED)
     list(APPEND VECTRA_CASM_SOURCES ${VECTRA_ENGINE_ASM_ARM64_SOURCES})
 endif()
 
-if(ANDROID AND (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a" OR CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a"))
+if(ANDROID AND (VECTRA_ANDROID_ABI STREQUAL "arm64-v8a" OR VECTRA_ANDROID_ABI STREQUAL "armeabi-v7a"))
     list(APPEND VECTRA_NEON_SOURCES ${VECTRA_ENGINE_ARM64_NEON_SOURCES})
 endif()
 
 # Roadmap explícito: ABI riscv64 permanece INATIVA por política Android
 # (APP_ABI_POLICY/SUPPORTED_ABIS). A rotina CASM riscv64 já é RV64I-compatible
 # (sem extensão M) e depende apenas de habilitação dessa política ABI.
-# if(RMR_ASM_CORE_EXPERIMENTAL AND ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "riscv64" AND RMR_ASM_CORE_RISCV64_VALIDATED)
+# if(RMR_ASM_CORE_EXPERIMENTAL AND ANDROID AND VECTRA_ANDROID_ABI STREQUAL "riscv64" AND RMR_ASM_CORE_RISCV64_VALIDATED)
 #     list(APPEND VECTRA_CASM_SOURCES ${VECTRA_ENGINE_ASM_RISCV64_SOURCES})
 # endif()
 
+
+if(ANDROID AND VECTRA_ANDROID_ABI STREQUAL "armeabi-v7a")
+    list(APPEND RAFCODER_PRIMITIVES_BACKEND_SOURCES ${RAFCODER_PRIMITIVES_C_SOURCE})
+    set(RAFCODER_PRIMITIVES_BACKEND_NAME "armv7-c-fallback")
+elseif(ANDROID AND VECTRA_ANDROID_ABI STREQUAL "arm64-v8a")
+    set(RAFCODER_USE_ARM64_PRIMITIVES_ASM OFF)
+    if(EXISTS ${RAFCODER_PRIMITIVES_ARM64_ASM_SOURCE})
+        if(DEFINED CMAKE_ANDROID_NDK_VERSION AND CMAKE_ANDROID_NDK_VERSION VERSION_GREATER_EQUAL "26")
+            set(RAFCODER_USE_ARM64_PRIMITIVES_ASM ON)
+        endif()
+    endif()
+    if(RAFCODER_USE_ARM64_PRIMITIVES_ASM)
+        list(APPEND RAFCODER_PRIMITIVES_BACKEND_SOURCES ${RAFCODER_PRIMITIVES_ARM64_ASM_SOURCE})
+        set(RAFCODER_PRIMITIVES_BACKEND_NAME "arm64-asm")
+    else()
+        list(APPEND RAFCODER_PRIMITIVES_BACKEND_SOURCES ${RAFCODER_PRIMITIVES_C_SOURCE})
+        set(RAFCODER_PRIMITIVES_BACKEND_NAME "arm64-c-fallback")
+    endif()
+endif()
+
+if(ANDROID AND (VECTRA_ANDROID_ABI STREQUAL "armeabi-v7a" OR VECTRA_ANDROID_ABI STREQUAL "arm64-v8a"))
+    message(STATUS "[RAFCoder] ABI=${VECTRA_ANDROID_ABI} selected primitives backend: ${RAFCODER_PRIMITIVES_BACKEND_NAME}")
+endif()
 
 if(DEFINED Python3_EXECUTABLE AND NOT Python3_EXECUTABLE STREQUAL "")
     execute_process(
@@ -84,12 +118,15 @@ add_custom_target(lowlevel_abi_contract_check
 
 add_library(abi_core_freestanding STATIC
     lowlevel_abi.c
+    core/sector.c
+    core/arch/primitives.c
     vectra_lowlevel_backend_fallback.c
     vectra_lowlevel_backend_arm64.c
     vectra_lowlevel_backend_armv7.c
     vectra_lowlevel_backend_x86_64.c
     vectra_lowlevel_backend_x86.c
     vectra_lowlevel_backend_riscv64.c
+    ${RAFCODER_PRIMITIVES_BACKEND_SOURCES}
     ${VECTRA_LOWLEVEL_SOURCES}
     ${VECTRA_CASM_SOURCES}
     ${VECTRA_NEON_SOURCES})
@@ -108,19 +145,19 @@ set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "arm64-v8a;armeabi-v7a;x86;x86_64" C
 set(TERMUX_BOOTSTRAP_BUILD_ENABLED OFF)
 
 if(ANDROID)
-    list(FIND TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "${CMAKE_ANDROID_ARCH_ABI}" TERMUX_BOOTSTRAP_ABI_INDEX)
+    list(FIND TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "${VECTRA_ANDROID_ABI}" TERMUX_BOOTSTRAP_ABI_INDEX)
     if(NOT TERMUX_BOOTSTRAP_ABI_INDEX EQUAL -1)
         set(TERMUX_BOOTSTRAP_BUILD_ENABLED ON)
     else()
-        message(STATUS "termux-bootstrap disabled for unsupported ABI: ${CMAKE_ANDROID_ARCH_ABI}")
+        message(STATUS "termux-bootstrap disabled for unsupported ABI: ${VECTRA_ANDROID_ABI}")
     endif()
 endif()
 
-if(NOT ANDROID OR CMAKE_ANDROID_ARCH_ABI IN_LIST TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS)
+if(NOT ANDROID OR VECTRA_ANDROID_ABI IN_LIST TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS)
     add_library(termux-bootstrap SHARED
         termux_bootstrap_bridge.c)
 else()
-    message(STATUS "Skipping termux-bootstrap for unsupported ABI: ${CMAKE_ANDROID_ARCH_ABI}")
+    message(STATUS "Skipping termux-bootstrap for unsupported ABI: ${VECTRA_ANDROID_ABI}")
 endif()
 
 if(VECTRA_CASM_SOURCES)
@@ -178,22 +215,23 @@ foreach(_flag IN LISTS VECTRA_ARM64_CPP_FLAGS_LIST)
     endif()
 endforeach()
 
-if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+if(ANDROID AND VECTRA_ANDROID_ABI STREQUAL "arm64-v8a")
     # +crc enables CRC32 intrinsics | +simd enables NEON | +sha2 enables SHA hw
     set(VECTRA_ABI_COMPILE_OPTIONS
         -march=armv8-a+crc+simd
         -DRMR_ARCH_ARM64=1
-        -DRMR_FEAT_CRC32_HW=1)
+        -DRMR_FEAT_CRC32_HW=1
+        -DRAF_ARCH_AARCH64=1)
     list(APPEND VECTRA_ABI_COMPILE_OPTIONS ${VECTRA_ARM64_TUNING_FLAGS})
 endif()
-if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+if(ANDROID AND VECTRA_ANDROID_ABI STREQUAL "x86_64")
     set(VECTRA_ABI_COMPILE_OPTIONS -msse4.2 -mpopcnt -DRMR_ARCH_X86_64=1)
 endif()
 
-if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "x86")
+if(ANDROID AND VECTRA_ANDROID_ABI STREQUAL "x86")
     set(VECTRA_ABI_COMPILE_OPTIONS -mssse3 -msse4.2 -mpopcnt -DRMR_ARCH_X86=1)
 endif()
-if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+if(ANDROID AND VECTRA_ANDROID_ABI STREQUAL "armeabi-v7a")
     # arm32-v7 baseline com NEON explícito para evitar regressões no NDK r27+
     # em toolchains que oscilam entre soft/softfp ao integrar JNI.
     set(VECTRA_ABI_COMPILE_OPTIONS
@@ -202,7 +240,8 @@ if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
         -mfpu=neon
         -mfloat-abi=softfp
         -DRMR_ARCH_ARM32=1
-        -DRMR_FEAT_NEON=1)
+        -DRMR_FEAT_NEON=1
+        -DRAF_ARCH_ARMV7=1)
 endif()
 
 if(VECTRA_INLINE_POLICY STREQUAL "aggressive")
@@ -259,7 +298,9 @@ target_compile_options(abi_core_freestanding PRIVATE
 target_compile_definitions(abi_core_freestanding PRIVATE
     VECTRA_LL_NO_STDLIB_TYPES=1)
 target_include_directories(abi_core_freestanding PRIVATE
-    ${VECTRA_RMR_INCLUDE_DIR})
+    ${VECTRA_RMR_INCLUDE_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/core)
 target_link_options(abi_core_freestanding PRIVATE
     -nostdlib
     -Wl,--gc-sections
@@ -295,11 +336,15 @@ if(TARGET termux-bootstrap)
 endif()
 
 target_include_directories(vectra_core_accel PRIVATE
-    ${VECTRA_RMR_INCLUDE_DIR})
+    ${VECTRA_RMR_INCLUDE_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/core)
 
 if(TARGET termux-bootstrap)
     target_include_directories(termux-bootstrap PRIVATE
-        ${VECTRA_RMR_INCLUDE_DIR})
+        ${VECTRA_RMR_INCLUDE_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}
+        ${CMAKE_CURRENT_LIST_DIR}/core)
 endif()
 
 if(NOT ANDROID)

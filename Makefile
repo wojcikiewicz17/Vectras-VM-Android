@@ -71,6 +71,9 @@ HW_DETECT_SELFTEST_BIN := build/demo/rmr_hw_detect_selftest
 NEON_SIMD_SELFTEST_BIN := build/demo/rmr_neon_simd_selftest
 ASM_EQUIVALENCE_SELFTEST_BIN := build/demo/rmr_asm_equivalence_selftest
 ZIPRAF_CORE_SELFTEST_BIN := build/demo/zipraf_core_selftest
+SECTOR_SELFTEST_BIN := build/demo/sector_selftest
+SNAPSHOT_42_BIN := build/demo/sector_snapshot_42
+CORE_BENCH_SMOKE_BIN := build/bench/core_benchmark_smoke
 RMR_REQUIRED_SYMBOLS := RmR_MathFabric_AutodetectPlan RmR_MathFabric_VectorMix
 RMR_LINK_LIBS := $(LIB_STATIC) $(LIB_BITRAF_STATIC)
 
@@ -86,7 +89,7 @@ NEON_SELFTEST_TARGETS += $(NEON_SIMD_SELFTEST_BIN)
 endif
 endif
 
-all: verify-rmr-source-alignment $(LIB_STATIC) verify-librmr-symbols $(LIB_BITRAF_STATIC) $(LIB_BITRAF_SHARED) $(DEMO_BIN) $(BENCH_BIN) $(BITRAF_BIN) $(SELFTEST_BIN) $(MATH_FABRIC_SELFTEST_BIN) $(DETERMINISM_SIGNATURE_SELFTEST_BIN) $(CASM_SELFTEST_TARGETS) $(BITOMEGA_SMOKETEST_BIN) $(UNIFIED_ARENA_SELFTEST_BIN) $(LEGACY_KERNEL_SELFTEST_BIN) $(HW_DETECT_SELFTEST_BIN) $(ASM_EQUIVALENCE_SELFTEST_BIN) $(ZIPRAF_CORE_SELFTEST_BIN) $(NEON_SELFTEST_TARGETS) $(APK_MODULE_BIN) $(CTI_SCAN_BIN) $(POLICY_DEMO_BIN) $(POLICY_SELFTEST_BIN) $(QEMU_BRIDGE_DEMO_BIN) $(QEMU_BRIDGE_SELFTEST_BIN)
+all: verify-rmr-source-alignment $(LIB_STATIC) verify-librmr-symbols $(LIB_BITRAF_STATIC) $(LIB_BITRAF_SHARED) $(DEMO_BIN) $(BENCH_BIN) $(BITRAF_BIN) $(SELFTEST_BIN) $(MATH_FABRIC_SELFTEST_BIN) $(DETERMINISM_SIGNATURE_SELFTEST_BIN) $(CASM_SELFTEST_TARGETS) $(BITOMEGA_SMOKETEST_BIN) $(UNIFIED_ARENA_SELFTEST_BIN) $(LEGACY_KERNEL_SELFTEST_BIN) $(HW_DETECT_SELFTEST_BIN) $(ASM_EQUIVALENCE_SELFTEST_BIN) $(ZIPRAF_CORE_SELFTEST_BIN) $(SECTOR_SELFTEST_BIN) $(NEON_SELFTEST_TARGETS) $(APK_MODULE_BIN) $(CTI_SCAN_BIN) $(POLICY_DEMO_BIN) $(POLICY_SELFTEST_BIN) $(QEMU_BRIDGE_DEMO_BIN) $(QEMU_BRIDGE_SELFTEST_BIN)
 
 verify-rmr-source-alignment:
 	tools/verify_rmr_source_alignment.sh
@@ -202,6 +205,10 @@ $(NEON_SIMD_SELFTEST_BIN): demo_cli/src/neon_simd_selftest.c $(LIB_STATIC) $(LIB
 	@mkdir -p $(dir $@)
 	$(CC) $(CPPFLAGS) $(CFLAGS) $< $(RMR_LINK_LIBS) $(LDFLAGS) -o $@
 
+$(SECTOR_SELFTEST_BIN): app/src/main/cpp/core/tests/sector_selftest.c app/src/main/cpp/core/sector.c app/src/main/cpp/core/arch/primitives.c
+	@mkdir -p $(dir $@)
+	$(CC) -Iapp/src/main/cpp $(CPPFLAGS) $(CFLAGS) -pthread app/src/main/cpp/core/tests/sector_selftest.c app/src/main/cpp/core/sector.c app/src/main/cpp/core/arch/primitives.c $(LDFLAGS) -o $@
+
 run-bitomega-smoketest: $(BITOMEGA_SMOKETEST_BIN)
 	@mkdir -p bench/results
 	./$(BITOMEGA_SMOKETEST_BIN)
@@ -215,7 +222,7 @@ run-casm-selftest: $(CASM_SELFTEST_TARGETS)
 	fi
 	./$(CASM_BRIDGE_SELFTEST_BIN)
 
-run-selftest: $(SELFTEST_BIN) $(MATH_FABRIC_SELFTEST_BIN) $(DETERMINISM_SIGNATURE_SELFTEST_BIN) $(CASM_SELFTEST_TARGETS) $(POLICY_SELFTEST_BIN) $(QEMU_BRIDGE_SELFTEST_BIN) $(BITOMEGA_SMOKETEST_BIN) $(UNIFIED_ARENA_SELFTEST_BIN) $(LEGACY_KERNEL_SELFTEST_BIN) $(HW_DETECT_SELFTEST_BIN) $(ASM_EQUIVALENCE_SELFTEST_BIN) $(ZIPRAF_CORE_SELFTEST_BIN) $(NEON_SELFTEST_TARGETS)
+run-selftest: $(SELFTEST_BIN) $(MATH_FABRIC_SELFTEST_BIN) $(DETERMINISM_SIGNATURE_SELFTEST_BIN) $(CASM_SELFTEST_TARGETS) $(POLICY_SELFTEST_BIN) $(QEMU_BRIDGE_SELFTEST_BIN) $(BITOMEGA_SMOKETEST_BIN) $(UNIFIED_ARENA_SELFTEST_BIN) $(LEGACY_KERNEL_SELFTEST_BIN) $(HW_DETECT_SELFTEST_BIN) $(ASM_EQUIVALENCE_SELFTEST_BIN) $(ZIPRAF_CORE_SELFTEST_BIN) $(SECTOR_SELFTEST_BIN) $(NEON_SELFTEST_TARGETS)
 	@set -e; \
 	status=0; \
 	for test_cmd in \
@@ -228,7 +235,8 @@ run-selftest: $(SELFTEST_BIN) $(MATH_FABRIC_SELFTEST_BIN) $(DETERMINISM_SIGNATUR
 		"./$(LEGACY_KERNEL_SELFTEST_BIN)" \
 		"./$(HW_DETECT_SELFTEST_BIN)" \
 		"./$(ASM_EQUIVALENCE_SELFTEST_BIN)" \
-		"./$(ZIPRAF_CORE_SELFTEST_BIN)"; do \
+		"./$(ZIPRAF_CORE_SELFTEST_BIN)" \
+		"./$(SECTOR_SELFTEST_BIN)"; do \
 		echo "[run-selftest] $$test_cmd"; \
 		if ! sh -c "$$test_cmd"; then \
 			status=1; \
@@ -255,6 +263,9 @@ run-selftest: $(SELFTEST_BIN) $(MATH_FABRIC_SELFTEST_BIN) $(DETERMINISM_SIGNATUR
 
 run-bench: $(BENCH_BIN)
 	./$(BENCH_BIN) bench/results/latest.csv bench/results/latest.json
+
+run-sector-selftest: $(SECTOR_SELFTEST_BIN)
+	./$(SECTOR_SELFTEST_BIN)
 
 run-baremetal-gate:
 	tools/baremetal/hw_caps_detect.sh reports/baremetal/hw_caps.env
@@ -285,3 +296,18 @@ print-build-config-env:
 	@cat build/rmr_build_config.env
 
 .PHONY: print-build-config print-build-config-env
+
+$(SNAPSHOT_42_BIN): app/src/main/cpp/core/tests/sector_snapshot_42.c app/src/main/cpp/core/sector.c app/src/main/cpp/core/arch/primitives.c
+	@mkdir -p $(dir $@)
+	$(CC) -Iapp/src/main/cpp $(CPPFLAGS) $(CFLAGS) app/src/main/cpp/core/tests/sector_snapshot_42.c app/src/main/cpp/core/sector.c app/src/main/cpp/core/arch/primitives.c $(LDFLAGS) -o $@
+
+$(CORE_BENCH_SMOKE_BIN): app/src/main/cpp/core/tests/core_benchmark_smoke.c app/src/main/cpp/core/sector.c app/src/main/cpp/core/arch/primitives.c
+	@mkdir -p $(dir $@)
+	$(CC) -Iapp/src/main/cpp $(CPPFLAGS) $(CFLAGS) app/src/main/cpp/core/tests/core_benchmark_smoke.c app/src/main/cpp/core/sector.c app/src/main/cpp/core/arch/primitives.c $(LDFLAGS) -o $@
+
+run-sector-snapshot-42: $(SNAPSHOT_42_BIN)
+	./$(SNAPSHOT_42_BIN)
+
+run-core-bench-smoke: $(CORE_BENCH_SMOKE_BIN)
+	./$(CORE_BENCH_SMOKE_BIN)
+

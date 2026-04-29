@@ -17,6 +17,7 @@
 - `docs/SECURITY.md`
 - `docs/LEGAL_AND_LICENSES.md`
 - `docs/DOCUMENTATION_STANDARDS.md`
+- `docs/METODOLOGIA_ORGANIZACAO_7_DIRECOES.md`
 - `reports/CANONICAL_BUILD_STATUS.md`
 
 ## 2) Ativo (estado operacional vigente)
@@ -51,8 +52,8 @@
 - Conteúdo superseded deve migrar para `docs/archive/` com marcador temporal no nome.
 
 ## Metadados
-- Versão do documento: 2.0
-- Última atualização: 2026-04-17
+- Versão do documento: 2.1
+- Última atualização: 2026-04-28
 - Commit de referência: `HEAD`
 
 ## Referência canônica de CI Android/Host

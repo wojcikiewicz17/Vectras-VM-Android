@@ -1,15 +1,14 @@
-# android/ (legacy-only / unsupported for release)
+# android/ (legado ativo para compatibilidade local)
 
-Este diretório é **somente legado** e **não é suportado para release**.
+Este diretório é **legado** e existe apenas para compatibilidade com fluxos antigos.
 
-## Status
-- 🚫 legacy-only
-- 🚫 unsupported for release
-- 🚫 não usar em CI/CD, release, assinatura ou documentação operacional
-- ✅ mantido apenas para histórico/auditoria
+## Status do RAFCoder
+- ✅ RAFCoder **ativo no módulo canônico `:app` na raiz**.
+- ⚠️ `android/` **não é fonte de verdade** para CI/release oficial.
+- ✅ `com.rafacodephi.app` foi portado para o entrypoint canônico `:app`.
 
-## Comandos oficiais (na raiz do repositório)
-Use apenas o caminho canônico na raiz:
+## Fonte de verdade única
+Use sempre a raiz do repositório:
 
 ```bash
 ./tools/gradle_with_jdk21.sh :app:assembleDebug
@@ -17,5 +16,7 @@ Use apenas o caminho canônico na raiz:
 ./tools/gradle_with_jdk21.sh :app:bundleRelease
 ```
 
-## Guardrail
-- `android/settings.gradle` falha de forma explícita (hard-fail) para bloquear uso acidental de `android/`.
+## Sobre `android/`
+- O hard-fail anterior em `android/settings.gradle` foi removido para permitir bootstrap/local debug legado.
+- `android/gradlew` e `android/gradlew.bat` são apenas shims que delegam para o wrapper canônico da raiz.
+- Releases, assinatura, artefatos oficiais e CI continuam centralizados na raiz.
