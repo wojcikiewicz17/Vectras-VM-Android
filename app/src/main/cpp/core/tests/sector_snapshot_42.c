@@ -1,0 +1,29 @@
+#include <stdint.h>
+#include <stdio.h>
+#include <string.h>
+
+#include "core/sector.h"
+
+int main(void) {
+    const uint8_t s[42] = {
+        0x00,0x01,0x02,0x03,0x04,0x05,0x06,0x07,0x08,0x09,
+        0x0A,0x0B,0x0C,0x0D,0x0E,0x0F,0x10,0x11,0x12,0x13,
+        0x14,0x15,0x16,0x17,0x18,0x19,0x1A,0x1B,0x1C,0x1D,
+        0x1E,0x1F,0x20,0x21,0x22,0x23,0x24,0x25,0x26,0x27,
+        0x28,0x29
+    };
+
+    vectra_sector_out out;
+    memset(&out, 0, sizeof(out));
+    run_sector(s, 42, &out);
+
+    printf("snapshot: hash64=%llu crc32=%u coherence_q16=%u entropy_q16=%u last_entropy_milli=%u last_invariant_milli=%u\n",
+           (unsigned long long)out.hash64,
+           out.crc32,
+           out.coherence_q16,
+           out.entropy_q16,
+           out.last_entropy_milli,
+           out.last_invariant_milli);
+
+    return 0;
+}

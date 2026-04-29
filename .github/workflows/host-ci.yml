@@ -66,6 +66,12 @@ jobs:
       - name: Gate sector reentrancy/selftest (host native)
         run: make run-sector-selftest
 
+      - name: Run deterministic sector snapshot (42 bytes)
+        run: make run-sector-snapshot-42
+
+      - name: Run core benchmark smoke test
+        run: make run-core-bench-smoke
+
       - name: Run ASM compiler refactor gate (integrity + failsafe)
         run: ./tools/ci/run_asm_compiler_refactor_gate.sh
 
