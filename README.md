@@ -12,7 +12,6 @@ Esta revisão consolida a documentação em três camadas por diretório (propó
 - Navegação de `docs/` refatorada para estrutura numerada de 5 níveis.
 - Metadados de governança documental atualizados para acompanhamento de ciclo.
 
-
 ## START HERE
 - Entrada rápida profissional: [`START_HERE.md`](START_HERE.md)
 
@@ -21,6 +20,10 @@ Esta revisão consolida a documentação em três camadas por diretório (propó
 - Histórico de mudanças: [`CHANGELOG.md`](CHANGELOG.md)
 - Notas de release: [`RELEASE_NOTES.md`](RELEASE_NOTES.md)
 - Índice documental: [`DOC_INDEX.md`](DOC_INDEX.md)
+- Segurança: [`SECURITY.md`](SECURITY.md)
+- Guia de contribuição: [`CONTRIBUTING.md`](CONTRIBUTING.md)
+- Privacidade: [`PRIVACY.md`](PRIVACY.md)
+- Modelo de ameaças: [`docs/THREAT_MODEL.md`](docs/THREAT_MODEL.md)
 - Avisos de terceiros/licenciamento: [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)
 - Referência do runtime: [`VECTRA_CORE.md`](VECTRA_CORE.md)
 - Guia macro de documentação: [`VECTRAS_MEGAPROMPT_DOCS.md`](VECTRAS_MEGAPROMPT_DOCS.md)
@@ -77,7 +80,6 @@ Referências estruturais:
 | `fastlane/` | [fastlane/README.md](fastlane/README.md) | [fastlane/FILES_MAP.md](fastlane/FILES_MAP.md) |
 | `gradle/` | [gradle/README.md](gradle/README.md) | [gradle/FILES_MAP.md](gradle/FILES_MAP.md) |
 | `3dfx/` | [3dfx/README.md](3dfx/README.md) | [3dfx/FILES_MAP.md](3dfx/FILES_MAP.md) |
-
 
 ## Política de assinatura (`vectras.jks`)
 - A chave `vectras.jks` **não deve permanecer versionada** no Git.
@@ -140,7 +142,6 @@ find . -maxdepth 2 -type d | sort
 - O build agora valida em bootstrap `GRADLE_JAVA_RUNTIME_VERSION` (padrão 17) e falha se a JVM runtime exceder `GRADLE_MAX_RUNTIME_JAVA_VERSION` (padrão 21).
 - Para override pontual, use `-P` no comando Gradle.
 
-
 ### Precedência oficial de propriedades Gradle
 - Regra fixa: propriedade canônica (`lowercase.with.dots`) sempre vence.
 - Alias legado (`UPPER_SNAKE_CASE`) é somente fallback para compatibilidade retroativa.
@@ -184,7 +185,6 @@ Essa task já encadeia `verifyMinApiAbiCompatibility`, `verifyArm64ToolchainComp
 - Para preparar ambiente Android local sem drift, execute `./tools/ci/prepare_android_env.sh`; o script prioriza `ANDROID_SDK_ROOT`/`ANDROID_HOME`, faz fallback em `${REPO_ROOT}/.android-sdk`, `/workspace/android-sdk`, `/usr/lib/android-sdk`, `/opt/android-sdk`, `/opt/android-sdk-linux` e `$HOME/Android/Sdk`, sincroniza apenas `sdk.dir` em `local.properties` e valida `ndk.version` sem usar `ndk.dir` (deprecado no AGP).
 - Para publicação de artefatos Android no CI sem lacunas silenciosas, o workflow materializa manifestos determinísticos via `tools/ci/materialize_android_ci_artifacts.sh` antes do upload.
 
-
 Para fixar por usuário (sem depender de shell):
 ```properties
 # ~/.gradle/gradle.properties
@@ -194,7 +194,6 @@ org.gradle.java.home=/usr/lib/jvm/java-21-openjdk
 ## Referência rápida de bugs
 - Escopo e relação com os demais domínios: [`bug/README.md`](bug/README.md)
 - Mapa arquivo-a-arquivo do domínio de bugs: [`bug/FILES_MAP.md`](bug/FILES_MAP.md)
-
 
 ## Canal oficial de comunidade e suporte
 - Canal oficial neutro: https://vectras.vercel.app/community.html
