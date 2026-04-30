@@ -32,7 +32,8 @@ public enum VmLaunchMode {
         if (vmUi == null) {
             return VNC;
         }
-        switch (vmUi) {
+
+        switch (vmUi.trim().toUpperCase()) {
             case "X11":
                 return X11;
             case "SPICE":
