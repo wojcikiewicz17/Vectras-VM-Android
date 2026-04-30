@@ -33,6 +33,7 @@ import com.vectras.vm.logger.VectrasStatus;
 import com.vectras.vm.core.VmFlowState;
 import com.vectras.vm.core.VmFlowTracker;
 import com.vectras.vm.qemu.VmLaunchLedger;
+import com.vectras.vm.qemu.VmLaunchMode;
 import com.vectras.vm.settings.ExternalVNCSettingsActivity;
 import com.vectras.vm.setupwizard.SetupFeatureCore;
 import com.vectras.vm.utils.DeviceUtils;
@@ -158,7 +159,10 @@ public class MainStartVM {
         VmFlowTracker.mark(context, finalvmID, VmFlowState.STARTING, "launch_requested", "start");
 
         Config.vmID = finalvmID;
-        boolean headless = AppConfig.engineHeadlessMode || env.contains("-display none") || env.contains("headless=true");
+        // Resolve the launch mode based on configured UI, headless overrides and command string.
+        VmLaunchMode launchMode = VmLaunchMode.determine(MainSettingsManager.getVmUi(context),
+                                                         AppConfig.engineHeadlessMode, env);
+        boolean headless = launchMode.isHeadless();
         if (headless) {
             Log.i(TAG, "engine-only mode enabled (headless=true)");
         }

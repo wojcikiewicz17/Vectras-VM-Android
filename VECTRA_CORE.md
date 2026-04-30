@@ -153,17 +153,7 @@ Events are modeled as interrupt-style requests with priorities:
 Vectra Core is controlled by the `VECTRA_CORE_ENABLED` BuildConfig flag:
 
 - **Debug builds**: `VECTRA_CORE_ENABLED = true` (enabled by default)
-- **Release builds**: `VECTRA_CORE_ENABLED = false` (disabled by default)
-
-### To Enable in Release:
-Edit `app/build.gradle`:
-```gradle
-buildTypes {
-    release {
-        buildConfigField "boolean", "VECTRA_CORE_ENABLED", "true"
-    }
-}
-```
+- **Release builds**: `VECTRA_CORE_ENABLED = true` (enabled with validation gates by default)
 
 ### To Disable in Debug:
 ```gradle
@@ -183,6 +173,9 @@ buildTypes {
 - Creates append-only log file
 - Runs self-test with 5 validation checks
 - Zero impact on UI thread (all processing is background)
+
+### Release policy note
+- Official and internal release builds run with `VECTRA_CORE_ENABLED=true` and must pass deterministic validation gates before distribution.
 
 ### When Disabled
 - Single `if (!BuildConfig.VECTRA_CORE_ENABLED) return` check

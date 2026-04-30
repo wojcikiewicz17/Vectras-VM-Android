@@ -346,3 +346,5 @@ Expected per architecture:
 - Canonical host pipeline: `.github/workflows/host-ci.yml`.
 - Orchestration and final gates: `.github/workflows/pipeline-orchestrator.yml` and `.github/workflows/quality-gates.yml`.
 - Canonical matrix documentation: `docs/ci/workflow-matrix.md`.
+
+- `external_sources.manifest` mantém `androidx_RmR` e `qemu_rafaelia` em branch-tracked (sem commit pin), com validação remota de integridade no CI.

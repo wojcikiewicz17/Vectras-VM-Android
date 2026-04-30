@@ -304,6 +304,36 @@
 
 **PT-BR:** Componente de rastreamento de estado CPU/RAM/DISK usando consenso 2-de-3 para detectar qual componente está fora de sincronia.
 
+### Next-Step Cache
+**EN:** Predictive cache strategy that stores the most probable next transition state instead of only the current value. Useful in state machines where processing order is deterministic.
+
+**PT-BR:** Estratégia de cache preditivo que guarda o próximo estado mais provável, não apenas o valor atual. Útil em máquinas de estado com ordem determinística.
+
+### State Transition Semantics
+**EN:** Interpretation model where each token is treated as a transition between states. Coherence is measured across transitions, not isolated words.
+
+**PT-BR:** Modelo de interpretação em que cada token é tratado como transição entre estados. A coerência é medida no encadeamento das transições, não em palavras isoladas.
+
+### 10-bit Matrix Cell
+**EN:** Internal representation with 10 total bits per cell, typically decomposed into 7 payload bits + 2 validation/parity bits + 1 extension bit for control/optimization.
+
+**PT-BR:** Representação interna com 10 bits totais por célula, normalmente decomposta em 7 bits de payload + 2 bits de validação/paridade + 1 bit de extensão para controle/otimização.
+
+### ASCII +1 Framing
+**EN:** Encoding policy that maps 8-bit ASCII-compatible values and reserves one additional bit for local optimization metadata.
+
+**PT-BR:** Política de codificação que mapeia valores compatíveis com ASCII de 8 bits e reserva um bit adicional para metadados locais de otimização.
+
+### Interconnected Matrix Sets
+**EN:** Grouped matrix topology where each set must keep at least two links to other sets, enabling cross-validation and geometric parity constraints.
+
+**PT-BR:** Topologia matricial agrupada em que cada conjunto mantém no mínimo duas ligações com outros conjuntos, habilitando validação cruzada e restrições de paridade geométrica.
+
+### Internal/External Attractors
+**EN:** Stabilization anchors used in geometric state models. External attractors constrain the global trajectory; internal attractors preserve local coherence among linked cells.
+
+**PT-BR:** Âncoras de estabilização usadas em modelos geométricos de estado. Atratores externos restringem a trajetória global; atratores internos preservam a coerência local entre células ligadas.
+
 ### 4×4 Parity Block
 **EN:** 16-bit data block with 8-bit 2D parity (4 row + 4 column bits). Can detect and localize single-bit errors.
 

@@ -2,6 +2,10 @@ name: Android Native CI
 
 on:
   workflow_call:
+    inputs:
+      profile_set:
+        type: string
+        default: all
   pull_request:
     paths:
       - 'app/**'
@@ -50,7 +54,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        profile: [official_arm64, official_arm32_arm64]
+        profile: ${{ fromJSON(inputs.profile_set == 'official' && '["official_arm64"]' || inputs.profile_set == 'official_arm32_arm64' && '["official_arm32_arm64"]' || '["official_arm64","official_arm32_arm64"]') }}
         variant: [debug, release]
 
     steps:
