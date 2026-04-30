@@ -32,3 +32,9 @@
 
 - O histórico de validações ad-hoc deve apontar para este arquivo como status canônico.
 - O fluxo Android canônico (`.github/workflows/android-ci.yml`), acionado por wrapper/orquestrador, publica snapshot deste status como artifact de CI.
+
+
+## Validação pendente no commit corrente
+- Este commit ainda não possui validação canônica de CI concluída no GitHub Actions.
+- Manter como fonte de verdade a última validação oficial listada acima até o término da execução CI.
+- Após CI verde, atualizar: SHA validado, data/hora UTC e tarefas executadas.
