@@ -124,19 +124,23 @@ jobs:
     if: needs.matrix-build.outputs.should_run_host == 'true'
     uses: ./.github/workflows/host-ci.yml
 
-  android-native-ci:
-    name: Android Native CI
+  android-native-ci-official:
+    name: Android Native CI (official)
     needs: [matrix-build, abi-preflight, host-ci]
     if: ${{ always() && needs.matrix-build.outputs.should_run_android == 'true' && (needs.host-ci.result == 'success' || needs.host-ci.result == 'skipped') }}
     uses: ./.github/workflows/android-native-ci.yml
+    with:
+      profile_set: official
     secrets: inherit
 
 
-  android-native-ci:
+  android-native-ci-arm32-arm64:
     name: Android Native CI (arm32+arm64)
     needs: [matrix-build, abi-preflight, host-ci]
     if: ${{ always() && needs.matrix-build.outputs.should_run_android == 'true' && (needs.host-ci.result == 'success' || needs.host-ci.result == 'skipped') }}
     uses: ./.github/workflows/android-native-ci.yml
+    with:
+      profile_set: official_arm32_arm64
     secrets: inherit
 
   android-release-binaries-arm32-arm64:
@@ -168,14 +172,14 @@ jobs:
 
   quality-gates:
     name: Quality Gates
-    needs: [matrix-build, abi-preflight, host-ci, android-native-ci, android-release-binaries-arm32-arm64]
+    needs: [matrix-build, abi-preflight, host-ci, android-native-ci-official, android-native-ci-arm32-arm64, android-release-binaries-arm32-arm64]
     if: always()
     uses: ./.github/workflows/quality-gates.yml
     with:
       run_host: ${{ needs.matrix-build.outputs.should_run_host == 'true' }}
       run_android: ${{ needs.matrix-build.outputs.should_run_android == 'true' }}
       host_result: ${{ needs.host-ci.result }}
-      android_result: ${{ needs.android-native-ci.result == 'success' && needs.android-release-binaries-arm32-arm64.result == 'success' && 'success' || 'failure' }}
+      android_result: ${{ needs.android-native-ci-official.result == 'success' && needs.android-native-ci-arm32-arm64.result == 'success' && needs.android-release-binaries-arm32-arm64.result == 'success' && 'success' || 'failure' }}
       profile: ${{ needs.matrix-build.outputs.profile }}
       base_sha: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
       head_sha: ${{ github.event.pull_request.head.sha || github.sha }}

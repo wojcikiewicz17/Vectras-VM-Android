@@ -2,7 +2,7 @@
 
 # PROJECT_STATE
 
-Estado atual do projeto: `FIXED_REFACTORING`.
+Estado atual do projeto: `REFACTORING`.
 
 ## Fonte única de referência
 Toda a documentação normativa, relatórios vigentes e histórico deve ser consultada exclusivamente em:
@@ -16,18 +16,15 @@ Veja `FIXES_SUMMARY.md` para tabela completa.
 - **REFACTORING**: ciclo de reestruturação e consolidação técnica.
 - **FIXED_REFACTORING**: reestruturação concluída, bugs críticos corrigidos, build funcional.
 
-## Escopo (FIXED_REFACTORING)
-- ✅ Bug crítico NATIVE_OK_MAGIC corrigido (Java/C alinhados)
-- ✅ Link errors corrigidos (lowlevel sources adicionados)
-- ✅ Flags incompatíveis (-ffreestanding) removidas
-- ✅ NEON/SIMD baremetal aceleração adicionada
-- ✅ QEMU bootstrap e YAML config criados
-- ✅ Arena API declarada publicamente
-- ✅ Todos os 57 pontos corrigidos e documentados
-- ✅ Política ABI arm32-arm64 ativa: artefatos compilados para arm64-v8a (NEON/SIMD/CRC32HW) e armeabi-v7a (NEON via -march=armv7-a -mfpu=neon)
+## Escopo atual (REFACTORING)
+- ✅ Consolidação de contratos CI host/android em andamento.
+- ✅ Fontes externas críticas (`qemu_rafaelia`, `androidx_RmR`) definidas por manifesto e script de verificação.
+- ⚠️ Status de build **não pode ser inferido como atual** sem execução CI no commit corrente.
+- ⚠️ Afirmações de aceleração/otimização (ex.: NEON) devem ser tratadas como capacidade de build declarada até validação executada no commit atual.
+- ✅ Política ABI oficialmente separada entre trilha oficial e validação interna controlada.
 
 ## Documentos canônicos
-- `reports/CANONICAL_BUILD_STATUS.md` — **arquivo canônico obrigatório** para status de validação de build/release (fonte de verdade operacional).
+- `reports/CANONICAL_BUILD_STATUS.md` — **última validação conhecida** de build/release; não substitui execução CI do commit atual.
 - `FIXES_SUMMARY.md` — tabela completa 57 fixes
 - `docs/SETUP_SDK_NDK.md` — setup local
 - `tools/qemu_launch.yml` — QEMU configuration
