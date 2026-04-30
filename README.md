@@ -222,3 +222,13 @@ org.gradle.java.home=/usr/lib/jvm/java-21-openjdk
   - `scripts/native/test.sh`
   - `scripts/native/benchmark.sh`
 - Limite atual: benchmark smoke roda no host CI (não representa benchmark Android real por ABI).
+
+
+## Coerência operacional de release
+- Branch padrão operacional inclui `master` no orquestrador, mantendo `main`, `develop` e `feature/**`.
+- `release-unsigned-internal` é exclusivo para validação interna dual ARM (`internal_arm32_arm64`) sem assinatura.
+- `release-signed-official` é exclusivo para distribuição oficial `official_arm64` com assinatura.
+- `VECTRA_CORE_ENABLED` permanece ativo em release com gates de validação determinística.
+- Status canônico de build só é atualizado após CI real concluída.
+
+- `external_sources.manifest` mantém `androidx_RmR` e `qemu_rafaelia` em branch-tracked (sem commit pin), com validação remota de integridade no CI.

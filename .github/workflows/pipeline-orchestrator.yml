@@ -2,9 +2,9 @@ name: Orchestrator - Build Matrix
 
 on:
   push:
-    branches: [main, develop, 'feature/**']
+    branches: [main, master, develop, 'feature/**']
   pull_request:
-    branches: [main, develop]
+    branches: [main, master, develop]
   workflow_dispatch:
     inputs:
       pipeline_profile:
@@ -143,8 +143,8 @@ jobs:
       profile_set: official_arm32_arm64
     secrets: inherit
 
-  android-release-binaries-arm32-arm64:
-    name: Android Release Binaries (unsigned/signed arm32+arm64)
+  android-release-binaries:
+    name: Android Release Binaries (internal unsigned + official signed)
     needs: [matrix-build, abi-preflight, host-ci]
     if: ${{ always() && needs.matrix-build.outputs.should_run_android == 'true' && (needs.host-ci.result == 'success' || needs.host-ci.result == 'skipped') }}
     strategy:
@@ -153,17 +153,19 @@ jobs:
         include:
           - lane: release-unsigned-internal
             signing_mode: unsigned
-            label: unsigned
-          - lane: auto
+            abi_profile: internal_arm32_arm64
+            label: internal-unsigned
+          - lane: release-signed-official
             signing_mode: signed
-            label: signed
+            abi_profile: official_arm64
+            label: official-signed
     uses: ./.github/workflows/android-ci.yml
     with:
       run_workfile: release_gate
       ci_lane: ${{ matrix.lane }}
       build_variant: release
       signing_mode: ${{ matrix.signing_mode }}
-      abi_profile: internal_arm32_arm64
+      abi_profile: ${{ matrix.abi_profile }}
       native_matrix_profile: canonical
       log_level: ${{ github.event.inputs.log_level || 'lifecycle' }}
       run_lint: false
@@ -172,14 +174,14 @@ jobs:
 
   quality-gates:
     name: Quality Gates
-    needs: [matrix-build, abi-preflight, host-ci, android-native-ci-official, android-native-ci-arm32-arm64, android-release-binaries-arm32-arm64]
+    needs: [matrix-build, abi-preflight, host-ci, android-native-ci-official, android-native-ci-arm32-arm64, android-release-binaries]
     if: always()
     uses: ./.github/workflows/quality-gates.yml
     with:
       run_host: ${{ needs.matrix-build.outputs.should_run_host == 'true' }}
       run_android: ${{ needs.matrix-build.outputs.should_run_android == 'true' }}
       host_result: ${{ needs.host-ci.result }}
-      android_result: ${{ needs.android-native-ci-official.result == 'success' && needs.android-native-ci-arm32-arm64.result == 'success' && needs.android-release-binaries-arm32-arm64.result == 'success' && 'success' || 'failure' }}
+      android_result: ${{ needs.android-native-ci-official.result == 'success' && needs.android-native-ci-arm32-arm64.result == 'success' && needs.android-release-binaries.result == 'success' && 'success' || 'failure' }}
       profile: ${{ needs.matrix-build.outputs.profile }}
       base_sha: ${{ github.event.pull_request.base.sha || github.event.before || github.sha }}
       head_sha: ${{ github.event.pull_request.head.sha || github.sha }}
