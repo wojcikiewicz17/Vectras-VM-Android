@@ -33,6 +33,7 @@ import com.vectras.vm.logger.VectrasStatus;
 import com.vectras.vm.core.VmFlowState;
 import com.vectras.vm.core.VmFlowTracker;
 import com.vectras.vm.core.RuntimeContract;
+import com.vectras.vm.core.VmIntrospection;
 import com.vectras.vm.qemu.VmLaunchLedger;
 import com.vectras.vm.qemu.VmLaunchMode;
 import com.vectras.vm.settings.ExternalVNCSettingsActivity;
@@ -157,6 +158,7 @@ public class MainStartVM {
         isStopNow = false;
 
         String finalvmID = ensureLastVmIdInitialized(vmID);
+        VmIntrospection.beginSession(finalvmID);
         VmFlowTracker.mark(context, finalvmID, VmFlowState.STARTING, "launch_requested", "start");
         RuntimeContract preparedContract = StartVM.lastRuntimeContract;
         if (preparedContract != null) {
@@ -206,6 +208,7 @@ public class MainStartVM {
                     null
             );
             VmFlowTracker.mark(context, finalvmID, VmFlowState.ERROR, "preflight_failed", "abort");
+            StartVM.lastStartError = "preflight_failed:" + preflightResult.ledgerReason();
             stopLaunchPoller();
             return;
         }
@@ -220,6 +223,7 @@ public class MainStartVM {
                         R.drawable.warning_48px
                 );
                 VmFlowTracker.mark(context, finalvmID, VmFlowState.ERROR, "cache_dir_create_failed", "abort");
+                StartVM.lastStartError = "cache_dir_create_failed";
                 stopLaunchPoller();
                 return;
             }
@@ -233,6 +237,7 @@ public class MainStartVM {
                     R.drawable.verified_user_24px
             );
             VmFlowTracker.mark(context, finalvmID, VmFlowState.ERROR, "unsafe_command", "abort");
+            StartVM.lastStartError = "unsafe_command:" + VMManager.latestUnsafeCommandReason;
             stopLaunchPoller();
             return;
         }
