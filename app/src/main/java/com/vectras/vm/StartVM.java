@@ -35,6 +35,8 @@ public class StartVM {
     public static volatile boolean lastKvmEnabled = false;
     public static volatile String lastKvmReason = "unknown";
     public static volatile RuntimeContract lastRuntimeContract = null;
+    public static volatile String lastMountState = "unknown";
+    public static volatile String lastStartError = "";
 
     public static String resolvedArch(Context context) {
         return QemuBinaryResolver.normalizeArch(MainSettingsManager.getArch(context));
@@ -60,6 +62,8 @@ public class StartVM {
         String ifType = "";
 
         if (!isQuickRun) {
+            lastMountState = "init";
+            lastStartError = "";
             params.add(QemuExecConfig.resolveBinary(activity, arch));
 
             params.add("-qmp");
@@ -125,6 +129,7 @@ public class StartVM {
                     }
 
                     params.add(cdrom);
+                    lastMountState = "cdrom:auto";
                 }
             } else {
                 String backendCdromPath = resolveBackendPath(activity, cdrompath, "r");
@@ -148,6 +153,7 @@ public class StartVM {
                     }
                 }
                 params.add(cdrom);
+                lastMountState = "cdrom:custom";
             }
 
             File hdd1File = new File(filesDir + "/data/Vectras/hdd1.qcow2");
@@ -354,7 +360,14 @@ public class StartVM {
 
         //params.add("-full-screen");
 
-        return buildCommand(params);
+        String command = buildCommand(params);
+        if (command.isEmpty()) {
+            lastStartError = "empty_command";
+        }
+        if ("init".equals(lastMountState)) {
+            lastMountState = "none";
+        }
+        return command;
     }
 
     static String buildCommand(List<String> params) {
