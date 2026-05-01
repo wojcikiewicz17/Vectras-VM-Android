@@ -15,11 +15,20 @@ Esses dados sao exemplos que informações é possível mapear onde a lógica é
 - `test_t7_invariant_engine.py`
   - testes diretos para validação de limites, mudança de integridade por bit flip e faixa de energia de acoplamento.
 
+- `repo_audit_and_plan.py`
+  - varre o repositório, identifica lacunas de documentação/código e gera:
+    - `AUDIT_REPORT.json`
+    - `AUDIT_REPORT.md`
+- `test_repo_audit_and_plan.py`
+  - teste mínimo para garantir que a auditoria executa e gera métricas válidas.
+
 ## Comandos rápidos
 
 ```bash
 python3 Incluir/t7_invariant_engine.py --text "teste" --c-prev 0.4 --h-prev 0.2 --c-in 0.9 --state 3
 python3 Incluir/test_t7_invariant_engine.py
+python3 Incluir/repo_audit_and_plan.py --root /workspace/Vectras-VM-Android
+python3 Incluir/test_repo_audit_and_plan.py
 ```
 
 feiarwuivos feitos:
