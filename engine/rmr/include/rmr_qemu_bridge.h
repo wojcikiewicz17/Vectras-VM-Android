@@ -45,6 +45,14 @@ typedef struct {
   uint32_t running_count;
 } RmR_QmpTelemetry;
 
+typedef struct {
+  uint32_t signature;
+  uint32_t pointer_bits;
+  uint32_t cache_line_bytes;
+  uint32_t page_bytes;
+  uint32_t feature_mask;
+} RmR_QemuUnifiedCaps;
+
 void RmR_QemuPlan_Default(RmR_QemuPlan *plan);
 void RmR_QemuPlan_Autotune(const RmR_HW_Info *hw,
                            RmR_GuestArch arch,
@@ -53,6 +61,7 @@ void RmR_QemuPlan_Autotune(const RmR_HW_Info *hw,
                            RmR_QemuPlan *plan);
 int RmR_QemuPlan_BuildArgs(const RmR_QemuPlan *plan, char *out, size_t out_len);
 int RmR_QmpTelemetry_Parse(const char *qmp_json_line, RmR_QmpTelemetry *out);
+int RmR_QemuBridge_QueryUnifiedCaps(RmR_QemuUnifiedCaps *out_caps);
 
 #ifdef __cplusplus
 }

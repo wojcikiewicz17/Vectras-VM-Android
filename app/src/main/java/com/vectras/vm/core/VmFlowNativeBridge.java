@@ -35,6 +35,17 @@ public final class VmFlowNativeBridge {
         return LOAD_ERROR;
     }
 
+    public static int consolidatedFeatureMask() {
+        return NativeFastPath.getFeatureMask();
+    }
+
+    public static String consolidatedCapabilityStatus() {
+        if (AVAILABLE) {
+            return "native_ready";
+        }
+        return LOAD_ERROR == null || LOAD_ERROR.isEmpty() ? "native_unavailable" : "native_unavailable:" + LOAD_ERROR;
+    }
+
     public static void mark(int vmHash, int stateOrdinal) {
         if (!AVAILABLE) return;
         nativeVmFlowMark(vmHash, stateOrdinal);

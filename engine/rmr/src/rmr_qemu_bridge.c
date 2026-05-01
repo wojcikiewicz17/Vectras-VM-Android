@@ -1,6 +1,7 @@
 #include "rmr_qemu_bridge.h"
 #include "rmr_corelib.h"
 #include "rmr_ll_tuning.h"
+#include "rmr_unified_kernel.h"
 
 #include "zero_compat.h"
 
@@ -205,5 +206,20 @@ int RmR_QmpTelemetry_Parse(const char *qmp_json_line, RmR_QmpTelemetry *out) {
     parse_u32_after_key(qmp_json_line, "\"cpus\"", &out->vcpu_count);
   }
 
+  return 0;
+}
+
+
+int RmR_QemuBridge_QueryUnifiedCaps(RmR_QemuUnifiedCaps *out_caps) {
+  RmR_UnifiedCapabilities caps;
+  int rc;
+  if (!out_caps) return -1;
+  rc = RmR_UnifiedKernel_QueryCapabilitiesConsolidated(&caps);
+  if (rc != RMR_UK_OK) return rc;
+  out_caps->signature = caps.signature;
+  out_caps->pointer_bits = caps.pointer_bits;
+  out_caps->cache_line_bytes = caps.cache_line_bytes;
+  out_caps->page_bytes = caps.page_bytes;
+  out_caps->feature_mask = caps.feature_mask;
   return 0;
 }

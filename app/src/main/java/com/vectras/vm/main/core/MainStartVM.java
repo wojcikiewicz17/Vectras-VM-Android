@@ -32,6 +32,7 @@ import com.vectras.vm.VMManager;
 import com.vectras.vm.logger.VectrasStatus;
 import com.vectras.vm.core.VmFlowState;
 import com.vectras.vm.core.VmFlowTracker;
+import com.vectras.vm.core.RuntimeContract;
 import com.vectras.vm.qemu.VmLaunchLedger;
 import com.vectras.vm.qemu.VmLaunchMode;
 import com.vectras.vm.settings.ExternalVNCSettingsActivity;
@@ -157,6 +158,10 @@ public class MainStartVM {
 
         String finalvmID = ensureLastVmIdInitialized(vmID);
         VmFlowTracker.mark(context, finalvmID, VmFlowState.STARTING, "launch_requested", "start");
+        RuntimeContract preparedContract = StartVM.lastRuntimeContract;
+        if (preparedContract != null) {
+            RuntimeContract.persistSessionSnapshot(context, finalvmID, preparedContract.withStatus("starting"));
+        }
 
         Config.vmID = finalvmID;
         // Resolve the launch mode based on configured UI, headless overrides and command string.
@@ -335,6 +340,10 @@ public class MainStartVM {
                 StartVM.lastKvmReason,
                 finalCommand
         );
+
+        if (preparedContract != null) {
+            RuntimeContract.persistSessionSnapshot(context, finalvmID, preparedContract.withStatus("running"));
+        }
 
         RafaeliaConfig rafaeliaConfig = RafaeliaConfig.fromPreferences(context);
         if (rafaeliaConfig.getEnabled() && RafaeliaSettings.isLogCaptureEnabled(context)) {

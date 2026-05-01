@@ -1199,3 +1199,9 @@ int RmR_UnifiedKernel_ArenaWrite(RmR_UnifiedKernel *kernel,
   rmr_mem_copy(kernel->arena_base + (kernel->slots[slot].offset + offset), src, len);
   return RMR_UK_OK;
 }
+
+
+int RmR_UnifiedKernel_QueryCapabilitiesConsolidated(RmR_UnifiedCapabilities *out_caps) {
+  if (!out_caps) return RMR_KERNEL_ERR_ARG;
+  return RmR_UnifiedKernel_Detect(out_caps);
+}
