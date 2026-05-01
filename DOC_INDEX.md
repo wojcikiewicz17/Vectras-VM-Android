@@ -98,3 +98,6 @@ Cada diretório tem:
 - Canonical host pipeline: `.github/workflows/host-ci.yml`.
 - Orchestration and final gates: `.github/workflows/pipeline-orchestrator.yml` and `.github/workflows/quality-gates.yml`.
 - Canonical matrix documentation: `docs/ci/workflow-matrix.md`.
+
+- reports/UNIFIED_COHERENCE_TECHNICAL_MAP.md — consolidação de coerência operacional técnica em camadas.
+- reports/CORE_LOWLEVEL_IMPLEMENTATION_DOC.md — finalização da documentação do código low-level em core/.
