@@ -21,6 +21,8 @@ Esses dados sao exemplos que informações é possível mapear onde a lógica é
     - `AUDIT_REPORT.md`
 - `test_repo_audit_and_plan.py`
   - teste mínimo para garantir que a auditoria executa e gera métricas válidas.
+- `EXECUTION_REPORT.md`
+  - relatório da execução atual (feito x pendente) com passos lineares de continuidade.
 
 ## Comandos rápidos
 
@@ -29,6 +31,7 @@ python3 Incluir/t7_invariant_engine.py --text "teste" --c-prev 0.4 --h-prev 0.2 
 python3 Incluir/test_t7_invariant_engine.py
 python3 Incluir/repo_audit_and_plan.py --root /workspace/Vectras-VM-Android
 python3 Incluir/test_repo_audit_and_plan.py
+python3 Incluir/t7_invariant_engine.py --text "teste" --c-prev 0.4 --h-prev 0.2 --c-in 0.9 --state 3 --steps 10
 ```
 
 feiarwuivos feitos:

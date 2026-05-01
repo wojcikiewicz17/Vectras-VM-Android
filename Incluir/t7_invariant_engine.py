@@ -12,6 +12,7 @@ from typing import Dict, Iterable, List, Tuple
 ALPHA = 0.25
 FNV64_PRIME = 0x100000001B3
 FNV64_OFFSET = 0xCBF29CE484222325
+ATTRACTOR_COUNT = 42
 
 
 def clamp01(x: float) -> float:
@@ -88,7 +89,6 @@ def merkle_root_sha256(chunks: Iterable[bytes]) -> str:
 
 
 def toroidal_map(data: bytes, h_norm: float, fnv64: int, state_code: int) -> Tuple[float, ...]:
-    # 7 coordenadas em [0,1)
     digest = hashlib.sha256(data).digest()
     u = wrap01(sum(data) / max(1, 255.0 * len(data)))
     v = wrap01(entropy_milli(data) / 8000.0)
@@ -104,18 +104,32 @@ def spectral_link_energy(dtheta: float, dphi: float, alpha: float = ALPHA) -> fl
     return alpha * math.sin(dtheta) * math.cos(dphi)
 
 
-def invariant_state(payload: bytes, c_prev: float, h_prev: float, c_in: float, state_code: int) -> Dict[str, object]:
-    h_in = clamp01(entropy_milli(payload) / 8000.0)
-    c_next = clamp01(coherence_update(c_prev, c_in))
-    h_next = clamp01(entropy_update(h_prev, h_in))
-    phi = phi_score(h_next, c_next)
+def attractor_id(s7: Tuple[float, ...], count: int = ATTRACTOR_COUNT) -> int:
+    key = "|".join(f"{x:.9f}" for x in s7).encode("utf-8")
+    h = hashlib.sha256(key).digest()
+    return int.from_bytes(h[:4], "big") % count
 
+
+def iterate_state(payload: bytes, c_prev: float, h_prev: float, c_in: float, steps: int) -> Tuple[float, float, float]:
+    c = c_prev
+    h = h_prev
+    e_in = clamp01(entropy_milli(payload) / 8000.0)
+    for _ in range(max(1, steps)):
+        c = clamp01(coherence_update(c, c_in))
+        h = clamp01(entropy_update(h, e_in))
+    return c, h, phi_score(h, c)
+
+
+def invariant_state(payload: bytes, c_prev: float, h_prev: float, c_in: float, state_code: int, steps: int = 1) -> Dict[str, object]:
+    c_next, h_next, phi = iterate_state(payload, c_prev, h_prev, c_in, steps)
     fnv = fnv1a64(payload)
     root = merkle_root_sha256([payload[i:i + 64] for i in range(0, len(payload), 64)])
     s7 = toroidal_map(payload, h_next, fnv, state_code)
+    aid = attractor_id(s7)
 
     return {
         "alpha": ALPHA,
+        "steps": steps,
         "C_next": c_next,
         "H_next": h_next,
         "phi": phi,
@@ -125,6 +139,8 @@ def invariant_state(payload: bytes, c_prev: float, h_prev: float, c_in: float, s
         "crc32": f"0x{crc32_u32(payload):08x}",
         "merkle_root_sha256": root,
         "s7": s7,
+        "attractor_id": aid,
+        "attractor_count": ATTRACTOR_COUNT,
     }
 
 
@@ -135,9 +151,10 @@ def main() -> None:
     ap.add_argument("--h-prev", type=float, default=0.5)
     ap.add_argument("--c-in", type=float, default=0.8)
     ap.add_argument("--state", type=int, default=1)
+    ap.add_argument("--steps", type=int, default=1)
     args = ap.parse_args()
 
-    result = invariant_state(args.text.encode("utf-8"), args.c_prev, args.h_prev, args.c_in, args.state)
+    result = invariant_state(args.text.encode("utf-8"), args.c_prev, args.h_prev, args.c_in, args.state, args.steps)
     print(json.dumps(result, ensure_ascii=False, indent=2))
 
 
