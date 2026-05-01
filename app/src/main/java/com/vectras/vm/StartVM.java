@@ -17,6 +17,7 @@ import com.vectras.vm.qemu.QemuArgsBuilder;
 import com.vectras.vm.qemu.QemuBinaryResolver;
 import com.vectras.vm.qemu.QemuExecConfig;
 import com.vectras.vm.qemu.VmProfile;
+import com.vectras.vm.core.RuntimeContract;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -33,6 +34,7 @@ public class StartVM {
     public static volatile String lastResolvedProfile = "BALANCED";
     public static volatile boolean lastKvmEnabled = false;
     public static volatile String lastKvmReason = "unknown";
+    public static volatile RuntimeContract lastRuntimeContract = null;
 
     public static String resolvedArch(Context context) {
         return QemuBinaryResolver.normalizeArch(MainSettingsManager.getArch(context));
@@ -300,6 +302,9 @@ public class StartVM {
             Log.i("StartVM", "QEMU profile=" + profile + " arch=" + arch
                     + " kvm=" + (kvmProbe.enabled ? "on" : "off") + " reason=" + kvmProbe.reason);
         }
+
+        VmProfile effectiveMode = profile;
+        lastRuntimeContract = RuntimeContract.fromStartVmPhase(arch, effectiveMode.name(), "prepared");
 
         params.add(finalextra);
 
