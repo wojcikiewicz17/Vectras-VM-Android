@@ -100,3 +100,4 @@ Cada diretório tem:
 - Canonical matrix documentation: `docs/ci/workflow-matrix.md`.
 
 - reports/UNIFIED_COHERENCE_TECHNICAL_MAP.md — consolidação de coerência operacional técnica em camadas.
+- reports/CORE_LOWLEVEL_IMPLEMENTATION_DOC.md — finalização da documentação do código low-level em core/.
