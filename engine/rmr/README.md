@@ -6,6 +6,21 @@
 - `include/`: headers públicos
 - `src/`: implementação low-level
 
+## Coerência operacional low-level (assembler-friendly)
+
+Para mudanças no engine em **nível baixo** (C/ASM intrínsecos), manter este contrato evita quebra lógica:
+
+1. **Sem heap no hot-path**: não introduzir `malloc/free/new` em ingestão, roteamento e verificação.
+2. **Comandos básicos previsíveis**: priorizar XOR/shift/add/máscara/constante no caminho crítico.
+3. **Inline com critério**: `static inline` apenas para funções curtas em loop (evitar pressão de I-cache).
+4. **Sem GC e sem overhead implícito**: runtime gerenciado só na borda JNI.
+5. **Limites explícitos**: toda rotina recebe `len` e valida ponteiros quando aplicável.
+6. **Determinismo estrito**: mesma entrada gera mesma saída (CRC/hash/estado), sem fonte aleatória.
+7. **SIMD = fallback escalar**: resultado bit-a-bit idêntico entre caminhos vetorial e escalar.
+8. **Benchmark obrigatório**: toda otimização deve vir com medição antes/depois e vetores dourados.
+9. **Sem abstração ornamental no core**: topologia/toros/mapas devem reduzir a passos simples auditáveis.
+10. **Rastreabilidade de submissão real**: registrar motivação, risco, teste e impacto observado.
+
 ## Build
 ```bash
 make all
