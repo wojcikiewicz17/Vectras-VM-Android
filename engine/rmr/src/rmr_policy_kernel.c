@@ -253,14 +253,24 @@ uint64_t RmR_Hash64_FNV1a(const uint8_t *buf, size_t len) {
 }
 
 uint32_t RmR_EntropyEstimateMilli(const uint8_t *buf, size_t len) {
-  if (len == 0) return 0;
+  if (!buf || len == 0) return 0;
   uint8_t seen[256];
   rmr_mem_set(seen, 0, sizeof(seen));
   uint32_t unique = 0;
   uint32_t transitions = 0;
-  for (size_t i = 0; i < len; ++i) {
-    if (!seen[buf[i]]) { seen[buf[i]] = 1; unique++; }
-    if (i > 0 && buf[i] != buf[i - 1]) transitions++;
+  uint8_t prev = buf[0];
+  if (!seen[prev]) {
+    seen[prev] = 1u;
+    unique = 1u;
+  }
+  for (size_t i = 1; i < len; ++i) {
+    const uint8_t cur = buf[i];
+    if (!seen[cur]) {
+      seen[cur] = 1u;
+      unique++;
+    }
+    transitions += (uint32_t)(cur != prev);
+    prev = cur;
   }
   uint32_t uniq_component = (unique * 6000u) / 256u;
   uint32_t trans_component = (transitions * 2000u) / (uint32_t)(len > 1 ? (len - 1) : 1);
