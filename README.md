@@ -14,6 +14,7 @@ Esta revisão consolida a documentação em três camadas por diretório (propó
 
 ## START HERE
 - Entrada rápida profissional: [`START_HERE.md`](START_HERE.md)
+- Arquitetura operacional (fonte primária): [`docs/architecture/VM_EXECUTION_FLOW.md`](docs/architecture/VM_EXECUTION_FLOW.md)
 
 ## Governança e estado — navegação rápida
 - Estado do projeto: [`PROJECT_STATE.md`](PROJECT_STATE.md)

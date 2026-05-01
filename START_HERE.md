@@ -25,6 +25,9 @@ O **Vectras VM Android** é um sistema híbrido (Android + nativo) com foco em d
 - Pipeline host: `.github/workflows/host-ci.yml`
 - Pipeline Android: `.github/workflows/android-ci.yml`
 
+### Arquitetura operacional (fonte primária)
+- Fluxo fechado UI → `StartVM` → builders/resolvers → JNI (`NativeFastPath`/bridges) → `rmr_*` → args finais QEMU: `docs/architecture/VM_EXECUTION_FLOW.md`
+
 ### Domínios técnicos principais
 - App Android: `app/`
 - Engine e núcleo: `engine/`
