@@ -85,3 +85,17 @@ Em termos práticos:
 - **dinâmica temporal**: evolução iterativa e ciclagem (`+42`).
 
 Quando esses cinco componentes permanecem consistentes, o sistema mantém sentido entre línguas, símbolos, física e operação técnica.
+
+## Implementação objetiva (C low-level)
+Arquivos de referência implementados:
+- `core/unified_coherence.h`
+- `core/unified_coherence.c`
+
+Contrato mínimo:
+- `uc_init(ctx, seed)`: inicia estado 7D, hash e CRC.
+- `uc_step(ctx, in)`: aplica atualização de `C/H`, mapeamento toroidal, hash/CRC e estado de atrator (`42`).
+
+Observações de engenharia:
+- Estruturas planas, sem alocação dinâmica.
+- Caminho crítico em loop linear sobre bytes.
+- Pronto para trocar CRC software por instrução de hardware (ARMv8 CRC) em build específico.
