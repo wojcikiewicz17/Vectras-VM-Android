@@ -2,29 +2,13 @@
 #include <stdint.h>
 #include <stddef.h>
 #include <string.h>
+#include "unified_coherence.h"
 
 #define UC_DIM 7U
 #define UC_ALPHA 0.25
 #define UC_ATTRACTOR_CARDINALITY 42U
 #define UC_FNV_PRIME 0x100000001B3ULL
 #define UC_TAU 6.28318530717958647692
-
-typedef struct {
-    double s[UC_DIM];
-    double coherence;
-    double entropy;
-    uint64_t hash;
-    uint32_t crc;
-    uint32_t state;
-} UCContext;
-
-typedef struct {
-    double coherence_in;
-    double entropy_in;
-    const uint8_t* data;
-    size_t len;
-    uint32_t state;
-} UCInput;
 
 static inline double frac01(double x) {
     double f = x - floor(x);
@@ -74,6 +58,53 @@ static double spectral_link(const UCContext* ctx) {
     const double dtheta = (ctx->s[0] - ctx->s[3]) * UC_TAU;
     const double dphi = (ctx->s[1] - ctx->s[4]) * UC_TAU;
     return sin(dtheta) * cos(dphi);
+}
+
+static double clamp_nonneg(double x) { return (x < 0.0) ? 0.0 : x; }
+
+void uc_build_spectral_graph(const double m[UC_GRAPH_N], double lambda, double gamma, double epsilon, UCSpectralGraph* out) {
+    for (size_t i = 0; i < UC_GRAPH_N; ++i) {
+        out->d[i] = 0.0;
+        const double ri = 1.0 + epsilon * m[i];
+        const double ti = (UC_TAU * (double)i) / (double)UC_GRAPH_N;
+        const double xi = ri * cos(ti);
+        const double yi = ri * sin(ti);
+
+        for (size_t j = 0; j < UC_GRAPH_N; ++j) {
+            if (i == j) {
+                out->a[i][j] = 0.0;
+                continue;
+            }
+            const double rj = 1.0 + epsilon * m[j];
+            const double tj = (UC_TAU * (double)j) / (double)UC_GRAPH_N;
+            const double xj = rj * cos(tj);
+            const double yj = rj * sin(tj);
+            const double dx = xi - xj;
+            const double dy = yi - yj;
+            const double dij = sqrt(dx * dx + dy * dy);
+            const double w = exp(-lambda * dij) * (1.0 + gamma * m[i]) * (1.0 + gamma * m[j]);
+            out->a[i][j] = clamp_nonneg(w);
+            out->d[i] += out->a[i][j];
+        }
+    }
+
+    for (size_t i = 0; i < UC_GRAPH_N; ++i) {
+        for (size_t j = 0; j < UC_GRAPH_N; ++j) {
+            out->l[i][j] = (i == j) ? out->d[i] : -out->a[i][j];
+        }
+    }
+}
+
+void uc_dynamics_step(const UCSpectralGraph* g, const double m[UC_GRAPH_N], double alpha, double dt, const double x_in[UC_GRAPH_N], double x_out[UC_GRAPH_N]) {
+    for (size_t i = 0; i < UC_GRAPH_N; ++i) {
+        double lx = 0.0;
+        for (size_t j = 0; j < UC_GRAPH_N; ++j) {
+            lx += g->l[i][j] * x_in[j];
+        }
+        const double force = alpha * m[i];
+        const double dxdt = -lx + force;
+        x_out[i] = x_in[i] + dt * dxdt;
+    }
 }
 
 void uc_init(UCContext* ctx, uint64_t seed) {

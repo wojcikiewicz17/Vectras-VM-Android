@@ -99,3 +99,32 @@ Observações de engenharia:
 - Estruturas planas, sem alocação dinâmica.
 - Caminho crítico em loop linear sobre bytes.
 - Pronto para trocar CRC software por instrução de hardware (ARMv8 CRC) em build específico.
+
+## Camada 8 — Operador espectral ΣΩ (grafo + fractal)
+Para destravar avanço mensurável imediato, foi adicionado um operador espectral explícito no grafo de 42 nós:
+
+- Grafo: `G=(V,E)`, `|V|=42`.
+- Peso acoplado ao campo fractal:
+  - `A_ij = exp(-lambda * d_ij) * (1 + gamma*M(c_i)) * (1 + gamma*M(c_j))`
+- Laplaciano:
+  - `L = D - A`, com `D_ii = sum_j A_ij`.
+- Dinâmica:
+  - `dx/dt = -Lx + alpha*M(c)`.
+
+Forma compacta (ΣΩ):
+- `dx/dt = -(D-A)x + alpha*M(c)`
+- `v_k = (1 + epsilon*M(c_k)) * exp(i*(2*pi*k/42 + beta*grad M(c_k)))`
+
+Interpretação prática:
+- `A` define propagação entre modos do sistema.
+- `L` define estabilidade, difusão e rigidez espectral.
+- O espectro de `L` (autovalores/autovetores) passa a ser a assinatura quantitativa de coerência global.
+
+Implementação objetiva adicionada em C:
+- `uc_build_spectral_graph(...)`: monta `A`, `D` e `L` em 42 nós.
+- `uc_dynamics_step(...)`: aplica um passo de Euler para `dx/dt = -Lx + alpha*M(c)`.
+
+Próximos passos diretos:
+1. Computar autovalores de `L` por build offline (NumPy/LAPACK).
+2. Plotar modos principais (`u_k`) para inspeção de estabilidade.
+3. Simular `x(t)=exp(-Lt)x(0)` e comparar com a discretização por Euler.
