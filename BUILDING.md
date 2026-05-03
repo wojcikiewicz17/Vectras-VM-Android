@@ -348,3 +348,19 @@ Expected per architecture:
 - Canonical matrix documentation: `docs/ci/workflow-matrix.md`.
 
 - `external_sources.manifest` mantém `androidx_RmR` e `qemu_rafaelia` em branch-tracked (sem commit pin), com validação remota de integridade no CI.
+
+## Verificação dual ABI + assinatura
+
+Use o comando canônico para gerar e validar APK release arm32+arm64 com e sem assinatura:
+
+```bash
+./tools/ci/build_verify_apks.sh
+```
+
+O script executa:
+- `prepare_android_env.sh` (garante `sdk.dir`);
+- build release unsigned (`signing_mode=unsigned`);
+- build release signed (`signing_mode=signed` + `ciRelease=true` + keystore de validação);
+- valida `apksigner verify`;
+- confirma libs `armeabi-v7a` e `arm64-v8a` dentro dos APKs;
+- imprime tamanho, SHA-256 e diff em bytes entre assinado/unsigned.
