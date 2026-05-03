@@ -170,6 +170,7 @@ typedef struct {
 int RmR_UnifiedKernel_Init(RmR_UnifiedKernel *kernel, const RmR_UnifiedConfig *config);
 int RmR_UnifiedKernel_Shutdown(RmR_UnifiedKernel *kernel);
 int RmR_UnifiedKernel_QueryCapabilities(const RmR_UnifiedKernel *kernel, RmR_UnifiedCapabilities *out);
+int RmR_UnifiedKernel_QueryCapabilitiesConsolidated(RmR_UnifiedCapabilities *out_caps);
 int RmR_UnifiedKernel_Detect(RmR_UnifiedCapabilities *out);
 int RmR_UnifiedKernel_Ingest(RmR_UnifiedKernel *kernel, const uint8_t *data, size_t len, RmR_UnifiedIngestState *out);
 int RmR_UnifiedKernel_Process(RmR_UnifiedKernel *kernel,
