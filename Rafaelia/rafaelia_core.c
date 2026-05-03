@@ -37,6 +37,7 @@
 #include <sys/mman.h>
 #include <dlfcn.h>
 #include <time.h>
+#include <math.h>
 
 #ifdef HAS_NEON
 #include <arm_neon.h>
@@ -166,6 +167,7 @@ static const u32 HZ_TABLE[N_VCPU] =
     {58000u,58000u,58000u,50296u, 43500u,43500u,37709u,26836u};
 
 static vcpu_t g_vcpu[N_VCPU];
+static u32 g_spiral_q16 = Q16_SPIRAL;
 
 static void vcpu_init(void){
     for(u32 i=0;i<N_VCPU;i++){
@@ -176,9 +178,9 @@ static void vcpu_init(void){
         v->phase = (i*PERIOD)/N_VCPU;
         v->load  = 0;
         v->layer = (v->hz>50000u)?0:(v->hz>38000u)?1:(v->hz>25000u)?2:3;
-        u32 seed = (Q16_SPIRAL*(i+1u))&0xFFFFu;
+        u32 seed = (g_spiral_q16*(i+1u))&0xFFFFu;
         for(u32 d=0;d<TORUS_DIM;d++){
-            seed = qmul(seed,Q16_SPIRAL)+d*1009u;
+            seed = qmul(seed,g_spiral_q16)+d*1009u;
             v->s[d] = seed&0xFFFFu;
         }
         v->crc_s = crc32c(v,offsetof(vcpu_t,crc_s));
@@ -266,8 +268,8 @@ static void cg_step(u32 core){
         u32 nd=(d+1u)%TORUS_DIM;
         v->s[d]=qema(v->s[d],v->s[nd]);
     }
-    v->C=qema(v->C,qmul(v->hz,Q16_SPIRAL)&0xFFFFu);
-    v->H=qema(v->H,65535u-(qmul(v->hz,Q16_SPIRAL)&0xFFFFu));
+    v->C=qema(v->C,qmul(v->hz,g_spiral_q16)&0xFFFFu);
+    v->H=qema(v->H,65535u-(qmul(v->hz,g_spiral_q16)&0xFFFFu));
     v->phase=(v->phase+1u<PERIOD)?v->phase+1u:0u;
     g_cg_bm[core]|=CG_PROC;
     /* VERIFY */
@@ -352,15 +354,59 @@ static u64 now_us(void){
     return (u64)ts.tv_sec*1000000u+(u64)ts.tv_nsec/1000u;
 }
 
-/* ── MAIN ────────────────────────────────────────────────────────────── */
-int main(void){
-    crc_build();
-    hw_t hw; hw_probe(&hw);
+static void core_reset_for_run(void){
+    g_arena_bump = 0;
+    g_stacks = 0;
+    g_l1 = g_l2 = g_buf = g_ram = 0;
+    g_par_xor = 0;
+    g_par_crc = 0;
+    g_crc_chain = 0;
+    g_sin_C = Q16_HALF;
+    g_sin_H = Q16_HALF;
+    g_commits = 0;
+    g_rollbacks = 0;
+    memset(g_phi_tr, 0, sizeof(g_phi_tr));
+    memset(g_cg_bm, 0, sizeof(g_cg_bm));
     vcpu_init();
     mem_init();
     stacks_init();
     sin_init();
-    memset(g_cg_bm,0,sizeof(g_cg_bm));
+}
+
+static void hydrostatic_expansion_test(void){
+    const u32 AMOR_Q16 = 31548u;
+    ws("\n=== EXPANSIVE COHERENCE TEST ===\n");
+    ws("k_x100 | cycles | phi_last | stacks_crc_ok\n");
+    for(u32 k100=100u;k100<=500u;k100+=25u){
+        double expo = ((double)k100/100.0) * M_PI * 1.618033988749895;
+        double spk = pow(0.8660254037844386, expo);
+        g_spiral_q16 = (u32)(spk * 65536.0 + 0.5);
+        if(!g_spiral_q16) g_spiral_q16 = 1u;
+
+        core_reset_for_run();
+        u32 survived = 0;
+        u32 phi_last = 0;
+        int ok = 1;
+        for(u32 cy=0;cy<420u;cy++){
+            u32 jet=predict_jet();
+            cg_step(jet);
+            u32 phi=sin_step(cy%PERIOD);
+            phi_last = qmul(phi, AMOR_Q16);
+            g_vcpu[jet].load=qema(g_vcpu[jet].load,g_spiral_q16&0xFFFFu);
+            if((cy%7u)==0 && !stacks_ok()){ ok = 0; break; }
+            survived = cy+1u;
+        }
+        wu32(k100); ws(" | "); wu32(survived); ws(" | ");
+        whex(phi_last); ws(" | "); ws(ok?"YES":"NO"); wn();
+    }
+    ws("AMOR_Q16 invariant: "); whex(AMOR_Q16); wn();
+}
+
+/* ── MAIN ────────────────────────────────────────────────────────────── */
+int main(void){
+    crc_build();
+    hw_t hw; hw_probe(&hw);
+    core_reset_for_run();
 
     ws("=== RAFAELIA TERMUX ARM32 ===\n");
     wline("ABI:  ",
@@ -405,7 +451,7 @@ int main(void){
         sin_step(cy);
 
         /* EMA do load */
-        g_vcpu[jet].load=qema(g_vcpu[jet].load,Q16_SPIRAL&0xFFFFu);
+        g_vcpu[jet].load=qema(g_vcpu[jet].load,g_spiral_q16&0xFFFFu);
 
         /* paridade stacks a cada 7 ciclos */
         if((cy%7u)==0 && !stacks_ok()){
@@ -436,6 +482,7 @@ int main(void){
         ws(" lay=");ws(LN[v->layer]);
         wn();
     }
+    hydrostatic_expansion_test();
     ws("=== DONE ===\n");
     return 0;
 }
