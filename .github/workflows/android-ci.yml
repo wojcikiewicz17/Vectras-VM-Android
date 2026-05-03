@@ -459,6 +459,12 @@ jobs:
             --expect-native-matrix "${{ inputs.run_native_checks }}" \
             --expect-perf-results "${perf_found}"
 
+      - name: Generate APK report (sizes, ABIs, checksums)
+        if: always()
+        run: |
+          ./tools/ci/collect_apk_report.sh ci-artifacts/apk-report
+
+
       - name: Upload Android logs
         uses: actions/upload-artifact@v4
         if: always()
@@ -481,6 +487,14 @@ jobs:
         with:
           name: native-matrix-${{ needs.resolve.outputs.lane_label }}
           path: ci-artifacts/upload-staging/native-matrix-${{ needs.resolve.outputs.lane_label }}/**
+          if-no-files-found: warn
+
+      - name: Upload APK report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: apk-report-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/apk-report/**
           if-no-files-found: warn
 
       - name: Upload perf results
