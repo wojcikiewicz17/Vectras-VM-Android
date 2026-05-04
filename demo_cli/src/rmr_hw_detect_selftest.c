@@ -1,4 +1,5 @@
 #include "rmr_hw_detect.h"
+#include "topological_guard.h"
 
 #include <stdio.h>
 #include <string.h>
@@ -29,6 +30,20 @@ int main(void) {
   if (hw.arch == 1u || hw.arch == 3u || hw.arch == 8u) {
     failed += expect_true(hw.cache_hint_l4 >= (8u * 1024u * 1024u), "x86/arm/ppc32 exposes l4 hint");
   }
+
+
+  rmr_topo_guard_t guard;
+  const unsigned char bytes[] = {1, 2, 3, 3, 5, 8, 13, 21};
+  rmr_topo_guard_init(&guard, 4u);
+  rmr_topo_guard_checkpoint(&guard);
+  failed += expect_true((int)guard.arch == (int)rmr_detect_arch(), "topo guard arch detect coherent");
+  failed += expect_true(rmr_topo_guard_step(&guard, bytes, (uint32_t)sizeof(bytes)) == 0, "topo guard first step ok");
+  failed += expect_true(guard.current.topo_hash != 0u, "topo hash evolved");
+  failed += expect_true(rmr_topo_guard_step(&guard, bytes, (uint32_t)sizeof(bytes)) == 0, "topo guard second step ok");
+  failed += expect_true(rmr_topo_guard_step(&guard, bytes, (uint32_t)sizeof(bytes)) == 0, "topo guard third step ok");
+  failed += expect_true(rmr_topo_guard_step(&guard, bytes, (uint32_t)sizeof(bytes)) == 2, "watchdog triggers rollback");
+  failed += expect_true(guard.rollback_count == 1u, "rollback counter incremented");
+  failed += expect_true(guard.failsafe_triggered == 1u, "failsafe flag raised");
 
   if (failed != 0) {
     fprintf(stderr, "rmr_hw_detect_selftest FAILED (%d)\n", failed);
