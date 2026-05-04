@@ -43,6 +43,15 @@ typedef struct {
   int64_t matrix_m11;
 } rmr_legacy_kernel_process_desc_t;
 
+
+typedef enum {
+  RMR_MEM_TIER_L1 = 0,
+  RMR_MEM_TIER_L2 = 1,
+  RMR_MEM_TIER_BUF = 2,
+  RMR_MEM_TIER_RAM = 3,
+  RMR_MEM_TIER_STORAGE = 4
+} rmr_memory_tier_t;
+
 typedef struct {
   uint32_t cpu_pressure;
   uint32_t storage_pressure;
@@ -133,6 +142,12 @@ rmr_status_t rmr_legacy_kernel_audit(rmr_legacy_kernel_t *kernel,
                                      const rmr_legacy_kernel_verify_result_t *verify,
                                      rmr_legacy_kernel_audit_result_t *out_result);
 rmr_status_t rmr_legacy_kernel_autodetect(rmr_legacy_capabilities_t *out_capabilities);
+
+rmr_status_t rmr_legacy_kernel_select_memory_tier(const rmr_legacy_capabilities_t *caps,
+                                                   const rmr_legacy_kernel_process_result_t *process,
+                                                   uint32_t working_set_bytes,
+                                                   rmr_memory_tier_t *out_tier);
+
 rmr_status_t rmr_legacy_kernel_get_capabilities(const rmr_legacy_kernel_t *kernel,
                                                 rmr_legacy_capabilities_t *out_capabilities);
 

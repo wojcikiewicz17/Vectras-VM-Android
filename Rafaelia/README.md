@@ -193,3 +193,13 @@ RAFAELIA:COMPLETE
 ## Licença
 RAFAELIA CORE — Instituto Rafael / ΔRafaelVerboΩ
 Uso acadêmico livre. Uso comercial requer licença suplementar.
+
+
+## Referências documentais movidas
+
+Para separar implementação executável de material conceitual/autorais, os documentos de referência foram movidos para `docs/rafaelia_reference/`:
+
+- `docs/rafaelia_reference/RAFAELIA_MATH_FORMULAS.md`
+- `docs/rafaelia_reference/RAFAELIA_AUTHOR_NOTE.md`
+
+Isso reduz ruído na pasta de código nativo e facilita auditoria de build/ABI.

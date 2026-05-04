@@ -47,6 +47,21 @@ int main(void) {
     if (!expect_status(rmr_legacy_kernel_shutdown(&pool[i]), RMR_STATUS_OK, "pool drain shutdown")) return 1;
   }
 
+
+  {
+    rmr_legacy_capabilities_t caps;
+    rmr_legacy_kernel_process_result_t proc;
+    rmr_memory_tier_t tier = RMR_MEM_TIER_STORAGE;
+    caps.cache_hint_l1 = 32u * 1024u;
+    caps.cache_hint_l2 = 256u * 1024u;
+    proc.cpu_pressure = 200u;
+    proc.storage_pressure = 10u;
+    proc.io_pressure = 200u;
+    proc.matrix_determinant = 1;
+    if (!expect_status(rmr_legacy_kernel_select_memory_tier(&caps, &proc, 4096u, &tier), RMR_STATUS_OK, "tier select l1")) return 1;
+    if (tier != RMR_MEM_TIER_L1) { printf("FAIL expected L1 tier\n"); return 1; }
+  }
+
   printf("OK legacy kernel selftest\n");
   return 0;
 }
