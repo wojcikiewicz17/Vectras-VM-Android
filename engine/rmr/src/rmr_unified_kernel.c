@@ -458,6 +458,33 @@ rmr_status_t rmr_legacy_kernel_audit(rmr_legacy_kernel_t *kernel,
   return RMR_STATUS_OK;
 }
 
+
+rmr_status_t rmr_legacy_kernel_select_memory_tier(const rmr_legacy_capabilities_t *caps,
+                                                   const rmr_legacy_kernel_process_result_t *process,
+                                                   uint32_t working_set_bytes,
+                                                   rmr_memory_tier_t *out_tier) {
+  uint32_t l1;
+  uint32_t l2;
+  if (!caps || !process || !out_tier) return RMR_STATUS_ERR_ARG;
+  l1 = caps->cache_hint_l1 ? caps->cache_hint_l1 : (32u * 1024u);
+  l2 = caps->cache_hint_l2 ? caps->cache_hint_l2 : (256u * 1024u);
+
+  if (process->storage_pressure > 800u) {
+    *out_tier = RMR_MEM_TIER_STORAGE;
+    return RMR_STATUS_OK;
+  }
+  if (working_set_bytes <= l1 && process->cpu_pressure < 700u) {
+    *out_tier = RMR_MEM_TIER_L1;
+  } else if (working_set_bytes <= l2 && process->cpu_pressure < 850u) {
+    *out_tier = RMR_MEM_TIER_L2;
+  } else if (working_set_bytes <= (4u * 1024u * 1024u) && process->io_pressure < 850u) {
+    *out_tier = RMR_MEM_TIER_BUF;
+  } else {
+    *out_tier = RMR_MEM_TIER_RAM;
+  }
+  return RMR_STATUS_OK;
+}
+
 rmr_status_t rmr_legacy_kernel_get_capabilities(const rmr_legacy_kernel_t *kernel,
                                                 rmr_legacy_capabilities_t *out_capabilities) {
   if (!rmr_legacy_is_ready(kernel) || !out_capabilities) return RMR_STATUS_ERR_ARG;
