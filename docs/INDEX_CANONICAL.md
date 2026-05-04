@@ -18,6 +18,7 @@
 - `docs/LEGAL_AND_LICENSES.md`
 - `docs/DOCUMENTATION_STANDARDS.md`
 - `docs/METODOLOGIA_ORGANIZACAO_7_DIRECOES.md`
+- `docs/RAFAELIA_T7_MULTILINGUAL_MAPPING.md`
 - `reports/CANONICAL_BUILD_STATUS.md`
 
 ## 2) Ativo (estado operacional vigente)
@@ -52,8 +53,8 @@
 - Conteúdo superseded deve migrar para `docs/archive/` com marcador temporal no nome.
 
 ## Metadados
-- Versão do documento: 2.1
-- Última atualização: 2026-04-28
+- Versão do documento: 2.2
+- Última atualização: 2026-05-04
 - Commit de referência: `HEAD`
 
 ## Referência canônica de CI Android/Host
