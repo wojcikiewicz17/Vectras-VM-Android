@@ -1,3 +1,4 @@
+```markdown
 # RAFAELIA — Fórmulas Matemáticas e Definições (síntese)
 
 Este arquivo consolida as fórmulas, definições e operadores matemáticos usados no manifesto FCEA_CORE_Ω / ZIPRAF_OMEGA_FULL, organizadas por tópico com breves explicações operacionais.
@@ -180,40 +181,5 @@ Este arquivo consolida as fórmulas, definições e operadores matemáticos usad
 
 ---
 
-## 16 — Correções de consistência (onde estava quebrado)
-
-Para manter implementação direta (inline, sem abstrações desnecessárias), este bloco fixa conflitos de notação que geravam ambiguidade:
-
-1. **`φ` estava com dois significados diferentes**
-   - Coerência dinâmica: `phi_dyn = (1 - H) * C`
-   - Razão áurea: `phi_golden = (1 + sqrt(5)) / 2`
-   > Regra: não reutilizar `phi` para ambos no mesmo fluxo.
-
-2. **`R` estava colidindo entre correlação e Merkle root**
-   - Correlação espectral: `R_corr`
-   - Raiz Merkle: `R_merkle`
-
-3. **`h` estava colidindo entre hash e altura geométrica**
-   - Hash incremental: `h_hash`
-   - Altura geométrica: `h_geom = (sqrt(3)/2) * l`
-
-4. **Periodicidade e atualização de estado**
-   - Atualização: `x_{n+1} = f(x_n)`
-   - Loop periódico opcional: `if periodic_42: x_{n+42} = x_n`
-   > Regra: usar `x_{n+42}=x_n` apenas quando o modo periódico estiver explícito.
-
-5. **Forma operacional mínima (comandos base, sem overhead)**
-   - `C = 0.75*C + 0.25*C_in`
-   - `H = 0.75*H + 0.25*H_in`
-   - `phi_dyn = (1 - H)*C`
-   - `h_hash = (h_hash xor byte) * 0x100000001B3`
-   - `acc = acc xor byte`
-
-6. **Domínio toroidal fechado**
-   - `s = ToroidalMap(x)` com `s ∈ [0,1)^7`
-   - `s = (u,v,psi,chi,rho,delta,sigma)`
-   - Pós-condição: todos os 7 componentes devem ser normalizados por `mod 1`.
-
-Este bloco corrige o “quebrado” principal de semântica simbólica: nomes duplicados para conceitos diferentes, o que atrapalha prova matemática, código e validação.
-
 Fim do documento — mantê-lo como referência canônica para o design matemático do FCEA_CORE_Ω / ZIPRAF_OMEGA_FULL.
+```
