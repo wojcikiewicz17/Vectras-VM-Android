@@ -6,30 +6,30 @@
 // x1 = pointer to fault event byte stream
 // x2 = number of events
 // returns x0 = stability score (0..2^63-1)
+// linear register cadence: x0..x8
 rmr_stability_step_arm64:
-    mov x9, x0
-    ldp x10, x11, [x9]
-    ldp x12, x13, [x9, #16]
-    mov x14, x1
-    mov x15, x2
+    ldp x3, x4, [x0]
+    ldp x5, x6, [x0, #16]
+    mov x7, x1
+    mov x8, x2
 1:
-    cbz x15, 2f
-    ldrb w16, [x14], #1
-    eor x10, x10, x11
-    add x11, x11, x16
-    ror x12, x12, #7
-    add x12, x12, x10
-    eor x13, x13, x12
-    eor x17, x13, x12
-    add x10, x10, x17
-    sub x15, x15, #1
+    cbz x8, 2f
+    ldrb w1, [x7], #1
+    eor x3, x3, x4
+    add x4, x4, x1
+    ror x5, x5, #7
+    add x5, x5, x3
+    eor x6, x6, x5
+    eor x1, x6, x5
+    add x3, x3, x1
+    sub x8, x8, #1
     b 1b
 2:
-    stp x10, x11, [x9]
-    stp x12, x13, [x9, #16]
-    eor x0, x10, x11
-    add x0, x0, x12
-    eor x0, x0, x13
+    stp x3, x4, [x0]
+    stp x5, x6, [x0, #16]
+    eor x0, x3, x4
+    add x0, x0, x5
+    eor x0, x0, x6
     and x0, x0, #0x7fffffffffffffff
     ret
 .size rmr_stability_step_arm64, .-rmr_stability_step_arm64

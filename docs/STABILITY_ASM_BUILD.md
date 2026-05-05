@@ -17,6 +17,7 @@ Este fluxo compila rotinas low-level de estabilidade diretamente em Assembly, se
 
 ### arm64
 - entrada: `x0=state*`, `x1=events*`, `x2=count`
+- processamento linear: `x3..x8`
 - saída: `x0=stability_score`
 
 ### armv7
