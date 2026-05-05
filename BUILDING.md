@@ -78,6 +78,15 @@ Comandos canônicos (raiz):
    - usar assinatura de produção (`-Psigning_mode=signed` e/ou `-PciRelease=true` em CI oficial);
    - **`devFastPath` é ignorado**: gates pesados e validações estritas permanecem obrigatórios.
 
+
+### Contrato obrigatório do `termux-bootstrap` (payload JNI)
+- O target nativo `termux-bootstrap` agora falha na configuração CMake se não houver payload embutido para `nativeGetZip()`.
+- Fontes aceitas por padrão:
+  - `app/src/main/cpp/generated/termux_bootstrap_payload.c`;
+  - `app/src/main/cpp/generated/termux_bootstrap_payload.S`;
+  - ou caminho explícito via `-DTERMUX_BOOTSTRAP_PAYLOAD_SOURCE=<arquivo>`.
+- Escape hatch **somente para validação interna**: `-DTERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD=OFF` (mantém comportamento legado com `nativeGetZip()` retornando `NULL`).
+
 ### Assinatura em CI (contrato canônico)
 - Workflow Android CI usa `tools/ci/prepare_release_signing.sh` como fonte de verdade para assinatura.
 - `signing_mode=auto`:
