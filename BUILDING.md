@@ -79,13 +79,16 @@ Comandos canônicos (raiz):
    - **`devFastPath` é ignorado**: gates pesados e validações estritas permanecem obrigatórios.
 
 
-### Contrato obrigatório do `termux-bootstrap` (payload JNI)
-- O target nativo `termux-bootstrap` agora falha na configuração CMake se não houver payload embutido para `nativeGetZip()`.
+### Contrato do `termux-bootstrap` (modo assets-loader x embedded-zip)
+- O target nativo `termux-bootstrap` suporta dois modos:
+  - `TERMUX_BOOTSTRAP_MODE=assets-loader` (default): não exige payload JNI embutido.
+  - `TERMUX_BOOTSTRAP_MODE=embedded-zip`: exige payload JNI embutido para `nativeGetZip()`.
 - Fontes aceitas por padrão:
   - `app/src/main/cpp/generated/termux_bootstrap_payload.c`;
   - `app/src/main/cpp/generated/termux_bootstrap_payload.S`;
   - ou caminho explícito via `-DTERMUX_BOOTSTRAP_PAYLOAD_SOURCE=<arquivo>`.
-- Escape hatch **somente para validação interna**: `-DTERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD=OFF` (mantém comportamento legado com `nativeGetZip()` retornando `NULL`).
+- Para endurecer qualquer modo manualmente, use `-DTERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD=ON`.
+- Para forçar trilha ZIP embutida, use `-DTERMUX_BOOTSTRAP_MODE=embedded-zip` (falha sem payload).
 
 ### Assinatura em CI (contrato canônico)
 - Workflow Android CI usa `tools/ci/prepare_release_signing.sh` como fonte de verdade para assinatura.

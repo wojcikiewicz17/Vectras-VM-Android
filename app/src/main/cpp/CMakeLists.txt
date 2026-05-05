@@ -141,8 +141,9 @@ add_library(vectra_core_accel SHARED
 add_dependencies(vectra_core_accel lowlevel_abi_contract_check)
 
 set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "arm64-v8a;armeabi-v7a;x86;x86_64" CACHE STRING "ABIs that should build termux-bootstrap")
-set(TERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD ON CACHE BOOL "Fail configure when termux-bootstrap payload symbols are not wired")
+set(TERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD OFF CACHE BOOL "Fail configure when termux-bootstrap payload symbols are not wired")
 set(TERMUX_BOOTSTRAP_PAYLOAD_SOURCE "" CACHE FILEPATH "Optional C/ASM source file that defines TERMUX_BOOTSTRAP_PAYLOAD_DATA and TERMUX_BOOTSTRAP_PAYLOAD_SIZE")
+set(TERMUX_BOOTSTRAP_MODE "assets-loader" CACHE STRING "Bootstrap mode: assets-loader or embedded-zip")
 
 set(TERMUX_BOOTSTRAP_BUILD_ENABLED OFF)
 
@@ -178,13 +179,19 @@ if(NOT ANDROID OR VECTRA_ANDROID_ABI IN_LIST TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_
             TERMUX_BOOTSTRAP_PAYLOAD_DATA=TERMUX_BOOTSTRAP_PAYLOAD_DATA
             TERMUX_BOOTSTRAP_PAYLOAD_SIZE=TERMUX_BOOTSTRAP_PAYLOAD_SIZE)
         message(STATUS "termux-bootstrap payload source: ${TERMUX_BOOTSTRAP_PAYLOAD_SOURCE_FOUND}")
-    elseif(TERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD)
+    elseif(TERMUX_BOOTSTRAP_MODE STREQUAL "embedded-zip")
+        if(NOT TERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD)
+            message(WARNING "TERMUX_BOOTSTRAP_MODE=embedded-zip without payload requirement; forcing strict mode")
+        endif()
         message(FATAL_ERROR
             "termux-bootstrap payload missing: configure TERMUX_BOOTSTRAP_PAYLOAD_SOURCE or generate "
             "app/src/main/cpp/generated/termux_bootstrap_payload.c(.S). This prevents shipping libtermux-bootstrap.so "
             "without nativeGetZip() payload.")
+    elseif(TERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD)
+        message(FATAL_ERROR
+            "TERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD=ON requires TERMUX_BOOTSTRAP_PAYLOAD_SOURCE or generated payload source.")
     else()
-        message(WARNING "termux-bootstrap payload not wired; nativeGetZip() will return NULL.")
+        message(STATUS "termux-bootstrap payload not wired; mode=${TERMUX_BOOTSTRAP_MODE} (nativeGetZip fallback remains disabled).")
     endif()
 else()
     message(STATUS "Skipping termux-bootstrap for unsupported ABI: ${VECTRA_ANDROID_ABI}")
