@@ -4,7 +4,8 @@
 
 RMR_SOURCE_GROUP_CORE := \
 	engine/rmr/src/bitomega.c \
-	engine/rmr/src/rmr_cycles.c \
+	engine/rmr/src/rmr_cycles.c
+RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_external_engine.c \
 	engine/rmr/src/rmr_hw_detect.c \
 	engine/rmr/src/rmr_isorf.c \
 	engine/rmr/src/rmr_apk_module.c \

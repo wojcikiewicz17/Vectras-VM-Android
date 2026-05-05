@@ -5,6 +5,7 @@ set(RMR_CORE_COMMON_SOURCES
   ${RMR_REPO_ROOT}/engine/rmr/src/bitomega.c
   ${RMR_REPO_ROOT}/engine/rmr/src/rmr_baremetal_compat.c
   ${RMR_REPO_ROOT}/engine/rmr/src/rmr_cycles.c
+  engine/rmr/src/rmr_external_engine.c
   ${RMR_REPO_ROOT}/engine/rmr/src/rmr_hw_detect.c
   ${RMR_REPO_ROOT}/engine/rmr/src/rmr_bench.c
   ${RMR_REPO_ROOT}/engine/rmr/src/rmr_bench_suite.c

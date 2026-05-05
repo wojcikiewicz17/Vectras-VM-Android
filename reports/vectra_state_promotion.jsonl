@@ -1,1 +1,1 @@
-{"event":"verify_only","offset":4096,"size":2048,"mem_tier":"L2","route_id":1,"crc32c":6491182,"hash64":8182737332,"entropy_milli":133,"math_signature":20211,"stage_signature":8819922002,"decision_mode":1,"recompute_skipped":0,"verify_ok":1}
+{"event":"promote_valid_state","offset":0,"size":4096,"mem_tier":1,"route_id":1,"crc32c":3489712391,"hash64":8237491827349182,"entropy_milli":219,"math_signature":34219,"stage_signature":89423910234492,"decision_mode":1,"recompute_skipped":1,"verify_ok":1}

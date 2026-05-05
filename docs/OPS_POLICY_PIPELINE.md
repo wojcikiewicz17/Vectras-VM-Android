@@ -1,18 +1,13 @@
 # OPS Policy Pipeline
 
-OPS in vectra_rmr is a deterministic operational sequence:
+## Stages
+- PLAN: chunk planning and route preselection.
+- APPLY: deterministic transformation and output write.
+- DIFF: delta accounting by chunk signature.
+- VERIFY: CRC/hash validation and replay integrity.
+- AUDIT: append-only summary and execution signature.
 
-1. PLAN: evaluate chunks, route hints and triad status.
-2. APPLY: write selected mutations or promoted state output.
-3. DIFF: detect content deltas and chunk-level divergence.
-4. VERIFY: validate crc32c and hash64 checks.
-5. AUDIT: persist deterministic summary and signatures.
-
-## Operational guarantees
-
-- deterministic replay for same input and config
-- low-copy chunk processing
-- storage-aware and cache-aware routing
-- buffer reuse across stages
-- optional direct I/O behavior through tune plan
-- explicit state promotion reporting in JSONL
+## Operational rules
+- Every run must persist deterministic audit output.
+- Verification failures increment `verify_failures` and block promotion.
+- Promotion requires coherent route + verify_ok = 1.

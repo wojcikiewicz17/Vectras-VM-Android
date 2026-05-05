@@ -1,24 +1,8 @@
 # Symbol and Encoding Policy
 
-## Human text and technical identifiers
-
-- Human documentation may contain Portuguese, English, Greek, ideograms and other scripts.
-- Technical identifiers must remain ASCII-safe.
-- Directionality in multilingual docs must be preserved as text, never converted into technical keys.
-- RTL, LTR, vertical and mixed scripts are allowed in prose only.
-
-## Mandatory ASCII zones
-
-The following must be ASCII-only:
-- C symbols and headers
-- file paths and file names
-- JSON keys
-- environment variables
-- Gradle tasks and artifact names
-- shell commands and URLs used in automation
-
-## UTF-8 and web content
-
-- New textual files must be UTF-8 encoded.
-- HTML documents must declare UTF-8.
-- Do not concatenate raw symbols into URL or GET parameters; use encoded transport.
+- Human text may include Portuguese, English, Greek symbols, ideograms, and other scripts.
+- Technical identifiers must be ASCII-safe.
+- Directionality in multilingual docs must be preserved as text semantics.
+- RTL, LTR, vertical, and mixed scripts are preserved as text, never technical keys.
+- JSON keys, env vars, file names, shell commands, and C symbols must be ASCII.
+- HTML must declare UTF-8 charset.
