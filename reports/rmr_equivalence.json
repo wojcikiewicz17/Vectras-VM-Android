@@ -1,0 +1,1 @@
+{"timestamp_utc":"2026-05-05T22:28:21Z","status":"MATCH_FALLBACK","expected_hash":"50b9dfcd33fdb3b8037a24faf512f57277d3d687db2a7b02d09ace9c149100a3","actual_hash":"50b9dfcd33fdb3b8037a24faf512f57277d3d687db2a7b02d09ace9c149100a3","paths":{"c":"detected","branchless":"pending","asm":"pending","jni":"pending"}}
