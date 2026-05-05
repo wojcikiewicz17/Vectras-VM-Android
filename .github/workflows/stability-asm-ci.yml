@@ -1,0 +1,26 @@
+name: stability-asm-ci
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - 'engine/rmr/interop/rmr_stability_arm64.S'
+      - 'engine/rmr/interop/rmr_stability_armv7.S'
+      - 'tools/build_stability_asm.sh'
+      - 'docs/STABILITY_ASM_BUILD.md'
+      - '.github/workflows/stability-asm-ci.yml'
+
+jobs:
+  build-stability-asm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build stability asm matrix artifacts
+        run: ./tools/build_stability_asm.sh
+      - name: Upload stability asm artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: stability-asm-${{ github.run_id }}
+          path: |
+            out/stability_asm/*.o
+            out/stability_asm/manifest.txt
