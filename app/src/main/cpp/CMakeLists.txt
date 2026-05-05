@@ -141,6 +141,8 @@ add_library(vectra_core_accel SHARED
 add_dependencies(vectra_core_accel lowlevel_abi_contract_check)
 
 set(TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS "arm64-v8a;armeabi-v7a;x86;x86_64" CACHE STRING "ABIs that should build termux-bootstrap")
+set(TERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD ON CACHE BOOL "Fail configure when termux-bootstrap payload symbols are not wired")
+set(TERMUX_BOOTSTRAP_PAYLOAD_SOURCE "" CACHE FILEPATH "Optional C/ASM source file that defines TERMUX_BOOTSTRAP_PAYLOAD_DATA and TERMUX_BOOTSTRAP_PAYLOAD_SIZE")
 
 set(TERMUX_BOOTSTRAP_BUILD_ENABLED OFF)
 
@@ -156,6 +158,34 @@ endif()
 if(NOT ANDROID OR VECTRA_ANDROID_ABI IN_LIST TERMUX_BOOTSTRAP_SUPPORTED_ANDROID_ABIS)
     add_library(termux-bootstrap SHARED
         termux_bootstrap_bridge.c)
+
+    set(TERMUX_BOOTSTRAP_PAYLOAD_SOURCE_CANDIDATES
+        "${TERMUX_BOOTSTRAP_PAYLOAD_SOURCE}"
+        "${CMAKE_CURRENT_SOURCE_DIR}/generated/termux_bootstrap_payload.c"
+        "${CMAKE_CURRENT_SOURCE_DIR}/generated/termux_bootstrap_payload.S")
+
+    set(TERMUX_BOOTSTRAP_PAYLOAD_SOURCE_FOUND "")
+    foreach(_candidate IN LISTS TERMUX_BOOTSTRAP_PAYLOAD_SOURCE_CANDIDATES)
+        if(_candidate AND EXISTS "${_candidate}")
+            set(TERMUX_BOOTSTRAP_PAYLOAD_SOURCE_FOUND "${_candidate}")
+            break()
+        endif()
+    endforeach()
+
+    if(TERMUX_BOOTSTRAP_PAYLOAD_SOURCE_FOUND)
+        target_sources(termux-bootstrap PRIVATE "${TERMUX_BOOTSTRAP_PAYLOAD_SOURCE_FOUND}")
+        target_compile_definitions(termux-bootstrap PRIVATE
+            TERMUX_BOOTSTRAP_PAYLOAD_DATA=TERMUX_BOOTSTRAP_PAYLOAD_DATA
+            TERMUX_BOOTSTRAP_PAYLOAD_SIZE=TERMUX_BOOTSTRAP_PAYLOAD_SIZE)
+        message(STATUS "termux-bootstrap payload source: ${TERMUX_BOOTSTRAP_PAYLOAD_SOURCE_FOUND}")
+    elseif(TERMUX_BOOTSTRAP_REQUIRE_EMBEDDED_PAYLOAD)
+        message(FATAL_ERROR
+            "termux-bootstrap payload missing: configure TERMUX_BOOTSTRAP_PAYLOAD_SOURCE or generate "
+            "app/src/main/cpp/generated/termux_bootstrap_payload.c(.S). This prevents shipping libtermux-bootstrap.so "
+            "without nativeGetZip() payload.")
+    else()
+        message(WARNING "termux-bootstrap payload not wired; nativeGetZip() will return NULL.")
+    endif()
 else()
     message(STATUS "Skipping termux-bootstrap for unsupported ABI: ${VECTRA_ANDROID_ABI}")
 endif()
