@@ -8,6 +8,12 @@ Pacote multi-CLI com módulos em **py/c/rs/sh**, todos com 21 métodos em camada
 - C CLI: `cc tools/state_geometry_lab/c/state_geometry_cli.c -o /tmp/sgl_c && /tmp/sgl_c list`
 - Rust CLI: `cd tools/state_geometry_lab/rs && cargo run -- list`
 
+## Fórmulas RAFAELIA (via CLI)
+- Listar fórmulas: `python3 tools/state_geometry_lab/py/state_geometry_lab.py --formula list`
+- Calcular fórmula: `python3 tools/state_geometry_lab/py/state_geometry_lab.py --formula <id> --params "k=v,..."`
+- Helper automático (sem argumentos): `python3 tools/state_geometry_lab/py/state_geometry_lab.py`
+- Referência completa: `tools/state_geometry_lab/docs/FORMULAS_RAFAELIA.md`
+
 ## Semente
 - `rmr/rrr/rafaelia_semente.txt`
 Toolkit expandido com Poincaré em seções da esfera, 42 atratores, 72 espectros fractais (Mandelbrot/Julia), e permutações randomicas em 72 níveis.
