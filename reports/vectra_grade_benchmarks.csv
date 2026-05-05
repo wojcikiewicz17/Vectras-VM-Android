@@ -1,0 +1,14 @@
+id,category,value,status
+build_clean_time,build_metrics,pending,pending
+apk_size,binary_metrics,pending,pending
+apk_sha256,binary_metrics,pending,pending
+runtime_cold_start,runtime_metrics,pending,pending
+cpu_scalar_c,cpu_metrics,pending,pending
+memory_rss,memory_metrics,pending,pending
+io_random_4k,io_metrics,pending,pending
+stability_crash_count,stability_metrics,pending,pending
+jitter_p99,jitter_metrics,pending,pending
+jni_overhead,jni_metrics,pending,pending
+rmr_equivalence,rmr_equivalence_metrics,pending,pending
+bootstrap_blake3,bootstrap_metrics,documented,documented
+device_runtime,device_runtime_metrics,pending,pending

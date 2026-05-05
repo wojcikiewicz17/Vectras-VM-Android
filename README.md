@@ -233,3 +233,14 @@ org.gradle.java.home=/usr/lib/jvm/java-21-openjdk
 - Status canônico de build só é atualizado após CI real concluída.
 
 - `external_sources.manifest` mantém `androidx_RmR` e `qemu_rafaelia` em branch-tracked (sem commit pin), com validação remota de integridade no CI.
+
+## Certification and audit claim notice
+This repository does not claim ISO certification, formal ISO compliance, or accredited external audit status. Any ISO/IEC references are internal checklist references or methodological alignment notes only. Certification requires an external accredited audit process and is outside the scope of this repository.
+
+Este repositório não declara certificação ISO, conformidade ISO formal nem auditoria externa acreditada. Qualquer referência a ISO/IEC é apenas checklist interno, referência metodológica ou alinhamento preliminar de boas práticas. Certificação exige processo externo acreditado e está fora do escopo deste repositório.
+
+### Audit/Benchmark trail
+- docs/AUDIT_CLAIMS_POLICY.md
+- reports/vectra_grade_benchmarks.md
+- reports/device_runtime_smoke.md
+- reports/rmr_equivalence.md

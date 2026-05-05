@@ -1,0 +1,22 @@
+name: device-runtime-smoke
+on:
+  workflow_dispatch:
+    inputs:
+      apk_path:
+        description: 'Optional APK path'
+        required: false
+        type: string
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run device runtime smoke (pending without adb device)
+        run: ./scripts/device_runtime_smoke.sh "${{ inputs.apk_path }}"
+      - name: Upload reports
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-runtime-smoke-reports
+          path: reports/device_runtime_*.{json,md,txt}
+          if-no-files-found: warn
