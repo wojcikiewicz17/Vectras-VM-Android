@@ -101,15 +101,13 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap --stacktrace --warning-mode all ${{ inputs.gradle_log_flags }}
+        ./tools/gradle_with_jdk21.sh :app:syncShellLoaderBootstrap
 
     - name: Verify bootstrap assets (mandatory)
       if: ${{ inputs.phase == 'setup' && inputs.run_bootstrap_verify == 'true' }}
       shell: bash
       run: |
         set -euo pipefail
-        python3 --version
-        git lfs ls-files || true
         python3 tools/verify_bootstrap_assets.py
         ./tools/gradle_with_jdk21.sh verifyBootstrapAssets --no-daemon ${{ inputs.gradle_log_flags }}
 
