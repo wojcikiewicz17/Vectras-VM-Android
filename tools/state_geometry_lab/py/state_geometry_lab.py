@@ -2,10 +2,22 @@
 import argparse
 import itertools
 import math
-from dataclasses import dataclass
 from typing import Dict, List, Sequence, Tuple
 
 PHI = (1 + 5 ** 0.5) / 2
+
+
+def is_prime(n: int) -> bool:
+    if n < 2:
+        return False
+    if n % 2 == 0:
+        return n == 2
+    d = 3
+    while d * d <= n:
+        if n % d == 0:
+            return False
+        d += 2
+    return True
 
 
 def fibonacci_variant_patterns(n: int) -> Dict[str, List[int]]:
@@ -25,8 +37,29 @@ def fibonacci_variant_patterns(n: int) -> Dict[str, List[int]]:
     return out
 
 
+def prime_fibonacci_graph(n: int) -> Dict[int, List[int]]:
+    fib = [0, 1]
+    while len(fib) < n:
+        fib.append(fib[-1] + fib[-2])
+    prime_idx = [i for i, v in enumerate(fib) if is_prime(v)]
+    graph = {i: [] for i in prime_idx}
+    for a, b in zip(prime_idx, prime_idx[1:]):
+        graph[a].append(b)
+    return graph
+
+
 def modular_tensor(values: Sequence[int], mods: Sequence[int]) -> List[List[int]]:
     return [[v % m if m else v for m in mods] for v in values]
+
+
+def coexistence_matrices(values: Sequence[int], mods: Sequence[int]) -> Dict[int, List[List[int]]]:
+    mats: Dict[int, List[List[int]]] = {}
+    for m in mods:
+        if m <= 0:
+            continue
+        row = [v % m for v in values]
+        mats[m] = [[(row[i] + row[j]) % m for j in range(len(row))] for i in range(len(row))]
+    return mats
 
 
 def phi_pi_index_field(values: Sequence[int]) -> List[Tuple[float, float]]:
@@ -37,11 +70,31 @@ def equilateral_height(side: float, root_n: int = 3) -> float:
     return side * math.sqrt(root_n) / 2
 
 
+def poincare_ratio_field(values: Sequence[float], ratio_a: float = 7 / 3, ratio_b: float = 77 / 33) -> List[Tuple[float, float, float]]:
+    # separa geometrias equivalentes por razão com perturbação mínima estável
+    if math.isclose(ratio_a, ratio_b, rel_tol=1e-12, abs_tol=1e-12):
+        ratio_b = ratio_b + (PHI / 1000.0)
+    out = []
+    for i, v in enumerate(values):
+        t = i / max(1, len(values) - 1)
+        warp = math.tanh(v / (i + 1 if i + 1 else 1))
+        out.append((ratio_a * t + warp, ratio_b * (1 - t) + warp, (ratio_a - ratio_b) * (t - 0.5)))
+    return out
+
+
 def toroidal_map(theta: float, phi: float, r: float, R: float) -> Tuple[float, float, float]:
     x = (R + r * math.cos(theta)) * math.cos(phi)
     y = (R + r * math.cos(theta)) * math.sin(phi)
     z = r * math.sin(theta)
     return x, y, z
+
+
+def lateral_geometry_metrics(side: float, ratio: float = 7 / 3) -> Dict[str, float]:
+    side_scaled = side * ratio
+    per = 4 * side_scaled
+    area = side_scaled * side_scaled
+    diag = side_scaled * math.sqrt(2)
+    return {"side_scaled": side_scaled, "perimeter": per, "area": area, "diagonal": diag}
 
 
 def attractor_field(steps: int = 42) -> List[Tuple[float, float, float]]:
@@ -127,15 +180,23 @@ def base_projection(n: int) -> Dict[str, str]:
 
 
 def demo(max_n: int, mods: List[int]) -> None:
-    fib = fibonacci_variant_patterns(32)
+    fib = fibonacci_variant_patterns(42)
     values = list(range(0, min(max_n, 999) + 1, 3))
     tensor = modular_tensor(values[:64], mods)
+    co = coexistence_matrices(values[:16], [12, 14, 18, 13, 7, 35, 50])
+    primes_graph = prime_fibonacci_graph(64)
     field = phi_pi_index_field(values[:16])
+    poincare = poincare_ratio_field([float(v) for v in values[:16]])
     pts = attractor_field(42)
     sig = spectral_64bit_signature(values[:128])
+    lat = lateral_geometry_metrics(33, ratio=7 / 3)
     print("fib_keys=", list(fib.keys()))
     print("tensor_rows=", len(tensor), "tensor_cols=", len(mods))
+    print("coexistence_mods=", sorted(co.keys()))
+    print("prime_graph_nodes=", len(primes_graph), "first=", next(iter(primes_graph.items())) if primes_graph else None)
     print("phi_pi_first=", field[0])
+    print("poincare_first=", poincare[0], "ratio_7_3=", 7 / 3, "ratio_77_33=", 77 / 33, "ratio_delta=", abs((7/3)-(77/33)))
+    print("lateral=", lat)
     print("torus=", toroidal_map(0.7, 1.2, math.sqrt(3 / 2), 4 / 3))
     print("ang_moment=", angular_moments(pts))
     print("signature64=", hex(sig))
