@@ -61,6 +61,8 @@ jobs:
       expect_perf_results: ${{ steps.flags.outputs.expect_perf_results }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - id: flags
         shell: bash
@@ -202,6 +204,8 @@ jobs:
     needs: resolve
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
       - name: Validate lowlevel ABI contract (mandatory gate)
         run: ./tools/ci/validate_lowlevel_abi.sh
 
@@ -215,6 +219,8 @@ jobs:
       VECTRAS_RELEASE_KEY_PASSWORD: ${{ secrets.VECTRAS_RELEASE_KEY_PASSWORD }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          lfs: true
 
       - name: Resolve canonical build versions
         shell: bash

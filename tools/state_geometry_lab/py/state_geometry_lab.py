@@ -4,18 +4,28 @@ import itertools
 import json
 import math
 from pathlib import Path
-from typing import Dict, List, Sequence, Tuple
+from typing import Dict, List, Optional, Sequence, Tuple
 
 PHI = (1 + 5 ** 0.5) / 2
+SQRT3_OVER_2 = math.sqrt(3.0) / 2.0
+Q16_SCALE = 65536
+Q16_SQRT3_OVER_2 = 0xDDB4
+FNV64_OFFSET = 0xCBF29CE484222325
+FNV64_PRIME = 0x100000001B3
 
 
-METHODS_21 = [
-    "load_seed_digits","fibonacci_variant_patterns","prime_fibonacci_graph","modular_tensor","coexistence_matrices",
-    "phi_pi_index_field","poincare_sphere_sections","equilateral_height","poincare_ratio_field","toroidal_map",
-    "lateral_geometry_metrics","attractor_field","mandelbrot_escape","julia_escape","fractal_spectrum_72",
-    "multilevel_permutations","random_permutations_72","rgb_cmyb_interpolate","angular_moments","polynomial_square_borrow",
-    "spectral_64bit_signature"
+METHODS = [
+    "load_seed_digits", "fibonacci_variant_patterns", "prime_fibonacci_graph", "modular_tensor",
+    "coexistence_matrices", "phi_pi_index_field", "poincare_sphere_sections", "equilateral_height",
+    "poincare_ratio_field", "toroidal_map", "lateral_geometry_metrics", "attractor_field",
+    "mandelbrot_escape", "julia_escape", "fractal_spectrum_72", "multilevel_permutations",
+    "random_permutations_72", "rgb_cmyb_interpolate", "angular_moments", "polynomial_square_borrow",
+    "spiral_matrix_cycles", "inverse_antiderivative_stack", "spectral_64bit_signature", "base_projection",
+    "rafaelia_formula_catalog", "rafaelia_toroidal_map7", "rafaelia_triangular_core",
+    "grassberger_procaccia_probe", "language_viscosity_metrics", "quantum_link_hamiltonian",
 ]
+# Backwards-compatible alias used by older scripts.
+METHODS_21 = METHODS
 
 FORMULAS = {
     "q16_sqrt3_2": {
@@ -208,7 +218,7 @@ def main() -> None:
         return
 
     if ns.method:
-        if ns.method not in METHODS_21 and ns.method != "list":
+        if ns.method not in METHODS and ns.method != "list":
             raise SystemExit(f"unknown method: {ns.method}")
         print(json.dumps(METHODS_21) if ns.json else "\n".join(METHODS_21))
         return

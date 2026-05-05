@@ -1,0 +1,1 @@
+fn main(){let args:Vec<String>=std::env::args().collect();let seed=args.get(1).cloned().unwrap_or("rmr/rrr/Rafael_Rafael_semente.txt".into());let value=args.get(2).cloned().unwrap_or("15".into());println!("{{"method":"rs_015","seed":"{}","value":{}}}",seed,value);}
