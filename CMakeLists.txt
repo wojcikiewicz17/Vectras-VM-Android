@@ -167,6 +167,7 @@ add_custom_target(verify_contracts
 if(NOT ANDROID)
 rmr_add_host_executable(rafaelia_demo demo_cli/src/main.c)
 rmr_add_host_executable(rmr_bench bench/src/rmr_benchmark_main.c COMPILE_DEFINITIONS RMR_JNI_BUILD=1)
+rmr_add_host_executable(vectra_policy_benchmark bench/src/vectra_policy_benchmark_main.c COMPILE_DEFINITIONS RMR_JNI_BUILD=1)
 rmr_add_host_executable(bitomega_smoketest demo_cli/src/bitomega_smoketest.c)
 rmr_add_host_executable(bitraf_core engine/rmr/src/rafaelia_bitraf_core.c COMPILE_DEFINITIONS RAF_HOSTED_TEST=1)
 
@@ -200,6 +201,7 @@ rmr_add_host_executable(rmr_unified_arena_selftest demo_cli/src/rmr_unified_aren
 rmr_add_host_executable(rmr_legacy_kernel_selftest demo_cli/src/rmr_legacy_kernel_selftest.c)
 rmr_add_host_executable(rmr_hw_detect_selftest demo_cli/src/rmr_hw_detect_selftest.c)
 rmr_add_host_executable(zipraf_core_selftest demo_cli/src/zipraf_core_selftest.c)
+rmr_add_host_executable(vectra_external_engine_selftest demo_cli/src/vectra_external_engine_selftest.c LINK_LIBS bitraf_static)
 
 if(RMR_HAS_NEON_SELFTEST)
   rmr_add_host_executable(rmr_neon_simd_selftest demo_cli/src/neon_simd_selftest.c)
@@ -218,6 +220,7 @@ set(RMR_RUN_SELFTEST_COMMANDS
   rmr_hw_detect_selftest
   rmr_asm_equivalence_selftest
   zipraf_core_selftest
+  vectra_external_engine_selftest
   bitomega_smoketest
 )
 
@@ -233,6 +236,7 @@ set(RMR_RUN_SELFTEST_DEPENDS
   rmr_hw_detect_selftest
   rmr_asm_equivalence_selftest
   zipraf_core_selftest
+  vectra_external_engine_selftest
   bitomega_smoketest
 )
 
