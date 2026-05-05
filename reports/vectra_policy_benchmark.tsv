@@ -1,0 +1,5 @@
+mode	total_ms	chunks	bytes	crc_path	batch_size	lane_width	commit_quantum	cacheline	page_size
+recompute_all	1.004	128	65536	crc32c	8192	32	64	64	4096
+promote_valid_state	0.977	136	65536	crc32c	8192	32	64	64	4096
+verify_only	0.872	144	65536	crc32c	8192	32	64	64	4096
+policy_pipeline	0.978	152	65536	crc32c	8192	32	64	64	4096

@@ -102,6 +102,11 @@ if(RMR_ASM_CORE_EXPERIMENTAL AND CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SY
   set(RMR_HAS_CASM TRUE)
 endif()
 
+if(ANDROID AND CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+  rmr_manifest_apply_base(RMR_ARM32_ASM_SOURCES ${RMR_SOURCE_GROUP_ASM_ARM32})
+  list(APPEND RMR_SOURCES ${RMR_ARM32_ASM_SOURCES})
+endif()
+
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "^(aarch64|arm64)$")
   rmr_manifest_apply_base(RMR_NEON_SIMD_SOURCES ${RMR_SOURCE_GROUP_ASM_ARM64_NEON})
   list(APPEND RMR_SOURCES ${RMR_NEON_SIMD_SOURCES})
@@ -162,6 +167,7 @@ add_custom_target(verify_contracts
 if(NOT ANDROID)
 rmr_add_host_executable(rafaelia_demo demo_cli/src/main.c)
 rmr_add_host_executable(rmr_bench bench/src/rmr_benchmark_main.c COMPILE_DEFINITIONS RMR_JNI_BUILD=1)
+rmr_add_host_executable(vectra_policy_benchmark bench/src/vectra_policy_benchmark_main.c COMPILE_DEFINITIONS RMR_JNI_BUILD=1)
 rmr_add_host_executable(bitomega_smoketest demo_cli/src/bitomega_smoketest.c)
 rmr_add_host_executable(bitraf_core engine/rmr/src/rafaelia_bitraf_core.c COMPILE_DEFINITIONS RAF_HOSTED_TEST=1)
 
@@ -195,6 +201,8 @@ rmr_add_host_executable(rmr_unified_arena_selftest demo_cli/src/rmr_unified_aren
 rmr_add_host_executable(rmr_legacy_kernel_selftest demo_cli/src/rmr_legacy_kernel_selftest.c)
 rmr_add_host_executable(rmr_hw_detect_selftest demo_cli/src/rmr_hw_detect_selftest.c)
 rmr_add_host_executable(zipraf_core_selftest demo_cli/src/zipraf_core_selftest.c)
+rmr_add_host_executable(rmr_external_engine_selftest demo_cli/src/rmr_external_engine_selftest.c)
+rmr_add_host_executable(rmr_policy_benchmark demo_cli/src/rmr_policy_benchmark.c)
 
 if(RMR_HAS_NEON_SELFTEST)
   rmr_add_host_executable(rmr_neon_simd_selftest demo_cli/src/neon_simd_selftest.c)
@@ -213,7 +221,9 @@ set(RMR_RUN_SELFTEST_COMMANDS
   rmr_hw_detect_selftest
   rmr_asm_equivalence_selftest
   zipraf_core_selftest
+  vectra_external_engine_selftest
   bitomega_smoketest
+  rmr_external_engine_selftest
 )
 
 set(RMR_RUN_SELFTEST_DEPENDS
@@ -228,7 +238,9 @@ set(RMR_RUN_SELFTEST_DEPENDS
   rmr_hw_detect_selftest
   rmr_asm_equivalence_selftest
   zipraf_core_selftest
+  vectra_external_engine_selftest
   bitomega_smoketest
+  rmr_external_engine_selftest
 )
 
 if(RMR_HAS_CASM)

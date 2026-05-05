@@ -10,6 +10,7 @@
 set(RMR_SOURCE_GROUP_CORE
   engine/rmr/src/bitomega.c
   engine/rmr/src/rmr_cycles.c
+  engine/rmr/src/rmr_external_engine.c
   engine/rmr/src/rmr_hw_detect.c
   engine/rmr/src/rmr_isorf.c
   engine/rmr/src/rmr_apk_module.c
@@ -25,6 +26,7 @@ set(RMR_SOURCE_GROUP_CORE
   engine/rmr/src/rmr_unified_jni_bridge.c
   engine/rmr/src/rmr_host_compat.c
   engine/rmr/src/rmr_zipraf_core.c
+  engine/rmr/src/rmr_external_engine.c
   engine/rmr/src/rmr_lowlevel_portable.c
   engine/rmr/src/rmr_lowlevel_mix.c
   engine/rmr/src/rmr_lowlevel_reduce.c
@@ -80,3 +82,7 @@ function(rmr_manifest_apply_base OUT_VAR)
   endforeach()
   set(${OUT_VAR} "${_rmr_manifest_out}" PARENT_SCOPE)
 endfunction()
+
+set(RMR_SOURCE_GROUP_ASM_ARM32
+  engine/rmr/interop/rmr_stability_armv7.S
+)
