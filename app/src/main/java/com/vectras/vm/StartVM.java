@@ -346,7 +346,7 @@ public class StartVM {
             //}
         } else if (MainSettingsManager.getVmUi(activity).equals("SPICE")) {
             params.add("-spice");
-            params.add("addr=127.0.0.1,port=6999,disable-ticketing=off");
+            params.add("addr=127.0.0.1,port=" + SPICE_PORT_PLACEHOLDER + ",disable-ticketing=off");
         } else if (MainSettingsManager.getVmUi(activity).equals("X11")) {
             params.add("-display");
             params.add(MainSettingsManager.getUseSdl(activity) ? "sdl" : "gtk" + ",gl=on");

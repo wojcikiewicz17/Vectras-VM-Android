@@ -28,11 +28,11 @@ public class StartVMCommandBuildTest {
         List<String> params = new ArrayList<>();
         params.add("qemu-system-x86_64");
         params.add("-spice");
-        params.add("port=6999,disable-ticketing=on");
+        params.add("port=" + StartVM.SPICE_PORT_PLACEHOLDER + ",disable-ticketing=on");
 
         String command = StartVM.buildCommand(params);
 
-        assertEquals("qemu-system-x86_64 -spice port=6999,disable-ticketing=on", command);
+        assertEquals("qemu-system-x86_64 -spice port=" + StartVM.SPICE_PORT_PLACEHOLDER + ",disable-ticketing=on", command);
         assertFalse(command.contains("  "));
     }
 

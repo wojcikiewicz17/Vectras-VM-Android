@@ -308,7 +308,7 @@ public class MainStartVM {
         if (MainSettingsManager.getVncExternal(context) &&
                 NetworkUtils.isPortOpen("localhost", Config.defaultVNCPort, 500)) {
             DialogUtils.twoDialog(context, context.getString(R.string.problem_has_been_detected),
-                    "Unable to reserve a local SPICE port.",
+                    "VNC port in use.",
                     context.getString(R.string.go_to_settings),
                     context.getString(R.string.close),
                     true, R.drawable.warning_48px, true,
@@ -482,7 +482,7 @@ public class MainStartVM {
             DialogUtils.oneDialog(
                     context,
                     context.getString(R.string.problem_has_been_detected),
-                    "Unable to reserve a local SPICE port.",
+                    "SPICE port reservation failed.",
                     R.drawable.warning_48px
             );
             return env;
