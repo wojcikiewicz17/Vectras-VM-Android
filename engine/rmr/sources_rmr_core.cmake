@@ -80,3 +80,7 @@ function(rmr_manifest_apply_base OUT_VAR)
   endforeach()
   set(${OUT_VAR} "${_rmr_manifest_out}" PARENT_SCOPE)
 endfunction()
+
+set(RMR_SOURCE_GROUP_ASM_ARM32
+  engine/rmr/interop/rmr_stability_armv7.S
+)

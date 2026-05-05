@@ -6,6 +6,7 @@ Fluxo nativo para compilar rotinas low-level de estabilidade diretamente em Asse
 
 - `out/stability_asm/rmr_stability_arm64_v8a.o`
 - `out/stability_asm/rmr_stability_armv7a.o`
+- `out/stability_asm/rmr_stability_armv7.o` (alias ARM32 compat)
 - `out/stability_asm/rmr_stability_armv5te.o` (interoperabilidade legada)
 - `out/stability_asm/manifest.txt`
 
@@ -29,7 +30,7 @@ Fluxo nativo para compilar rotinas low-level de estabilidade diretamente em Asse
 ## Matriz de interoperabilidade
 
 - ARMv8-A (`arm64-v8a`): trilha Android oficial 64-bit.
-- ARMv7-A (`armeabi-v7a`): trilha Android 32-bit suportada para validação interna.
+- ARMv7-A (`armeabi-v7a`): trilha Android 32-bit suportada para validação interna (ARM32 principal + alias compat rmr_stability_armv7.o).
 - ARMv5TE: trilha legada de interoperabilidade hardware/software fora da matriz de release oficial Android atual.
 
 ## Objetivo

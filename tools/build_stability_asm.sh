@@ -12,14 +12,15 @@ CC=${CC:-clang}
   "${ROOT_DIR}/engine/rmr/interop/rmr_stability_arm64.S" \
   -o "${OUT_DIR}/rmr_stability_arm64_v8a.o"
 
-# ARMv7-A / armeabi-v7a
+# ARMv7-A / armeabi-v7a (ARM32 principal)
 "${CC}" -c -O3 -ffreestanding -fno-asynchronous-unwind-tables \
   --target=armv7a-linux-androideabi21 \
   -march=armv7-a -mfpu=neon \
   "${ROOT_DIR}/engine/rmr/interop/rmr_stability_armv7.S" \
   -o "${OUT_DIR}/rmr_stability_armv7a.o"
+cp -f "${OUT_DIR}/rmr_stability_armv7a.o" "${OUT_DIR}/rmr_stability_armv7.o"
 
-# ARMv5TE (compat path fora da ABI oficial Android atual, para validação de interoperabilidade)
+# ARMv5TE interop
 "${CC}" -c -O2 -ffreestanding -fno-asynchronous-unwind-tables \
   --target=armv5te-linux-gnueabi \
   -march=armv5te \
@@ -28,11 +29,13 @@ CC=${CC:-clang}
 
 cat > "${OUT_DIR}/manifest.txt" <<MANIFEST
 rmr_stability_arm64_v8a.o|arch=arm64-v8a|isa=armv8-a
-rmr_stability_armv7a.o|arch=armeabi-v7a|isa=armv7-a
-rmr_stability_armv5te.o|arch=armv5te|isa=armv5te (interop-only)
+rmr_stability_armv7a.o|arch=armeabi-v7a|isa=armv7-a|role=arm32-primary
+rmr_stability_armv7.o|arch=armeabi-v7a|isa=armv7-a|role=arm32-compat-alias
+rmr_stability_armv5te.o|arch=armv5te|isa=armv5te|role=interop-only
 MANIFEST
 
 echo "OK: generated ${OUT_DIR}/rmr_stability_arm64_v8a.o"
 echo "OK: generated ${OUT_DIR}/rmr_stability_armv7a.o"
+echo "OK: generated ${OUT_DIR}/rmr_stability_armv7.o"
 echo "OK: generated ${OUT_DIR}/rmr_stability_armv5te.o"
 echo "OK: generated ${OUT_DIR}/manifest.txt"
