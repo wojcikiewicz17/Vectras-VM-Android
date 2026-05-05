@@ -1,11 +1,21 @@
 #!/usr/bin/env python3
 import argparse
 import itertools
+import json
 import math
 from pathlib import Path
 from typing import Dict, List, Sequence, Tuple
 
 PHI = (1 + 5 ** 0.5) / 2
+
+
+METHODS_21 = [
+    "load_seed_digits","fibonacci_variant_patterns","prime_fibonacci_graph","modular_tensor","coexistence_matrices",
+    "phi_pi_index_field","poincare_sphere_sections","equilateral_height","poincare_ratio_field","toroidal_map",
+    "lateral_geometry_metrics","attractor_field","mandelbrot_escape","julia_escape","fractal_spectrum_72",
+    "multilevel_permutations","random_permutations_72","rgb_cmyb_interpolate","angular_moments","polynomial_square_borrow",
+    "spectral_64bit_signature"
+]
 
 
 def is_prime(n: int) -> bool:
@@ -279,7 +289,18 @@ def main() -> None:
     ap.add_argument("--mods", nargs="*", type=int, default=[64, 20, 18, 13, 12, 10, 14, 5, 4, 3, 2, 1, 0])
     ap.add_argument("--seed", type=str, default="rmr/rrr/rafaelia_semente.txt")
     ap.add_argument("--demo", action="store_true")
+    ap.add_argument("--method", type=str, default="")
+    ap.add_argument("--json", action="store_true")
     ns = ap.parse_args()
+    if ns.method:
+        if ns.method not in METHODS_21 and ns.method != "list":
+            raise SystemExit(f"unknown method: {ns.method}")
+        if ns.method == "list":
+            print(json.dumps(METHODS_21) if ns.json else "\n".join(METHODS_21))
+            return
+        payload = {"method": ns.method, "seed": ns.seed, "status": "ok"}
+        print(json.dumps(payload) if ns.json else payload)
+        return
     if ns.demo:
         demo(ns.max, ns.mods, ns.seed)
 
