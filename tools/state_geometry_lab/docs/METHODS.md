@@ -1,4 +1,10 @@
-# Métodos implementados (extensão 72/42)
+# Métodos implementados (RAFAELIA state geometry lab)
+
+O laboratório em `tools/state_geometry_lab` agora reúne os métodos geométricos
+originais e a suíte triangular RAFAELIA para validar fórmulas de toro,
+contração, entropia, fluxo de linguagem e acoplamento quântico-simbólico.
+
+## Métodos base
 
 1. `load_seed_digits`
 2. `fibonacci_variant_patterns`
@@ -24,3 +30,23 @@
 22. `inverse_antiderivative_stack`
 23. `spectral_64bit_signature`
 24. `base_projection`
+
+## Suíte triangular RAFAELIA
+
+25. `rafaelia_formula_catalog` — catálogo executável das 50 fórmulas fornecidas.
+26. `rafaelia_toroidal_map7` — projeta bytes em `s=(u,v,ψ,χ,ρ,δ,σ) ∈ [0,1)^7` usando FNV-1a, entropia e atrator `(u xor v) mod 42`.
+27. `rafaelia_triangular_core` — funde as três geometrias-mãe:
+    * `Δ₁` equilátero: `sqrt(3)/2`, Lyapunov `ln(sqrt(3)/2)`, ponto fixo Fibonacci-Rafael.
+    * `Δ₂` retângulo: dinâmica iterativa, estimativa Kaplan-Yorke e sonda Grassberger-Procaccia.
+    * `Δ₃` isósceles: volumes de n-bola, `n_crítico` aproximado e viscosidade semântica por língua.
+28. `grassberger_procaccia_probe` — mede uma dimensão de correlação aproximada sobre o atrator Lorenz sintético já existente.
+29. `language_viscosity_metrics` — compara inglês, português, chinês, japonês, hebraico, aramaico e grego por alfabeto, vocabulário, entropia e dimensão toroidal Q16.
+30. `quantum_link_hamiltonian` — monta matriz Hamiltoniana 7x7 para os símbolos `(u,v,ψ,χ,ρ,δ,σ)` com acoplamento `α sin(Δθ)cos(Δφ)`.
+
+## Execução
+
+```bash
+python3 tools/state_geometry_lab/py/state_geometry_lab.py --method rafaelia_triangular_core --json
+bash tools/state_geometry_lab/sh/state_geometry_lab.sh rmr/rrr/rafaelia_semente.txt rafaelia_formula_catalog
+cc -std=c11 -Wall -Wextra -pedantic tools/state_geometry_lab/c/state_geometry_lab.c -c -o /tmp/sgl.o -lm
+```
