@@ -11,6 +11,7 @@ set(RMR_ENGINE_CORE_SOURCES
   engine/rmr/src/rmr_casm_bridge.c
   engine/rmr/src/rmr_corelib.c
   engine/rmr/src/rmr_cycles.c
+  engine/rmr/src/rmr_external_engine.c
   engine/rmr/src/rmr_ethica_loss.c
   engine/rmr/src/rmr_host_compat.c
   engine/rmr/src/rmr_hw_detect.c

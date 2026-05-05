@@ -11,6 +11,7 @@ RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_bench_suite.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_casm_bridge.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_corelib.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_cycles.c
+RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_external_engine.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_ethica_loss.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_host_compat.c
 RMR_ENGINE_CORE_SOURCES += engine/rmr/src/rmr_hw_detect.c

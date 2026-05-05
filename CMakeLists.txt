@@ -200,6 +200,8 @@ rmr_add_host_executable(rmr_unified_arena_selftest demo_cli/src/rmr_unified_aren
 rmr_add_host_executable(rmr_legacy_kernel_selftest demo_cli/src/rmr_legacy_kernel_selftest.c)
 rmr_add_host_executable(rmr_hw_detect_selftest demo_cli/src/rmr_hw_detect_selftest.c)
 rmr_add_host_executable(zipraf_core_selftest demo_cli/src/zipraf_core_selftest.c)
+rmr_add_host_executable(rmr_external_engine_selftest demo_cli/src/rmr_external_engine_selftest.c)
+rmr_add_host_executable(rmr_policy_benchmark demo_cli/src/rmr_policy_benchmark.c)
 
 if(RMR_HAS_NEON_SELFTEST)
   rmr_add_host_executable(rmr_neon_simd_selftest demo_cli/src/neon_simd_selftest.c)
@@ -219,6 +221,7 @@ set(RMR_RUN_SELFTEST_COMMANDS
   rmr_asm_equivalence_selftest
   zipraf_core_selftest
   bitomega_smoketest
+  rmr_external_engine_selftest
 )
 
 set(RMR_RUN_SELFTEST_DEPENDS
@@ -234,6 +237,7 @@ set(RMR_RUN_SELFTEST_DEPENDS
   rmr_asm_equivalence_selftest
   zipraf_core_selftest
   bitomega_smoketest
+  rmr_external_engine_selftest
 )
 
 if(RMR_HAS_CASM)
