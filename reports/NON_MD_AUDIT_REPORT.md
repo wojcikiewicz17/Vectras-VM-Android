@@ -1,70 +1,72 @@
-<!-- DOC_ORG_SCAN: 2026-04-07 | source-scan: pending-manual-by-domain -->
-
 # Auditoria Forense de Arquivos Não-Markdown
 
 Este relatório cobre todos os arquivos do repositório, exceto `.md`, com inventário determinístico e hash SHA-256.
 
-- Total de arquivos não-MD auditados: **896**
+- Total de arquivos não-MD auditados: **1518**
 - Inventário detalhado: `reports/non_md_inventory.tsv`
 
 ## Distribuição por tipo lógico
-- source: 738
-- image: 81
-- config-data: 30
-- artifact-binary: 21
-- no-extension: 14
-- other: 12
+- source: 1146
+- other: 143
+- image: 108
+- config-data: 82
+- artifact-binary: 20
+- no-extension: 19
 
 ## Distribuição text/binary
-- text: 786
-- binary: 110
+- text: 1328
+- binary: 190
 
 ## Top extensões
-- `.xml`: 355
-- `.java`: 296
-- `.png`: 73
-- `.c`: 24
-- `.json`: 19
-- `.kt`: 19
-- `<noext>`: 14
-- `.sh`: 12
-- `.h`: 11
-- `.rs`: 9
+- `.java`: 420
+- `.xml`: 371
+- `.c`: 126
+- `.png`: 98
+- `.s`: 78
+- `.sh`: 78
+- `.h`: 62
+- `.txt`: 43
+- `.py`: 38
+- `.json`: 32
+- `.zip`: 27
+- `.kt`: 27
+- `<noext>`: 19
+- `.rs`: 11
+- `.gradle`: 10
+- `.jpg`: 8
 - `.tar`: 8
-- `.txt`: 7
-- `.gradle`: 7
-- `.jpg`: 6
+- `.docx`: 7
+- `.mk`: 6
 - `.so`: 5
-- `.iso`: 4
-- `.pro`: 3
-- `.html`: 3
-- `.img`: 2
-- `.fd`: 2
 
 ## Top diretórios (arquivos não-MD)
-- `app`: 682
+- `app`: 837
+- `tools`: 105
+- `_incoming`: 97
+- `engine`: 95
+- `Incluir`: 56
+- `bug`: 44
+- `terminal-emulator`: 39
 - `resources`: 37
-- `terminal-emulator`: 36
-- `engine`: 35
+- `Rafaelia`: 32
+- `addthis`: 31
 - `web`: 24
-- `tools`: 15
+- `<root>`: 22
+- `demo_cli`: 18
 - `shell-loader`: 14
-- `<root>`: 12
+- `android`: 11
 - `terminal-view`: 11
-- `demo_cli`: 8
 - `fastlane`: 8
+- `.ci`: 6
+- `bench`: 6
 - `3dfx`: 4
-- `bench`: 4
-- `reports`: 3
-- `gradle`: 2
-- `bug`: 1
 
 ## Arquivos >= 5 MiB
 - `app/src/main/assets/roms/QEMU_EFI.img` — 67108864 bytes
 - `app/src/main/assets/roms/QEMU_VARS.img` — 67108864 bytes
 
 ## Candidatos sensíveis para governança
-- `vectras.jks`
+- `tools/termux-arm64-orchestrator/resolve-release-keystore.sh`
 
 ## Achados e recomendações
 1. Validar política de versionamento para arquivos de chave/assinatura detectados.
