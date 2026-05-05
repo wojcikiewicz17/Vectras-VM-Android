@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>RAFAELIA GAME</title>
+<style>
+  body { margin:0; background:black; overflow:hidden; }
+  canvas { display:block; }
+  #ui {
+    position:fixed; top:10px; left:10px;
+    color:white; font-family:monospace;
+  }
+</style>
+</head>
+<body>
+
+<canvas id="c"></canvas>
+
+<div id="ui">
+  θ (caos): <input type="range" min="0" max="90" value="30" id="theta"><br>
+  contração: <input type="range" min="0.5" max="0.99" step="0.01" value="0.866" id="contract">
+</div>
+
+<script>
+const canvas = document.getElementById("c");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let particles = [];
+
+for(let i=0;i<500;i++){
+  particles.push({
+    x: Math.random()*canvas.width,
+    y: Math.random()*canvas.height,
+    vx: (Math.random()-0.5)*2,
+    vy: (Math.random()-0.5)*2
+  });
+}
+
+function update(){
+  const theta = document.getElementById("theta").value * Math.PI/180;
+  const contract = parseFloat(document.getElementById("contract").value);
+
+  ctx.fillStyle = "rgba(0,0,0,0.1)";
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  particles.forEach(p=>{
+    // dinâmica (caos)
+    let cos = Math.cos(theta);
+
+    p.vx = p.vx * cos;
+    p.vy = p.vy * cos;
+
+    // contração (√3/2 vibe)
+    p.x += p.vx * contract;
+    p.y += p.vy * contract;
+
+    // leve ruído
+    p.vx += (Math.random()-0.5)*0.2;
+    p.vy += (Math.random()-0.5)*0.2;
+
+    // bordas (toro simplificado)
+    if(p.x < 0) p.x = canvas.width;
+    if(p.x > canvas.width) p.x = 0;
+    if(p.y < 0) p.y = canvas.height;
+    if(p.y > canvas.height) p.y = 0;
+
+    ctx.fillStyle = "white";
+    ctx.fillRect(p.x, p.y, 2, 2);
+  });
+
+  requestAnimationFrame(update);
+}
+
+update();
+</script>
+
+</body>
+  </html>
