@@ -13,14 +13,16 @@ Documentação operacional vigente (fonte ativa para execução, build e release
 Consulte [`docs/INDEX_CANONICAL.md`](../INDEX_CANONICAL.md) para a classificação única entre normativo, ativo, auditoria e histórico.
 
 ## Documentos ativos prioritários
+- [`VECTRAS_SOURCE_AUDIT_2026-05-05.md`](VECTRAS_SOURCE_AUDIT_2026-05-05.md): auditoria Vectras de build/release/CI/NDK/JNI, causas-raiz e bloqueios antes de implementação corretiva.
+- [`VECTRAS_ORIGIN_DOCUMENTS_2026-05-05.md`](VECTRAS_ORIGIN_DOCUMENTS_2026-05-05.md): matriz de documentos de origem para alinhar Gradle, CMake, CI, ABI, assinatura e artefatos.
 - [`AI_SESSION_SYSTEM_MODEL_2026-04-17.md`](AI_SESSION_SYSTEM_MODEL_2026-04-17.md): protocolo de sessão de IA orientado a causa-raiz, contrato de execução e fechamento verificável.
 - [`UNIFIED_CODE_DOCUMENTATION_ALIGNMENT_2026-04-12.md`](UNIFIED_CODE_DOCUMENTATION_ALIGNMENT_2026-04-12.md): alinhamento unificado código↔documentação com catálogo técnico por arquivo/funções.
 - [`DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md`](DOCUMENTATION_COVERAGE_AUDIT_2026-04-07.md): inventário metódico de `*.md`, cobertura por domínio e pendências estruturais.
 - [`ALL_MARKDOWN_FILES_2026-04-07.md`](ALL_MARKDOWN_FILES_2026-04-07.md): catálogo completo de Markdown localizado na árvore do repositório.
 
 ## Metadados
-- Versão do documento: 1.1
-- Última atualização: 2026-04-17
+- Versão do documento: 1.2
+- Última atualização: 2026-05-05
 - Commit de referência: `HEAD`
 
 ## Referência canônica de CI Android/Host
