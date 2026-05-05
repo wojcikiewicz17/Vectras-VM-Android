@@ -167,6 +167,7 @@ add_custom_target(verify_contracts
 if(NOT ANDROID)
 rmr_add_host_executable(rafaelia_demo demo_cli/src/main.c)
 rmr_add_host_executable(rmr_bench bench/src/rmr_benchmark_main.c COMPILE_DEFINITIONS RMR_JNI_BUILD=1)
+rmr_add_host_executable(vectra_policy_benchmark bench/src/vectra_policy_benchmark_main.c COMPILE_DEFINITIONS RMR_JNI_BUILD=1)
 rmr_add_host_executable(bitomega_smoketest demo_cli/src/bitomega_smoketest.c)
 rmr_add_host_executable(bitraf_core engine/rmr/src/rafaelia_bitraf_core.c COMPILE_DEFINITIONS RAF_HOSTED_TEST=1)
 
@@ -220,6 +221,7 @@ set(RMR_RUN_SELFTEST_COMMANDS
   rmr_hw_detect_selftest
   rmr_asm_equivalence_selftest
   zipraf_core_selftest
+  vectra_external_engine_selftest
   bitomega_smoketest
   rmr_external_engine_selftest
 )
@@ -236,6 +238,7 @@ set(RMR_RUN_SELFTEST_DEPENDS
   rmr_hw_detect_selftest
   rmr_asm_equivalence_selftest
   zipraf_core_selftest
+  vectra_external_engine_selftest
   bitomega_smoketest
   rmr_external_engine_selftest
 )
