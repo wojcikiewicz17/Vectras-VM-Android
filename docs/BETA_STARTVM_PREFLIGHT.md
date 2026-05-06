@@ -2,19 +2,16 @@
 
 Data: 2026-05-06 (UTC)
 
-## Auditoria direcionada de `app/src/main/java/com/vectras/vm/StartVM.java`
+## Escopo
+- `app/src/main/java/com/vectras/vm/StartVM.java`
 
-1. Comando final não vazio: **READY**.
-   - `buildCommand(params)` permanece filtro de tokens vazios.
-   - Quando vazio, agora ocorre fallback para `QemuExecConfig.resolveBinary(activity, arch)` para garantir comando executável mínimo.
-2. `lastStartError` preenchido: **READY**.
-   - Em erro: `lastStartError = "empty_command"`.
-   - Em caminho válido: `lastStartError = ""` (limpeza explícita de erro anterior).
-3. `lastRuntimeContract` atualizado: **READY**.
-   - Pré-montagem: fase `prepared`.
-   - Falha de comando vazio: fase `error:empty_command`.
-   - Comando válido: fase `ready`.
+## Checklist de preflight
 
-## Status final
+| Item | Evidência | Status |
+|---|---|---|
+| Comando final não vazio | `buildCommand(params)` remove nulos/vazios; se vazio, força fallback em `QemuExecConfig.resolveBinary(activity, arch)` | **READY** |
+| `lastStartError` preenchido corretamente | Em comando vazio: `lastStartError = "empty_command"`; caminho normal limpa para `""` | **READY** |
+| `lastRuntimeContract` atualizado em todas as fases | Atualiza para `prepared`, `error:empty_command` e `ready` | **READY** |
 
+## Resultado
 - **READY** — `STARTVM_PREFLIGHT_READY`
