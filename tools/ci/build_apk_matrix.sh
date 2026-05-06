@@ -24,8 +24,18 @@ if [[ -n "${ANDROID_KEYSTORE_B64:-}" ]]; then
   export ORG_GRADLE_PROJECT_RELEASE_KEY_PASSWORD="${ANDROID_KEY_PASSWORD:-}"
 fi
 
-TASKS=(:app:assembleDebug :app:assembleRelease)
-./gradlew "${TASKS[@]}"
+COMMON_ARGS=("-PallowLocalHeavyValidationBypass=${ALLOW_LOCAL_HEAVY_VALIDATION_BYPASS:-true}")
+
+# sempre gera trilha unsigned para validação estrutural
+./gradlew "${COMMON_ARGS[@]}" -Psigning_mode=unsigned :app:assembleDebug :app:assembleRelease
+
+mkdir -p app/build/outputs/apk/release-unsigned-snapshot
+find app/build/outputs/apk/release -maxdepth 1 -type f -name "*.apk" -exec cp {} app/build/outputs/apk/release-unsigned-snapshot/ \;
+
+# trilha signed só executa quando credenciais estão presentes
+if [[ -n "${ANDROID_KEYSTORE_B64:-}" && -n "${ANDROID_KEYSTORE_PASSWORD:-}" && -n "${ANDROID_KEY_ALIAS:-}" && -n "${ANDROID_KEY_PASSWORD:-}" ]]; then
+  ./gradlew "${COMMON_ARGS[@]}" -Psigning_mode=signed -PciRelease=true :app:assembleRelease
+fi
 
 echo "[OK] APK build finished"
 find app/build/outputs/apk -type f -name '*.apk' -print | sort
