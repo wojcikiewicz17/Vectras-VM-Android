@@ -79,14 +79,22 @@ fi
 
 
 echo "[validate-lowlevel-abi] validating rafphi arch mapping guards"
-if ! rg -q "RAFPHI_ARCH_ARMV7" "${ROOT_DIR}/tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h"; then
-  fail "ABI_CONTRACT" "enum RAFPHI_ARCH_ARMV7 ausente no header ABI" "${ROOT_DIR}/tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h" "rg -n RAFPHI_ARCH_ARMV7 tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h" "declarar RAFPHI_ARCH_ARMV7 explicitamente no contrato ABI"
+if command -v rg >/dev/null 2>&1; then
+  search_cmd=(rg -q)
+  search_desc="rg -n"
+else
+  search_cmd=(grep -E -q)
+  search_desc="grep -nE"
 fi
-if rg -q "RAFPHI_ARCH_ARM\b" "${ROOT_DIR}/app/src/main/cpp/termux_bootstrap_bridge.c"; then
-  fail "ABI_CONTRACT" "identificador legado RAFPHI_ARCH_ARM detectado no bridge" "${ROOT_DIR}/app/src/main/cpp/termux_bootstrap_bridge.c" "rg -n RAFPHI_ARCH_ARM app/src/main/cpp/termux_bootstrap_bridge.c" "substituir por RAFPHI_ARCH_ARMV7"
+
+if ! "${search_cmd[@]}" "RAFPHI_ARCH_ARMV7" "${ROOT_DIR}/tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h"; then
+  fail "ABI_CONTRACT" "enum RAFPHI_ARCH_ARMV7 ausente no header ABI" "${ROOT_DIR}/tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h" "${search_desc} RAFPHI_ARCH_ARMV7 tools/baremetal/rafcode_phi/include/rafcode_phi_abi.h" "declarar RAFPHI_ARCH_ARMV7 explicitamente no contrato ABI"
 fi
-if ! rg -q "(__arm__|RMR_ARCH_ARM32)" "${ROOT_DIR}/app/src/main/cpp/termux_bootstrap_bridge.c"; then
-  fail "ABI_CONTRACT" "gate arm32 ausente no bridge" "${ROOT_DIR}/app/src/main/cpp/termux_bootstrap_bridge.c" "rg -n '__arm__|RMR_ARCH_ARM32' app/src/main/cpp/termux_bootstrap_bridge.c" "adicionar seleção explícita para arm32/armeabi-v7a"
+if "${search_cmd[@]}" "RAFPHI_ARCH_ARM\b" "${ROOT_DIR}/app/src/main/cpp/termux_bootstrap_bridge.c"; then
+  fail "ABI_CONTRACT" "identificador legado RAFPHI_ARCH_ARM detectado no bridge" "${ROOT_DIR}/app/src/main/cpp/termux_bootstrap_bridge.c" "${search_desc} RAFPHI_ARCH_ARM app/src/main/cpp/termux_bootstrap_bridge.c" "substituir por RAFPHI_ARCH_ARMV7"
+fi
+if ! "${search_cmd[@]}" "(__arm__|RMR_ARCH_ARM32)" "${ROOT_DIR}/app/src/main/cpp/termux_bootstrap_bridge.c"; then
+  fail "ABI_CONTRACT" "gate arm32 ausente no bridge" "${ROOT_DIR}/app/src/main/cpp/termux_bootstrap_bridge.c" "${search_desc} '__arm__|RMR_ARCH_ARM32' app/src/main/cpp/termux_bootstrap_bridge.c" "adicionar seleção explícita para arm32/armeabi-v7a"
 fi
 echo "[validate-lowlevel-abi] validating freestanding source contract"
 source_contract_cmd=("${ROOT_DIR}/tools/ci/verify_android_freestanding_contract.sh")
