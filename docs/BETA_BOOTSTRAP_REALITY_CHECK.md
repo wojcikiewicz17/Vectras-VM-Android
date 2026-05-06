@@ -15,3 +15,9 @@ O caminho JNI ZIP (`TermuxInstaller#nativeGetZip`) é **compatibilidade/fallback
 - Pode ser mantido para cenários legados e validação controlada.
 - Não substitui o contrato oficial TAR + `loader.apk` para release.
 - CI deve validar explicitamente o contrato oficial para evitar ambiguidade.
+
+## Status beta (contrato TAR+loader)
+
+- `BOOTSTRAP_JNI_PLACEHOLDER`: **ATIVO**.
+- `nativeGetZip()` permanece apenas como fallback compatível/controlado; trilha oficial de startup/release deve ser TAR + `loader.apk`.
+- Para caminho JNI (`TERMUX_BOOTSTRAP_MODE=embedded-zip`), CI valida assinatura ZIP (`PK`) do payload gerado antes de compilar.
