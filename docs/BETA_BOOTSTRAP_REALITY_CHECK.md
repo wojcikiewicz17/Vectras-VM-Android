@@ -21,11 +21,11 @@ Data: 2026-05-05 (UTC)
 ## Classificação
 
 - `BOOTSTRAP_TAR_READY`
-- `BOOTSTRAP_LOADER_MISSING`
+- `BOOTSTRAP_LOADER_WIRED`
 - `BOOTSTRAP_JNI_PLACEHOLDER`
-- `BOOTSTRAP_BLOCKED` (por ausência de `loader.apk` e impossibilidade de executar pipeline completo sem SDK)
+- `BOOTSTRAP_PENDING_CANONICAL_CI` (por ausência de `loader.apk` e impossibilidade de executar pipeline completo sem SDK)
 
 ## Evidências de execução
 
-- `python3 tools/verify_bootstrap_assets.py --strict-generated-assets` → falha por ausência de `loader.apk`.
+- `python3 tools/verify_bootstrap_assets.py --strict-generated-assets` → requer execução do pipeline Gradle com SDK para materializar `loader.apk` gerado.
 - `./tools/ci/verify_bootstrap_contract.sh ...` → erro: Android SDK não encontrado.

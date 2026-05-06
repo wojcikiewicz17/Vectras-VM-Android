@@ -73,7 +73,7 @@
 | 51-53 | `rmr_casm_arm64.S`: CRC32C SW fallback corrigido (poly 0x82F63B78) |
 | 54 | `rmr_unified_kernel.c`: `RMR_KERNEL_ERR_ARG` adicionado nas verificações de ponteiro nulo |
 | 55 | `gradle.properties`: duplicatas removidas |
-| 56 | `PROJECT_STATE.md`: atualizado para FIXED_REFACTORING |
+| 56 | `PROJECT_STATE.md`: status ajustado para BETA_BLOCKED até CI canônico no commit corrente |
 | 57 | `.github/workflows/`: removidos `android (1).yml`, `android (2).yml`, `android-verified (1).yml` e `neon_simd_selftest.c` para eliminar duplicidade/poluição de CI |
 
 ---

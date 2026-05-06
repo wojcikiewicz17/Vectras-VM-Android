@@ -376,3 +376,6 @@ O script executa:
 - valida `apksigner verify`;
 - confirma libs `armeabi-v7a` e `arm64-v8a` dentro dos APKs;
 - imprime tamanho, SHA-256 e diff em bytes entre assinado/unsigned.
+
+### Gate explícito para release interno unsigned
+Use obrigatoriamente `-PCI_INTERNAL_VALIDATION=true -Psigning_mode=unsigned`; para placeholder Firebase em validação interna, acrescente `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true`.

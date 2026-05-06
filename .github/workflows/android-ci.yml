@@ -347,6 +347,12 @@ jobs:
             "${signing_args[@]}" \
             ${{ needs.resolve.outputs.gradle_tasks }}
 
+      - name: Verify Termux bootstrap ABI coverage
+        if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        run: |
+          set -euo pipefail
+          ./tools/gradle_with_jdk21.sh :app:verifyTermuxBootstrapAbiCoverage             -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}"             -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}"             -PCI_INTERNAL_VALIDATION="${{ needs.resolve.outputs.ci_internal_validation }}"
+
       - name: Validate critical native binary freestanding policy
         if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
         run: ./tools/ci/validate_lowlevel_abi.sh --require-critical-binary
@@ -376,6 +382,14 @@ jobs:
             -PAPP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
             -PSUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
             -Psigning_mode="${effective_signing_mode}"
+
+      - name: Generate APK ABI/bootstrap inventory report
+        if: ${{ needs.resolve.outputs.expect_app_artifacts == 'true' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          apk_path="$(find app/build/outputs/apk -type f -name "*.apk" | head -n1)"
+          python3 tools/ci/generate_apk_abi_bootstrap_inventory.py --apk "${apk_path}" --out reports/APK_ABI_BOOTSTRAP_INVENTORY.md
 
       - name: Run lint
         if: inputs.run_lint

@@ -35,12 +35,12 @@ Arquivo principal: `tools/baremetal/rafcode_phi/include/rafcode_phi_lowbasic.h`.
 
 ## O que ainda falta
 1. **Wire-up direto no boot path real**
-   - conectar `rafphi_boot_handoff_validate` no ponto de entrada do bootstrap nativo.
+   - conectado no ponto de entrada JNI `nativeGetZip` com gate por ABI (arm64-v8a/armeabi-v7a).
 2. **Teste integrado por ABI policy matrix**
    - cobrir `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64` com fixture de handoff inválido/valido.
 3. **Medição formal de overhead**
    - benchmark de latência por bloco (64B) comparando caminho anterior vs macro lowbasic.
-4. **Fallback explícito riscv64**
+4. **Fallback explícito riscv64 (roadmap unsupported para bootstrap ativo)**
    - ausência de macro lowbasic específica para `riscv64`.
 5. **Assinatura criptográfica do handoff**
    - atualmente há validação estrutural + CRC parcial; falta assinatura/autenticidade.

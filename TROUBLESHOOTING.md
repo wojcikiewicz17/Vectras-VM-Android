@@ -45,3 +45,5 @@ If metadata contains malformed URLs or unsupported host, remote setup is rejecte
 - Canonical host pipeline: `.github/workflows/host-ci.yml`.
 - Orchestration and final gates: `.github/workflows/pipeline-orchestrator.yml` and `.github/workflows/quality-gates.yml`.
 - Canonical matrix documentation: `docs/ci/workflow-matrix.md`.
+
+- Release interno unsigned exige: `-PCI_INTERNAL_VALIDATION=true -Psigning_mode=unsigned` e, quando firebase placeholder, `-PALLOW_PLACEHOLDER_FIREBASE_FOR_RELEASE=true`.
