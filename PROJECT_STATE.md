@@ -2,7 +2,7 @@
 
 # PROJECT_STATE
 
-Estado atual do projeto: `REFACTORING`.
+Estado atual do projeto: `BETA_BLOCKED`.
 
 ## Fonte única de referência
 Toda a documentação normativa, relatórios vigentes e histórico deve ser consultada exclusivamente em:
@@ -14,9 +14,9 @@ Veja `FIXES_SUMMARY.md` para tabela completa.
 - **STABLE**: ciclo estável, foco em manutenção e releases.
 - **EXPERIMENTAL**: ciclo exploratório, mudanças rápidas e validações.
 - **REFACTORING**: ciclo de reestruturação e consolidação técnica.
-- **FIXED_REFACTORING**: reestruturação concluída, bugs críticos corrigidos, build funcional.
+- **FIXED_REFACTORING**: reestruturação concluída após CI canônico verde no commit corrente.
 
-## Escopo atual (REFACTORING)
+## Escopo atual (BETA_BLOCKED)
 - ✅ Consolidação de contratos CI host/android em andamento.
 - ✅ Fontes externas críticas (`qemu_rafaelia`, `androidx_RmR`) definidas por manifesto e script de verificação.
 - ⚠️ Status de build **não pode ser inferido como atual** sem execução CI no commit corrente.

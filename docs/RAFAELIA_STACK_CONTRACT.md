@@ -47,3 +47,6 @@ Este documento define contratos explícitos entre os 4 repositórios da stack RA
 2. Alterar política de pinagem (branch/SHA) exige atualização de `tools/ci/external_sources.manifest` + registro em estado do projeto.
 3. RafCoder não deve ser apresentado como clone externo obrigatório enquanto não entrar explicitamente no manifesto.
 4. Build status oficial deve apontar para validação temporal concreta; ausência de execução no commit atual não pode ser mascarada como “build atual aprovado”.
+
+## Pinagem obrigatória de fontes externas
+O manifesto `tools/ci/external_sources.manifest` usa o formato `name|url|branch|dest_dir|pinned_commit_sha` com SHA obrigatório. O verificador CI valida alcance do SHA no branch remoto e força checkout exato no sync-clone.

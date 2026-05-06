@@ -8,6 +8,8 @@
 
 #include <android/log.h>
 
+#include "../../../../tools/baremetal/rafcode_phi/include/rafcode_phi_lowbasic.h"
+
 #define TERMUX_BOOTSTRAP_TAG "termux-bootstrap"
 #define TERMUX_BOOTSTRAP_SYMBOL "Java_com_termux_app_TermuxInstaller_nativeGetZip"
 #define LOGE(fmt, ...) __android_log_print(ANDROID_LOG_ERROR, TERMUX_BOOTSTRAP_TAG, fmt, ##__VA_ARGS__)
@@ -54,6 +56,25 @@ Java_com_termux_app_TermuxInstaller_nativeGetZip(JNIEnv* env, jclass clazz) {
 
     const unsigned char* payload = get_embedded_bootstrap_data();
     const size_t payload_size = get_embedded_bootstrap_size();
+
+    rafphi_boot_handoff_t handoff = {0};
+    handoff.magic = RAFPHI_BOOT_MAGIC;
+    handoff.version = RAFPHI_BOOT_VERSION;
+#if defined(__aarch64__)
+    handoff.arch = RAFPHI_ARCH_AARCH64;
+#elif defined(__arm__)
+    handoff.arch = RAFPHI_ARCH_ARM;
+#else
+    handoff.arch = RAFPHI_ARCH_UNKNOWN;
+#endif
+    handoff.in_ptr = (raf_u64)(uintptr_t)payload;
+    handoff.out_ptr = (raf_u64)(uintptr_t)payload;
+    handoff.words = (raf_u64)payload_size;
+    const raf_u32 handoff_status = rafphi_boot_handoff_validate(&handoff);
+    if ((handoff_status & RAFPHI_F_BOOT_OK) == 0u) {
+        LOGE("%s: lowbasic handoff validation failed status=0x%08x", TERMUX_BOOTSTRAP_SYMBOL, handoff_status);
+        return return_controlled_null("lowbasic handoff validate failed", "handoff");
+    }
 
     if (payload == NULL || payload_size == 0U) {
         if (payload == NULL) {

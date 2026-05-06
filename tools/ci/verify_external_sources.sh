@@ -12,8 +12,7 @@ usage() {
 Usage: verify_external_sources.sh [--manifest <path>] [--check-remote] [--sync-clone]
 
 Validates external integration repositories required by Vectras contracts:
-- manifest format (legacy):   name|url|branch|dest_dir
-- manifest format (extended): name|url|branch|dest_dir|pinned_commit_sha
+- manifest format (required): name|url|branch|dest_dir|pinned_commit_sha
 - --check-remote: validates remote/branch reachability with git ls-remote
 - --sync-clone: shallow clone/fetch into dest_dir
 USAGE
@@ -61,7 +60,7 @@ while IFS='|' read -r name url branch dest pinned_sha extra; do
   [[ "${name}" =~ ^# ]] && continue
 
   if [[ -z "${url}" || -z "${branch}" || -z "${dest}" || -n "${extra:-}" ]]; then
-    echo "::error file=${MANIFEST_PATH},line=${line_no}::Invalid manifest row; expected name|url|branch|dest_dir[|pinned_commit_sha]" >&2
+    echo "::error file=${MANIFEST_PATH},line=${line_no}::Invalid manifest row; expected name|url|branch|dest_dir|pinned_commit_sha" >&2
     status=1
     continue
   fi
@@ -78,7 +77,13 @@ while IFS='|' read -r name url branch dest pinned_sha extra; do
     continue
   fi
 
-  if [[ -n "${pinned_sha}" && ! "${pinned_sha}" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
+  if [[ -z "${pinned_sha}" ]]; then
+    echo "::error file=${MANIFEST_PATH},line=${line_no}::pinned_commit_sha is mandatory for ${name}" >&2
+    status=1
+    continue
+  fi
+
+  if [[ ! "${pinned_sha}" =~ ^[0-9a-fA-F]{7,40}$ ]]; then
     echo "::error file=${MANIFEST_PATH},line=${line_no}::Invalid pinned commit SHA for ${name}: ${pinned_sha}" >&2
     status=1
     continue
@@ -94,14 +99,28 @@ while IFS='|' read -r name url branch dest pinned_sha extra; do
       continue
     fi
     if [[ -n "${pinned_sha}" ]]; then
-      if ! git ls-remote "${url}" "${pinned_sha}^{commit}" | grep -q "${pinned_sha}"; then
+      if ! git ls-remote "${url}" | awk '{print $1}' | grep -qi "^${pinned_sha}$"; then
         echo "::error::Pinned commit not found on remote for ${name}: ${pinned_sha}" >&2
         status=1
         continue
       fi
-      if ! git ls-remote "${url}" "refs/heads/${branch}" | awk '{print $1}' | grep -qi "^${pinned_sha}"; then
-        echo "::warning::Pinned SHA ${pinned_sha} is not branch head for ${name} (${branch}); branch still reachable."
+      tmp_repo="$(mktemp -d)"
+      git -C "${tmp_repo}" init -q
+      git -C "${tmp_repo}" remote add origin "${url}"
+      if ! git -C "${tmp_repo}" fetch --depth=256 origin "${branch}" "${pinned_sha}" >/dev/null 2>&1; then
+        echo "::error::Failed to fetch branch/pinned SHA for ${name}: ${branch} ${pinned_sha}" >&2
+        rm -rf "${tmp_repo}"
+        status=1
+        continue
       fi
+      branch_head="$(git -C "${tmp_repo}" rev-parse FETCH_HEAD 2>/dev/null || true)"
+      if [[ -z "${branch_head}" ]] || ! git -C "${tmp_repo}" merge-base --is-ancestor "${pinned_sha}" "origin/${branch}"; then
+        echo "::error::Pinned SHA ${pinned_sha} is not contained in branch ${branch} for ${name}" >&2
+        rm -rf "${tmp_repo}"
+        status=1
+        continue
+      fi
+      rm -rf "${tmp_repo}"
     fi
   fi
 
