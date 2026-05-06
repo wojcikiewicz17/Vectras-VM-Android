@@ -50,4 +50,4 @@ Veja `FIXES_SUMMARY.md` para tabela completa.
 - `VECTRA_CORE_ENABLED` permanece ativo em release com gates de validação determinística.
 - Status canônico de build só é atualizado após CI real concluída.
 
-- `external_sources.manifest` mantém `androidx_RmR` e `qemu_rafaelia` em branch-tracked (sem commit pin), com validação remota de integridade no CI.
+- `external_sources.manifest` mantém `androidx_RmR` e `qemu_rafaelia` com `pinned_commit_sha`, além de validação remota e contenção do SHA no branch no CI.

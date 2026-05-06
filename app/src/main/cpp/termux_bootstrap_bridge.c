@@ -63,7 +63,7 @@ Java_com_termux_app_TermuxInstaller_nativeGetZip(JNIEnv* env, jclass clazz) {
 #if defined(__aarch64__)
     handoff.arch = RAFPHI_ARCH_AARCH64;
 #elif defined(__arm__)
-    handoff.arch = RAFPHI_ARCH_ARM;
+    handoff.arch = RAFPHI_ARCH_ARM32;
 #else
     handoff.arch = RAFPHI_ARCH_UNKNOWN;
 #endif

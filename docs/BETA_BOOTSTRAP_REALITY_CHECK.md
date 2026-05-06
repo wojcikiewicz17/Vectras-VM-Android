@@ -23,7 +23,7 @@ Data: 2026-05-05 (UTC)
 - `BOOTSTRAP_TAR_READY`
 - `BOOTSTRAP_LOADER_WIRED`
 - `BOOTSTRAP_JNI_PLACEHOLDER`
-- `BOOTSTRAP_PENDING_CANONICAL_CI` (por ausência de `loader.apk` e impossibilidade de executar pipeline completo sem SDK)
+- `BOOTSTRAP_PENDING_CANONICAL_CI` (asset loader.apk agora é gerado por `:shell-loader` + `:app:syncShellLoaderBootstrap`; ainda depende de CI canônico verde no commit corrente)
 
 ## Evidências de execução
 
