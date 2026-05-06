@@ -87,3 +87,16 @@ sed -n '1,120p' app/FILES_MAP.md
 
 ### Manutenção
 - Sempre que entrar um novo símbolo JNI em `app/src/main/cpp/vectra_core_accel.c`, atualizar esta seção para manter o mapeamento “símbolo JNI -> fonte `.c` obrigatória” e o inventário de dependências de link do APK.
+
+
+### Build local ARM32+ARM64 (release)
+- Unsigned interno:
+```bash
+./tools/ci/build_arm32_arm64_release_bundle.sh unsigned
+```
+- Signed oficial (exige secrets/credenciais de assinatura):
+```bash
+./tools/ci/build_arm32_arm64_release_bundle.sh signed
+```
+
+A rotina executa `assembleRelease` e `verifyDeliveredCompiledArtifacts` com política ABI `arm32-arm64`.

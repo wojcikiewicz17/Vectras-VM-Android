@@ -58,6 +58,7 @@ on:
           - debug-internal-arm32-arm64
           - release-unsigned-internal
           - release-signed-official
+          - release-signed-official-arm32-arm64
       run_workfile:
         description: "Perfil de execução Gradle"
         type: choice
