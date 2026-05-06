@@ -14,3 +14,7 @@ Divisões do conteúdo solicitado em estrutura organizada.
 - `divisoes/01_versao_curta.md`
 - `divisoes/02_versao_media.md`
 - `divisoes/03_versao_expandida.md`
+
+## Divisão detalhada por parágrafo
+
+Também disponível em `GAIAPHI/divisoes/README.md` e subpastas `curta/`, `media/` e `expandida/`.
