@@ -1,3 +1,18 @@
+/*
+ * termux_bootstrap_bridge.c
+ *
+ * Papel do bridge:
+ * - Compatibilidade JNI: implementa TermuxInstaller#nativeGetZip() para retornar
+ *   payload ZIP embutido quando símbolos TERMUX_BOOTSTRAP_PAYLOAD_* forem injetados.
+ * - NÃO é a trilha oficial de release do bootstrap.
+ *
+ * Contrato oficial de bootstrap (release): TAR assets por ABI + loader.apk,
+ * validados por tools/verify_bootstrap_assets.py e tools/ci/verify_bootstrap_contract.sh.
+ *
+ * Este bridge deve permanecer estrito (sem payload sintético) e serve apenas como
+ * fallback controlado para cenários legados/compatibilidade.
+ */
+
 #include <errno.h>
 #include <jni.h>
 #include <limits.h>
