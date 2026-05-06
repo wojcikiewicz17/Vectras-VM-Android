@@ -11,6 +11,7 @@ on:
       - 'gradle/**'
       - '.github/workflows/gaiaphi-android-build.yml'
       - 'tools/ci/build_apk_matrix.sh'
+      - 'docs/build-release.md'
 
 jobs:
   build:
@@ -25,7 +26,7 @@ jobs:
       - name: Accept licenses + install SDK packages
         run: |
           yes | sdkmanager --licenses
-          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0"
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.3.11579264" "cmake;3.22.1"
       - name: Build APK matrix
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
@@ -35,4 +36,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: apk-outputs
+          path: |
+            app/build/outputs/apk/**/*.apk
+            app/build/outputs/logs/**
           path: app/build/outputs/apk/**/*.apk
