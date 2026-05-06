@@ -95,6 +95,8 @@ int RmR_Zipraf_Execute(const RmR_ZiprafInput *in, RmR_ZiprafOutput *out) {
     out->status_flags |= RMR_ZIPRAF_STATUS_EMPTY_PAYLOAD;
   }
 
+  const uint64_t payload_len_u64 = (uint64_t)in->payload_len;
+
   hash_seed = ((uint64_t)in->seed << 32u) ^ (uint64_t)in->trajectory_id;
   out->bitraf_hash = bitraf_hash(in->payload_ptr, in->payload_len, hash_seed);
   out->crc32c = RmR_CRC32C(in->payload_ptr, in->payload_len);
@@ -102,8 +104,8 @@ int RmR_Zipraf_Execute(const RmR_ZiprafInput *in, RmR_ZiprafOutput *out) {
   points[0] = in->seed;
   points[1] = in->trajectory_id;
   points[2] = in->invariant_mask;
-  points[3] = (uint32_t)(in->payload_len & RMR_ZERO_ZIPRAF_U32_MASK_U64);
-  points[4] = (uint32_t)((in->payload_len >> 32u) & RMR_ZERO_ZIPRAF_U32_MASK_U64);
+  points[3] = (uint32_t)(payload_len_u64 & RMR_ZERO_ZIPRAF_U32_MASK_U64);
+  points[4] = (uint32_t)((payload_len_u64 >> 32u) & RMR_ZERO_ZIPRAF_U32_MASK_U64);
   points[5] = out->crc32c;
   points[6] = rmr_zipraf_u32_from_u64_lo(out->bitraf_hash);
   points[7] = rmr_zipraf_u32_from_u64_hi(out->bitraf_hash);
