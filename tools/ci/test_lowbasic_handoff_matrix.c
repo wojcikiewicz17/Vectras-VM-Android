@@ -30,8 +30,8 @@ int main(void) {
     fail |= run_case("arm64-valid", arm64, RAFPHI_F_BOOT_OK, RAFPHI_F_BOOT_DENY | RAFPHI_F_BOOT_PTR_INVALID);
 
     rafphi_boot_handoff_t arm32 = base;
-    arm32.arch = RAFPHI_ARCH_ARM32;
-    fail |= run_case("arm32-valid", arm32, RAFPHI_F_BOOT_OK, RAFPHI_F_BOOT_DENY | RAFPHI_F_BOOT_PTR_INVALID);
+    arm32.arch = RAFPHI_ARCH_ARMV7;
+    fail |= run_case("armv7-valid", arm32, RAFPHI_F_BOOT_OK, RAFPHI_F_BOOT_DENY | RAFPHI_F_BOOT_PTR_INVALID);
 
     rafphi_boot_handoff_t invalid_arch = base;
     invalid_arch.arch = RAFPHI_ARCH_UNKNOWN;

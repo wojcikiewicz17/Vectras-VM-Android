@@ -15,9 +15,9 @@ typedef unsigned long long raf_u64;
 typedef enum {
   RAFPHI_ARCH_UNKNOWN = 0,
   RAFPHI_ARCH_AARCH64 = 1,
-  RAFPHI_ARCH_ARM32   = 2,
-  RAFPHI_ARCH_X86_64  = 3,
-  RAFPHI_ARCH_RISCV64 = 4
+  RAFPHI_ARCH_X86_64  = 2,
+  RAFPHI_ARCH_RISCV64 = 3,
+  RAFPHI_ARCH_ARMV7   = 4
 } rafphi_arch_t;
 
 typedef enum {

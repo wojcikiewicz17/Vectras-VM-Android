@@ -30,6 +30,7 @@ static raf_u32 rafphi_ascii_eq_full(const char *a, const char *b) {
 static const char *rafphi_arch_name(rafphi_arch_t arch) {
   switch (arch) {
     case RAFPHI_ARCH_AARCH64: return "aarch64";
+    case RAFPHI_ARCH_ARMV7: return "armv7";
     case RAFPHI_ARCH_X86_64: return "x86_64";
     case RAFPHI_ARCH_RISCV64: return "riscv64";
     default: return "unknown";
@@ -39,6 +40,9 @@ static const char *rafphi_arch_name(rafphi_arch_t arch) {
 static rafphi_arch_t rafphi_arch_from_arg(const char *arg) {
   if (rafphi_ascii_eq_full(arg, "aarch64")) {
     return RAFPHI_ARCH_AARCH64;
+  }
+  if (rafphi_ascii_eq_full(arg, "armv7") || rafphi_ascii_eq_full(arg, "armeabi-v7a")) {
+    return RAFPHI_ARCH_ARMV7;
   }
   if (rafphi_ascii_eq_full(arg, "x86_64")) {
     return RAFPHI_ARCH_X86_64;
@@ -136,7 +140,7 @@ int main(int argc, char **argv) {
   }
 
   if (n == 0u) {
-    fprintf(stderr, "usage: %s [--arch aarch64|x86_64|riscv64] [--out-prefix PATH] TOKEN...\n", argv[0]);
+    fprintf(stderr, "usage: %s [--arch aarch64|armv7|x86_64|riscv64] [--out-prefix PATH] TOKEN...\n", argv[0]);
     fprintf(stderr, "example: %s --arch aarch64 --out-prefix /tmp/rafphi NOP RET BRK HLT\n", argv[0]);
     return 2;
   }

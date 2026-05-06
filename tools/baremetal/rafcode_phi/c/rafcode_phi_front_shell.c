@@ -14,6 +14,8 @@ static raf_u32 rafphi_ascii_eq(const char *a, raf_u32 a_len, const char *b) {
 rafphi_arch_t rafphi_detect_native_arch(void) {
 #if defined(__aarch64__)
   return RAFPHI_ARCH_AARCH64;
+#elif defined(__arm__) || defined(RMR_ARCH_ARM32)
+  return RAFPHI_ARCH_ARMV7;
 #elif defined(__x86_64__)
   return RAFPHI_ARCH_X86_64;
 #elif defined(__riscv) && (__riscv_xlen == 64)
