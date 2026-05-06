@@ -4,29 +4,23 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-SDK_PATH="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
-if [[ -z "${SDK_PATH}" ]]; then
+SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+if [[ -z "$SDK_DIR" ]]; then
   echo "[ERROR] ANDROID_HOME or ANDROID_SDK_ROOT must be set."
   exit 2
 fi
 
 if [[ ! -f local.properties ]]; then
-  echo "sdk.dir=${SDK_PATH}" > local.properties
+  printf 'sdk.dir=%s\n' "$SDK_DIR" > local.properties
+  echo "[INFO] local.properties generated"
 fi
 
-TASKS=(
-  :app:assembleDebug
-  :app:assembleRelease
-)
+./gradlew :app:assembleDebug :app:assembleRelease
 
-./gradlew "${TASKS[@]}"
+if [[ -n "${RELEASE_KEYSTORE_PATH:-}" && -n "${RELEASE_KEYSTORE_PASSWORD:-}" && -n "${RELEASE_KEY_ALIAS:-}" && -n "${RELEASE_KEY_PASSWORD:-}" ]]; then
+  ./gradlew :app:bundleRelease
+  echo "[INFO] Signed release path enabled via environment"
+fi
 
 echo "[OK] APK build finished"
-find app/build/outputs/apk -type f -name '*.apk' -print | sort
-
-echo "[OK] Signature report"
-for apk in $(find app/build/outputs/apk -type f -name '*.apk' | sort); do
-  echo "--- ${apk}"
-  apksigner verify --print-certs "$apk" || true
-  file "$apk" || true
-done
+find app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -print | sort
