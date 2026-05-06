@@ -4,7 +4,7 @@ RMR_JNI_BUILD ?= 1
 RMR_BUILD_HOST_TOOLING ?= $(RMR_JNI_BUILD)
 RMR_ENABLE_POLICY_MODULE ?= 1
 CPPFLAGS ?= -Iengine/rmr/include -DRMR_JNI_BUILD=$(RMR_JNI_BUILD) -DRMR_BUILD_HOST_TOOLING=$(RMR_BUILD_HOST_TOOLING) -DRMR_ENABLE_POLICY_MODULE=$(RMR_ENABLE_POLICY_MODULE)
-CFLAGS ?= -O3 -std=c11 -Wall -Wextra -pedantic
+CFLAGS ?= -O3 -std=c11 -Wall -Wextra -Werror=implicit-function-declaration -fno-strict-aliasing -pedantic
 LDFLAGS ?=
 
 include engine/rmr/sources_rmr_core.mk
@@ -311,3 +311,8 @@ run-sector-snapshot-42: $(SNAPSHOT_42_BIN)
 run-core-bench-smoke: $(CORE_BENCH_SMOKE_BIN)
 	./$(CORE_BENCH_SMOKE_BIN)
 
+
+
+diagnose: all run-selftest
+
+.PHONY: diagnose
