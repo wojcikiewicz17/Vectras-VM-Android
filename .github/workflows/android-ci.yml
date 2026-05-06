@@ -470,6 +470,16 @@ jobs:
             expect_perf_results=true
           fi
 
+          mkdir -p ci-artifacts/android-reports
+          for report in reports/APK_ABI_BOOTSTRAP_INVENTORY.md reports/CANONICAL_BUILD_STATUS.md; do
+            if [[ -f "$report" ]]; then
+              cp -a "$report" ci-artifacts/android-reports/
+            fi
+          done
+          if [[ -f tools/verify_bootstrap_assets.py ]]; then
+            python3 tools/verify_bootstrap_assets.py > ci-artifacts/android-reports/bootstrap-assets-verification.log 2>&1 || true
+          fi
+
           APP_ABI_POLICY="${{ needs.resolve.outputs.app_abi_policy }}" \
           SUPPORTED_ABIS="${{ needs.resolve.outputs.supported_abis }}" \
           PERF_RUNS="${perf_runs}" \
@@ -507,6 +517,15 @@ jobs:
         with:
           name: native-matrix-${{ needs.resolve.outputs.lane_label }}
           path: ci-artifacts/upload-staging/native-matrix-${{ needs.resolve.outputs.lane_label }}/**
+          if-no-files-found: warn
+
+
+      - name: Upload Android reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: android-reports-${{ needs.resolve.outputs.lane_label }}
+          path: ci-artifacts/android-reports/**
           if-no-files-found: warn
 
       - name: Upload APK report

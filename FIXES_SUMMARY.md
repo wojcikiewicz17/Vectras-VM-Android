@@ -77,7 +77,7 @@
 | 57 | `.github/workflows/`: removidos `android (1).yml`, `android (2).yml`, `android-verified (1).yml` e `neon_simd_selftest.c` para eliminar duplicidade/poluição de CI |
 
 ---
-**Status:** ψ→Σ→Ω — Coerência restaurada. Build funcional garantido.
+**Status:** ψ→Σ→Ω — Coerência restaurada. Build debug validado em commit anterior; commit corrente exige CI canônico concluído.
 
 ## CI canonical reference (Android/Host)
 
