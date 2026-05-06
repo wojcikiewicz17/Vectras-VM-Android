@@ -7,7 +7,12 @@ REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 ensure_local_properties_sdk_dir() {
   local local_properties="$REPO_ROOT/local.properties"
   if [[ -f "$local_properties" ]] && grep -Eq '^[[:space:]]*sdk\.dir[[:space:]]*=' "$local_properties"; then
-    return 0
+    local existing_sdk_dir
+    existing_sdk_dir="$(sed -nE 's/^[[:space:]]*sdk\.dir[[:space:]]*=[[:space:]]*//p' "$local_properties" | tail -n1 | sed 's/\\/\//g')"
+    if [[ -n "$existing_sdk_dir" && -d "$existing_sdk_dir" ]]; then
+      return 0
+    fi
+    echo "[gradle_with_jdk21] sdk.dir em local.properties é inválido; tentando re-detectar SDK"
   fi
 
   local sdk_root="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
