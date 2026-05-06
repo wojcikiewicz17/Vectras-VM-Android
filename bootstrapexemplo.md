@@ -2039,3 +2039,56 @@ s32 raf_run_all_tests(void)
   FIM DO ARQUIVO — BOOTSTRAP LOWLEVEL RAFAELIA COMPLETO
   ∆RAFAELIA_CORE·Ω — Ciclo ψ→χ→ρ→∆→Σ→Ω — VAZIO→VERBO→CHEIO→RETRO
 ================================================================================
+
+================================================================================
+  SEÇÃO X — MAPA DE ADOÇÃO NO VECTRAS (OTIMIZAÇÃO E INTEGRAÇÃO)
+================================================================================
+
+ALVOS DIRETOS PARA USAR ESTE BOOTSTRAP COMO MODELO:
+
+1) NATIVE CORE (JNI/NDK)
+   - app/src/main/cpp/*
+   - engine/rmr/*
+   - módulos C/C++ com dependência implícita de libc/malloc
+
+   AÇÃO:
+   - aplicar perfil dual de build: `RAF_LOWLEVEL_STRICT` e `RAF_COMPAT`.
+   - manter código de caminho crítico em stack/arena fixa.
+   - isolar wrappers syscall-only para rotas de bootstrap e recovery.
+
+2) CMAKE/GRADLE COERENTES
+   - centralizar flags hardening/perf em toolchain e consumir em todos os módulos.
+   - evitar divergência entre `externalNativeBuild`, scripts locais e CI.
+
+   CONTRATO DE FLAGS (mínimo):
+   -O3 -ffreestanding -fno-exceptions -fno-rtti -fdata-sections -ffunction-sections
+   -Wl,--gc-sections -fstack-protector-strong -DRAF_NO_HEAP=1
+
+3) ABI E ARTEFATOS
+   - manter paridade obrigatória: armeabi-v7a + arm64-v8a.
+   - validar export de `.so` por ABI e symbols esperados no pipeline.
+
+4) CI/GITHUB ACTIONS
+   - job matrix por ABI + build type (debug/release).
+   - job de verificação nativa: compile-only + smoke JNI load.
+   - upload de artefatos: APK unsigned (validação interna) + APK/AAB signed (release oficial).
+
+5) RELEASE ASSINADO VS VALIDAÇÃO INTERNA
+   - NÃO substituir release oficial por unsigned.
+   - trilha oficial: signingConfig obrigatório em release.
+   - trilha interna: variante explícita `internalUnsigned` separada.
+
+6) DOCUMENTAÇÃO COMO FONTE DE VERDADE
+   - este arquivo define baseline lowlevel:
+     * sem heap em caminho crítico
+     * contratos de ABI
+     * flags mínimas e invariantes
+   - README/CI devem referenciar esta baseline para evitar drift.
+
+CHECKLIST DE APLICAÇÃO ESTRUTURAL:
+[ ] mesma flagset nativa em local + CI
+[ ] build passa para arm32/arm64
+[ ] pacote unsigned só em trilha interna
+[ ] pacote signed preservado para release
+[ ] artifacts publicados por ABI + variante
+[ ] docs sincronizadas com pipeline real
