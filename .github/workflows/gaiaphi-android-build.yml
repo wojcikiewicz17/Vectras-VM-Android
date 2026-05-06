@@ -1,0 +1,39 @@
+name: gaiaphi-android-build
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "work" ]
+    paths:
+      - 'app/**'
+      - 'build.gradle'
+      - 'settings.gradle'
+      - 'gradle/**'
+      - '.github/workflows/gaiaphi-android-build.yml'
+      - 'tools/ci/*.sh'
+      - 'docs/build-release.md'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - uses: android-actions/setup-android@v3
+      - name: Bootstrap Android SDK/NDK/CMake
+        run: tools/ci/bootstrap_android_sdk.sh
+      - name: Build APK matrix
+        env:
+          ANDROID_HOME: ${{ env.ANDROID_HOME }}
+          ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+        run: tools/ci/build_apk_matrix.sh
+      - name: Upload APK artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-outputs
+          path: |
+            app/build/outputs/apk/**/*.apk
+            app/build/outputs/logs/**
