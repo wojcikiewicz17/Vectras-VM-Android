@@ -4,18 +4,20 @@
 
 ```bash
 export ANDROID_SDK_ROOT=/path/to/Android/Sdk
+./tools/ci/bootstrap_android_sdk.sh
 ./tools/ci/build_apk_matrix.sh
 ```
 
-## Outputs
+## Validations
 
-- Debug APK (assinado com debug keystore)
-- Release APK (conforme regras do Gradle do projeto)
+- APK list: `app/build/outputs/logs/apk-list.txt`
+- Signature/certs + native-code metadata: `app/build/outputs/logs/apk-signature-report.txt`
 
 ## CI
 
 Workflow: `.github/workflows/gaiaphi-android-build.yml`
 
-- instala Java 21 + Android SDK + NDK + CMake
-- executa build matrix
-- publica artefatos APK
+- setup Java 21
+- bootstrap SDK/NDK/CMake
+- build debug + release APKs
+- upload APKs + logs as artifacts

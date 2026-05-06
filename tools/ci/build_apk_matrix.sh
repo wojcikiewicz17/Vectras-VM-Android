@@ -4,23 +4,24 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT_DIR"
 
-SDK_DIR="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
-if [[ -z "$SDK_DIR" ]]; then
+SDK_PATH="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-}}"
+if [[ -z "${SDK_PATH}" ]]; then
   echo "[ERROR] ANDROID_HOME or ANDROID_SDK_ROOT must be set."
   exit 2
 fi
 
 if [[ ! -f local.properties ]]; then
-  printf 'sdk.dir=%s\n' "$SDK_DIR" > local.properties
-  echo "[INFO] local.properties generated"
+  echo "sdk.dir=${SDK_PATH}" > local.properties
 fi
 
 ./gradlew :app:assembleDebug :app:assembleRelease
 
-if [[ -n "${RELEASE_KEYSTORE_PATH:-}" && -n "${RELEASE_KEYSTORE_PASSWORD:-}" && -n "${RELEASE_KEY_ALIAS:-}" && -n "${RELEASE_KEY_PASSWORD:-}" ]]; then
-  ./gradlew :app:bundleRelease
-  echo "[INFO] Signed release path enabled via environment"
-fi
+OUT_DIR="app/build/outputs/apk"
+mkdir -p app/build/outputs/logs
+find "$OUT_DIR" -type f -name '*.apk' -print | sort | tee app/build/outputs/logs/apk-list.txt
 
-echo "[OK] APK build finished"
-find app/build/outputs -type f \( -name '*.apk' -o -name '*.aab' \) -print | sort
+for apk in $(cat app/build/outputs/logs/apk-list.txt); do
+  echo "--- ${apk}" | tee -a app/build/outputs/logs/apk-signature-report.txt
+  apksigner verify --print-certs "$apk" | tee -a app/build/outputs/logs/apk-signature-report.txt || true
+  aapt dump badging "$apk" | rg "package:|native-code:" | tee -a app/build/outputs/logs/apk-signature-report.txt || true
+done
