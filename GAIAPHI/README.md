@@ -18,3 +18,8 @@ Divisões do conteúdo solicitado em estrutura organizada.
 ## Divisão detalhada por parágrafo
 
 Também disponível em `GAIAPHI/divisoes/README.md` e subpastas `curta/`, `media/` e `expandida/`.
+
+## Build Android (CI/local)
+
+- Script: `tools/ci/build_apk_matrix.sh`
+- Workflow: `.github/workflows/gaiaphi-android-build.yml`
