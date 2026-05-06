@@ -1,6 +1,6 @@
 # BETA_APK_ABI_BOOTSTRAP_REPORT
 
-Data: 2026-05-05 (UTC)
+Data: 2026-05-06 (UTC)
 
 ## Comandos alvo da fase
 
@@ -25,3 +25,10 @@ Data: 2026-05-05 (UTC)
   - `assets/bootstrap/arm64-v8a.tar`
   - `assets/bootstrap/armeabi-v7a.tar`
   - `assets/bootstrap/loader.apk` (versionado ou via generated assets)
+
+
+## Atualização ABI arm32/armv7
+
+- Corrigido contrato ABI para ARM32 com enum explícito `RAFPHI_ARCH_ARMV7`.
+- Corrigido handoff no bridge JNI para usar `RAFPHI_ARCH_ARMV7` em `__arm__`/`RMR_ARCH_ARM32`.
+- Reexecução dos comandos alvo depende de SDK Android presente no ambiente (`ANDROID_SDK_ROOT`/`ANDROID_HOME`).

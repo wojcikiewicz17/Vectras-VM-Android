@@ -60,10 +60,14 @@ Java_com_termux_app_TermuxInstaller_nativeGetZip(JNIEnv* env, jclass clazz) {
     rafphi_boot_handoff_t handoff = {0};
     handoff.magic = RAFPHI_BOOT_MAGIC;
     handoff.version = RAFPHI_BOOT_VERSION;
-#if defined(__aarch64__)
+#if defined(__aarch64__) || defined(RMR_ARCH_ARM64)
     handoff.arch = RAFPHI_ARCH_AARCH64;
-#elif defined(__arm__)
-    handoff.arch = RAFPHI_ARCH_ARM32;
+#elif defined(__arm__) || defined(RMR_ARCH_ARM32)
+    handoff.arch = RAFPHI_ARCH_ARMV7;
+#elif defined(__x86_64__)
+    handoff.arch = RAFPHI_ARCH_X86_64;
+#elif defined(__riscv) && __riscv_xlen == 64
+    handoff.arch = RAFPHI_ARCH_RISCV64;
 #else
     handoff.arch = RAFPHI_ARCH_UNKNOWN;
 #endif

@@ -89,7 +89,7 @@ static inline raf_u32 rafphi_boot_handoff_validate(const rafphi_boot_handoff_t *
   raf_u32 m = (h && h->magic == RAFPHI_BOOT_MAGIC);
   raf_u32 v = (h && h->version >= RAFPHI_BOOT_VERSION);
   raf_u32 p = (h && h->in_ptr != 0u && h->out_ptr != 0u);
-  raf_u32 a = (h && (h->arch == RAFPHI_ARCH_ARM32 || h->arch == RAFPHI_ARCH_AARCH64));
+  raf_u32 a = (h && (h->arch == RAFPHI_ARCH_ARMV7 || h->arch == RAFPHI_ARCH_AARCH64));
   if ((m & v & p & a) != 0u) {
     return RAFPHI_F_BOOT_OK;
   }
