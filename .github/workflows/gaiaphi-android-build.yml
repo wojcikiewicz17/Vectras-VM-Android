@@ -10,7 +10,7 @@ on:
       - 'settings.gradle'
       - 'gradle/**'
       - '.github/workflows/gaiaphi-android-build.yml'
-      - 'tools/ci/*.sh'
+      - 'tools/ci/build_apk_matrix.sh'
       - 'docs/build-release.md'
 
 jobs:
@@ -23,12 +23,18 @@ jobs:
           distribution: temurin
           java-version: '21'
       - uses: android-actions/setup-android@v3
-      - name: Bootstrap Android SDK/NDK/CMake
-        run: tools/ci/bootstrap_android_sdk.sh
+      - name: Accept licenses + install SDK packages
+        run: |
+          yes | sdkmanager --licenses
+          sdkmanager "platform-tools" "platforms;android-34" "build-tools;34.0.0" "ndk;26.3.11579264" "cmake;3.22.1"
       - name: Build APK matrix
         env:
           ANDROID_HOME: ${{ env.ANDROID_HOME }}
           ANDROID_SDK_ROOT: ${{ env.ANDROID_SDK_ROOT }}
+          ANDROID_KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: tools/ci/build_apk_matrix.sh
       - name: Upload APK artifacts
         uses: actions/upload-artifact@v4
@@ -37,3 +43,4 @@ jobs:
           path: |
             app/build/outputs/apk/**/*.apk
             app/build/outputs/logs/**
+            .ci/**

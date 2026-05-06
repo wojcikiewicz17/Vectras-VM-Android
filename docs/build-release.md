@@ -4,20 +4,30 @@
 
 ```bash
 export ANDROID_SDK_ROOT=/path/to/Android/Sdk
-./tools/ci/bootstrap_android_sdk.sh
 ./tools/ci/build_apk_matrix.sh
 ```
 
-## Validations
+## Release signing (optional)
 
-- APK list: `app/build/outputs/logs/apk-list.txt`
-- Signature/certs + native-code metadata: `app/build/outputs/logs/apk-signature-report.txt`
+```bash
+export ANDROID_KEYSTORE_B64="$(base64 -w0 my-release.keystore)"
+export ANDROID_KEYSTORE_PASSWORD="***"
+export ANDROID_KEY_ALIAS="***"
+export ANDROID_KEY_PASSWORD="***"
+./tools/ci/build_apk_matrix.sh
+```
+
+## Outputs
+
+- Debug APK (assinado com debug keystore)
+- Release APK (assinado quando secrets/vars de keystore estão presentes)
+- Relatório de ABI por `aapt dump badging`
+- Verificação de assinatura por `apksigner`
 
 ## CI
 
 Workflow: `.github/workflows/gaiaphi-android-build.yml`
 
-- setup Java 21
-- bootstrap SDK/NDK/CMake
-- build debug + release APKs
-- upload APKs + logs as artifacts
+- instala Java 21 + Android SDK + NDK + CMake
+- executa build matrix
+- publica artefatos APK/logs
