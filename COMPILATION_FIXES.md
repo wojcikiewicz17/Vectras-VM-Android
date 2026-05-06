@@ -29,3 +29,15 @@ Date: 2026-04-20
 - Canonical host pipeline: `.github/workflows/host-ci.yml`.
 - Orchestration and final gates: `.github/workflows/pipeline-orchestrator.yml` and `.github/workflows/quality-gates.yml`.
 - Canonical matrix documentation: `docs/ci/workflow-matrix.md`.
+
+## Build local arm32+arm64 (release)
+
+Use `tools/ci/local_build_arm32_arm64.sh` to execute canonical release build path locally.
+
+```bash
+# unsigned internal validation build
+./tools/ci/local_build_arm32_arm64.sh unsigned
+
+# signed official-style build (requires signing secrets exported)
+./tools/ci/local_build_arm32_arm64.sh signed
+```
