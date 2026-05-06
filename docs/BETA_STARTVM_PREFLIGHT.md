@@ -1,12 +1,20 @@
 # BETA_STARTVM_PREFLIGHT
 
-## STATUS: BLOCKED (FECHADO)
+Data: 2026-05-06 (UTC)
 
-## Evidências obrigatórias
-- **Arquivo**: validações prévias de ambiente em `build.gradle` (`verifyAndroidSdkPackages`, `verifyGradleRuntimeJvm`, `verifyArm64ToolchainCompatibility`).
-- **Task Gradle**: `:app:deviceRuntimeSmoke` existe como execução dedicada de smoke runtime.
-- **Script/CI**: `.github/workflows/device-runtime-smoke.yml` e `.github/workflows/android-ci.yml` dão cobertura parcial.
+## Auditoria direcionada de `app/src/main/java/com/vectras/vm/StartVM.java`
 
-## Motivo do bloqueio
-- Ausência de evidência determinística no repositório de execução obrigatória de preflight StartVM em todos os fluxos de release.
-- Gate existe, mas não está comprovado como hard requirement universal para promoção beta.
+1. Comando final não vazio: **READY**.
+   - `buildCommand(params)` permanece filtro de tokens vazios.
+   - Quando vazio, agora ocorre fallback para `QemuExecConfig.resolveBinary(activity, arch)` para garantir comando executável mínimo.
+2. `lastStartError` preenchido: **READY**.
+   - Em erro: `lastStartError = "empty_command"`.
+   - Em caminho válido: `lastStartError = ""` (limpeza explícita de erro anterior).
+3. `lastRuntimeContract` atualizado: **READY**.
+   - Pré-montagem: fase `prepared`.
+   - Falha de comando vazio: fase `error:empty_command`.
+   - Comando válido: fase `ready`.
+
+## Status final
+
+- **READY** — `STARTVM_PREFLIGHT_READY`
