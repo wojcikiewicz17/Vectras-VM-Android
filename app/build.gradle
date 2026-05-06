@@ -386,6 +386,17 @@ tasks.register("syncShellLoaderBootstrap") {
 tasks.named("preBuild").configure {
     dependsOn(tasks.named("syncShellLoaderBootstrap"))
     dependsOn(tasks.named("validateCriticalNativeAbiLayer"))
+    dependsOn(tasks.named("validateJniBootstrapZipSignature"))
+}
+
+tasks.register("validateJniBootstrapZipSignature", Exec) {
+    group = "verification"
+    description = "Valida assinatura ZIP (PK) do payload JNI quando TERMUX_BOOTSTRAP_MODE=embedded-zip."
+    workingDir = rootDir
+    commandLine "python3", "tools/ci/validate_jni_bootstrap_payload_signature.py",
+        "--mode", providers.gradleProperty("TERMUX_BOOTSTRAP_MODE").orElse("assets-loader").get(),
+        "--payload", "app/src/main/cpp/generated/termux_bootstrap_payload.c",
+        "--payload", "app/src/main/cpp/generated/termux_bootstrap_payload.S"
 }
 
 
