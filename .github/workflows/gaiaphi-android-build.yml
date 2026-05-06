@@ -39,3 +39,4 @@ jobs:
           path: |
             app/build/outputs/apk/**/*.apk
             app/build/outputs/logs/**
+          path: app/build/outputs/apk/**/*.apk
