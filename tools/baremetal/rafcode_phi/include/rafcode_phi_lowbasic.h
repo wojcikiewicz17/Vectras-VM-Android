@@ -35,6 +35,7 @@ enum {
   RAFPHI_F_BOOT_PTR_INVALID= 1u << 5
 };
 
+
 /*
  * Contrato de registradores (AArch64):
  * x0 = in_ptr, x1 = out_ptr, x2 = words, x3 = flags
@@ -88,7 +89,14 @@ static inline raf_u32 rafphi_boot_handoff_validate(const rafphi_boot_handoff_t *
   raf_u32 m = (h && h->magic == RAFPHI_BOOT_MAGIC);
   raf_u32 v = (h && h->version >= RAFPHI_BOOT_VERSION);
   raf_u32 p = (h && h->in_ptr != 0u && h->out_ptr != 0u);
-  return (m & v & p) ? RAFPHI_F_BOOT_OK : (RAFPHI_F_BOOT_DENY | RAFPHI_F_BOOT_PTR_INVALID);
+  raf_u32 a = (h && (h->arch == RAFPHI_ARCH_ARM32 || h->arch == RAFPHI_ARCH_AARCH64));
+  if ((m & v & p & a) != 0u) {
+    return RAFPHI_F_BOOT_OK;
+  }
+  raf_u32 status = RAFPHI_F_BOOT_DENY;
+  if (!p) status |= RAFPHI_F_BOOT_PTR_INVALID;
+  if (!a) status |= RAFPHI_F_BOOT_ABI_MISM;
+  return status;
 }
 
 #endif
