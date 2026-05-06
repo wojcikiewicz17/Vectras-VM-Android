@@ -18,11 +18,11 @@ static uint64_t count_transitions(const uint8_t *bytes, uint32_t len) {
 
 rmr_arch_t rmr_detect_arch(void) {
 #if defined(__aarch64__)
-  return RMR_ARCH_ARM64;
+  return RMR_TOPO_ARCH_ARM64;
 #elif defined(__arm__)
-  return RMR_ARCH_ARM32;
+  return RMR_TOPO_ARCH_ARM32;
 #else
-  return RMR_ARCH_UNKNOWN;
+  return RMR_TOPO_ARCH_UNKNOWN;
 #endif
 }
 

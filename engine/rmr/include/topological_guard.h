@@ -8,9 +8,9 @@ extern "C" {
 #endif
 
 typedef enum {
-  RMR_ARCH_UNKNOWN = 0,
-  RMR_ARCH_ARM32 = 32,
-  RMR_ARCH_ARM64 = 64
+  RMR_TOPO_ARCH_UNKNOWN = 0,
+  RMR_TOPO_ARCH_ARM32 = 32,
+  RMR_TOPO_ARCH_ARM64 = 64
 } rmr_arch_t;
 
 typedef struct {
