@@ -37,7 +37,8 @@ Arquivo principal: `tools/baremetal/rafcode_phi/include/rafcode_phi_lowbasic.h`.
 1. **Wire-up direto no boot path real**
    - conectado no ponto de entrada JNI `nativeGetZip` com gate por ABI (arm64-v8a/armeabi-v7a).
 2. **Teste integrado por ABI policy matrix**
-   - cobrir `arm64-v8a`, `armeabi-v7a`, `x86`, `x86_64` com fixture de handoff inválido/valido.
+   - cobertura mandatória: `arm64-v8a` e `armeabi-v7a` com fixture de handoff inválido/válido;
+   - `riscv64` permanece roadmap `unsupported` para bootstrap ativo.
 3. **Medição formal de overhead**
    - benchmark de latência por bloco (64B) comparando caminho anterior vs macro lowbasic.
 4. **Fallback explícito riscv64 (roadmap unsupported para bootstrap ativo)**
