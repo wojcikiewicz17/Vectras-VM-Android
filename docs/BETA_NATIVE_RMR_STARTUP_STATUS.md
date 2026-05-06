@@ -1,17 +1,11 @@
 # BETA_NATIVE_RMR_STARTUP_STATUS
 
-Data: 2026-05-05 (UTC)
+## STATUS: RISK (FECHADO)
 
-## Auditoria NativeFastPath/RMR
+## Evidências obrigatórias
+- **Arquivo**: fontes nativas e ABI bridge em `app/src/main/cpp/` (`lowlevel_bridge.c`, `lowlevel_abi.c`, `vectra_lowlevel_backend_*.c`).
+- **Task Gradle**: `:app:validateRmrEquivalence`, `:app:collectVectraGradeBenchmarks`.
+- **Script/CI**: `.github/workflows/host-ci.yml` executa CMake + `rmr_torus_flow_selftest`; `.github/workflows/android-native-ci.yml` valida build Android nativo.
 
-1. Se native carrega, usa native: **SIM** (`nativeReady`, chamadas `native*` com telemetria).
-2. Se native falha, fallback Java: **SIM** (`try/catch` + fallback explícito em múltiplos pontos).
-3. Falha nativa mata boot: **NÃO** (fallback resiliente).
-4. `telemetryNativeHit/fallbackHit`: **SIM** (incremento em caminhos de sucesso/fallback).
-5. `coreShutdown` quebra: **NÃO EVIDENCIADO** (preserva fallback e trata estado).
-6. RMR/BitRAF/BitOmega bloqueiam bootstrap: **NÃO EVIDENCIADO** na trilha de bootstrap por assets.
-
-## Status
-
-- `NATIVE_FASTPATH_READY`
-- `RMR_STARTUP_READY`
+## Critério fechado
+- Stack nativa tem contratos e smoke de host, mas permanece **RISK** até comprovação de startup RMR fim-a-fim em device para arm32/arm64 sob release candidate assinado.
