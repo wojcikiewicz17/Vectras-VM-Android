@@ -71,3 +71,18 @@ Este documento é a **fonte primária** do fluxo operacional de execução de VM
 - O fluxo JNI é **opcional**: se indisponível, o sistema mantém compatibilidade via fallback Java.
 - A aceleração (`KVM`) é oportunista e auditável (`lastKvmEnabled`, `lastKvmReason`).
 - A string final do QEMU sempre passa por fechamento em `StartVM.buildCommand(...)`, evitando tokens nulos/vazios.
+
+---
+
+## Bootstrap Contract
+
+Contrato de bootstrap adotado para build/release:
+
+- **Caminho oficial (obrigatório):** assets TAR por ABI em `app/src/main/assets/bootstrap/*.tar` **+** `loader.apk` obrigatório no fluxo TAR.
+- **Validação oficial:** `tools/verify_bootstrap_assets.py` e `tools/ci/verify_bootstrap_contract.sh`.
+- **Cópia gerada do loader:** `:app:syncShellLoaderBootstrap` deve produzir `app/build/generated/bootstrapAssets/bootstrap/loader.apk` quando aplicável.
+
+Fallback permitido:
+
+- **JNI ZIP (`TermuxInstaller#nativeGetZip`) apenas para compatibilidade controlada**.
+- Fallback não redefine contrato oficial de release e não elimina obrigatoriedade do `loader.apk` no caminho TAR.

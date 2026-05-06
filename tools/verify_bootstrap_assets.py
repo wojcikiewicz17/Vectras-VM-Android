@@ -71,14 +71,14 @@ def env_flag_enabled(name: str) -> bool:
 def parse_args(argv: list[str]) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description=(
-            "Valida a presença dos bootstraps versionados e do loader gerado por syncShellLoaderBootstrap."
+            "Valida o contrato oficial de bootstrap (TAR assets + loader.apk obrigatório no caminho TAR)."
         )
     )
     parser.add_argument(
         "--strict-generated-assets",
         action="store_true",
         help=(
-            "Exige assets gerados (incluindo bootstrap/loader.apk) mesmo fora de CI. "
+            "Exige contrato oficial completo no caminho gerado (incluindo bootstrap/loader.apk obrigatório) mesmo fora de CI. "
             f"Também pode ser ativado por {STRICT_ENV_VAR}=1."
         ),
     )
@@ -148,19 +148,19 @@ def main(argv: list[str] | None = None) -> int:
         if loader_path is None:
             require_loader, reason = should_require_generated_loader(strict_generated_assets)
             message = (
-                "ausente (Termux habilitado): esperado em "
+                "CONTRATO VIOLADO (Termux habilitado): loader.apk obrigatório no caminho TAR; esperado em "
                 f"{(BOOTSTRAP_DIR / LOADER_APK_NAME).relative_to(ROOT)} "
                 f"ou {(GENERATED_BOOTSTRAP_DIR / LOADER_APK_NAME).relative_to(ROOT)}; "
-                "a cópia para gerados ocorre na task app:syncShellLoaderBootstrap"
+                "a cópia para gerados ocorre na task app:syncShellLoaderBootstrap e é obrigatória para cumprir o contrato oficial TAR"
             )
             if require_loader:
                 failures.append(f"{message} (falha fatal: {reason})")
             else:
-                print(f"  - AVISO {message} (não fatal: {reason})")
+                print(f"  - AVISO {message} (não fatal neste contexto: {reason})")
         else:
             loader_size = loader_path.stat().st_size
             if loader_size <= 0:
-                failures.append(f"vazio (Termux habilitado): {loader_path.relative_to(ROOT)}")
+                failures.append(f"CONTRATO VIOLADO (Termux habilitado): loader.apk vazio em {loader_path.relative_to(ROOT)}")
             else:
                 print(f"  - OK {loader_path.relative_to(ROOT)} size={loader_size} (Termux habilitado)")
 
