@@ -244,3 +244,9 @@ Este repositório não declara certificação ISO, conformidade ISO formal nem a
 - reports/vectra_grade_benchmarks.md
 - reports/device_runtime_smoke.md
 - reports/rmr_equivalence.md
+
+## RAFAELIA Termux Bootstrap (escopo atual)
+- Target atual: **Termux userland** com `./build_termux.sh`.
+- Não é ainda target freestanding com `_raf_start`.
+- Não é ainda entrega `.so` JNI.
+- Próximos targets planejados: `freestanding` e `librmr.so`.

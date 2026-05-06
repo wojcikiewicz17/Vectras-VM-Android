@@ -1,0 +1,21 @@
+# REPORT
+
+- Arquitetura detectada: `x86_64` (modo `host`).
+- Comandos usados:
+  - `make clean`
+  - `make CC=clang diagnose`
+  - `./build_termux.sh`
+- Erros encontrados:
+  - Ausência do target `diagnose` no `Makefile`.
+  - Falha de link por símbolos ausentes (`rmr_topo_guard_*`, `rmr_detect_arch`) por fonte não listada no manifesto RMR.
+- Arquivos alterados:
+  - `Makefile`
+  - `engine/rmr/sources_rmr_core.cmake`
+  - `engine/rmr/sources_rmr_core.mk`
+  - `build_termux.sh`
+  - `README.md`
+- Resultado final dos selftests:
+  - `make CC=clang diagnose`: passou com selftests executando e sem falhas.
+  - `./build_termux.sh`: terminou com `SELFTEST total_fail 0`.
+- Próximos gaps:
+  - Existe warning de variável possivelmente não inicializada em `engine/rmr/src/rmr_zipraf_core.c` (`tri_coherence`), recomendado ajustar para build sem warnings.
