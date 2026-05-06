@@ -363,6 +363,11 @@ public class StartVM {
         String command = buildCommand(params);
         if (command.isEmpty()) {
             lastStartError = "empty_command";
+            lastRuntimeContract = RuntimeContract.fromStartVmPhase(arch, effectiveMode.name(), "error:empty_command");
+            command = QemuExecConfig.resolveBinary(activity, arch);
+        } else {
+            lastStartError = "";
+            lastRuntimeContract = RuntimeContract.fromStartVmPhase(arch, effectiveMode.name(), "ready");
         }
         if ("init".equals(lastMountState)) {
             lastMountState = "none";

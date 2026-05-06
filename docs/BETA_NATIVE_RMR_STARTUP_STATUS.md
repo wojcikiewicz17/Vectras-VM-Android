@@ -1,17 +1,25 @@
 # BETA_NATIVE_RMR_STARTUP_STATUS
 
-Data: 2026-05-05 (UTC)
+Data: 2026-05-06 (UTC)
 
-## Auditoria NativeFastPath/RMR
+## Auditoria de `NativeFastPath` (`System.loadLibrary("vectra_core_accel")`)
 
-1. Se native carrega, usa native: **SIM** (`nativeReady`, chamadas `native*` com telemetria).
-2. Se native falha, fallback Java: **SIM** (`try/catch` + fallback explícito em múltiplos pontos).
-3. Falha nativa mata boot: **NÃO** (fallback resiliente).
-4. `telemetryNativeHit/fallbackHit`: **SIM** (incremento em caminhos de sucesso/fallback).
-5. `coreShutdown` quebra: **NÃO EVIDENCIADO** (preserva fallback e trata estado).
-6. RMR/BitRAF/BitOmega bloqueiam bootstrap: **NÃO EVIDENCIADO** na trilha de bootstrap por assets.
+1. Falha em `System.loadLibrary` derruba app: **READY (NÃO)**.
+   - Bloco `try/catch(Throwable)` captura erro de carga.
+   - `NATIVE_AVAILABLE=false`, `ARENA_AVAILABLE=false`, erro armazenado em `NATIVE_INIT_ERROR`.
+   - Runtime segue em fallback Java com log explícito.
+2. Falha de `nativeInit()` derruba app: **READY (NÃO)**.
+   - Status divergente de `NATIVE_OK_MAGIC` marca fallback sem abortar bootstrap.
 
-## Status
+## Auditoria RMR (`engine/rmr/include/rmr_unified_kernel.h` + `engine/rmr/src/rmr_unified_kernel.c`)
 
-- `NATIVE_FASTPATH_READY`
-- `RMR_STARTUP_READY`
+1. RMR é gate obrigatório de bootstrap: **READY (NÃO)**.
+   - Contrato expõe API de kernel e autodetect, mas sem acoplamento obrigatório ao bootstrap Java.
+   - Fluxo Java já opera com fallback quando aceleração nativa indisponível.
+2. Falha em recursos internos RMR causa bloqueio duro inicial: **READY (NÃO)**.
+   - Falhas de estado/args retornam códigos (`RMR_STATUS_ERR_*` / `RMR_KERNEL_ERR_*`) em vez de kill do processo.
+
+## Status final
+
+- **READY** — `NATIVE_FASTPATH_FALLBACK_SAFE`
+- **READY** — `RMR_NOT_BOOTSTRAP_GATE`
