@@ -218,7 +218,9 @@ fi
 
 should_fallback_to_system_gradle=false
 if [[ -f "$wrapper_log_file" ]]; then
-  if grep -Eqi '(Could not download|Download failed|distributionUrl|Could not (GET|HEAD)|Read timed out|Connection timed out|UnknownHostException|PKIX path building failed|Received status code [45][0-9]{2}|407 Proxy Authentication Required|403 Forbidden)' "$wrapper_log_file"; then
+  # Limit fallback to Gradle Wrapper bootstrap/distribution download failures.
+  # Do not retry normal task/test/compile failures with a different Gradle runtime.
+  if grep -Eqi '(https?://[^[:space:]]*/gradle-[0-9][^[:space:]]*-(bin|all)\.zip|distributionUrl|org\.gradle\.wrapper|Gradle Wrapper)' "$wrapper_log_file"     && grep -Eqi '(Could not download|Download failed|Could not (GET|HEAD)|Read timed out|Connection timed out|UnknownHostException|PKIX path building failed|Received status code [45][0-9]{2}|407 Proxy Authentication Required|403 Forbidden)' "$wrapper_log_file"; then
     should_fallback_to_system_gradle=true
   fi
 fi
