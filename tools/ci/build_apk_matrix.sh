@@ -41,10 +41,18 @@ echo "[OK] APK build finished"
 find app/build/outputs/apk -type f -name '*.apk' -print | sort
 
 echo "[OK] ABI and signature report"
+filter_badging_lines() {
+  if command -v rg >/dev/null 2>&1; then
+    rg "native-code|package:"
+  else
+    grep -E "native-code|package:"
+  fi
+}
+
 for apk in $(find app/build/outputs/apk -type f -name '*.apk' | sort); do
   echo "--- ${apk}"
   if command -v aapt >/dev/null 2>&1; then
-    aapt dump badging "$apk" | rg "native-code|package:"
+    aapt dump badging "$apk" | filter_badging_lines
   fi
   if command -v apksigner >/dev/null 2>&1; then
     apksigner verify --print-certs "$apk" || true
